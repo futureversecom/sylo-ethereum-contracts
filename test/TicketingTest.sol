@@ -1,4 +1,5 @@
 pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "truffle/Assert.sol";
 import "truffle/DeployedAddresses.sol";
@@ -172,5 +173,82 @@ contract TestSyloTicketing {
 
     Assert.equal(initialBalance, token.balanceOf(address(this)), "Expected balance to be restored after withdrawing");
   }
+
+  function createTicket() internal view returns (SyloTicketing.Ticket memory, uint256, bytes memory) {
+    uint256 receiverRand = 1;
+
+    SyloTicketing.Ticket memory t = SyloTicketing.Ticket({
+      sender: address(this),
+      receiver: address(this),
+      senderNonce: 1,
+      faceValue: 1 ether,
+      winProb: 2^256-1, // 100% chance,
+      expirationBlock: 0, // Never expires
+      receiverRandHash: keccak256(abi.encodePacked(receiverRand))
+    });
+
+    bytes memory sig; // TODO hard code sig, its not possible in solidity
+
+    return (t, receiverRand, sig);
+  }
+
+  function testRedeemingExpiredTicket() public {
+
+    (SyloTicketing.Ticket memory ticket, uint256 receiverRand, bytes memory sig) = createTicket();
+
+    ticket.expirationBlock = 1;
+
+    try ticketing.redeem(ticket, receiverRand, sig) {
+      Assert.fail("Ticket should be invalid");
+    } catch Error(string memory reason) {
+      Assert.equal(reason, "Ticket has expired", "Expected specific error");
+    }
+  }
+
+  function testRedeemingWithInvalidSig() public {
+
+    (SyloTicketing.Ticket memory ticket, uint256 receiverRand,) = createTicket();
+
+    bytes memory sig;
+
+    try ticketing.redeem(ticket, receiverRand, sig) {
+      Assert.fail("Ticket should be invalid");
+    } catch Error(string memory reason) {
+      Assert.equal(reason, "Ticket doesn't have a valid signature", "Expected specific error");
+    }
+  }
+
+  function testRedeemingInvalidReceiverRand() public {
+
+    (SyloTicketing.Ticket memory ticket, , bytes memory sig) = createTicket();
+
+    try ticketing.redeem(ticket, 2, sig) {
+      Assert.fail("Ticket should be invalid");
+    } catch Error(string memory reason) {
+      Assert.equal(reason, "Hash of receiverRand doesn't match receiverRandHash", "Expected specific error");
+    }
+  }
+
+
+  // TODO implement below tests once we can get a valid signature
+  // function testRedeemingNonWinningTicket() public {
+
+  // }
+
+  // function testRedeemingTicketWithNoDeposits() public {
+
+  // }
+
+  // function testRedeemingTicketTwice() public {
+
+  // }
+
+  // function testRedeemingTicketSuccessfully() public {
+
+  // }
+
+  // function testRedeemingTicketFromPenalty() public {
+
+  // }
 
 }
