@@ -12,7 +12,7 @@ const parseArtifact = (inFile, outDir, outFile, type = "abi") => {
             let jsonData
 
             if (type == "bin") {
-                jsonData = json.unlinked_binary
+                jsonData = json.bytecode
             } else {
                 jsonData = JSON.stringify(json.abi)
             }
