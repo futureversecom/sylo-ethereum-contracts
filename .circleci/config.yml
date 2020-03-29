@@ -1,0 +1,65 @@
+version: 2
+
+jobs:
+  build-contracts:
+    docker:
+      - image: circleci/node:10
+
+    steps:
+      - checkout
+
+      - restore_cache: 
+          key: dependency-cache-{{ checksum "package.json" }}
+
+      - run:
+          name: npm-install
+          command: npm i
+
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+
+      - run:
+          name: build contracts
+          command: npm run build
+
+      - run:
+          name: prepare outputs
+          command: node ./scripts/parseArtifacts.js
+  test-go-client:
+    docker:
+      - image: circleci/golang:1.14
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - go-pkg-cache={{ checksum "go-eth/go.sum" }}
+
+      - run:
+          name: fetch dependencies
+          command: 
+            cd go-eth
+            go mod download
+
+      - run:
+          name: run tests
+          command:
+            cd go-eth
+            go test
+
+      - save_cache:
+          key: go-pkg-cache={{ checksum "go-eth/go.sum" }}
+          paths: $GOPATH/pkg
+
+workflows:
+  build-and-test:
+    jobs:
+      - build-contracts
+      - test-go-client
+  version: 2
+
+
+
