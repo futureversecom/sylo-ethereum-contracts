@@ -41,23 +41,29 @@ func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) 
 	return 0, errors.New("Not implemented")
 }
 
-func NewSimClient(auth *bind.TransactOpts) (Client, SimBackend, error) {
+func NewSimClient(opts []bind.TransactOpts) (Client, SimBackend, error) {
 	var gasLimit uint64 = 50000000
+
+	if len(opts) < 1 {
+		return nil, nil, errors.New("Please provide at least one option")
+	}
 
 	genisis := make(core.GenesisAlloc)
 
-	genisis[auth.From] = core.GenesisAccount{Balance: big.NewInt(1000000000000)}
+	for i := 0; i < len(opts); i++ {
+		genisis[opts[i].From] = core.GenesisAccount{Balance: big.NewInt(1000000000000)}
+	}
 
 	sim := backends.NewSimulatedBackend(genisis, gasLimit)
 
 	backend := newSimBackend(sim)
 
-	tokenAddress, _, _, _ := contracts.DeploySyloToken(auth, backend)
+	tokenAddress, _, _, _ := contracts.DeploySyloToken(&opts[0], backend)
 	backend.Commit()
-	ticketingAddress, _, _, _ := contracts.DeploySyloTicketing(auth, backend, tokenAddress, big.NewInt(1))
+	ticketingAddress, _, _, _ := contracts.DeploySyloTicketing(&opts[0], backend, tokenAddress, big.NewInt(1))
 	backend.Commit()
 
-	client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, auth)
+	client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, &opts[0])
 	if err != nil {
 		return nil, nil, err
 	}
