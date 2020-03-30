@@ -39,16 +39,10 @@ jobs:
             - go-pkg-cache={{ checksum "go-eth/go.sum" }}
 
       - run:
-          name: fetch dependencies
-          command: 
-            cd go-eth
-            go mod download
-
-      - run:
           name: run tests
-          command:
-            cd go-eth
-            go test
+          command: |
+            cd ~/project/go-eth
+            go test ./...
 
       - save_cache:
           key: go-pkg-cache={{ checksum "go-eth/go.sum" }}
