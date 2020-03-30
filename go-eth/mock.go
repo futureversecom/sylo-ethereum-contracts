@@ -41,7 +41,7 @@ func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) 
 	return 0, errors.New("Not implemented")
 }
 
-func NewSimClient(opts []bind.TransactOpts) (Client, SimBackend, error) {
+func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var gasLimit uint64 = 50000000
 
 	if len(opts) < 1 {
@@ -63,10 +63,15 @@ func NewSimClient(opts []bind.TransactOpts) (Client, SimBackend, error) {
 	ticketingAddress, _, _, _ := contracts.DeploySyloTicketing(&opts[0], backend, tokenAddress, big.NewInt(1))
 	backend.Commit()
 
-	client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, &opts[0])
-	if err != nil {
-		return nil, nil, err
+	var clients []Client
+
+	for i := 0; i < len(opts); i++ {
+		client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, &opts[0])
+		clients[i] = client
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	return client, backend, nil
+	return clients, backend, nil
 }
