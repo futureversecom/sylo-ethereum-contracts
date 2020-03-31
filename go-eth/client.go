@@ -44,6 +44,9 @@ type Client interface {
 	Transfer(recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	TransferFrom(sender ethcommon.Address, recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 
+	// Alias for Approve but uses the ticketingAddress as the spender
+	ApproveTicketing(amount *big.Int) (*types.Transaction, error)
+
 	//Utils
 	LatestBlock() (*big.Int, error)
 	CheckTx(tx *types.Transaction, timeout time.Duration) (*big.Int, error)
@@ -129,6 +132,10 @@ func NewClientWithBackend(
 
 func (c *client) Address() ethcommon.Address {
 	return c.opts.From
+}
+
+func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
+	return c.Approve(c.ticketingAddress, amount)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
