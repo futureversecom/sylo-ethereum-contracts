@@ -67,7 +67,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 
 	for i := 0; i < len(opts); i++ {
 		client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, &opts[0])
-		clients[i] = client
+		clients= append(clients, client)
 		if err != nil {
 			return nil, nil, err
 		}
