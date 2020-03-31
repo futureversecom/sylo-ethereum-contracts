@@ -19,6 +19,8 @@ import (
 
 type Client interface {
 
+	Address() ethcommon.Address
+
 	// Ticketing methods
 	Deposits(arg0 ethcommon.Address) (struct {
 		Escrow   *big.Int
@@ -50,6 +52,8 @@ type Client interface {
 type client struct {
 	ticketingAddress ethcommon.Address
 	tokenAddress     ethcommon.Address
+
+	opts *bind.TransactOpts
 
 	// Embedded contracts
 	*contracts.SyloTicketingSession
@@ -119,7 +123,12 @@ func NewClientWithBackend(
 		backend:              backend,
 		SyloTicketingSession: TicketingSession,
 		SyloTokenSession:     TokenSession,
+		opts: opts,
 	}, nil
+}
+
+func (c *client) Address() ethcommon.Address {
+	return c.opts.From
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
