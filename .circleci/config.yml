@@ -25,6 +25,10 @@ jobs:
           command: npm run build
 
       - run:
+          name: test contracts
+          command: npm test
+
+      - run:
           name: prepare outputs
           command: node ./scripts/parseArtifacts.js
   test-go-client:
