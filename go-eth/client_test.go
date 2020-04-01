@@ -232,15 +232,29 @@ func TestClient_RedeemTicket(t *testing.T) {
 	sig, _ := hex.DecodeString("fe733162c570e2cb5cd9e0975110ea846e0cdba80c354344f6221d65ff9084ad29f37e486285023bb8c320ffe2c1e532635df485c4f3537993252f81fe943a2a00")
 	receiverRand := big.NewInt(1)
 
+	depositBefore, err := client.Deposits(ticket.Sender)
+	assert.Nil(t, err, "Failed to get deposits")
+
+	balanceBefore, err := client.BalanceOf(ticket.Receiver)
+	assert.Nil(t, err, "Failed to get balance")
+
 	tx, err := client.Redeem(ticket, receiverRand, sig)
 	assert.Nil(t, err, "Failed to redeem ticket")
-
 
 	backend.Commit()
 
 	duration, _ := time.ParseDuration("10s")
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm redeem")
+
+	depositAfter, err := client.Deposits(ticket.Sender)
+	assert.Nil(t, err, "Failed to get deposits")
+
+	balanceAfter, err := client.BalanceOf(ticket.Receiver)
+	assert.Nil(t, err, "Failed to get balance")
+
+	assert.Equal(t, new(big.Int).Add(depositAfter.Escrow, ticket.FaceValue).Cmp(depositBefore.Escrow), 0, "Deposit should decrease")
+	assert.Equal(t, new(big.Int).Add(balanceBefore, ticket.FaceValue).Cmp(balanceAfter), 0, "Balance should increase")
 }
 
 func TestClient_ReplayTicket(t *testing.T) {
