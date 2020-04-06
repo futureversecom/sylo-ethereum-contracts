@@ -23,7 +23,6 @@ contract Directory is Ownable {
      * before they can withdraw their stake
      */
     uint256 public unlockDuration;
-    uint256 public minimumStake;
 
     mapping(address => Stake) public stakes;
 
@@ -36,10 +35,6 @@ contract Directory is Ownable {
 
     function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
         unlockDuration = newUnlockDuration;
-    }
-
-    function setMinimumStake(uint256 newMinimumStake) public onlyOwner {
-        minimumStake = newMinimumStake;
     }
 
     function addStake(uint256 amount) public{
@@ -150,6 +145,6 @@ contract Directory is Ownable {
     }
 
     function isValidStake(Stake memory stake) private view returns (bool) {
-        return stake.amount > 0 && stake.unlockAt < block.number; // unlockAt needs to be same condition
+        return stake.amount > 0 && stake.unlockAt < block.number;
     }
 }
