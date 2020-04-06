@@ -89,8 +89,6 @@ contract Directory is Ownable {
     function unstakeTo(address account) public {
         Stake storage stake = getStake(msg.sender);
 
-        // require(stake.unlockAt > 0, "Stake not unlocked");
-        // require(stake.unlockAt <= block.number, "Unlock period not complete");
         require(isValidStake(stake), "Stake not withdrawable");
 
         uint256 amount = stake.amount;
@@ -101,6 +99,7 @@ contract Directory is Ownable {
         for (uint256 i = 0; i < stakers.length; i++){
             if (stakers[i] == msg.sender) {
                 stakers[i] = address(0);
+                break;
             }
         }
 
@@ -114,7 +113,7 @@ contract Directory is Ownable {
 
         for (uint256 i = 0; i < stakers.length; i++) {
 
-            Stake memory stake =stakes[stakers[i]];
+            Stake memory stake = stakes[stakers[i]];
 
             if (!isValidStake(stake)) {
                 continue;
