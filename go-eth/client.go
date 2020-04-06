@@ -2,6 +2,8 @@ package eth
 
 //go:generate abigen --abi ../abi/SyloTicketing.abi --pkg contracts --type SyloTicketing --out contracts/syloTicketing.go --bin ../bin/SyloTicketing.bin
 //go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/syloToken.go --bin ../bin/SyloToken.bin
+//go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
+//go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
 
 import (
 	"context"
@@ -18,22 +20,24 @@ import (
 )
 
 type Client interface {
-
 	Address() ethcommon.Address
 
 	// Ticketing methods
-	Deposits(arg0 ethcommon.Address) (struct {
+	Deposits(account ethcommon.Address) (struct {
 		Escrow   *big.Int
 		Penalty  *big.Int
 		UnlockAt *big.Int
 	}, error)
-	UnlockDuration() (*big.Int, error)
+	//UnlockDuration() (*big.Int, error)  // Conflicting names
 	DepositEscrow(amount *big.Int) (*types.Transaction, error)
+	DepositEscrowFor(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	DepositPenalty(amount *big.Int) (*types.Transaction, error)
-	Lock() (*types.Transaction, error)
-	Unlock() (*types.Transaction, error)
+	DepositPenaltyFor(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
+	UnlockDeposits() (*types.Transaction, error)
+	LockDeposits() (*types.Transaction, error)
 	Redeem(ticket contracts.SyloTicketingTicket, receiverRand *big.Int, sig []byte) (*types.Transaction, error)
 	Withdraw() (*types.Transaction, error)
+	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
 
 	// Token methods
 	Allowance(owner ethcommon.Address, spender ethcommon.Address) (*big.Int, error)
@@ -44,8 +48,26 @@ type Client interface {
 	Transfer(recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	TransferFrom(sender ethcommon.Address, recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 
-	// Alias for Approve but uses the ticketingAddress as the spender
+	// Directory methods
+	Stakes(account ethcommon.Address) (struct {
+		Amount   *big.Int
+		UnlockAt *big.Int
+	}, error)
+	AddStake(amount *big.Int) (*types.Transaction, error)
+	AddStakeFor(amount *big.Int, staker ethcommon.Address) (*types.Transaction, error)
+	UnlockStake() (*types.Transaction, error)
+	LockStake() (*types.Transaction, error)
+	Unstake() (*types.Transaction, error)
+	UnstakeTo(account ethcommon.Address) (*types.Transaction, error)
+	Scan(rand *big.Int) (ethcommon.Address, error)
+
+	// Listings methods
+	SetListing(contracts.ListingsListing) (*types.Transaction, error)
+	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
+
+	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 	ApproveTicketing(amount *big.Int) (*types.Transaction, error)
+	ApproveDirectory(amount *big.Int) (*types.Transaction, error)
 
 	//Utils
 	LatestBlock() (*big.Int, error)
@@ -55,12 +77,16 @@ type Client interface {
 type client struct {
 	ticketingAddress ethcommon.Address
 	tokenAddress     ethcommon.Address
+	directoryAddress ethcommon.Address
+	listingsAddress  ethcommon.Address
 
 	opts *bind.TransactOpts
 
 	// Embedded contracts
 	*contracts.SyloTicketingSession
 	*contracts.SyloTokenSession
+	*contracts.DirectorySession
+	*contracts.ListingsSession
 
 	backend Backend
 }
@@ -69,6 +95,8 @@ func NewClient(
 	ctx context.Context,
 	ticketingAddress ethcommon.Address,
 	tokenAddress ethcommon.Address,
+	directoryAddress ethcommon.Address,
+	listingsAddress ethcommon.Address,
 	eth *ethclient.Client,
 	opts *bind.TransactOpts,
 ) (Client, error) {
@@ -88,6 +116,8 @@ func NewClient(
 	return NewClientWithBackend(
 		ticketingAddress,
 		tokenAddress,
+		directoryAddress,
+		listingsAddress,
 		backend,
 		opts,
 	)
@@ -96,6 +126,8 @@ func NewClient(
 func NewClientWithBackend(
 	tokenAddress ethcommon.Address,
 	ticketingAddress ethcommon.Address,
+	directoryAddress ethcommon.Address,
+	listingsAddress ethcommon.Address,
 	backend Backend,
 	opts *bind.TransactOpts,
 ) (Client, error) {
@@ -120,13 +152,37 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
+	directory, err := contracts.NewDirectory(directoryAddress, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	DirectorySession := &contracts.DirectorySession{
+		Contract:     directory,
+		TransactOpts: *opts,
+	}
+
+	listings, err := contracts.NewListings(listingsAddress, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	ListingsSession := &contracts.ListingsSession{
+		Contract:     listings,
+		TransactOpts: *opts,
+	}
+
 	return &client{
 		ticketingAddress:     ticketingAddress,
 		tokenAddress:         tokenAddress,
+		directoryAddress:     directoryAddress,
+		listingsAddress:      listingsAddress,
 		backend:              backend,
 		SyloTicketingSession: TicketingSession,
 		SyloTokenSession:     TokenSession,
-		opts: opts,
+		DirectorySession:     DirectorySession,
+		ListingsSession:      ListingsSession,
+		opts:                 opts,
 	}, nil
 }
 
@@ -136,6 +192,10 @@ func (c *client) Address() ethcommon.Address {
 
 func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
 	return c.Approve(c.ticketingAddress, amount)
+}
+
+func (c *client) ApproveDirectory(amount *big.Int) (*types.Transaction, error) {
+	return c.Approve(c.directoryAddress, amount)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
