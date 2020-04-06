@@ -9,7 +9,8 @@ contract Listings {
 
   struct Listing {
     bytes32 syloId; // SyloId to verify identity once connected
-    bytes32 multiAddr; // MultiAddr to connect to the account
+    string multiAddr; // MultiAddr to connect to the account
+    // TODO store tags
   }
 
   mapping(address => Listing) listings;

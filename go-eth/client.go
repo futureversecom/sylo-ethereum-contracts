@@ -1,7 +1,7 @@
 package eth
 
-//go:generate abigen --abi ../abi/SyloTicketing.abi --pkg contracts --type SyloTicketing --out contracts/syloTicketing.go --bin ../bin/SyloTicketing.bin
-//go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/syloToken.go --bin ../bin/SyloToken.bin
+//go:generate abigen --abi ../abi/SyloTicketing.abi --pkg contracts --type SyloTicketing --out contracts/ticketing.go --bin ../bin/SyloTicketing.bin
+//go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/token.go --bin ../bin/SyloToken.bin
 //go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
 //go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
 

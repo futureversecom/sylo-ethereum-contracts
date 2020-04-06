@@ -81,6 +81,32 @@ contract TestSyloTicketing {
     Assert.equal(token.balanceOf(address(this)), initialBalance - amount * 2, "Expected token balance to be reduced");
   }
 
+  function testDepositEscrowFor() public {
+    uint256 amount = 1 ether;
+    uint256 initialBalance = token.balanceOf(address(this));
+    ticketing.depositEscrowFor(amount, 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
+
+    (uint256 escrow ,,) = ticketing.deposits(0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
+    (uint256 escrow2 ,,) = ticketing.deposits(address(this));
+
+    Assert.equal(escrow, amount, "Expected correct escrow amount");
+    Assert.equal(escrow2, 0, "Expected escrow of 0");
+    Assert.equal(token.balanceOf(address(this)), initialBalance - amount, "Expected correct balance");
+  }
+
+  function testPenaltyEscrowFor() public {
+    uint256 amount = 1 ether;
+    uint256 initialBalance = token.balanceOf(address(this));
+    ticketing.depositPenaltyFor(amount, 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
+
+    (,uint256 penalty,) = ticketing.deposits(0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
+    (,uint256 penalty2,) = ticketing.deposits(address(this));
+
+    Assert.equal(penalty, amount, "Expected correct escrow amount");
+    Assert.equal(penalty2, 0, "Expected escrow of 0");
+    Assert.equal(token.balanceOf(address(this)), initialBalance - amount, "Expected correct balance");
+  }
+
   function testWithdrawWithoutUnlock() public {
     testDepositEscrow();
 
