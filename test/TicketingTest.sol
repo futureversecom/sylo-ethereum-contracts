@@ -31,7 +31,7 @@ contract TestSyloTicketing {
     uint256 initialBalance = token.balanceOf(address(this));
     ticketing.depositEscrow(amount);
 
-    (uint256 escrow, ,) = ticketing.getDepositDetails(address(this));
+    (uint256 escrow, ,) = ticketing.deposits(address(this));
 
     Assert.equal(escrow, amount, "Expected correct escrow amount");
     Assert.equal(token.balanceOf(address(this)), initialBalance - amount, "Expected token balance to be reduced");
@@ -42,7 +42,7 @@ contract TestSyloTicketing {
     uint256 initialBalance = token.balanceOf(address(this));
     ticketing.depositPenalty(amount);
 
-    (,uint256 penalty,) = ticketing.getDepositDetails(address(this));
+    (,uint256 penalty,) = ticketing.deposits(address(this));
 
     Assert.equal(penalty, amount, "Expected correct penalty amount");
     Assert.equal(token.balanceOf(address(this)), initialBalance - amount, "Expected token balance to be reduced");
@@ -53,7 +53,7 @@ contract TestSyloTicketing {
     ticketing.depositEscrow(amount);
     ticketing.depositEscrow(amount);
 
-    (uint256 escrow, ,) = ticketing.getDepositDetails(address(this));
+    (uint256 escrow, ,) = ticketing.deposits(address(this));
 
     Assert.equal(escrow, amount * 2, "Expected correct escrow amount");
   }
@@ -63,7 +63,7 @@ contract TestSyloTicketing {
     ticketing.depositPenalty(amount);
     ticketing.depositPenalty(amount);
 
-    (,uint256 penalty,) = ticketing.getDepositDetails(address(this));
+    (,uint256 penalty,) = ticketing.deposits(address(this));
 
     Assert.equal(penalty, amount * 2, "Expected correct penalty amount");
   }
@@ -74,7 +74,7 @@ contract TestSyloTicketing {
     ticketing.depositEscrow(amount);
     ticketing.depositPenalty(amount);
 
-    (uint256 escrow ,uint256 penalty,) = ticketing.getDepositDetails(address(this));
+    (uint256 escrow ,uint256 penalty,) = ticketing.deposits(address(this));
 
     Assert.equal(escrow, amount, "Expected correct escrow amount");
     Assert.equal(penalty, amount, "Expected correct penalty amount");
@@ -92,7 +92,7 @@ contract TestSyloTicketing {
   }
 
   function testUnlockWithoutDeposit() public {
-    try ticketing.unlock() {
+    try ticketing.unlockDeposits() {
       Assert.fail("unlock should fail");
     } catch Error(string memory reason) {
       Assert.equal(reason, "Nothing to withdraw", "Expected specific error");
@@ -102,9 +102,9 @@ contract TestSyloTicketing {
   function testUnlockWithDeposit() public {
     testDepositEscrow();
 
-    ticketing.unlock();
+    ticketing.unlockDeposits();
 
-    (,, uint256 unlockAt) = ticketing.getDepositDetails(address(this));
+    (,, uint256 unlockAt) = ticketing.deposits(address(this));
 
     Assert.equal(block.number + defaultUnlockDuration, unlockAt, "Expected a different unlock time");
   }
@@ -112,9 +112,9 @@ contract TestSyloTicketing {
   function testUnlockWhileUnlocked() public {
     testDepositEscrow();
 
-    ticketing.unlock();
+    ticketing.unlockDeposits();
 
-    try ticketing.unlock() {
+    try ticketing.unlockDeposits() {
       Assert.fail("unlock should fail");
     } catch Error(string memory reason) {
       Assert.equal(reason, "Unlock already in progress", "Expected specific error");
@@ -123,7 +123,7 @@ contract TestSyloTicketing {
 
   function testLockWhileLocked() public {
 
-    try ticketing.lock() {
+    try ticketing.lockDeposits() {
       Assert.fail("lock should fail");
     } catch Error(string memory reason) {
       Assert.equal(reason, "Not unlocking, cannot lock", "Expected specific error");
@@ -133,11 +133,11 @@ contract TestSyloTicketing {
   function testLockWhileInUnlockingPeriod() public {
     testDepositEscrow();
 
-    ticketing.unlock();
+    ticketing.unlockDeposits();
 
-    ticketing.lock();
+    ticketing.lockDeposits();
 
-    (,, uint256 unlockAt) = ticketing.getDepositDetails(address(this));
+    (,, uint256 unlockAt) = ticketing.deposits(address(this));
     Assert.equal(0, unlockAt, "Expected an unlock time of 0");
   }
 
@@ -146,33 +146,34 @@ contract TestSyloTicketing {
 
     testDepositEscrow();
 
-    ticketing.unlock();
+    ticketing.unlockDeposits();
 
-    ticketing.lock();
+    ticketing.lockDeposits();
 
-    (,, uint256 unlockAt) = ticketing.getDepositDetails(address(this));
+    (,, uint256 unlockAt) = ticketing.deposits(address(this));
     Assert.equal(0, unlockAt, "Expected an unlock time of 0");
   }
 
-  function testSuccessfulWithdraw() public {
-    ticketing.setUnlockDuration(0);
+  /* Disabled because we cannot advance the block in solidity tests */
+  // function testSuccessfulWithdraw() public {
+  //   ticketing.setUnlockDuration(0);
 
-    uint256 initialBalance = token.balanceOf(address(this));
+  //   uint256 initialBalance = token.balanceOf(address(this));
 
-    testDepositEscrow();
-    testDepositPenalty();
+  //   testDepositEscrow();
+  //   testDepositPenalty();
 
-    ticketing.unlock();
+  //   ticketing.unlockDeposits();
 
-    ticketing.withdraw();
+  //   ticketing.withdraw();
 
-    (uint256 escrow ,uint256 penalty,) = ticketing.getDepositDetails(address(this));
+  //   (uint256 escrow ,uint256 penalty,) = ticketing.deposits(address(this));
 
-    Assert.equal(0, escrow, "Expected escrow to be 0");
-    Assert.equal(0, penalty, "Expected penalty to be 0");
+  //   Assert.equal(0, escrow, "Expected escrow to be 0");
+  //   Assert.equal(0, penalty, "Expected penalty to be 0");
 
-    Assert.equal(initialBalance, token.balanceOf(address(this)), "Expected balance to be restored after withdrawing");
-  }
+  //   Assert.equal(initialBalance, token.balanceOf(address(this)), "Expected balance to be restored after withdrawing");
+  // }
 
   /* Hard coded values are generated in github.com/dn3010/go-probabilistic-micropayments */
   function createTicket() internal pure returns (SyloTicketing.Ticket memory, uint256, bytes memory) {

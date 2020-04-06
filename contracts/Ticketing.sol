@@ -14,7 +14,7 @@ contract SyloTicketing is Ownable {
         uint256 escrow; // Balance of users escrow
         uint256 penalty; // Balance of users penalty
 
-        uint256 unlockAt; // Block a user can withdraw their balances
+        uint256 unlockAt; // Block number a user can withdraw their balances
     }
 
     // Properties are ordered to decrease storage size
@@ -56,7 +56,11 @@ contract SyloTicketing is Ownable {
     }
 
     function depositEscrow(uint256 amount) public {
-        Deposit storage deposit = getDeposit(msg.sender);
+        return depositEscrowFor(amount, msg.sender);
+    }
+
+    function depositEscrowFor(uint256 amount, address account) public {
+        Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
         deposit.escrow += amount;
@@ -65,7 +69,12 @@ contract SyloTicketing is Ownable {
     }
 
     function depositPenalty(uint256 amount) public {
-        Deposit storage deposit = getDeposit(msg.sender);
+        return depositPenaltyFor(amount, msg.sender);
+    }
+
+
+    function depositPenaltyFor(uint256 amount, address account) public {
+        Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
         deposit.penalty += amount;
@@ -74,7 +83,7 @@ contract SyloTicketing is Ownable {
     }
 
     // Unlock deposits, starting the withdrawl process
-    function unlock() public returns (uint256) {
+    function unlockDeposits() public returns (uint256) {
 
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.escrow > 0 || deposit.penalty > 0, "Nothing to withdraw");
@@ -86,7 +95,7 @@ contract SyloTicketing is Ownable {
     }
 
     // Cancel the withdrawl process
-    function lock() public {
+    function lockDeposits() public {
 
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.unlockAt != 0, "Not unlocking, cannot lock");
@@ -94,12 +103,16 @@ contract SyloTicketing is Ownable {
         deposit.unlockAt = 0;
     }
 
-    // Complete the withdrawl process and withdraw the deposits
     function withdraw() public {
+        return withdrawTo(msg.sender);
+    }
+
+    // Complete the withdrawl process and withdraw the deposits
+    function withdrawTo(address account) public {
 
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.unlockAt > 0, "Deposits not unlocked");
-        require(deposit.unlockAt >= block.number, "Unlock period not complete"); // TODO should this be '>' or '>='
+        require(deposit.unlockAt < block.number, "Unlock period not complete");
 
         uint256 amount = deposit.escrow + deposit.penalty;
 
@@ -110,7 +123,7 @@ contract SyloTicketing is Ownable {
         // Re-lock so if more funds are deposited they must be unlocked again
         deposit.unlockAt = 0;
 
-        _token.transfer(msg.sender, amount);
+        _token.transfer(account, amount);
     }
 
     function redeem(
@@ -172,15 +185,6 @@ contract SyloTicketing is Ownable {
 
     function getDeposit(address account) private view returns (Deposit storage) {
         return deposits[account];
-    }
-
-    // Supplementry to getDeposit because ABI decoder only has experimental support for returning structs
-    function getDepositDetails(
-        address account
-    ) public view returns (uint256 escrow, uint256 penalty, uint256 unlockAt) {
-        Deposit storage deposit = getDeposit(account);
-
-        return (deposit.escrow, deposit.penalty, deposit.unlockAt);
     }
 
     function isValidTicketSig(

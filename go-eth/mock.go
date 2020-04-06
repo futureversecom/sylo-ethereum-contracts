@@ -62,12 +62,22 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend.Commit()
 	ticketingAddress, _, _, _ := contracts.DeploySyloTicketing(&opts[0], backend, tokenAddress, big.NewInt(1))
 	backend.Commit()
+	directoryAddress, _, _, _ := contracts.DeployDirectory(&opts[0], backend, tokenAddress, big.NewInt(1))
+	backend.Commit()
+	listingsAddress, _, _, _ := contracts.DeployListings(&opts[0], backend)
 
 	var clients []Client
 
 	for i := 0; i < len(opts); i++ {
-		client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, &opts[0])
-		clients= append(clients, client)
+		client, err := NewClientWithBackend(
+			tokenAddress,
+			ticketingAddress,
+			directoryAddress,
+			listingsAddress,
+			backend,
+			&opts[0],
+		)
+		clients = append(clients, client)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -21,6 +21,8 @@ import (
 var abis = []string{
 	contracts.SyloTicketingABI,
 	contracts.SyloTokenABI,
+	contracts.DirectoryABI,
+	contracts.ListingsABI,
 }
 
 type Backend interface {
