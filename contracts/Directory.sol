@@ -15,6 +15,8 @@ contract Directory is Ownable {
         uint256 unlockAt; // Block number a user can withdraw their stake
     }
 
+    uint256 constant maxU256 = 2^256-1;
+
     /* ERC 20 compatible token we are dealing with */
     IERC20 _token;
 
@@ -107,7 +109,7 @@ contract Directory is Ownable {
 
     function scan(uint256 rand) public view returns (address) {
 
-        uint256 expectedVal = getTotalStake() * rand / (2^256-1);
+        uint256 expectedVal = getTotalStake() * rand / maxU256;
         uint256 sum;
 
         for (uint256 i = 0; i < stakers.length; i++) {

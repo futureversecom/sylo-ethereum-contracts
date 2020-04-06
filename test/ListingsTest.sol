@@ -14,13 +14,12 @@ contract ListingsTest {
 
   function testSettingListing() public {
 
-    Listings.Listing memory listing = Listings.Listing(0x0, "/ip4/127.0.0.1/udp/1234");
+    Listings.Listing memory listing = Listings.Listing("/ip4/127.0.0.1/udp/1234");
 
     listings.setListing(listing);
 
     Listings.Listing memory retrieved  = listings.getListing(address(this));
 
-    Assert.equal(listing.syloId, retrieved.syloId, "Expected listing to be set");
     Assert.equal(listing.multiAddr, retrieved.multiAddr, "Expected listing to be set");
   }
 }
