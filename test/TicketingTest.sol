@@ -1,4 +1,5 @@
 pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "truffle/Assert.sol";
 import "truffle/DeployedAddresses.sol";
@@ -173,4 +174,59 @@ contract TestSyloTicketing {
     Assert.equal(initialBalance, token.balanceOf(address(this)), "Expected balance to be restored after withdrawing");
   }
 
+  /* Hard coded values are generated in github.com/dn3010/go-probabilistic-micropayments */
+  function createTicket() internal pure returns (SyloTicketing.Ticket memory, uint256, bytes memory) {
+    uint256 receiverRand = 1;
+
+    SyloTicketing.Ticket memory t = SyloTicketing.Ticket({
+      sender: 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15,
+      receiver: 0x84f8579a947c631362c47d534f26d8E46d400157,
+      senderNonce: 1,
+      faceValue: 1,
+      winProb: 2^256-1, // 100% chance,
+      expirationBlock: 0, // Never expires
+      receiverRandHash: keccak256(abi.encodePacked(receiverRand))
+    });
+
+    bytes memory sig = hex"523a703ac7588034d851be80eb2d1ca1a124154dac62930cc29a9a8eb0085c066889d26f36871af786871b1fbea42530babc6856784ca2adfef48db5ba56a03401";
+
+    return (t, receiverRand, sig);
+  }
+
+  function testRedeemingExpiredTicket() public {
+
+    (SyloTicketing.Ticket memory ticket, uint256 receiverRand, bytes memory sig) = createTicket();
+
+    ticket.expirationBlock = 1;
+
+    try ticketing.redeem(ticket, receiverRand, sig) {
+      Assert.fail("Ticket should be invalid");
+    } catch Error(string memory reason) {
+      Assert.equal(reason, "Ticket has expired", "Expected specific error");
+    }
+  }
+
+  function testRedeemingWithInvalidSig() public {
+
+    (SyloTicketing.Ticket memory ticket, uint256 receiverRand,) = createTicket();
+
+    bytes memory sig;
+
+    try ticketing.redeem(ticket, receiverRand, sig) {
+      Assert.fail("Ticket should be invalid");
+    } catch Error(string memory reason) {
+      Assert.equal(reason, "ECDSA: invalid signature length", "Expected specific error");
+    }
+  }
+
+  function testRedeemingInvalidReceiverRand() public {
+
+    (SyloTicketing.Ticket memory ticket, , bytes memory sig) = createTicket();
+
+    try ticketing.redeem(ticket, 2, sig) {
+      Assert.fail("Ticket should be invalid");
+    } catch Error(string memory reason) {
+      Assert.equal(reason, "Hash of receiverRand doesn't match receiverRandHash", "Expected specific error");
+    }
+  }
 }
