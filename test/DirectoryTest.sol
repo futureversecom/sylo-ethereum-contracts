@@ -20,6 +20,12 @@ contract TestDirectory {
     token.approve(address(directory), 100 ether);
   }
 
+  function testScanEmptyDirectory() public {
+
+    Assert.equal(directory.scan(0), address(0), "Expected null address");
+    Assert.equal(directory.scan(max), address(0), "Expected null address");
+  }
+
   function testDepositStake() public {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
