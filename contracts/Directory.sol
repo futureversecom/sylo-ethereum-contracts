@@ -1,4 +1,5 @@
 pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../contracts/Token.sol";
@@ -12,7 +13,21 @@ contract Directory is Ownable {
 
     struct Stake {
         uint256 amount; // Amount of the stake
-        uint256 unlockAt; // Block number a user can withdraw their stake
+
+        uint256 leftAmount; // Value of stake on left branch
+        uint256 rightAmount; // Value of stake on right branch
+
+        address stakee; // Address of peer that offers services
+
+        bytes32 parent; // A hash of staker + stakee
+        bytes32 left; // Pointer to left child
+        bytes32 right; // Pointer to right child
+    }
+
+    struct Unlock {
+        uint256 amount; // Amount of stake unlocking
+
+        uint256 unlockAt; // Block number the stake becomes withdrawable
     }
 
     uint256 constant maxU256 = 2^256-1;
@@ -26,9 +41,15 @@ contract Directory is Ownable {
      */
     uint256 public unlockDuration;
 
-    mapping(address => Stake) public stakes;
+    mapping(bytes32 => Stake) public stakes;
 
-    address[] stakers;
+    // Keeps track of stakees stake amount
+    mapping(address => uint256) public stakees;
+
+    // Funds that are in the process of being unlocked
+    mapping(bytes32 => Unlock) public unlockings;
+
+    bytes32 root;
 
     constructor(IERC20 token, uint256 _unlockDuration) public {
         _token = token;
@@ -43,109 +64,286 @@ contract Directory is Ownable {
         return addStakeFor(amount, msg.sender);
     }
 
-    function addStakeFor(uint256 amount, address staker) public {
+    function addStakeFor(uint256 amount, address stakee) public {
 
-        require(staker != address(0), "Address is null");
+        require(stakee != address(0), "Address is null");
         require(amount != 0, "Cannot stake nothing");
 
-        Stake storage stake = getStake(staker);
+        bytes32 key = getKey(msg.sender, stakee);
 
-        require(stake.unlockAt == 0, "Cannot stake while unlocking");
+        Stake storage stake = stakes[key];
 
+        // New stake
         if (stake.amount == 0) {
-            stakers.push(staker);
+
+            // Find the node to add a new child
+            bytes32 parent = root;
+            Stake storage current = stakes[parent];
+            while(parent != bytes32(0)) {
+                bytes32 next = current.leftAmount < current.rightAmount
+                    ? current.left
+                    : current.right;
+
+                if (next == bytes32(0)) {
+                    break;
+                }
+
+                parent = next;
+                current = stakes[parent];
+            }
+
+            // Set the new child on the node
+            setChild(current, bytes32(0), key);
+
+            stake.parent = parent;
+            stake.stakee = stakee;
         }
 
-        stake.amount += amount;
+        // First stake lets set the root
+        if (stake.parent == bytes32(0)) {
+            root = key;
+        }
 
-        // DO Last
+        updateStakeAmount(key, stake, amount);
+
         _token.transferFrom(msg.sender, address(this), amount);
     }
 
-    /* TODO allow partial withdrawl of stake */
-    function unlockStake(/*uint256 amount*/) public returns (uint256) {
-
-        Stake storage stake = getStake(msg.sender);
-        require(stake.amount > 0, "Nothing to unstake");
-        require(stake.unlockAt == 0, "Already unlocking");
-
-        stake.unlockAt = block.number + unlockDuration;
-
-        return stake.unlockAt;
+    function unlockStake(uint256 amount) public returns (uint256) {
+        return unlockStakeFor(amount, msg.sender);
     }
 
-    function lockStake() public {
-        Stake storage stake = getStake(msg.sender);
+    function unlockStakeFor(uint256 amount, address stakee) public returns (uint256) {
 
-        require(stake.unlockAt > 0, "Not unlocking cannot lock");
+        bytes32 key = getKey(msg.sender, stakee);
+        Stake storage stake = stakes[key];
 
-        stake.unlockAt = 0;
+        require(stake.amount > 0, "Nothing to unstake");
+        require(stake.amount >= amount, "Cannot unlock more than staked");
+
+        updateStakeAmount(key, stake, -amount);
+
+        // All stake being withdrawn, update the tree
+        if (stake.amount == 0) {
+            bytes32 child = stake.leftAmount > stake.rightAmount ? stake.left : stake.right;
+
+            Stake storage parent = stakes[stake.parent];
+
+            if (child == bytes32(0)) {
+                // Stake is a leaf, we need to disconnect it from the parent
+                setChild(stake, key, bytes32(0));
+            } else {
+                Stake storage current = stakes[child];
+
+                // Find the most valuable leaf
+                while(true) {
+                    bytes32 next = current.leftAmount > current.rightAmount ? current.left : current.right;
+                    if (next == bytes32(0)) {
+                        break;
+                    }
+                    child = next;
+                    current = stakes[next];
+                }
+
+                bytes32 currentParent = current.parent;
+
+                // Move leaf to position of removed stake
+                setChild(parent, key, child);
+                current.parent = stake.parent;
+
+                // Update the children of current to be that of what the removed stake was
+                if (currentParent != key) {
+
+                    // Move the children of stake to current
+                    fixl(stake, child, current);
+                    fixr(stake, child, current);
+
+                    // Place stake where current was and 
+                    stake.parent = currentParent; // Set parent
+                    setChild(stakes[currentParent], currentParent, key); // Set parents child
+
+                    // Update all the values
+                    applyStakeChange(key, stake, -current.amount, current.parent);
+
+                    // Remove reference to the old stake
+                    setChild(stakes[currentParent], key, bytes32(0));
+                } else if (stake.left == child) {
+                    fixr(stake, child, current);
+                } else {
+                    fixl(stake, child, current);
+                }
+
+                // Update the root if thats changed
+                if (current.parent == bytes32(0)) {
+                    root = child;
+                }
+            }
+
+            // Now that the node is unlinked from any other nodes, we can remove it
+            delete stakes[key];
+        }
+
+        // Keep track of when the stake can be withdrawn
+        Unlock storage unlock = unlockings[key];
+
+        uint256 unlockAt = block.number + unlockDuration;
+        if (unlock.unlockAt < unlockAt) {
+            unlock.unlockAt = unlockAt;
+        }
+
+        unlock.amount += amount;
+
+        return unlockAt;
+    }
+
+    function lockStake(uint256 amount) public {
+        return lockStakeFor(amount, msg.sender);
+    }
+
+    // Reverse unlocking a certain amount of stake
+    function lockStakeFor(uint256 amount, address stakee) public {
+        bytes32 key = getKey(msg.sender, stakee);
+        Stake storage stake = stakes[key];
+
+        pullUnlocking(key, amount);
+
+        updateStakeAmount(key, stake, amount);
     }
 
     function unstake() public {
-        return unstakeTo(msg.sender);
+        return unstakeFor(msg.sender);
     }
 
-    function unstakeTo(address account) public {
-        Stake storage stake = getStake(msg.sender);
+    function unstakeFor(address stakee) public {
+        bytes32 key = getKey(msg.sender, stakee);
 
-        require(isValidStake(stake), "Stake not withdrawable");
+        Unlock storage unlock = unlockings[key];
 
-        uint256 amount = stake.amount;
-        stake.amount = 0;
-        stake.unlockAt = 0;
+        require(unlock.unlockAt < block.number, "Stake not yet unlocked");
+        require(unlock.amount > 0, "No amount to unlock");
 
-        // This is super inefficient, as users unstake the array doesn't get any smaller
-        for (uint256 i = 0; i < stakers.length; i++){
-            if (stakers[i] == msg.sender) {
-                stakers[i] = address(0);
-                break;
-            }
-        }
-
-        _token.transfer(account, amount);
+        _token.transfer(msg.sender, unlock.amount);
     }
 
     function scan(uint256 rand) public view returns (address) {
 
+        // Nothing is staked
+        if (root == bytes32(0)) {
+            return address(0);
+        }
+
         uint256 expectedVal = getTotalStake() * rand / maxU256;
-        uint256 sum;
 
-        for (uint256 i = 0; i < stakers.length; i++) {
+        bytes32 current = root;
 
-            Stake memory stake = stakes[stakers[i]];
+        while(true) {
 
-            if (!isValidStake(stake)) {
+            Stake storage stake = stakes[current];
+
+            if (expectedVal < stake.leftAmount) {
+                current = stake.left;
                 continue;
             }
 
-            sum += stake.amount;
+            expectedVal -= stake.leftAmount;
 
-            if (expectedVal <= sum) {
-                return stakers[i];
+            if (expectedVal <= stake.amount) {
+                return stake.stakee;
             }
+
+            expectedVal -= stake.amount;
+
+            current = stake.right;
         }
 
         return address(0);
     }
 
-    function getStake(address account) private view returns (Stake storage) {
-        return stakes[account];
+    function getKey(address staker, address stakee) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(staker, stakee));
+    }
+
+    function getStake(address stakee) private view returns (Stake storage) {
+        return stakes[getKey(msg.sender, stakee)];
     }
 
     function getTotalStake() public view returns (uint256) {
-        uint256 totalStake;
-        for (uint256 i = 0; i < stakers.length; i++) {
-            Stake memory stake = stakes[stakers[i]];
-            if (isValidStake(stake)) {
-                totalStake += stake.amount;
-            }
+        if (root == bytes32(0)) {
+            return 0;
         }
 
-        return totalStake;
+        Stake storage stake = stakes[root];
+
+        return stake.amount + stake.leftAmount + stake.rightAmount;
     }
 
-    function isValidStake(Stake memory stake) private view returns (bool) {
-        return stake.amount > 0 && stake.unlockAt < block.number;
+    function pullUnlocking(bytes32 key, uint256 amount) private {
+        Unlock storage unlock = unlockings[key];
+
+        // TODO guard unlockAt
+
+        if (amount == unlock.amount) {
+            delete unlockings[key];
+        } else {
+            require(amount < unlock.amount, "Unlock has insufficient amount");
+            unlock.amount -= amount;
+        }
+    }
+
+    function updateStakeAmount(bytes32 key, Stake storage stake, uint256 amount) private {
+        stake.amount += amount;
+        stakees[stake.stakee] += amount;
+
+        applyStakeChange(key, stake, amount, bytes32(0));
+    }
+
+    // Recursively update left/right amounts of stakes for parents of an updated stake
+    function applyStakeChange(bytes32 key, Stake storage stake, uint256 amount, bytes32 root_) private {
+        bytes32 parentKey = stake.parent;
+
+        if (parentKey == root_) {
+            // We are at the root, theres nothing left to update
+            return;
+        }
+
+        Stake storage parent = stakes[parentKey];
+
+        if (parent.left == key) {
+            parent.leftAmount += amount;
+        } else {
+            parent.rightAmount += amount;
+        }
+
+        return applyStakeChange(parentKey, parent, amount, root_);
+    }
+
+    // Move the left child of stake to current
+    function fixl(Stake storage stake, bytes32 currentKey, Stake storage current) private {
+        if (stake.left == bytes32(0)) {
+            return;
+        }
+
+        stakes[stake.left].parent = currentKey;
+        current.left = stake.left;
+        current.leftAmount = stake.leftAmount;
+    }
+
+    // Move the right child of stake to current
+    function fixr(Stake storage stake, bytes32 currentKey, Stake storage current) private {
+        if (stake.right == bytes32(0)) {
+            return;
+        }
+
+        stakes[stake.right].parent = currentKey;
+        current.right = stake.right;
+        current.rightAmount = stake.rightAmount;
+    }
+
+    function setChild(Stake storage stake, bytes32 oldKey, bytes32 newKey) private {
+        if (stake.left == oldKey) {
+            stake.left = newKey;
+        } else {
+            stake.right = newKey;
+        }
     }
 }

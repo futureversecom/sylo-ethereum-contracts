@@ -18,6 +18,7 @@ import (
 )
 
 var unlockDuration = big.NewInt(10)
+var alwaysFailing = "failed to estimate gas needed: gas required exceeds allowance or always failing transaction"
 
 func startSimulatedBackend(auth *bind.TransactOpts) SimBackend {
 	var gasLimit uint64 = 50000000
@@ -245,7 +246,7 @@ func TestClient_WithdrawTicketing(t *testing.T) {
 	// Expect error because unlock period isn't complete
 	tx, err = client.Withdraw()
 	if assert.Error(t, err) {
-		assert.Equal(t, err.Error(), "failed to estimate gas needed: gas required exceeds allowance or always failing transaction")
+		assert.Equal(t, alwaysFailing, err.Error())
 	}
 
 	// Advance enough blocks for the unlock period to end
@@ -375,7 +376,7 @@ func TestClient_ReplayTicket(t *testing.T) {
 	tx, err = client.Redeem(ticket, receiverRand, sig)
 	if assert.Error(t, err) {
 		// Transaction should always fail because ticket has already been used
-		assert.Equal(t, "failed to estimate gas needed: gas required exceeds allowance or always failing transaction", err.Error())
+		assert.Equal(t, alwaysFailing, err.Error())
 	}
 }
 
@@ -406,10 +407,15 @@ func TestClient_Unstake(t *testing.T) {
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm add stake")
 
-	tx, err = client.UnlockStake()
+	tx, err = client.UnlockStake(big.NewInt(1000))
 	assert.Nil(t, err, "Failed to unlock stake")
 
 	backend.Commit()
+
+	_, err = client.Unstake()
+	if (assert.Error(t, err)) {
+		assert.Equal(t, alwaysFailing, err.Error())
+	}
 
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unlcok stake")
@@ -427,4 +433,60 @@ func TestClient_Unstake(t *testing.T) {
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unstake")
 
+}
+
+func TestClient_CancelUnstaking(t *testing.T) {
+
+	key, _ := crypto.HexToECDSA(testPrivHex)
+	auth := bind.NewKeyedTransactor(key)
+
+	auth.Context = context.Background()
+
+	backend := startSimulatedBackend(auth)
+
+	client, err := createClientWithBackend(backend, auth)
+	assert.Nil(t, err, "Failed to init client")
+
+	// Approve ticketing contract to transfer funds
+	_, err = client.ApproveDirectory(big.NewInt(100000))
+	assert.Nil(t, err, "Failed to approve ticketing")
+
+	backend.Commit()
+
+	tx, err := client.AddStake(big.NewInt(1000))
+	assert.Nil(t, err, "Failed to add stake")
+
+	backend.Commit()
+
+	duration := 10 * time.Second
+	_, err = client.CheckTx(tx, duration)
+	assert.Nil(t, err, "Failed to confirm add stake")
+
+	tx, err = client.UnlockStake(big.NewInt(1000))
+	assert.Nil(t, err, "Failed to unlock stake")
+
+	backend.Commit()
+
+	_, err = client.CheckTx(tx, duration)
+	assert.Nil(t, err, "Failed to confirm unlcok stake")
+
+	tx, err = client.LockStake(big.NewInt(1000))
+	assert.Nil(t, err, "Should be able to lock stake")
+
+	backend.Commit()
+
+	tx, err = client.UnlockStake(big.NewInt(1000))
+	assert.Nil(t, err, "Failed to unlock stake")
+
+	backend.Commit()
+
+	// Advance enough blocks for the unlock period to end
+	for i := uint64(0); i < unlockDuration.Uint64(); i++ {
+		backend.Commit()
+	}
+
+	tx, err = client.LockStake(big.NewInt(1000))
+	assert.Nil(t, err, "Should be able to lock stake")
+
+	backend.Commit()
 }

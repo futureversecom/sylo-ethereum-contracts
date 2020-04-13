@@ -49,16 +49,24 @@ type Client interface {
 	TransferFrom(sender ethcommon.Address, recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 
 	// Directory methods
-	Stakes(account ethcommon.Address) (struct {
-		Amount   *big.Int
-		UnlockAt *big.Int
+	Stakes(key [32]byte) (struct {
+		Amount      *big.Int
+		LeftAmount  *big.Int
+		RightAmount *big.Int
+		Stakee      ethcommon.Address
+		Parent      [32]byte
+		Left        [32]byte
+		Right       [32]byte
 	}, error)
+	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
 	AddStake(amount *big.Int) (*types.Transaction, error)
-	AddStakeFor(amount *big.Int, staker ethcommon.Address) (*types.Transaction, error)
-	UnlockStake() (*types.Transaction, error)
-	LockStake() (*types.Transaction, error)
+	AddStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	UnlockStake(amount *big.Int) (*types.Transaction, error)
+	UnlockStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	LockStake(amount *big.Int) (*types.Transaction, error)
+	LockStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	Unstake() (*types.Transaction, error)
-	UnstakeTo(account ethcommon.Address) (*types.Transaction, error)
+	UnstakeFor(account ethcommon.Address) (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 
 	// Listings methods
