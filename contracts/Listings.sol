@@ -7,19 +7,19 @@ pragma experimental ABIEncoderV2;
 */
 contract Listings {
 
-  struct Listing {
-    string multiAddr; // MultiAddr to connect to the account
-    // TODO store tags
-  }
+    struct Listing {
+        string multiAddr; // MultiAddr to connect to the account
+        // TODO store tags
+    }
 
-  mapping(address => Listing) listings;
+    mapping(address => Listing) listings;
 
-  function setListing(Listing memory listing) public {
-    // TODO validate listing?
-    listings[msg.sender] = listing;
-  }
+    function setListing(Listing memory listing) public {
+        // TODO validate listing?
+        listings[msg.sender] = listing;
+    }
 
-  function getListing(address account) public view returns (Listing memory) {
-    return listings[account];
-  }
+    function getListing(address account) public view returns (Listing memory) {
+        return listings[account];
+    }
 }
