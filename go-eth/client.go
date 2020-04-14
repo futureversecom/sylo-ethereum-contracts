@@ -82,11 +82,15 @@ type Client interface {
 	CheckTx(tx *types.Transaction, timeout time.Duration) (*big.Int, error)
 }
 
+type Addresses struct {
+	Token     ethcommon.Address
+	Ticketing ethcommon.Address
+	Directory ethcommon.Address
+	Listings  ethcommon.Address
+}
+
 type client struct {
-	ticketingAddress ethcommon.Address
-	tokenAddress     ethcommon.Address
-	directoryAddress ethcommon.Address
-	listingsAddress  ethcommon.Address
+	addresses Addresses
 
 	opts *bind.TransactOpts
 
@@ -101,10 +105,7 @@ type client struct {
 
 func NewClient(
 	ctx context.Context,
-	ticketingAddress ethcommon.Address,
-	tokenAddress ethcommon.Address,
-	directoryAddress ethcommon.Address,
-	listingsAddress ethcommon.Address,
+	addresses Addresses,
 	eth *ethclient.Client,
 	opts *bind.TransactOpts,
 ) (Client, error) {
@@ -122,25 +123,19 @@ func NewClient(
 	}
 
 	return NewClientWithBackend(
-		ticketingAddress,
-		tokenAddress,
-		directoryAddress,
-		listingsAddress,
+		addresses,
 		backend,
 		opts,
 	)
 }
 
 func NewClientWithBackend(
-	tokenAddress ethcommon.Address,
-	ticketingAddress ethcommon.Address,
-	directoryAddress ethcommon.Address,
-	listingsAddress ethcommon.Address,
+	addresses Addresses,
 	backend Backend,
 	opts *bind.TransactOpts,
 ) (Client, error) {
 
-	syloToken, err := contracts.NewSyloToken(tokenAddress, backend)
+	syloToken, err := contracts.NewSyloToken(addresses.Token, backend)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +145,7 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
-	syloTicketing, err := contracts.NewSyloTicketing(ticketingAddress, backend)
+	syloTicketing, err := contracts.NewSyloTicketing(addresses.Ticketing, backend)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +155,7 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
-	directory, err := contracts.NewDirectory(directoryAddress, backend)
+	directory, err := contracts.NewDirectory(addresses.Directory, backend)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +165,7 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
-	listings, err := contracts.NewListings(listingsAddress, backend)
+	listings, err := contracts.NewListings(addresses.Listings, backend)
 	if err != nil {
 		return nil, err
 	}
@@ -181,10 +176,7 @@ func NewClientWithBackend(
 	}
 
 	return &client{
-		ticketingAddress:     ticketingAddress,
-		tokenAddress:         tokenAddress,
-		directoryAddress:     directoryAddress,
-		listingsAddress:      listingsAddress,
+		addresses:            addresses,
 		backend:              backend,
 		SyloTicketingSession: TicketingSession,
 		SyloTokenSession:     TokenSession,
@@ -199,11 +191,11 @@ func (c *client) Address() ethcommon.Address {
 }
 
 func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
-	return c.Approve(c.ticketingAddress, amount)
+	return c.Approve(c.addresses.Ticketing, amount)
 }
 
 func (c *client) ApproveDirectory(amount *big.Int) (*types.Transaction, error) {
-	return c.Approve(c.directoryAddress, amount)
+	return c.Approve(c.addresses.Directory, amount)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {

@@ -32,67 +32,70 @@ func startSimulatedBackend(auth *bind.TransactOpts) SimBackend {
 	return newSimBackend(sim)
 }
 
-func deployContracts(auth *bind.TransactOpts, backend SimBackend) (ethcommon.Address, ethcommon.Address, ethcommon.Address, ethcommon.Address, error) {
+func deployContracts(auth *bind.TransactOpts, backend SimBackend) (Addresses, error) {
+
+	var addresses Addresses = Addresses{}
 
 	tokenAddress, tx, _, err := contracts.DeploySyloToken(auth, backend)
+	addresses.Token = tokenAddress
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, err
+		return Addresses{}, err
 	}
 	backend.Commit()
 
 	_, err = backend.TransactionReceipt(auth.Context, tx.Hash())
 
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, errors.Wrap(err, "Failed to deploy token")
+		return Addresses{}, errors.Wrap(err, "Failed to deploy token")
 	}
 
-	ticketingAddress, tx, _, err := contracts.DeploySyloTicketing(auth, backend, tokenAddress, unlockDuration)
+	addresses.Ticketing, tx, _, err = contracts.DeploySyloTicketing(auth, backend, addresses.Token, unlockDuration)
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, err
+		return Addresses{}, err
 	}
 	backend.Commit()
 
 	_, err = backend.TransactionReceipt(auth.Context, tx.Hash())
 
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, errors.Wrap(err, "Failed to deploy ticketing")
+		return Addresses{}, errors.Wrap(err, "Failed to deploy ticketing")
 	}
 
-	directoryAddress, tx, _, err := contracts.DeployDirectory(auth, backend, tokenAddress, unlockDuration)
+	addresses.Directory, tx, _, err = contracts.DeployDirectory(auth, backend, addresses.Token, unlockDuration)
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, err
+		return Addresses{}, err
 	}
 	backend.Commit()
 
 	_, err = backend.TransactionReceipt(auth.Context, tx.Hash())
 
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, errors.Wrap(err, "Failed to deploy directory")
+		return Addresses{}, errors.Wrap(err, "Failed to deploy directory")
 	}
 
-	listingsAddress, tx, _, err := contracts.DeployListings(auth, backend)
+	addresses.Listings, tx, _, err = contracts.DeployListings(auth, backend)
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, err
+		return Addresses{}, err
 	}
 	backend.Commit()
 
 	_, err = backend.TransactionReceipt(auth.Context, tx.Hash())
 
 	if err != nil {
-		return ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, ethcommon.Address{}, errors.Wrap(err, "Failed to deploy listings")
+		return Addresses{}, errors.Wrap(err, "Failed to deploy listings")
 	}
 
-	return tokenAddress, ticketingAddress, directoryAddress, listingsAddress, nil
+	return addresses, nil
 }
 
 func createClientWithBackend(backend SimBackend, auth *bind.TransactOpts) (Client, error) {
-	tokenAddress, ticketingAddress, directoryAddress, listingsAddress, err := deployContracts(auth, backend)
+	addresses, err := deployContracts(auth, backend)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return NewClientWithBackend(tokenAddress, ticketingAddress, directoryAddress, listingsAddress, backend, auth)
+	return NewClientWithBackend(addresses, backend, auth)
 }
 
 func TestClient_CanBeCreated(t *testing.T) {
@@ -102,18 +105,18 @@ func TestClient_CanBeCreated(t *testing.T) {
 
 	backend := startSimulatedBackend(auth)
 
-	tokenAddress, ticketingAddress, directoryAddress, listingsAddress, err := deployContracts(auth, backend)
+	addresses, err := deployContracts(auth, backend)
 	assert.Nil(t, err, "Failed to deploy contracts")
 
-	if (tokenAddress == ethcommon.Address{}) {
+	if (addresses.Token == ethcommon.Address{}) {
 		t.Error("Token address is empty")
 	}
 
-	if (ticketingAddress == ethcommon.Address{}) {
+	if (addresses.Ticketing == ethcommon.Address{}) {
 		t.Error("ticketingAddress address is empty")
 	}
 
-	_, err = NewClientWithBackend(tokenAddress, ticketingAddress, directoryAddress, listingsAddress, backend, auth)
+	_, err = NewClientWithBackend(addresses, backend, auth)
 	assert.Nil(t, err, "Failed to init client")
 }
 
@@ -413,7 +416,7 @@ func TestClient_Unstake(t *testing.T) {
 	backend.Commit()
 
 	_, err = client.Unstake()
-	if (assert.Error(t, err)) {
+	if assert.Error(t, err) {
 		assert.Equal(t, alwaysFailing, err.Error())
 	}
 

@@ -135,7 +135,7 @@ contract Directory is Ownable {
             } else {
                 Stake storage current = stakes[child];
 
-                // Find the most valuable leaf
+                // Find the most valuable child leaf
                 while(true) {
                     bytes32 next = current.leftAmount > current.rightAmount ? current.left : current.right;
                     if (next == bytes32(0)) {
@@ -225,14 +225,15 @@ contract Directory is Ownable {
         _token.transfer(msg.sender, unlock.amount);
     }
 
-    function scan(uint256 rand) public view returns (address) {
+    // Point should be a randomly generated uint256
+    function scan(uint256 point) public view returns (address) {
 
         // Nothing is staked
         if (root == bytes32(0)) {
             return address(0);
         }
 
-        uint256 expectedVal = getTotalStake() * rand / maxU256;
+        uint256 expectedVal = getTotalStake() * point / maxU256;
 
         bytes32 current = root;
 
