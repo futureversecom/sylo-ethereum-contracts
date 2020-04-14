@@ -43,6 +43,7 @@ func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) 
 
 func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var gasLimit uint64 = 50000000
+	var addresses Addresses = Addresses{}
 
 	if len(opts) < 1 {
 		return nil, nil, errors.New("Please provide at least one option")
@@ -58,16 +59,23 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 
 	backend := newSimBackend(sim)
 
-	tokenAddress, _, _, _ := contracts.DeploySyloToken(&opts[0], backend)
+	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
 	backend.Commit()
-	ticketingAddress, _, _, _ := contracts.DeploySyloTicketing(&opts[0], backend, tokenAddress, big.NewInt(1))
+	addresses.Ticketing, _, _, _ = contracts.DeploySyloTicketing(&opts[0], backend, addresses.Token, big.NewInt(1))
 	backend.Commit()
+	addresses.Directory, _, _, _ = contracts.DeployDirectory(&opts[0], backend, addresses.Token, big.NewInt(1))
+	backend.Commit()
+	addresses.Listings, _, _, _ = contracts.DeployListings(&opts[0], backend)
 
 	var clients []Client
 
 	for i := 0; i < len(opts); i++ {
-		client, err := NewClientWithBackend(tokenAddress, ticketingAddress, backend, &opts[0])
-		clients= append(clients, client)
+		client, err := NewClientWithBackend(
+			addresses,
+			backend,
+			&opts[0],
+		)
+		clients = append(clients, client)
 		if err != nil {
 			return nil, nil, err
 		}
