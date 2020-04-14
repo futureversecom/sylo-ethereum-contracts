@@ -135,7 +135,7 @@ contract Directory is Ownable {
             } else {
                 Stake storage current = stakes[child];
 
-                // Find the most valuable child leaf
+                // Find the leaf of the most valuable path of the child
                 while(true) {
                     bytes32 next = current.leftAmount > current.rightAmount ? current.left : current.right;
                     if (next == bytes32(0)) {
