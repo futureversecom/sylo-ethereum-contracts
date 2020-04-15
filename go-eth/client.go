@@ -19,6 +19,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Unlocking struct {
+	Amount   *big.Int
+	UnlockAt *big.Int
+}
+
 type Client interface {
 	Address() ethcommon.Address
 
@@ -67,6 +72,8 @@ type Client interface {
 	LockStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	Unstake() (*types.Transaction, error)
 	UnstakeFor(account ethcommon.Address) (*types.Transaction, error)
+	GetAmountStakedFor(stakee ethcommon.Address) (*big.Int, error)
+	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 
 	// Listings methods
@@ -196,6 +203,18 @@ func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
 
 func (c *client) ApproveDirectory(amount *big.Int) (*types.Transaction, error) {
 	return c.Approve(c.addresses.Directory, amount)
+}
+
+func (c *client) GetAmountStakedFor(stakee ethcommon.Address) (*big.Int, error) {
+	return c.Stakees(stakee)
+}
+
+func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error) {
+	key, err := c.GetKey(staker, stakee)
+	if err != nil {
+		return Unlocking{}, err
+	}
+	return c.Unlockings(key)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
