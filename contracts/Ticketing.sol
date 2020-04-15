@@ -55,11 +55,7 @@ contract SyloTicketing is Ownable {
         unlockDuration = newUnlockDuration;
     }
 
-    function depositEscrow(uint256 amount) public {
-        return depositEscrowFor(amount, msg.sender);
-    }
-
-    function depositEscrowFor(uint256 amount, address account) public {
+    function depositEscrow(uint256 amount, address account) public {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
@@ -68,12 +64,7 @@ contract SyloTicketing is Ownable {
         _token.transferFrom(msg.sender, address(this), amount);
     }
 
-    function depositPenalty(uint256 amount) public {
-        return depositPenaltyFor(amount, msg.sender);
-    }
-
-
-    function depositPenaltyFor(uint256 amount, address account) public {
+    function depositPenalty(uint256 amount, address account) public {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 

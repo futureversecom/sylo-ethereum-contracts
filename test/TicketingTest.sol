@@ -29,7 +29,7 @@ contract TestSyloTicketing {
   function testDepositEscrow() public {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
-    ticketing.depositEscrow(amount);
+    ticketing.depositEscrow(amount, address(this));
 
     (uint256 escrow, ,) = ticketing.deposits(address(this));
 
@@ -40,7 +40,7 @@ contract TestSyloTicketing {
   function testDepositPenalty() public {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
-    ticketing.depositPenalty(amount);
+    ticketing.depositPenalty(amount, address(this));
 
     (,uint256 penalty,) = ticketing.deposits(address(this));
 
@@ -50,8 +50,8 @@ contract TestSyloTicketing {
 
   function testMultipleEscrowDeposits() public {
     uint256 amount = 1 ether;
-    ticketing.depositEscrow(amount);
-    ticketing.depositEscrow(amount);
+    ticketing.depositEscrow(amount, address(this));
+    ticketing.depositEscrow(amount, address(this));
 
     (uint256 escrow, ,) = ticketing.deposits(address(this));
 
@@ -60,8 +60,8 @@ contract TestSyloTicketing {
 
   function testMultiplePenaltyDeposits() public {
     uint256 amount = 1 ether;
-    ticketing.depositPenalty(amount);
-    ticketing.depositPenalty(amount);
+    ticketing.depositPenalty(amount, address(this));
+    ticketing.depositPenalty(amount, address(this));
 
     (,uint256 penalty,) = ticketing.deposits(address(this));
 
@@ -71,8 +71,8 @@ contract TestSyloTicketing {
   function testDepositEscrowAndPenalty() public {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
-    ticketing.depositEscrow(amount);
-    ticketing.depositPenalty(amount);
+    ticketing.depositEscrow(amount, address(this));
+    ticketing.depositPenalty(amount, address(this));
 
     (uint256 escrow ,uint256 penalty,) = ticketing.deposits(address(this));
 
@@ -84,7 +84,7 @@ contract TestSyloTicketing {
   function testDepositEscrowFor() public {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
-    ticketing.depositEscrowFor(amount, 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
+    ticketing.depositEscrow(amount, 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
 
     (uint256 escrow ,,) = ticketing.deposits(0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
     (uint256 escrow2 ,,) = ticketing.deposits(address(this));
@@ -97,7 +97,7 @@ contract TestSyloTicketing {
   function testPenaltyEscrowFor() public {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
-    ticketing.depositPenaltyFor(amount, 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
+    ticketing.depositPenalty(amount, 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
 
     (,uint256 penalty,) = ticketing.deposits(0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15);
     (,uint256 penalty2,) = ticketing.deposits(address(this));
