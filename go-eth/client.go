@@ -72,7 +72,7 @@ type Client interface {
 	LockStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	Unstake() (*types.Transaction, error)
 	UnstakeFor(account ethcommon.Address) (*types.Transaction, error)
-	GetAmountStakedFor(stakee ethcommon.Address) (*big.Int, error)
+	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 
@@ -205,7 +205,7 @@ func (c *client) ApproveDirectory(amount *big.Int) (*types.Transaction, error) {
 	return c.Approve(c.addresses.Directory, amount)
 }
 
-func (c *client) GetAmountStakedFor(stakee ethcommon.Address) (*big.Int, error) {
+func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
 	return c.Stakees(stakee)
 }
 
