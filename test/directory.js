@@ -26,8 +26,6 @@ contract('Directory', accounts => {
 
     const totalStake2 = await directory.getTotalStake();
     assert.equal(totalStake2.toNumber(), 1, "Expected a total stake of 1");
-
-    await directory.addStake(1, accounts[1], { from: accounts[1] });
   });
 
   it('should be able to unstake a leaf', async () => {
