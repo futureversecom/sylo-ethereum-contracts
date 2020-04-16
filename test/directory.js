@@ -54,4 +54,13 @@ contract('Directory', accounts => {
     const totalStake2 = await directory.getTotalStake();
     assert.equal(totalStake2.toNumber(), accounts.length - 1, "Expected a total stake of 1");
   });
+
+  it('should be able to restake when everything is unstaked', async () => {
+    await directory.addStake(1, accounts[1], { from: accounts[1] });
+
+    await directory.unlockStake(1, accounts[1], { from: accounts[1] });
+
+    // Restake
+    await directory.addStake(1, accounts[1], { from: accounts[1] });
+  });
 });
