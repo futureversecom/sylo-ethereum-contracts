@@ -124,6 +124,11 @@ contract Directory is Ownable {
             if (child == bytes32(0)) {
                 // Stake is a leaf, we need to disconnect it from the parent
                 setChild(stake, key, bytes32(0));
+
+                // The only staker is removed, reset root
+                if (stake.parent == bytes32(0)) {
+                    root = bytes32(0);
+                }
             } else {
                 Stake storage current = stakes[child];
 
