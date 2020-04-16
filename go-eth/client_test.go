@@ -155,7 +155,7 @@ func TestClient_DepositEscrow(t *testing.T) {
 	backend.Commit()
 
 	duration := 10 * time.Second
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	if err != nil {
 		assert.Nil(t, err, "Failed to confirm approve tx")
 	}
@@ -164,7 +164,7 @@ func TestClient_DepositEscrow(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	if err != nil {
 		assert.Nil(t, err, "Failed to confirm deposit tx")
 	}
@@ -196,7 +196,7 @@ func TestClient_DepositPenalty(t *testing.T) {
 	backend.Commit()
 
 	duration := 10 * time.Second
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	if err != nil {
 		assert.Nil(t, err, "Failed to confirm approve tx")
 	}
@@ -205,7 +205,7 @@ func TestClient_DepositPenalty(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	if err != nil {
 		assert.Nil(t, err, "Failed to confirm deposit tx")
 	}
@@ -244,7 +244,7 @@ func TestClient_WithdrawTicketing(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.CheckTx(tx, 10*time.Second)
+	_, err = client.CheckTxTimeout(tx, 10*time.Second)
 
 	// Expect error because unlock period isn't complete
 	tx, err = client.Withdraw()
@@ -315,7 +315,7 @@ func TestClient_RedeemTicket(t *testing.T) {
 	backend.Commit()
 
 	duration := 10 * time.Second
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm redeem")
 
 	depositAfter, err := client.Deposits(ticket.Sender)
@@ -373,7 +373,7 @@ func TestClient_ReplayTicket(t *testing.T) {
 	backend.Commit()
 
 	duration := 10 * time.Second
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm redeem")
 
 	tx, err = client.Redeem(ticket, receiverRand, sig)
@@ -407,7 +407,7 @@ func TestClient_Unstake(t *testing.T) {
 	backend.Commit()
 
 	duration := 10 * time.Second
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm add stake")
 
 	tx, err = client.UnlockStake(big.NewInt(1000), auth.From)
@@ -420,7 +420,7 @@ func TestClient_Unstake(t *testing.T) {
 		assert.Equal(t, alwaysFailing, err.Error())
 	}
 
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unlcok stake")
 
 	// Advance enough blocks for the unlock period to end
@@ -433,7 +433,7 @@ func TestClient_Unstake(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unstake")
 
 }
@@ -462,7 +462,7 @@ func TestClient_CancelUnstaking(t *testing.T) {
 	backend.Commit()
 
 	duration := 10 * time.Second
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm add stake")
 
 	tx, err = client.UnlockStake(big.NewInt(1000), auth.From)
@@ -470,7 +470,7 @@ func TestClient_CancelUnstaking(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.CheckTx(tx, duration)
+	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unlcok stake")
 
 	tx, err = client.LockStake(big.NewInt(1000), auth.From)

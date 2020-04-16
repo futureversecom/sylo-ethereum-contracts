@@ -80,7 +80,8 @@ type Client interface {
 
 	//Utils
 	LatestBlock() (*big.Int, error)
-	CheckTx(tx *types.Transaction, timeout time.Duration) (*big.Int, error)
+	CheckTxTimeout(tx *types.Transaction, timeout time.Duration) (*big.Int, error)
+	CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error)
 }
 
 type Addresses struct {
@@ -221,12 +222,16 @@ func (c *client) LatestBlock() (*big.Int, error) {
 	return header.Number, nil
 }
 
-func (c *client) CheckTx(tx *types.Transaction, timeout time.Duration) (*big.Int, error) {
+func (c *client) CheckTxTimeout(tx *types.Transaction, timeout time.Duration) (*big.Int, error) {
 
 	ctxT, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	receipt, err := bind.WaitMined(ctxT, c.backend, tx)
+	return c.CheckTx(ctxT, tx)
+}
+
+func (c *client) CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error) {
+	receipt, err := bind.WaitMined(ctx, c.backend, tx)
 	if err != nil {
 		return nil, err
 	}
