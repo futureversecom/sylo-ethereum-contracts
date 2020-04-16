@@ -19,6 +19,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Unlocking struct {
+	Amount   *big.Int
+	UnlockAt *big.Int
+}
+
 type Client interface {
 	Address() ethcommon.Address
 
@@ -29,10 +34,8 @@ type Client interface {
 		UnlockAt *big.Int
 	}, error)
 	//UnlockDuration() (*big.Int, error)  // Conflicting names
-	DepositEscrow(amount *big.Int) (*types.Transaction, error)
-	DepositEscrowFor(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
-	DepositPenalty(amount *big.Int) (*types.Transaction, error)
-	DepositPenaltyFor(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
+	DepositEscrow(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
+	DepositPenalty(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	UnlockDeposits() (*types.Transaction, error)
 	LockDeposits() (*types.Transaction, error)
 	Redeem(ticket contracts.SyloTicketingTicket, receiverRand *big.Int, sig []byte) (*types.Transaction, error)
@@ -59,14 +62,12 @@ type Client interface {
 		Right       [32]byte
 	}, error)
 	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
-	AddStake(amount *big.Int) (*types.Transaction, error)
-	AddStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	UnlockStake(amount *big.Int) (*types.Transaction, error)
-	UnlockStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	LockStake(amount *big.Int) (*types.Transaction, error)
-	LockStakeFor(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	Unstake() (*types.Transaction, error)
-	UnstakeFor(account ethcommon.Address) (*types.Transaction, error)
+	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	UnlockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	LockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	Unstake(account ethcommon.Address) (*types.Transaction, error)
+	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
+	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 
 	// Listings methods
@@ -196,6 +197,18 @@ func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
 
 func (c *client) ApproveDirectory(amount *big.Int) (*types.Transaction, error) {
 	return c.Approve(c.addresses.Directory, amount)
+}
+
+func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
+	return c.Stakees(stakee)
+}
+
+func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error) {
+	key, err := c.GetKey(staker, stakee)
+	if err != nil {
+		return Unlocking{}, err
+	}
+	return c.Unlockings(key)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {

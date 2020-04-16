@@ -160,7 +160,7 @@ func TestClient_DepositEscrow(t *testing.T) {
 		assert.Nil(t, err, "Failed to confirm approve tx")
 	}
 
-	tx, err = client.DepositEscrow(big.NewInt(1))
+	tx, err = client.DepositEscrow(big.NewInt(1), auth.From)
 
 	backend.Commit()
 
@@ -201,7 +201,7 @@ func TestClient_DepositPenalty(t *testing.T) {
 		assert.Nil(t, err, "Failed to confirm approve tx")
 	}
 
-	tx, err = client.DepositPenalty(big.NewInt(1))
+	tx, err = client.DepositPenalty(big.NewInt(1), auth.From)
 
 	backend.Commit()
 
@@ -234,7 +234,7 @@ func TestClient_WithdrawTicketing(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.DepositEscrow(big.NewInt(10))
+	_, err = client.DepositEscrow(big.NewInt(10), auth.From)
 	assert.Nil(t, err, "Failed to deposit escrow")
 
 	backend.Commit()
@@ -282,7 +282,7 @@ func TestClient_RedeemTicket(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.DepositEscrow(big.NewInt(100000))
+	_, err = client.DepositEscrow(big.NewInt(100000), auth.From)
 	assert.Nil(t, err, "Failed to deposit escrow")
 	backend.Commit()
 
@@ -346,7 +346,7 @@ func TestClient_ReplayTicket(t *testing.T) {
 
 	backend.Commit()
 
-	_, err = client.DepositEscrow(big.NewInt(100000))
+	_, err = client.DepositEscrow(big.NewInt(100000), auth.From)
 	assert.Nil(t, err, "Failed to deposit escrow")
 	backend.Commit()
 
@@ -401,7 +401,7 @@ func TestClient_Unstake(t *testing.T) {
 
 	backend.Commit()
 
-	tx, err := client.AddStake(big.NewInt(1000))
+	tx, err := client.AddStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Failed to add stake")
 
 	backend.Commit()
@@ -410,12 +410,12 @@ func TestClient_Unstake(t *testing.T) {
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm add stake")
 
-	tx, err = client.UnlockStake(big.NewInt(1000))
+	tx, err = client.UnlockStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Failed to unlock stake")
 
 	backend.Commit()
 
-	_, err = client.Unstake()
+	_, err = client.Unstake(auth.From)
 	if assert.Error(t, err) {
 		assert.Equal(t, alwaysFailing, err.Error())
 	}
@@ -428,7 +428,7 @@ func TestClient_Unstake(t *testing.T) {
 		backend.Commit()
 	}
 
-	tx, err = client.Unstake()
+	tx, err = client.Unstake(auth.From)
 	assert.Nil(t, err, "Failed to unstake")
 
 	backend.Commit()
@@ -456,7 +456,7 @@ func TestClient_CancelUnstaking(t *testing.T) {
 
 	backend.Commit()
 
-	tx, err := client.AddStake(big.NewInt(1000))
+	tx, err := client.AddStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Failed to add stake")
 
 	backend.Commit()
@@ -465,7 +465,7 @@ func TestClient_CancelUnstaking(t *testing.T) {
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm add stake")
 
-	tx, err = client.UnlockStake(big.NewInt(1000))
+	tx, err = client.UnlockStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Failed to unlock stake")
 
 	backend.Commit()
@@ -473,12 +473,12 @@ func TestClient_CancelUnstaking(t *testing.T) {
 	_, err = client.CheckTx(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unlcok stake")
 
-	tx, err = client.LockStake(big.NewInt(1000))
+	tx, err = client.LockStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Should be able to lock stake")
 
 	backend.Commit()
 
-	tx, err = client.UnlockStake(big.NewInt(1000))
+	tx, err = client.UnlockStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Failed to unlock stake")
 
 	backend.Commit()
@@ -488,7 +488,7 @@ func TestClient_CancelUnstaking(t *testing.T) {
 		backend.Commit()
 	}
 
-	tx, err = client.LockStake(big.NewInt(1000))
+	tx, err = client.LockStake(big.NewInt(1000), auth.From)
 	assert.Nil(t, err, "Should be able to lock stake")
 
 	backend.Commit()

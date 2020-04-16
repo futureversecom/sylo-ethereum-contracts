@@ -38,7 +38,7 @@ contract TestDirectory {
     uint256 amount = 1 ether;
     uint256 initialBalance = token.balanceOf(address(this));
 
-    directory.addStake(amount);
+    directory.addStake(amount, address(this));
 
     uint256 stake = directory.stakees(address(this));
 
@@ -48,7 +48,7 @@ contract TestDirectory {
   }
 
   function testScanSingleStaker() public {
-    directory.addStake(1 ether);
+    directory.addStake(1 ether, address(this));
 
     address selected = directory.scan(0);
 
@@ -57,8 +57,8 @@ contract TestDirectory {
 
   function testScanMultipleStaker() public {
     address otherStaker = 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15;
-    directory.addStake(1 ether);
-    directory.addStakeFor(1 ether, otherStaker);
+    directory.addStake(1 ether, address(this));
+    directory.addStake(1 ether, otherStaker);
 
     Assert.equal(directory.getTotalStake(), 2 ether, "Expected a total stake of 2 ether");
 
@@ -74,12 +74,12 @@ contract TestDirectory {
 
   function testUnlockStake() public {
     address otherStaker = 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15;
-    directory.addStake(1 ether);
-    directory.addStakeFor(1 ether, otherStaker);
+    directory.addStake(1 ether, address(this));
+    directory.addStake(1 ether, otherStaker);
 
     Assert.equal(directory.getTotalStake(), 2 ether, "Unexpected total stake");
 
-    directory.unlockStake(1 ether);
+    directory.unlockStake(1 ether, address(this));
     // Not unstaked but stake should no longer be valid because of unlock period being complete
 
     emitStake(directory.getKey(address(this), address(this)));
@@ -96,12 +96,12 @@ contract TestDirectory {
 
   function testUnlockStakeLeaf() public {
     address otherStaker = 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15;
-    directory.addStake(1 ether);
-    directory.addStakeFor(1 ether, otherStaker);
+    directory.addStake(1 ether, address(this));
+    directory.addStake(1 ether, otherStaker);
 
     Assert.equal(directory.getTotalStake(), 2 ether, "Unexpected total stake");
 
-    directory.unlockStakeFor(1 ether, otherStaker);
+    directory.unlockStake(1 ether, otherStaker);
     // Not unstaked but stake should no longer be valid because of unlock period being complete
 
     Assert.equal(directory.getTotalStake(), 1 ether, "Unexpected total stake post unlock");

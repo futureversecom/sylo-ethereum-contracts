@@ -60,11 +60,7 @@ contract Directory is Ownable {
         unlockDuration = newUnlockDuration;
     }
 
-    function addStake(uint256 amount) public{
-        return addStakeFor(amount, msg.sender);
-    }
-
-    function addStakeFor(uint256 amount, address stakee) public {
+    function addStake(uint256 amount, address stakee) public {
 
         require(stakee != address(0), "Address is null");
         require(amount != 0, "Cannot stake nothing");
@@ -109,11 +105,7 @@ contract Directory is Ownable {
         _token.transferFrom(msg.sender, address(this), amount);
     }
 
-    function unlockStake(uint256 amount) public returns (uint256) {
-        return unlockStakeFor(amount, msg.sender);
-    }
-
-    function unlockStakeFor(uint256 amount, address stakee) public returns (uint256) {
+    function unlockStake(uint256 amount, address stakee) public returns (uint256) {
 
         bytes32 key = getKey(msg.sender, stakee);
         Stake storage stake = stakes[key];
@@ -196,12 +188,8 @@ contract Directory is Ownable {
         return unlockAt;
     }
 
-    function lockStake(uint256 amount) public {
-        return lockStakeFor(amount, msg.sender);
-    }
-
     // Reverse unlocking a certain amount of stake
-    function lockStakeFor(uint256 amount, address stakee) public {
+    function lockStake(uint256 amount, address stakee) public {
         bytes32 key = getKey(msg.sender, stakee);
         Stake storage stake = stakes[key];
 
@@ -210,11 +198,7 @@ contract Directory is Ownable {
         updateStakeAmount(key, stake, amount);
     }
 
-    function unstake() public {
-        return unstakeFor(msg.sender);
-    }
-
-    function unstakeFor(address stakee) public {
+    function unstake(address stakee) public {
         bytes32 key = getKey(msg.sender, stakee);
 
         Unlock storage unlock = unlockings[key];
