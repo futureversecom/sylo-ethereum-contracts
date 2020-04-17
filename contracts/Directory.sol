@@ -211,7 +211,11 @@ contract Directory is Ownable {
         require(unlock.unlockAt < block.number, "Stake not yet unlocked");
         require(unlock.amount > 0, "No amount to unlock");
 
-        _token.transfer(msg.sender, unlock.amount);
+        uint256 amount = unlock.amount;
+
+        delete unlockings[key];
+
+        _token.transfer(msg.sender, amount);
     }
 
     // Point should be a randomly generated uint256

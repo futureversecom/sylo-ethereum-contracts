@@ -401,7 +401,9 @@ func TestClient_Unstake(t *testing.T) {
 
 	backend.Commit()
 
-	tx, err := client.AddStake(big.NewInt(1000), auth.From)
+	stakeAmount := big.NewInt(1000)
+
+	tx, err := client.AddStake(stakeAmount, auth.From)
 	assert.Nil(t, err, "Failed to add stake")
 
 	backend.Commit()
@@ -410,7 +412,7 @@ func TestClient_Unstake(t *testing.T) {
 	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm add stake")
 
-	tx, err = client.UnlockStake(big.NewInt(1000), auth.From)
+	tx, err = client.UnlockStake(stakeAmount, auth.From)
 	assert.Nil(t, err, "Failed to unlock stake")
 
 	backend.Commit()
@@ -428,6 +430,8 @@ func TestClient_Unstake(t *testing.T) {
 		backend.Commit()
 	}
 
+	balanceBefore, err := client.BalanceOf(auth.From);
+
 	tx, err = client.Unstake(auth.From)
 	assert.Nil(t, err, "Failed to unstake")
 
@@ -435,6 +439,25 @@ func TestClient_Unstake(t *testing.T) {
 
 	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm unstake")
+
+	// Check that unlocking state is reset
+	unlocking, err := client.GetUnlockingStake(auth.From, auth.From);
+	assert.Nil(t, err, "Should be able to get unlocking");
+
+	assert.Zero(t, unlocking.Amount.Uint64(), "Unlocking should be cleared")
+	assert.Zero(t, unlocking.UnlockAt.Uint64(), "Unlocking should be cleared")
+
+	balanceAfter, err := client.BalanceOf(auth.From);
+
+	// Check the token balance has increased
+	assert.Equal(t, balanceAfter.Cmp(new(big.Int).Add(balanceBefore, stakeAmount)), 0, "Expected stake to be returned")
+
+	// Should not be able to unstake again
+	tx, err = client.Unstake(auth.From)
+
+	if (assert.Error(t, err)) {
+		assert.Equal(t, alwaysFailing, err.Error())
+	}
 
 }
 
