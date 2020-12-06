@@ -123,7 +123,7 @@ contract Directory is Ownable {
 
             if (child == bytes32(0)) {
                 // Stake is a leaf, we need to disconnect it from the parent
-                setChild(stake, key, bytes32(0));
+                setChild(parent, key, bytes32(0));
 
                 // The only staker is removed, reset root
                 if (stake.parent == bytes32(0)) {
@@ -155,7 +155,7 @@ contract Directory is Ownable {
                     fixl(stake, child, current);
                     fixr(stake, child, current);
 
-                    // Place stake where current was and 
+                    // Place stake where current was and
                     stake.parent = currentParent; // Set parent
                     setChild(stakes[currentParent], currentParent, key); // Set parents child
 
