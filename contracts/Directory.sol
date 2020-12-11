@@ -157,7 +157,7 @@ contract Directory is Ownable {
 
                     // Place stake where current was and 
                     stake.parent = currentParent; // Set parent
-                    setChild(stakes[currentParent], currentParent, key); // Set parents child
+                    setChild(stakes[currentParent], child, key); // Set parents child
 
                     // Update all the values
                     applyStakeChange(key, stake, -current.amount, current.parent);

@@ -113,6 +113,28 @@ contract TestDirectory {
     Assert.equal(selected2, address(this), "Expected correct scan with a single staker 2");
   }
 
+  function testUnlockStakeRoot() public {
+    address addrA = 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15;
+    address addrB = 0x43c68Be1eDeaE941Ac2baf424455aaaB0c9D440D;
+
+    directory.addStake(10 ether, address(this));
+    directory.addStake(5 ether, addrA);
+    directory.addStake(5 ether, addrB);
+
+    Assert.equal(directory.getTotalStake(), 20 ether, "Unexpected total stake");
+
+    // Not unstaked but stake should no longer be valid because of unlock period being complete
+    directory.unlockStake(10 ether, address(this));
+
+    Assert.equal(directory.getTotalStake(), 10 ether, "Unexpected total stake post unlock");
+
+    address selected = directory.scan(0);
+    Assert.equal(selected, addrA, "Expected correct scan with a single staker");
+
+    address selected2 = directory.scan(max);
+    Assert.equal(selected2, addrB, "Expected correct scan with a single staker 3");
+  }
+
   /* Disabled because we cannot advance the block in solidity tests */
   // function testUnstaking() public {
   //   address otherStaker = 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15;
