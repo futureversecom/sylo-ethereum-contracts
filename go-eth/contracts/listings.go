@@ -20,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = abi.U256
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -36,7 +35,7 @@ type ListingsListing struct {
 const ListingsABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"multiAddr\",\"type\":\"string\"}],\"internalType\":\"structListings.Listing\",\"name\":\"listing\",\"type\":\"tuple\"}],\"name\":\"setListing\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"getListing\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"multiAddr\",\"type\":\"string\"}],\"internalType\":\"structListings.Listing\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // ListingsBin is the compiled bytecode used for deploying new contracts.
-var ListingsBin = "0x608060405234801561001057600080fd5b506103c0806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c8063084af0b21461003b5780634ec1d70b14610064575b600080fd5b61004e610049366004610216565b610079565b60405161005b9190610307565b60405180910390f35b610077610072366004610251565b61013e565b005b610081610168565b73ffffffffffffffffffffffffffffffffffffffff8216600090815260208181526040918290208251815460026001821615610100026000190190911604601f8101849004840282018501855292810183815290939192849284919084018282801561012e5780601f106101035761010080835404028352916020019161012e565b820191906000526020600020905b81548152906001019060200180831161011157829003601f168201915b5050505050815250509050919050565b3360009081526020818152604090912082518051849361016292849291019061017b565b50505050565b6040518060200160405280606081525090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106101bc57805160ff19168380011785556101e9565b828001600101855582156101e9579182015b828111156101e95782518255916020019190600101906101ce565b506101f59291506101f9565b5090565b61021391905b808211156101f557600081556001016101ff565b90565b600060208284031215610227578081fd5b813573ffffffffffffffffffffffffffffffffffffffff8116811461024a578182fd5b9392505050565b60006020808385031215610263578182fd5b823567ffffffffffffffff8082111561027a578384fd5b81850183818803121561028b578485fd5b61029484610363565b92508035828111156102a4578586fd5b80820188601f8201126102b5578687fd5b80359250838311156102c5578687fd5b6102d7601f8401601f19168701610363565b935082845288868483010111156102ec578687fd5b82868201878601375050810190920192909252815292915050565b60006020808352835181828501528051806040860152835b8181101561033b5782810184015186820160600152830161031f565b8181111561034c5784606083880101525b50601f01601f191693909301606001949350505050565b60405181810167ffffffffffffffff8111828210171561038257600080fd5b60405291905056fea264697066735822122033b67a24f72c4d9aa44d09ccb32df22d92a5bdc14f59a51a902e5f6c575e06d064736f6c63430006040033"
+var ListingsBin = "0x608060405234801561001057600080fd5b506103c0806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c8063084af0b21461003b5780634ec1d70b14610064575b600080fd5b61004e610049366004610216565b610079565b60405161005b9190610307565b60405180910390f35b610077610072366004610251565b61013e565b005b610081610168565b73ffffffffffffffffffffffffffffffffffffffff8216600090815260208181526040918290208251815460026001821615610100026000190190911604601f8101849004840282018501855292810183815290939192849284919084018282801561012e5780601f106101035761010080835404028352916020019161012e565b820191906000526020600020905b81548152906001019060200180831161011157829003601f168201915b5050505050815250509050919050565b3360009081526020818152604090912082518051849361016292849291019061017b565b50505050565b6040518060200160405280606081525090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106101bc57805160ff19168380011785556101e9565b828001600101855582156101e9579182015b828111156101e95782518255916020019190600101906101ce565b506101f59291506101f9565b5090565b61021391905b808211156101f557600081556001016101ff565b90565b600060208284031215610227578081fd5b813573ffffffffffffffffffffffffffffffffffffffff8116811461024a578182fd5b9392505050565b60006020808385031215610263578182fd5b823567ffffffffffffffff8082111561027a578384fd5b81850183818803121561028b578485fd5b61029484610363565b92508035828111156102a4578586fd5b80820188601f8201126102b5578687fd5b80359250838311156102c5578687fd5b6102d7601f8401601f19168701610363565b935082845288868483010111156102ec578687fd5b82868201878601375050810190920192909252815292915050565b60006020808352835181828501528051806040860152835b8181101561033b5782810184015186820160600152830161031f565b8181111561034c5784606083880101525b50601f01601f191693909301606001949350505050565b60405181810167ffffffffffffffff8111828210171561038257600080fd5b60405291905056fea2646970667358221220add5ed16a9b3ab876b7c11b1e4ec996dc799f3a5dacb6bdc9769b2cede76ff6864736f6c63430006040033"
 
 // DeployListings deploys a new Ethereum contract, binding an instance of Listings to it.
 func DeployListings(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Listings, error) {
@@ -160,7 +159,7 @@ func bindListings(address common.Address, caller bind.ContractCaller, transactor
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Listings *ListingsRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Listings *ListingsRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Listings.Contract.ListingsCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -179,7 +178,7 @@ func (_Listings *ListingsRaw) Transact(opts *bind.TransactOpts, method string, p
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Listings *ListingsCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Listings *ListingsCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Listings.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -196,47 +195,52 @@ func (_Listings *ListingsTransactorRaw) Transact(opts *bind.TransactOpts, method
 
 // GetListing is a free data retrieval call binding the contract method 0x084af0b2.
 //
-// Solidity: function getListing(address account) constant returns(ListingsListing)
+// Solidity: function getListing(address account) view returns((string))
 func (_Listings *ListingsCaller) GetListing(opts *bind.CallOpts, account common.Address) (ListingsListing, error) {
-	var (
-		ret0 = new(ListingsListing)
-	)
-	out := ret0
-	err := _Listings.contract.Call(opts, out, "getListing", account)
-	return *ret0, err
+	var out []interface{}
+	err := _Listings.contract.Call(opts, &out, "getListing", account)
+
+	if err != nil {
+		return *new(ListingsListing), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(ListingsListing)).(*ListingsListing)
+
+	return out0, err
+
 }
 
 // GetListing is a free data retrieval call binding the contract method 0x084af0b2.
 //
-// Solidity: function getListing(address account) constant returns(ListingsListing)
+// Solidity: function getListing(address account) view returns((string))
 func (_Listings *ListingsSession) GetListing(account common.Address) (ListingsListing, error) {
 	return _Listings.Contract.GetListing(&_Listings.CallOpts, account)
 }
 
 // GetListing is a free data retrieval call binding the contract method 0x084af0b2.
 //
-// Solidity: function getListing(address account) constant returns(ListingsListing)
+// Solidity: function getListing(address account) view returns((string))
 func (_Listings *ListingsCallerSession) GetListing(account common.Address) (ListingsListing, error) {
 	return _Listings.Contract.GetListing(&_Listings.CallOpts, account)
 }
 
 // SetListing is a paid mutator transaction binding the contract method 0x4ec1d70b.
 //
-// Solidity: function setListing(ListingsListing listing) returns()
+// Solidity: function setListing((string) listing) returns()
 func (_Listings *ListingsTransactor) SetListing(opts *bind.TransactOpts, listing ListingsListing) (*types.Transaction, error) {
 	return _Listings.contract.Transact(opts, "setListing", listing)
 }
 
 // SetListing is a paid mutator transaction binding the contract method 0x4ec1d70b.
 //
-// Solidity: function setListing(ListingsListing listing) returns()
+// Solidity: function setListing((string) listing) returns()
 func (_Listings *ListingsSession) SetListing(listing ListingsListing) (*types.Transaction, error) {
 	return _Listings.Contract.SetListing(&_Listings.TransactOpts, listing)
 }
 
 // SetListing is a paid mutator transaction binding the contract method 0x4ec1d70b.
 //
-// Solidity: function setListing(ListingsListing listing) returns()
+// Solidity: function setListing((string) listing) returns()
 func (_Listings *ListingsTransactorSession) SetListing(listing ListingsListing) (*types.Transaction, error) {
 	return _Listings.Contract.SetListing(&_Listings.TransactOpts, listing)
 }
