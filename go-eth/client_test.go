@@ -18,7 +18,6 @@ import (
 )
 
 var unlockDuration = big.NewInt(10)
-var alwaysFailing = "failed to estimate gas needed: gas required exceeds allowance or always failing transaction"
 var unlockPeriodNotComplete = "failed to estimate gas needed: execution reverted: Unlock period not complete"
 var ticketAlreadyRedeemed = "failed to estimate gas needed: execution reverted: Ticket already redeemed"
 var stakeNotUnlocked = "failed to estimate gas needed: execution reverted: Stake not yet unlocked"
