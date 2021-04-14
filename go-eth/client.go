@@ -7,6 +7,7 @@ package eth
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -15,8 +16,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	"github.com/pkg/errors"
 )
 
 type Unlocking struct {
@@ -213,6 +212,12 @@ func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Ad
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+	if c.backend == nil {
+		return nil, fmt.Errorf("backend cannot be nil")
+	}
 
 	header, err := c.backend.HeaderByNumber(context.Background(), nil)
 	if err != nil {
@@ -237,7 +242,7 @@ func (c *client) CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, 
 	}
 
 	if receipt.Status == uint64(0) {
-		return receipt.BlockNumber, errors.Errorf("Tx %v failed with status %v, %v", tx.Hash().Hex(), receipt.Status, receipt.PostState)
+		return receipt.BlockNumber, fmt.Errorf("Tx %v failed with status %v, %v", tx.Hash().Hex(), receipt.Status, receipt.PostState)
 	}
 
 	return receipt.BlockNumber, nil
