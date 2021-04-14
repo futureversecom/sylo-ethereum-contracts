@@ -21,11 +21,8 @@ type simBackend struct {
 	*backends.SimulatedBackend
 }
 
-func newSimBackend(sim *backends.SimulatedBackend) SimBackend {
-
-	return &simBackend{
-		SimulatedBackend: sim,
-	}
+func NewSimBackend(sim *backends.SimulatedBackend) SimBackend {
+	return &simBackend{SimulatedBackend: sim}
 }
 
 func (b *simBackend) PendingBalanceAt(ctx context.Context, account ethcommon.Address) (*big.Int, error) {
@@ -57,7 +54,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 
 	sim := backends.NewSimulatedBackend(genisis, gasLimit)
 
-	backend := newSimBackend(sim)
+	backend := NewSimBackend(sim)
 
 	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
 	backend.Commit()

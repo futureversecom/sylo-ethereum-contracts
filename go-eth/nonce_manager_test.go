@@ -29,13 +29,16 @@ func (m *mockRemoteNonceReader) PendingNonceAt(ctx context.Context, addr ethcomm
 func TestNext_PendingNonceAtError(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(0), errors.New("PendingNonceAt error"))
 
 	assert := assert.New(t)
 
-	_, err := nm.Next(addr)
+	_, err = nm.Next(addr)
 	assert.NotNil(err)
 	assert.Equal("PendingNonceAt error", err.Error())
 }
@@ -43,7 +46,10 @@ func TestNext_PendingNonceAtError(t *testing.T) {
 func TestNext_ZeroNonce(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(0), nil)
 
@@ -57,7 +63,10 @@ func TestNext_ZeroNonce(t *testing.T) {
 func TestNext_IncrementLocal(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(0), nil)
 
@@ -78,7 +87,10 @@ func TestNext_IncrementLocal(t *testing.T) {
 func TestNext_LocalLowerThanRemote(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(10), nil)
 
@@ -92,7 +104,10 @@ func TestNext_LocalLowerThanRemote(t *testing.T) {
 func TestUpdate_LastNonceEqualsLocalNonce(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(0), nil)
 
@@ -107,7 +122,10 @@ func TestUpdate_LastNonceEqualsLocalNonce(t *testing.T) {
 func TestUpdate_LastNonceNotEqualsLocalNonce(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(0), nil)
 
@@ -126,13 +144,17 @@ func TestNextAndUpdate_ConcurrentMultipleAddrs(t *testing.T) {
 	r.On("PendingNonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)
 
 	var wg sync.WaitGroup
+	var err error
 	var errCount uint64
 	var addrs [50]ethcommon.Address
 
 	for i := 0; i < 50; i++ {
 		wg.Add(1)
 
-		addrs[i] = RandAddress()
+		addrs[i], err = RandAddress()
+		if err != nil {
+			t.Fatalf("could not create random address: %v", err)
+		}
 
 		go func(addr ethcommon.Address) {
 			defer wg.Done()
@@ -167,7 +189,10 @@ func TestNextAndUpdate_ConcurrentMultipleAddrs(t *testing.T) {
 func TestNextAndUpdate_ConcurrentSingleAddr(t *testing.T) {
 	r := &mockRemoteNonceReader{}
 	nm := NewNonceManager(r)
-	addr := RandAddress()
+	addr, err := RandAddress()
+	if err != nil {
+		t.Fatalf("could not create random address: %v", err)
+	}
 
 	r.On("PendingNonceAt", mock.Anything, addr).Return(uint64(0), nil)
 
