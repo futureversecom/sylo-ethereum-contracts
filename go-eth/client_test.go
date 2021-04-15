@@ -39,6 +39,10 @@ func TestClient(t *testing.T) {
 	_ = faucet // in case it isn't used
 
 	t.Run("client can be created", func(t *testing.T) {
+		createRandomClient(t, ctx, backend, addresses)
+	})
+
+	t.Run("can use faucet", func(t *testing.T) {
 		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
 		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
 		if err != nil {
@@ -46,9 +50,18 @@ func TestClient(t *testing.T) {
 		}
 	})
 
+	t.Run("cannot faucet more eth than is available", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		tooMuchEth := new(big.Int).Add(oneEth, faucetEthBalance)
+		err := faucet(aliceClient.Address(), tooMuchEth, big.NewInt(0))
+		if err == nil {
+			t.Fatalf("should not be able to faucet this much: %v", err)
+		}
+	})
+
 	t.Run("can get latest block", func(t *testing.T) {
 		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(0))
 		if err != nil {
 			t.Fatalf("could not faucet: %v", err)
 		}
@@ -165,7 +178,7 @@ func TestClient(t *testing.T) {
 		topUpDeposits(t, ctx, backend, aliceClient)
 
 		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(bobClient.Address(), big.NewInt(100), big.NewInt(0))
+		err = faucet(bobClient.Address(), oneEth, big.NewInt(0))
 		if err != nil {
 			t.Fatalf("could not faucet: %v", err)
 		}
@@ -242,7 +255,7 @@ func TestClient(t *testing.T) {
 		topUpDeposits(t, ctx, backend, aliceClient)
 
 		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(bobClient.Address(), big.NewInt(100), big.NewInt(0))
+		err = faucet(bobClient.Address(), oneEth, big.NewInt(0))
 		if err != nil {
 			t.Fatalf("could not faucet: %v", err)
 		}
@@ -485,6 +498,8 @@ func createBackend(t *testing.T, ctx context.Context, owner common.Address) eth.
 	return eth.NewSimBackend(backends.NewSimulatedBackend(genesis, gasLimit))
 }
 
+// createRandomClient will generate a new ecdsa key and use it to create a Sylo
+// ethereum client.
 func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBackend, addresses eth.Addresses) (eth.Client, *ecdsa.PrivateKey) {
 	pk, err := crypto.GenerateKey()
 	if err != nil {
@@ -509,7 +524,7 @@ type faucetF func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int
 func makeFaucet(t *testing.T, ctx context.Context, b eth.SimBackend, c eth.Client, pk *ecdsa.PrivateKey) faucetF {
 	return func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int) error {
 		if ethAmt.Cmp(big.NewInt(0)) == 1 {
-			err := b.FaucetEth(ctx, c.Address(), recipient, pk)
+			err := b.FaucetEth(ctx, c.Address(), recipient, pk, ethAmt)
 			if err != nil {
 				return fmt.Errorf("could not faucet eth: %v", err)
 			}

@@ -18,7 +18,7 @@ import (
 type SimBackend interface {
 	Backend
 	Commit()
-	FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey) error
+	FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey, amount *big.Int) error
 }
 
 type simBackend struct {
@@ -42,7 +42,7 @@ func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) 
 	return 0, errors.New("Not implemented")
 }
 
-func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey) (err error) {
+func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey, amount *big.Int) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -54,15 +54,14 @@ func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to e
 		return fmt.Errorf("could not get pending nonce: %v", err)
 	}
 
-	value := big.NewInt(1000000000000000000) // in wei (1 eth)
-	gasLimit := uint64(21000)                // in units
+	gasLimit := uint64(21000) // in units
 	gasPrice, err := b.SimulatedBackend.SuggestGasPrice(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not get suggested gas price: %v", err)
 	}
 
 	var data []byte
-	tx := types.NewTransaction(nonce, to, value, gasLimit, gasPrice, data)
+	tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, data)
 	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, signerKey)
 	if err != nil {
 		return fmt.Errorf("could not sign transaction: %v", err)
@@ -72,7 +71,6 @@ func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to e
 	if err != nil {
 		return fmt.Errorf("could not send transaction: %v", err)
 	}
-
 	b.Commit()
 
 	return nil
