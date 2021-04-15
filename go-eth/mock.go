@@ -2,7 +2,9 @@ package eth
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
@@ -10,11 +12,13 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type SimBackend interface {
 	Backend
 	Commit()
+	FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey) error
 }
 
 type simBackend struct {
@@ -36,6 +40,42 @@ func (b *simBackend) PendingStorageAt(ctx context.Context, account ethcommon.Add
 
 func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) {
 	return 0, errors.New("Not implemented")
+}
+
+func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+
+	nonce, err := b.SimulatedBackend.PendingNonceAt(ctx, from)
+	if err != nil {
+		return fmt.Errorf("could not get pending nonce: %v", err)
+	}
+
+	value := big.NewInt(1000000000000000000) // in wei (1 eth)
+	gasLimit := uint64(21000)                // in units
+	gasPrice, err := b.SimulatedBackend.SuggestGasPrice(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not get suggested gas price: %v", err)
+	}
+
+	var data []byte
+	tx := types.NewTransaction(nonce, to, value, gasLimit, gasPrice, data)
+	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, signerKey)
+	if err != nil {
+		return fmt.Errorf("could not sign transaction: %v", err)
+	}
+
+	err = b.SimulatedBackend.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return fmt.Errorf("could not send transaction: %v", err)
+	}
+
+	b.Commit()
+
+	return nil
 }
 
 func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {

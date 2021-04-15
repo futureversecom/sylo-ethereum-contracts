@@ -33,9 +33,6 @@ type Client interface {
 		Penalty  *big.Int
 		UnlockAt *big.Int
 	}, error)
-
-	//UnlockDuration() (*big.Int, error)  // Conflicting names
-
 	DepositEscrow(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	DepositPenalty(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	UnlockDeposits() (*types.Transaction, error)
@@ -120,14 +117,14 @@ func NewClient(
 
 	chainID, err := eth.ChainID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get chain id: %v", err)
 	}
 
 	signer := types.NewEIP155Signer(chainID)
 
 	backend, err := NewBackend(eth, signer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get backend: %v", err)
 	}
 
 	return NewClientWithBackend(
