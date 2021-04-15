@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	//	"github.com/dn3010/go-probabilistic-micropayments"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

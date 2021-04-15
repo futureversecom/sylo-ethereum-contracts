@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/golang/glog"
 )
 
 var abis = []string{
@@ -86,11 +86,11 @@ func (b *backend) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	}
 
 	if sendErr != nil {
-		glog.Infof("\n%vEth Transaction%v\n\nInvoking transaction: \"%v\". Inputs: \"%v\"   \nTransaction Failed: %v\n\n%v\n", strings.Repeat("*", 30), strings.Repeat("*", 30), txLog.method, txLog.inputs, sendErr, strings.Repeat("*", 75))
+		log.Printf("\n%vEth Transaction%v\n\nInvoking transaction: \"%v\". Inputs: \"%v\"   \nTransaction Failed: %v\n\n%v\n", strings.Repeat("*", 30), strings.Repeat("*", 30), txLog.method, txLog.inputs, sendErr, strings.Repeat("*", 75))
 		return sendErr
 	}
 
-	glog.Infof("\n%vEth Transaction%v\n\nInvoking transaction: \"%v\". Inputs: \"%v\"  Hash: \"%v\". \n\n%v\n", strings.Repeat("*", 30), strings.Repeat("*", 30), txLog.method, txLog.inputs, tx.Hash().String(), strings.Repeat("*", 75))
+	log.Printf("\n%vEth Transaction%v\n\nInvoking transaction: \"%v\". Inputs: \"%v\"  Hash: \"%v\". \n\n%v\n", strings.Repeat("*", 30), strings.Repeat("*", 30), txLog.method, txLog.inputs, tx.Hash().String(), strings.Repeat("*", 75))
 
 	return nil
 }
@@ -148,7 +148,7 @@ func (b *backend) retryRemoteCall(remoteCall func() ([]byte, error)) (out []byte
 	for i := 0; i < count && retry; i++ {
 		out, err = remoteCall()
 		if err != nil && (err.Error() == "EOF" || err.Error() == "tls: use of closed connection") {
-			glog.V(4).Infof("Retrying call to remote ethereum node")
+			log.Println("Retrying call to remote ethereum node")
 		} else {
 			retry = false
 		}
