@@ -21,54 +21,37 @@ import (
 )
 
 var (
-	gasLimit       = uint64(50000000)
-	oneEth         = big.NewInt(1000000000000000000)
-	ownerBalance   = new(big.Int).Mul(oneEth, big.NewInt(1000))
-	chainID        = big.NewInt(1337)
-	unlockDuration = big.NewInt(10)
-	escrowAmount   = big.NewInt(100000)
-	penaltyAmount  = big.NewInt(1000)
-	uint256max     = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1)) // 2^256-1
+	gasLimit         = uint64(50000000)
+	oneEth           = big.NewInt(1000000000000000000)
+	faucetEthBalance = new(big.Int).Mul(oneEth, big.NewInt(1000))
+	chainID          = big.NewInt(1337)
+	unlockDuration   = big.NewInt(10)
+	escrowAmount     = big.NewInt(100000)
+	penaltyAmount    = big.NewInt(1000)
+	uint256max       = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1)) // 2^256-1
 )
 
 func TestClient(t *testing.T) {
-	var backend eth.SimBackend
-	var addresses eth.Addresses
-	var alicePK *ecdsa.PrivateKey
-	var aliceClient eth.Client
-	var faucet faucetF
-	var err error
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	backend, addresses, faucet := startup(t, ctx)
+	_ = faucet // in case it isn't used
+
 	t.Run("client can be created", func(t *testing.T) {
-		var aliceTransactor *bind.TransactOpts
-
-		alicePK, err = crypto.GenerateKey()
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
 		if err != nil {
-			t.Fatalf("could not create ecdsa key: %v", err)
+			t.Fatalf("could not faucet: %v", err)
 		}
-		aliceTransactor, err = bind.NewKeyedTransactorWithChainID(alicePK, chainID)
-		if err != nil {
-			t.Fatalf("could not create transaction signer: %v", err)
-		}
-		aliceTransactor.Context = ctx
-
-		backend = createBackend(t, ctx, aliceTransactor.From)
-		addresses = deployContracts(t, ctx, aliceTransactor, backend)
-
-		aliceClient, err = eth.NewClientWithBackend(addresses, backend, aliceTransactor)
-		if err != nil {
-			t.Fatalf("could not create client: %v", err)
-		}
-
-		// create a faucet
-		faucet = makeFaucet(t, ctx, backend, aliceClient, alicePK)
-		_ = faucet // in case it isn't used
 	})
 
 	t.Run("can get latest block", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
 		blockNumberA, err := aliceClient.LatestBlock()
 		if err != nil {
 			t.Fatalf("could not get latest block: %v", err)
@@ -84,6 +67,12 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("can deposit escrow", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+
 		addEscrow(t, ctx, backend, aliceClient, escrowAmount)
 
 		deposit, err := aliceClient.Deposits(aliceClient.Address())
@@ -96,6 +85,12 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("can deposit penalty", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+
 		addPenalty(t, ctx, backend, aliceClient, penaltyAmount)
 
 		deposit, err := aliceClient.Deposits(aliceClient.Address())
@@ -108,6 +103,13 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("can withdraw ticketing", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		topUpDeposits(t, ctx, backend, aliceClient)
+
 		tx, err := aliceClient.UnlockDeposits()
 		if err != nil {
 			t.Fatalf("could not unlock ticketing escrow: %v", err)
@@ -155,17 +157,14 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("can redeem ticket", func(t *testing.T) {
-		// make sure there is enough escrow
-		deposit, err := aliceClient.Deposits(aliceClient.Address())
+		aliceClient, alicePK := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
 		if err != nil {
-			t.Fatalf("could not get deposits: %v", err)
+			t.Fatalf("could not faucet: %v", err)
 		}
-		if deposit.Escrow.Cmp(escrowAmount) == -1 {
-			addAmount := new(big.Int).Add(escrowAmount, new(big.Int).Neg(deposit.Escrow))
-			addEscrow(t, ctx, backend, aliceClient, addAmount)
-		}
+		topUpDeposits(t, ctx, backend, aliceClient)
 
-		bobClient := createRandomClient(t, ctx, backend, addresses)
+		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
 		err = faucet(bobClient.Address(), big.NewInt(100), big.NewInt(0))
 		if err != nil {
 			t.Fatalf("could not faucet: %v", err)
@@ -235,18 +234,29 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("cannot replay ticket", func(t *testing.T) {
-		// receiver random number
-		receiverRand := big.NewInt(2)
+		aliceClient, alicePK := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		topUpDeposits(t, ctx, backend, aliceClient)
 
-		var receiverRandHash [32]byte
-		copy(receiverRandHash[:], crypto.Keccak256(receiverRand.FillBytes(receiverRandHash[:])))
+		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err = faucet(bobClient.Address(), big.NewInt(100), big.NewInt(0))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+
+		bobRand := big.NewInt(1)
+		var bobRandHash [32]byte
+		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
 
 		ticket := contracts.SyloTicketingTicket{
 			Sender:           aliceClient.Address(),
-			Receiver:         ethcommon.HexToAddress("0x34D743d137a8cc298349F993b22B03Fea15c30c2"),
-			ReceiverRandHash: receiverRandHash,
+			Receiver:         bobClient.Address(),
+			ReceiverRandHash: bobRandHash,
 			FaceValue:        big.NewInt(1),
-			WinProb:          new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1)), // 2^256-1
+			WinProb:          uint256max, // always win
 			ExpirationBlock:  big.NewInt(0),
 			SenderNonce:      1,
 		}
@@ -261,18 +271,20 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not sign hash: %v", err)
 		}
 
-		tx, err := aliceClient.Redeem(ticket, receiverRand, sig)
+		// good redemption
+		tx, err := bobClient.Redeem(ticket, bobRand, sig)
 		if err != nil {
 			t.Fatalf("could not redeem ticket: %v", err)
 		}
 		backend.Commit()
 
-		_, err = aliceClient.CheckTx(ctx, tx)
+		_, err = bobClient.CheckTx(ctx, tx)
 		if err != nil {
 			t.Fatalf("could not confirm transaction: %v", err)
 		}
 
-		_, err = aliceClient.Redeem(ticket, receiverRand, sig)
+		// replay redemption
+		_, err = bobClient.Redeem(ticket, bobRand, sig)
 		if err == nil {
 			t.Fatalf("expected error because ticket has already been used")
 		}
@@ -284,7 +296,13 @@ func TestClient(t *testing.T) {
 	t.Run("can unstake", func(t *testing.T) {
 		stakeAmount := big.NewInt(1000)
 
-		_, err := aliceClient.ApproveDirectory(stakeAmount)
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+
+		_, err = aliceClient.ApproveDirectory(stakeAmount)
 		if err != nil {
 			t.Fatalf("could not approve spending: %v", err)
 		}
@@ -376,7 +394,13 @@ func TestClient(t *testing.T) {
 	t.Run("can cancel unstaking", func(t *testing.T) {
 		stakeAmount := big.NewInt(1000)
 
-		_, err := aliceClient.ApproveDirectory(stakeAmount)
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+
+		_, err = aliceClient.ApproveDirectory(stakeAmount)
 		if err != nil {
 			t.Fatalf("could not approve staking amount: %v", err)
 		}
@@ -429,15 +453,39 @@ func TestClient(t *testing.T) {
 	})
 }
 
+func startup(t *testing.T, ctx context.Context) (eth.SimBackend, eth.Addresses, faucetF) {
+	ownerPK, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatalf("could not create ecdsa key: %v", err)
+	}
+	ownerTransactor, err := bind.NewKeyedTransactorWithChainID(ownerPK, chainID)
+	if err != nil {
+		t.Fatalf("could not create transaction signer: %v", err)
+	}
+	ownerTransactor.Context = ctx
+
+	backend := createBackend(t, ctx, ownerTransactor.From)
+	addresses := deployContracts(t, ctx, ownerTransactor, backend)
+
+	ownerClient, err := eth.NewClientWithBackend(addresses, backend, ownerTransactor)
+	if err != nil {
+		t.Fatalf("could not create client: %v", err)
+	}
+
+	// create a faucet
+	faucet := makeFaucet(t, ctx, backend, ownerClient, ownerPK)
+	return backend, addresses, faucet
+}
+
 // createBackend will make a genesis block and use it to generate a new
 // simulated ethereum backend.
 func createBackend(t *testing.T, ctx context.Context, owner common.Address) eth.SimBackend {
 	genesis := make(core.GenesisAlloc)
-	genesis[owner] = core.GenesisAccount{Balance: ownerBalance}
+	genesis[owner] = core.GenesisAccount{Balance: faucetEthBalance}
 	return eth.NewSimBackend(backends.NewSimulatedBackend(genesis, gasLimit))
 }
 
-func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBackend, addresses eth.Addresses) eth.Client {
+func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBackend, addresses eth.Addresses) (eth.Client, *ecdsa.PrivateKey) {
 	pk, err := crypto.GenerateKey()
 	if err != nil {
 		t.Fatalf("could not create ecdsa key: %v", err)
@@ -453,7 +501,7 @@ func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBacken
 		t.Fatalf("could not create client: %v", err)
 	}
 
-	return client
+	return client, pk
 }
 
 type faucetF func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int) error
@@ -469,15 +517,32 @@ func makeFaucet(t *testing.T, ctx context.Context, b eth.SimBackend, c eth.Clien
 		if syloAmt.Cmp(big.NewInt(0)) == 1 {
 			tx, err := c.Transfer(recipient, syloAmt)
 			if err != nil {
-				return fmt.Errorf("could not faucet funds: %v", err)
+				return fmt.Errorf("could not faucet sylo: %v", err)
 			}
 			b.Commit()
 			_, err = c.CheckTx(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("could not check transaction: %v", err)
+				return fmt.Errorf("could not check sylo faucet transaction: %v", err)
 			}
 		}
 		return nil
+	}
+}
+
+func topUpDeposits(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) {
+	deposit, err := client.Deposits(client.Address())
+	if err != nil {
+		t.Fatalf("could not get deposits for top up: %v", err)
+	}
+	// make sure there is enough escrow
+	if deposit.Escrow.Cmp(escrowAmount) == -1 {
+		addAmount := new(big.Int).Add(escrowAmount, new(big.Int).Neg(deposit.Escrow))
+		addEscrow(t, ctx, backend, client, addAmount)
+	}
+	// make sure there is enough penalty
+	if deposit.Penalty.Cmp(penaltyAmount) == -1 {
+		addAmount := new(big.Int).Add(penaltyAmount, new(big.Int).Neg(deposit.Escrow))
+		addPenalty(t, ctx, backend, client, addAmount)
 	}
 }
 
