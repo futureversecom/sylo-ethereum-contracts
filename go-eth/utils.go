@@ -76,44 +76,6 @@ func handleEthSlice(val reflect.Value) string {
 	return vString
 }
 
-// func errorReason(ctx context.Context, address ethcommon.Address, b Backend, tx *types.Transaction, blockNum *big.Int, abiString string) (string, error) {
-// 	msg := ethereum.CallMsg{
-// 		From:     address,
-// 		To:       tx.To(),
-// 		Gas:      tx.Gas(),
-// 		GasPrice: tx.GasPrice(),
-// 		Value:    tx.Value(),
-// 		Data:     tx.Data(),
-// 	}
-// 	res, err := b.CallContract(ctx, msg, blockNum)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "CallContract")
-// 	}
-// 	if len(res) < 4 {
-// 		return "", errors.Errorf("Invalid res %v", res)
-// 	}
-// 	abiType, err := abi.NewType("string", abiString, nil)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "AbiType")
-// 	}
-// 	return unpackError(res, abiType)
-// }
-
-// var (
-// 	errorSig = []byte{0x08, 0xc3, 0x79, 0xa0} // Keccak256("Error(string)")[:4]
-// )
-
-// func unpackError(result []byte, abiType abi.Type) (string, error) {
-// 	if !bytes.Equal(result[:4], errorSig) {
-// 		return "<tx result not Error(string)>", errors.New("TX result not of type Error(string)")
-// 	}
-// 	vs, err := abi.Arguments{{Type: abiType}}.UnpackValues(result[4:])
-// 	if err != nil {
-// 		return "<invalid tx result>", errors.Wrap(err, "unpacking revert reason")
-// 	}
-// 	return vs[0].(string), nil
-// }
-
 func RandAddress() (ethcommon.Address, error) {
 	b, err := RandBytes(ethcommon.AddressLength)
 	if err != nil {
