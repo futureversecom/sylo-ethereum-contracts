@@ -36,7 +36,6 @@ type Backend interface {
 	ethereum.GasPricer
 	ethereum.LogFilterer
 	ethereum.ChainReader
-	// ChainID(ctx context.Context) (*big.Int, error)
 }
 
 type backend struct {
