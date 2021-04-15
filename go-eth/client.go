@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -27,12 +26,16 @@ type Client interface {
 	Address() ethcommon.Address
 
 	// Ticketing methods
+
+	GetTicketHash(ticket contracts.SyloTicketingTicket) ([32]byte, error)
 	Deposits(account ethcommon.Address) (struct {
 		Escrow   *big.Int
 		Penalty  *big.Int
 		UnlockAt *big.Int
 	}, error)
+
 	//UnlockDuration() (*big.Int, error)  // Conflicting names
+
 	DepositEscrow(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	DepositPenalty(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	UnlockDeposits() (*types.Transaction, error)
@@ -42,6 +45,7 @@ type Client interface {
 	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
 
 	// Token methods
+
 	Allowance(owner ethcommon.Address, spender ethcommon.Address) (*big.Int, error)
 	Approve(spender ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	DecreaseAllowance(spender ethcommon.Address, subtractedValue *big.Int) (*types.Transaction, error)
@@ -51,6 +55,7 @@ type Client interface {
 	TransferFrom(sender ethcommon.Address, recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 
 	// Directory methods
+
 	Stakes(key [32]byte) (struct {
 		Amount      *big.Int
 		LeftAmount  *big.Int
@@ -70,16 +75,18 @@ type Client interface {
 	Scan(rand *big.Int) (ethcommon.Address, error)
 
 	// Listings methods
+
 	SetListing(contracts.ListingsListing) (*types.Transaction, error)
 	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
+
 	ApproveTicketing(amount *big.Int) (*types.Transaction, error)
 	ApproveDirectory(amount *big.Int) (*types.Transaction, error)
 
-	//Utils
+	// Utils
+
 	LatestBlock() (*big.Int, error)
-	CheckTxTimeout(tx *types.Transaction, timeout time.Duration) (*big.Int, error)
 	CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error)
 }
 
@@ -227,15 +234,19 @@ func (c *client) LatestBlock() (*big.Int, error) {
 	return header.Number, nil
 }
 
-func (c *client) CheckTxTimeout(tx *types.Transaction, timeout time.Duration) (*big.Int, error) {
-
-	ctxT, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	return c.CheckTx(ctxT, tx)
-}
-
 func (c *client) CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+
+	if tx == nil {
+		return nil, fmt.Errorf("transaction cannot be nil")
+	}
+
+	if c.backend == nil {
+		return nil, fmt.Errorf("client backend cannot be nil")
+	}
+
 	receipt, err := bind.WaitMined(ctx, c.backend, tx)
 	if err != nil {
 		return nil, err
