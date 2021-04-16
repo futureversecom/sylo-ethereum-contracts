@@ -35,7 +35,7 @@ func TestClient(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	backend, addresses, faucet := startup(t, ctx)
+	backend, addresses, faucet := startupEthereum(t, ctx)
 	_ = faucet // in case it isn't used
 
 	t.Run("client can be created", func(t *testing.T) {
@@ -306,7 +306,7 @@ func TestClient(t *testing.T) {
 		}
 	})
 
-	t.Run("can unstake", func(t *testing.T) {
+	t.Run("can stake and unstake", func(t *testing.T) {
 		stakeAmount := big.NewInt(1000)
 
 		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
@@ -315,24 +315,10 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not faucet: %v", err)
 		}
 
-		_, err = aliceClient.ApproveDirectory(stakeAmount)
-		if err != nil {
-			t.Fatalf("could not approve spending: %v", err)
-		}
-		backend.Commit()
+		stake(t, ctx, backend, aliceClient, stakeAmount)
+		defer unstakeAll(t, ctx, backend, aliceClient)
 
-		tx, err := aliceClient.AddStake(stakeAmount, aliceClient.Address())
-		if err != nil {
-			t.Fatalf("could not add stake: %v", err)
-		}
-		backend.Commit()
-
-		_, err = aliceClient.CheckTx(ctx, tx)
-		if err != nil {
-			t.Fatalf("could not check transaction: %v", err)
-		}
-
-		tx, err = aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
+		tx, err := aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unlock stake: %v", err)
 		}
@@ -351,7 +337,17 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not check transaction: %v", err)
 		}
 
-		// Advance enough blocks for the unlock period to end
+		// all the stake should be unlocking
+		unlocking, err := aliceClient.GetUnlockingStake(aliceClient.Address(), aliceClient.Address())
+		if err != nil {
+			t.Fatalf("could not check unlocking status: %v", err)
+		}
+
+		if !bigIntsEqual(unlocking.Amount, stakeAmount) {
+			t.Fatalf("unlocking amount should be zero")
+		}
+
+		// advance enough blocks for the unlock period to end
 		for i := uint64(0); i < unlockDuration.Uint64(); i++ {
 			backend.Commit()
 		}
@@ -361,6 +357,7 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not check balance: %v", err)
 		}
 
+		// return the unstaked amount
 		tx, err = aliceClient.Unstake(aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unstake: %v", err)
@@ -372,7 +369,8 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not check transaction: %v", err)
 		}
 
-		unlocking, err := aliceClient.GetUnlockingStake(aliceClient.Address(), aliceClient.Address())
+		// no stake should be unlocking anymore
+		unlocking, err = aliceClient.GetUnlockingStake(aliceClient.Address(), aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not check unlocking status: %v", err)
 		}
@@ -394,7 +392,7 @@ func TestClient(t *testing.T) {
 			t.Fatalf("expected stake to be returned")
 		}
 
-		// should not be able to unstake again
+		// try to return the unstaked amount again
 		_, err = aliceClient.Unstake(aliceClient.Address())
 		if err == nil {
 			t.Fatalf("expected error because should not be able to unstake again")
@@ -413,24 +411,10 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not faucet: %v", err)
 		}
 
-		_, err = aliceClient.ApproveDirectory(stakeAmount)
-		if err != nil {
-			t.Fatalf("could not approve staking amount: %v", err)
-		}
-		backend.Commit()
+		stake(t, ctx, backend, aliceClient, stakeAmount)
+		defer unstakeAll(t, ctx, backend, aliceClient)
 
-		tx, err := aliceClient.AddStake(stakeAmount, aliceClient.Address())
-		if err != nil {
-			t.Fatalf("could not add stake: %v", err)
-		}
-		backend.Commit()
-
-		_, err = aliceClient.CheckTx(ctx, tx)
-		if err != nil {
-			t.Fatalf("could not check transaction: %v", err)
-		}
-
-		tx, err = aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
+		tx, err := aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unlock stake: %v", err)
 		}
@@ -441,32 +425,58 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not check transaction: %v", err)
 		}
 
+		// locking the unlocking amount should cancel the unlocking
 		_, err = aliceClient.LockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not lock stake: %v", err)
 		}
 		backend.Commit()
 
+		// no stake should be unlocking
+		unlocking, err := aliceClient.GetUnlockingStake(aliceClient.Address(), aliceClient.Address())
+		if err != nil {
+			t.Fatalf("could not check unlocking status: %v", err)
+		}
+		if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
+			t.Fatalf("unlocking amount should be zero")
+		}
+		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+			t.Fatalf("unlocking at should be zero")
+		}
+
+		// unlock the stake again
 		_, err = aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unlock stake: %v", err)
 		}
 		backend.Commit()
 
-		// Advance enough blocks for the unlock period to end
-		for i := uint64(0); i < unlockDuration.Uint64(); i++ {
-			backend.Commit()
+		if !waitForUnlockAt(t, ctx, backend, aliceClient) {
+			t.Fatalf("nothing to wait for")
 		}
 
+		// locking the unlocked amount should restake
 		_, err = aliceClient.LockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not lock stake: %v", err)
 		}
 		backend.Commit()
+
+		// no stake should be unlocking
+		unlocking, err = aliceClient.GetUnlockingStake(aliceClient.Address(), aliceClient.Address())
+		if err != nil {
+			t.Fatalf("could not check unlocking status: %v", err)
+		}
+		if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
+			t.Fatalf("unlocking amount should be zero")
+		}
+		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+			t.Fatalf("unlocking at should be zero")
+		}
 	})
 }
 
-func startup(t *testing.T, ctx context.Context) (eth.SimBackend, eth.Addresses, faucetF) {
+func startupEthereum(t *testing.T, ctx context.Context) (eth.SimBackend, eth.Addresses, faucetF) {
 	ownerPK, err := crypto.GenerateKey()
 	if err != nil {
 		t.Fatalf("could not create ecdsa key: %v", err)
@@ -521,21 +531,21 @@ func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBacken
 
 type faucetF func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int) error
 
-func makeFaucet(t *testing.T, ctx context.Context, b eth.SimBackend, c eth.Client, pk *ecdsa.PrivateKey) faucetF {
+func makeFaucet(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, pk *ecdsa.PrivateKey) faucetF {
 	return func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int) error {
 		if ethAmt.Cmp(big.NewInt(0)) == 1 {
-			err := b.FaucetEth(ctx, c.Address(), recipient, pk, ethAmt)
+			err := backend.FaucetEth(ctx, client.Address(), recipient, pk, ethAmt)
 			if err != nil {
 				return fmt.Errorf("could not faucet eth: %v", err)
 			}
 		}
 		if syloAmt.Cmp(big.NewInt(0)) == 1 {
-			tx, err := c.Transfer(recipient, syloAmt)
+			tx, err := client.Transfer(recipient, syloAmt)
 			if err != nil {
 				return fmt.Errorf("could not faucet sylo: %v", err)
 			}
-			b.Commit()
-			_, err = c.CheckTx(ctx, tx)
+			backend.Commit()
+			_, err = client.CheckTx(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("could not check sylo faucet transaction: %v", err)
 			}
@@ -544,6 +554,8 @@ func makeFaucet(t *testing.T, ctx context.Context, b eth.SimBackend, c eth.Clien
 	}
 }
 
+// topUpDeposits will ensure that both the escrow and penalty accounts have
+// enough Sylo.
 func topUpDeposits(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) {
 	deposit, err := client.Deposits(client.Address())
 	if err != nil {
@@ -558,6 +570,109 @@ func topUpDeposits(t *testing.T, ctx context.Context, backend eth.SimBackend, cl
 	if deposit.Penalty.Cmp(penaltyAmount) == -1 {
 		addAmount := new(big.Int).Add(penaltyAmount, new(big.Int).Neg(deposit.Escrow))
 		addPenalty(t, ctx, backend, client, addAmount)
+	}
+}
+
+// stake will add the stakeAmount to the stake tree.
+func stake(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, stakeAmount *big.Int) {
+	_, err := client.ApproveDirectory(stakeAmount)
+	if err != nil {
+		t.Fatalf("could not approve spending: %v", err)
+	}
+	backend.Commit()
+
+	tx, err := client.AddStake(stakeAmount, client.Address())
+	if err != nil {
+		t.Fatalf("could not add stake: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
+// waitForUnlockedAt will wait for any unlocking stake to be ready to unstake.
+//
+// Will return true once the unlockedAt block is reached, or false if the
+// unlockedAt block is 0.
+func waitForUnlockAt(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) bool {
+	unlocking, err := client.GetUnlockingStake(client.Address(), client.Address())
+	if err != nil {
+		t.Fatalf("could not check unlocking status: %v", err)
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+		n, err := client.LatestBlock()
+		if err != nil {
+			t.Fatalf("could not get latest block: %v", err)
+		}
+		if bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+			// nothing to wait for
+			return false
+		}
+		if n.Cmp(unlocking.UnlockAt) != -1 {
+			// unlock block reached
+			return true
+		}
+		backend.Commit()
+	}
+}
+
+// unstakeAll will unlock all stake and wait for it to be unlocked and
+// withdrawn.
+func unstakeAll(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) {
+	stakeAmount, err := client.GetAmountStaked(client.Address())
+	if err != nil {
+		t.Fatalf("could not get staked amount: %v", err)
+	}
+
+	_, err = client.UnlockStake(stakeAmount, client.Address())
+	if err == nil {
+		// wait for unlocking
+		if waitForUnlockAt(t, ctx, backend, client) {
+			// return the unstaked amount
+			tx, err := client.Unstake(client.Address())
+			if err != nil {
+				t.Fatalf("could not unstake: %v", err)
+			}
+			backend.Commit()
+
+			_, err = client.CheckTx(ctx, tx)
+			if err != nil {
+				t.Fatalf("could not check transaction: %v", err)
+			}
+		}
+	} else if strings.HasSuffix(err.Error(), "Nothing to unstake") {
+		// nothing to do
+	} else {
+		// error unlocking
+		t.Fatalf("could not unlock stake: %v", err)
+	}
+
+	// check that all the stake is gone
+	stakeAmount, err = client.GetAmountStaked(client.Address())
+	if err != nil {
+		t.Fatalf("could not get staked amount: %v", err)
+	}
+	if !bigIntsEqual(stakeAmount, big.NewInt(0)) {
+		t.Fatalf("all stake should be removed")
+	}
+
+	unlocking, err := client.GetUnlockingStake(client.Address(), client.Address())
+	if err != nil {
+		t.Fatalf("could not check unlocking status: %v", err)
+	}
+	if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
+		t.Fatalf("unlocking amount should be zero")
+	}
+	if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+		t.Fatalf("unlocking at should be zero")
 	}
 }
 
