@@ -1,8 +1,10 @@
 package eth_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 	"strings"
@@ -36,7 +38,6 @@ func TestClient(t *testing.T) {
 	defer cancel()
 
 	backend, addresses, faucet := startupEthereum(t, ctx)
-	_ = faucet // in case it isn't used
 
 	t.Run("client can be created", func(t *testing.T) {
 		createRandomClient(t, ctx, backend, addresses)
@@ -476,6 +477,324 @@ func TestClient(t *testing.T) {
 	})
 }
 
+func TestScan(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	backend, addresses, faucet := startupEthereum(t, ctx)
+
+	zeroHalves := big.NewInt(0)
+	oneHalf, _ := new(big.Int).SetString("170141183460469231731687303715884105727", 10)        // 1 * ((2 << 128) // 2 - 1) // 2 + 0
+	oneHalfPlusOne, _ := new(big.Int).SetString("170141183460469231731687303715884105728", 10) // 1 * ((2 << 128) // 2 - 1) // 2 + 1
+	twoHalves, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10)      // 2 * ((2 << 128) // 2 - 1) // 2 + 0
+
+	zeroThirds := big.NewInt(0)
+	oneThird, _ := new(big.Int).SetString("113427455640312821154458202477256070485", 10)         // 1 * ((3 << 128) // 3 - 1) // 3 + 0
+	oneThirdPlusOne, _ := new(big.Int).SetString("113427455640312821154458202477256070486", 10)  // 1 * ((3 << 128) // 3 - 1) // 3 + 1
+	twoThirds, _ := new(big.Int).SetString("226854911280625642308916404954512140970", 10)        // 2 * ((3 << 128) // 3 - 1) // 3 + 0
+	twoThirdsPlusOne, _ := new(big.Int).SetString("226854911280625642308916404954512140971", 10) // 2 * ((3 << 128) // 3 - 1) // 3 + 1
+	threeThirds, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10)      // 3 * ((3 << 128) // 3 - 1) // 3 + 0
+
+	t.Run("can scan empty stake tree", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		scanTests := []*big.Int{
+			big.NewInt(0),
+			new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(-1)),
+		}
+		zeroAddr := ethcommon.BytesToAddress([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+		for _, i := range scanTests {
+			a, err := aliceClient.Scan(i)
+			if err != nil {
+				t.Fatalf("could not scan %v: %v", i, err)
+			}
+			if !bytes.Equal(a.Bytes(), zeroAddr.Bytes()) {
+				t.Fatalf("should scan our own address")
+			}
+		}
+	})
+
+	t.Run("can stake and be scanned", func(t *testing.T) {
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		stakeAmount := big.NewInt(100)
+		stake(t, ctx, backend, aliceClient, stakeAmount)
+		defer unstakeAll(t, ctx, backend, aliceClient)
+
+		aliceNode, _ := getNode(t, aliceClient)
+		if !bigIntsEqual(aliceNode.Amount, stakeAmount) {
+			t.Fatalf("stake amount is not correct")
+		}
+
+		scanTests := []*big.Int{
+			big.NewInt(0),
+			new(big.Int).Lsh(big.NewInt(1), 64),
+			new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(-1)),
+		}
+
+		for _, i := range scanTests {
+			a, err := aliceClient.Scan(i)
+			if err != nil {
+				t.Fatalf("could not scan %v: %v", i, err)
+			}
+			if !bytes.Equal(a.Bytes(), aliceClient.Address().Bytes()) {
+				t.Fatalf("should scan our own address")
+			}
+		}
+	})
+
+	t.Run("can stake 2 nodes and be scanned", func(t *testing.T) {
+		var err error
+
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err = faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		aliceStakeAmount := big.NewInt(100)
+		stake(t, ctx, backend, aliceClient, aliceStakeAmount)
+		defer unstakeAll(t, ctx, backend, aliceClient)
+
+		aliceNode, _ := getNode(t, aliceClient)
+		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+			t.Fatalf("stake amount is not correct")
+		}
+
+		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err = faucet(bobClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		bobStakeAmount := big.NewInt(100)
+		stake(t, ctx, backend, bobClient, bobStakeAmount)
+		defer unstakeAll(t, ctx, backend, bobClient)
+
+		aliceNode, _ = getNode(t, aliceClient)
+		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+			t.Fatalf("alice stake amount is not correct")
+		}
+		if !bigIntsEqual(aliceNode.LeftAmount, big.NewInt(100)) {
+			t.Fatalf("bob's stake should be in alice's left subtree")
+		}
+
+		bobNode, bobKey := getNode(t, bobClient)
+		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+			t.Fatalf("bob stake amount is not correct")
+		}
+		if !bytes.Equal(aliceNode.Left.Value[:], bobKey) {
+			t.Fatalf("bob's key should be alice's left pointer")
+		}
+
+		scanTests := [](struct {
+			desc string
+			val  *big.Int
+			addr ethcommon.Address
+		}){
+			// bob
+			{desc: "zeroHalves should scan to bob", val: zeroHalves, addr: bobClient.Address()},
+			{desc: "oneHalf should scan to bob", val: oneHalf, addr: bobClient.Address()},
+			// alice
+			{desc: "oneHalfPlusOne should scan to alice", val: oneHalfPlusOne, addr: aliceClient.Address()},
+			{desc: "twoHalves should scan to alice", val: twoHalves, addr: aliceClient.Address()},
+		}
+
+		for _, scanTest := range scanTests {
+			t.Run(scanTest.desc, func(t *testing.T) {
+				a, err := aliceClient.Scan(scanTest.val)
+				if err != nil {
+					t.Fatalf("could not scan %v: %v", scanTest.val, err)
+				}
+				if !bytes.Equal(a.Bytes(), scanTest.addr.Bytes()) {
+					t.Fatalf("scanned the wrong address for %v", scanTest.val)
+				}
+			})
+		}
+	})
+
+	t.Run("can stake 3 nodes and be scanned", func(t *testing.T) {
+		var err error
+
+		// stake Alice
+		//
+		//                (0)-A(100)-(0)
+		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err = faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		aliceStakeAmount := big.NewInt(100)
+		stake(t, ctx, backend, aliceClient, aliceStakeAmount)
+
+		aliceNode, _ := getNode(t, aliceClient)
+		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+			t.Fatalf("stake amount is not correct")
+		}
+
+		// stake Bob
+		//
+		//                (100)-A(100)-(0)
+		//               /
+		// (0)-B(100)-(0)
+		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err = faucet(bobClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		bobStakeAmount := big.NewInt(100)
+		stake(t, ctx, backend, bobClient, bobStakeAmount)
+		defer unstakeAll(t, ctx, backend, bobClient)
+
+		aliceNode, _ = getNode(t, aliceClient)
+		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+			t.Fatalf("alice stake amount is not correct")
+		}
+		if !bigIntsEqual(aliceNode.LeftAmount, big.NewInt(100)) {
+			t.Fatalf("bob's stake should be in alice's left subtree")
+		}
+
+		bobNode, bobKey := getNode(t, bobClient)
+		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+			t.Fatalf("bob stake amount is not correct")
+		}
+		if !bytes.Equal(aliceNode.Left.Value[:], bobKey) {
+			t.Fatalf("bob's key should be alice's left pointer")
+		}
+
+		// stake Charlie
+		//
+		//                (100)-A(100)-(100)
+		//               /                  \
+		// (0)-B(100)-(0)                    (0)-C(100)-(0)
+		charlieClient, _ := createRandomClient(t, ctx, backend, addresses)
+		err = faucet(charlieClient.Address(), oneEth, big.NewInt(1000000))
+		if err != nil {
+			t.Fatalf("could not faucet: %v", err)
+		}
+		backend.Commit()
+
+		charlieStakeAmount := big.NewInt(100)
+		stake(t, ctx, backend, charlieClient, charlieStakeAmount)
+		defer unstakeAll(t, ctx, backend, charlieClient)
+
+		aliceNode, _ = getNode(t, aliceClient)
+		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+			t.Fatalf("alice stake amount is not correct")
+		}
+		if !bigIntsEqual(aliceNode.LeftAmount, bobStakeAmount) {
+			t.Fatalf("bob's stake should be in alice's left subtree")
+		}
+		if !bigIntsEqual(aliceNode.RightAmount, charlieStakeAmount) {
+			t.Fatalf("charlie's stake should be in alice's right subtree")
+		}
+
+		bobNode, bobKey = getNode(t, bobClient)
+		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+			t.Fatalf("bob stake amount is not correct")
+		}
+		if !bytes.Equal(aliceNode.Left.Value[:], bobKey) {
+			t.Fatalf("bob's key should be alice's left pointer")
+		}
+
+		charlieNode, charlieKey := getNode(t, charlieClient)
+		if !bigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
+			t.Fatalf("charlie stake amount is not correct")
+		}
+		if !bytes.Equal(aliceNode.Right.Value[:], charlieKey) {
+			t.Fatalf("charlie's key should be alice's right pointer")
+		}
+
+		scanTests := [](struct {
+			desc string
+			val  *big.Int
+			addr ethcommon.Address
+		}){
+			// bob
+			{desc: "zeroThirds should scan to bob", val: zeroThirds, addr: bobClient.Address()},
+			{desc: "oneThird should scan to bob", val: oneThird, addr: bobClient.Address()},
+			// alice
+			{desc: "oneThirdPlusOne should scan to alice", val: oneThirdPlusOne, addr: aliceClient.Address()},
+			{desc: "twoThirds should scan to alice", val: twoThirds, addr: aliceClient.Address()},
+			// charlie
+			{desc: "twoThirdsPlusOne should scan to charlie", val: twoThirdsPlusOne, addr: charlieClient.Address()},
+			{desc: "threeThirds should scan to charlie", val: threeThirds, addr: charlieClient.Address()},
+		}
+
+		for _, scanTest := range scanTests {
+			t.Run(scanTest.desc, func(t *testing.T) {
+				a, err := aliceClient.Scan(scanTest.val)
+				if err != nil {
+					t.Fatalf("could not scan %v: %v", scanTest.val, err)
+				}
+				if !bytes.Equal(a.Bytes(), scanTest.addr.Bytes()) {
+					t.Fatalf("scanned the wrong address for %v", scanTest.val)
+				}
+			})
+		}
+
+		// unstake Alice (Charlie should take over root)
+		//
+		//                (100)-C(100)-(0)
+		//               /
+		// (0)-B(100)-(0)
+		unstakeAll(t, ctx, backend, aliceClient)
+
+		charlieNode, _ = getNode(t, charlieClient)
+		if !bigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
+			t.Fatalf("charlie's stake amount is not correct")
+		}
+		if !bigIntsEqual(charlieNode.LeftAmount, bobStakeAmount) {
+			t.Fatalf("charlie's left tree amount should be bob's stake amount")
+		}
+		if !bytes.Equal(charlieNode.Left.Value[:], bobKey) {
+			t.Fatalf("bob's key should be charlies's left pointer")
+		}
+
+		scanTests = [](struct {
+			desc string
+			val  *big.Int
+			addr ethcommon.Address
+		}){
+			// bob
+			{desc: "zeroHalves should scan to bob still", val: zeroHalves, addr: bobClient.Address()},
+			{desc: "oneHalfMinusOne should scan to bob now", val: oneHalf, addr: bobClient.Address()},
+			// charlie
+			{desc: "oneHalf should scan to charlie now", val: oneHalfPlusOne, addr: charlieClient.Address()},
+			{desc: "twoHalves should scan to charlie still", val: twoHalves, addr: charlieClient.Address()},
+		}
+
+		for _, scanTest := range scanTests {
+			t.Run(scanTest.desc, func(t *testing.T) {
+				a, err := aliceClient.Scan(scanTest.val)
+				if err != nil {
+					t.Fatalf("could not scan %v: %v", scanTest.val, err)
+				}
+				if !bytes.Equal(a.Bytes(), scanTest.addr.Bytes()) {
+					t.Fatalf("scanned the wrong address for %v", scanTest.val)
+				}
+			})
+		}
+	})
+}
+
 func startupEthereum(t *testing.T, ctx context.Context) (eth.SimBackend, eth.Addresses, faucetF) {
 	ownerPK, err := crypto.GenerateKey()
 	if err != nil {
@@ -632,8 +951,13 @@ func unstakeAll(t *testing.T, ctx context.Context, backend eth.SimBackend, clien
 		t.Fatalf("could not get staked amount: %v", err)
 	}
 
-	_, err = client.UnlockStake(stakeAmount, client.Address())
+	tx, err := client.UnlockStake(stakeAmount, client.Address())
 	if err == nil {
+		backend.Commit()
+		_, err = client.CheckTx(ctx, tx)
+		if err != nil {
+			t.Fatalf("could not check transaction: %v", err)
+		}
 		// wait for unlocking
 		if waitForUnlockAt(t, ctx, backend, client) {
 			// return the unstaked amount
@@ -661,7 +985,7 @@ func unstakeAll(t *testing.T, ctx context.Context, backend eth.SimBackend, clien
 		t.Fatalf("could not get staked amount: %v", err)
 	}
 	if !bigIntsEqual(stakeAmount, big.NewInt(0)) {
-		t.Fatalf("all stake should be removed")
+		t.Fatalf("all stake should be removed: got %v", stakeAmount)
 	}
 
 	unlocking, err := client.GetUnlockingStake(client.Address(), client.Address())
@@ -781,3 +1105,40 @@ func addDeposit(ctx context.Context, backend eth.SimBackend, client eth.Client, 
 func bigIntsEqual(x *big.Int, y *big.Int) bool {
 	return x.Cmp(y) == 0
 }
+
+func getNode(t *testing.T, client eth.Client) (struct {
+	Amount      *big.Int
+	LeftAmount  *big.Int
+	RightAmount *big.Int
+	Stakee      ethcommon.Address
+	Parent      [32]byte
+	Left        contracts.DirectoryNodePointer
+	Right       contracts.DirectoryNodePointer
+}, []byte) {
+	key, err := client.GetKey(client.Address(), client.Address())
+	if err != nil {
+		t.Fatalf("could not get key: %v", err)
+	}
+	node, err := client.Nodes(key)
+	if err != nil {
+		t.Fatalf("could not get node info: %v", err)
+	}
+	return node, key[:]
+}
+
+func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client eth.Client, desc string) {
+	key, err := client.GetKey(client.Address(), client.Address())
+	if err != nil {
+		t.Fatalf("could not get key: %v", err)
+	}
+	node, err := client.Nodes(key)
+	if err != nil {
+		t.Fatalf("could not get node info: %v", err)
+	}
+	keyStr := base64.RawStdEncoding.EncodeToString(key[:])
+	leftStr := base64.RawStdEncoding.EncodeToString(node.Left.Value[:])
+	rightStr := base64.RawStdEncoding.EncodeToString(node.Right.Value[:])
+	t.Logf("%s (%v): Stake amount=%v, Stake left=%v (%v), Stake right=%v (%v)", desc, keyStr, node.Amount, node.LeftAmount, leftStr, node.RightAmount, rightStr)
+}
+
+var _ = prettyPrintNodeInfo

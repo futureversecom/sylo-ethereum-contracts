@@ -12,7 +12,11 @@ import "../contracts/Token.sol";
 */
 contract Directory is Ownable {
 
-    struct Stake {
+    struct NodePointer {
+        bytes32 value_;
+    }
+
+    struct Node {
         uint256 amount; // Amount of the stake
 
         uint256 leftAmount; // Value of stake on left branch
@@ -21,8 +25,8 @@ contract Directory is Ownable {
         address stakee; // Address of peer that offers services
 
         bytes32 parent; // A hash of staker + stakee
-        bytes32 left; // Pointer to left child
-        bytes32 right; // Pointer to right child
+        NodePointer left; // Pointer to left child
+        NodePointer right; // Pointer to right child
     }
 
     struct Unlock {
@@ -30,8 +34,6 @@ contract Directory is Ownable {
 
         uint256 unlockAt; // Block number the stake becomes withdrawable
     }
-
-    uint256 constant maxU256 = 2^256-1;
 
     /* ERC 20 compatible token we are dealing with */
     IERC20 _token;
@@ -42,7 +44,7 @@ contract Directory is Ownable {
      */
     uint256 public unlockDuration;
 
-    mapping(bytes32 => Stake) public stakes;
+    mapping(bytes32 => Node) public nodes;
 
     // Keeps track of stakees stake amount
     mapping(address => uint256) public stakees;
@@ -50,7 +52,7 @@ contract Directory is Ownable {
     // Funds that are in the process of being unlocked
     mapping(bytes32 => Unlock) public unlockings;
 
-    bytes32 root;
+    NodePointer root;
 
     constructor(IERC20 token, uint256 _unlockDuration) public {
         _token = token;
@@ -66,109 +68,105 @@ contract Directory is Ownable {
         require(stakee != address(0), "Address is null");
         require(amount != 0, "Cannot stake nothing");
 
-        bytes32 key = getKey(msg.sender, stakee);
+        address staker = msg.sender;
+        bytes32 key = getKey(staker, stakee);
 
-        Stake storage stake = stakes[key];
+        Node storage node = nodes[key];
 
-        // New stake
-        if (stake.amount == 0) {
+        if (node.amount == 0) {
+            // There is no node for this key in the stake tree, so we will need
+            // to traverse the tree and find a place to add the stake.
+            bytes32 parent = bytes32(0);
+            NodePointer storage p = root;
 
-            // Find the node to add a new child
-            bytes32 parent = root;
-            Stake storage current = stakes[parent];
-            while(parent != bytes32(0)) {
-                bytes32 next = current.leftAmount < current.rightAmount
+            while(p.value_ != bytes32(0)) {
+                parent = p.value_;
+                Node storage current = nodes[parent];
+                // To decend the tree we consider the current node to be on the
+                // right. This will fill the left side of the tree first when
+                // there is a tie.
+                p = current.leftAmount < current.amount + current.rightAmount
                     ? current.left
                     : current.right;
-
-                if (next == bytes32(0)) {
-                    break;
-                }
-
-                parent = next;
-                current = stakes[parent];
             }
-
-            // Set the new child on the node
-            setChild(current, bytes32(0), key);
-
-            stake.parent = parent;
-            stake.stakee = stakee;
+            node.parent = parent;
+            p.value_ = key;
+            node.stakee = stakee;
         }
 
-        // First stake lets set the root
-        if (stake.parent == bytes32(0)) {
-            root = key;
+        if (node.parent == bytes32(0)) {
+            // This is the first node, so we need to define the root.
+            root.value_ = key;
         }
 
-        updateStakeAmount(key, stake, amount);
+        updateStakeAmount(key, node, amount);
 
-        _token.transferFrom(msg.sender, address(this), amount);
+        _token.transferFrom(staker, address(this), amount);
     }
 
     function unlockStake(uint256 amount, address stakee) public returns (uint256) {
 
         bytes32 key = getKey(msg.sender, stakee);
-        Stake storage stake = stakes[key];
+        Node storage node = nodes[key];
 
-        require(stake.amount > 0, "Nothing to unstake");
-        require(stake.amount >= amount, "Cannot unlock more than staked");
+        require(node.amount > 0, "Nothing to unstake");
+        require(node.amount >= amount, "Cannot unlock more than staked");
 
-        updateStakeAmount(key, stake, -amount);
+        updateStakeAmount(key, node, -amount);
 
         // All stake being withdrawn, update the tree
-        if (stake.amount == 0) {
-            bytes32 child = stake.leftAmount > stake.rightAmount ? stake.left : stake.right;
+        if (node.amount == 0) {
+            NodePointer storage child = node.leftAmount > node.rightAmount ? node.left : node.right;
 
-            Stake storage parent = stakes[stake.parent];
+            Node storage parent = nodes[node.parent];
 
-            if (child == bytes32(0)) {
+            if (child.value_ == bytes32(0)) {
                 // Stake is a leaf, we need to disconnect it from the parent
                 setChild(parent, key, bytes32(0));
 
                 // The only staker is removed, reset root
-                if (stake.parent == bytes32(0)) {
-                    root = bytes32(0);
+                if (node.parent == bytes32(0)) {
+                    root.value_ = bytes32(0);
                 }
             } else {
-                Stake storage current = stakes[child];
+                Node storage current = nodes[child.value_];
 
                 // Find the leaf of the most valuable path of the child
                 while(true) {
-                    bytes32 next = current.leftAmount > current.rightAmount ? current.left : current.right;
-                    if (next == bytes32(0)) {
+                    NodePointer storage next = current.leftAmount > current.rightAmount ? current.left : current.right;
+                    if (next.value_ == bytes32(0)) {
                         break;
                     }
                     child = next;
-                    current = stakes[next];
+                    current = nodes[next.value_];
                 }
 
                 bytes32 currentParent = current.parent;
 
                 // Move leaf to position of removed stake
-                setChild(parent, key, child);
-                current.parent = stake.parent;
+                setChild(parent, key, child.value_);
+                current.parent = node.parent;
 
                 // Update the children of current to be that of what the removed stake was
                 if (currentParent != key) {
 
                     // Move the children of stake to current
-                    fixl(stake, child, current);
-                    fixr(stake, child, current);
+                    fixl(node, child.value_, current);
+                    fixr(node, child.value_, current);
 
                     // Place stake where current was and
-                    stake.parent = currentParent; // Set parent
-                    setChild(stakes[currentParent], child, key); // Set parents child
+                    node.parent = currentParent; // Set parent
+                    setChild(nodes[currentParent], child.value_, key); // Set parents child
 
                     // Update all the values
-                    applyStakeChange(key, stake, -current.amount, current.parent);
+                    applyStakeChange(key, node, -current.amount, current.parent);
 
                     // Remove reference to the old stake
-                    setChild(stakes[currentParent], key, bytes32(0));
-                } else if (stake.left == child) {
-                    fixr(stake, child, current);
+                    setChild(nodes[currentParent], key, bytes32(0));
+                } else if (node.left.value_ == child.value_) {
+                    fixr(node, child.value_, current);
                 } else {
-                    fixl(stake, child, current);
+                    fixl(node, child.value_, current);
                 }
 
                 // Update the root if thats changed
@@ -178,7 +176,7 @@ contract Directory is Ownable {
             }
 
             // Now that the node is unlinked from any other nodes, we can remove it
-            delete stakes[key];
+            delete nodes[key];
         }
 
         // Keep track of when the stake can be withdrawn
@@ -197,7 +195,7 @@ contract Directory is Ownable {
     // Reverse unlocking a certain amount of stake
     function lockStake(uint256 amount, address stakee) public {
         bytes32 key = getKey(msg.sender, stakee);
-        Stake storage stake = stakes[key];
+        Node storage stake = nodes[key];
 
         pullUnlocking(key, amount);
 
@@ -219,36 +217,48 @@ contract Directory is Ownable {
         _token.transfer(msg.sender, amount);
     }
 
-    // Point should be a randomly generated uint256
-    function scan(uint256 point) public view returns (address) {
+    function scan(uint128 point) public view returns (address) {
 
         // Nothing is staked
-        if (root == bytes32(0)) {
+        if (root.value_ == bytes32(0)) {
             return address(0);
         }
 
-        uint256 expectedVal = getTotalStake() * point / maxU256;
+        // Staking all the Sylo would only be 94 bits, so multiplying this with
+        // a uint128 cannot overflow a uint256.
+        uint256 expectedVal = getTotalStake() * uint256(point) >> 128;
 
-        bytes32 current = root;
+        bytes32 current = root.value_;
 
-        while(true) {
+        for (;;) {
 
-            Stake storage stake = stakes[current];
+            Node storage stake = nodes[current];
 
+            // Prefer decending the left side.
             if (expectedVal < stake.leftAmount) {
-                current = stake.left;
+                if (stake.left.value_ == bytes32(0)) {
+                    // There is no node on the left. This is a leaf so just
+                    // return this node's address.
+                    return stake.stakee;
+                }
+                current = stake.left.value_;
                 continue;
             }
 
+            // We are not decending the left side of the tree so remove the
+            // entire value of that subtree.
             expectedVal -= stake.leftAmount;
 
-            if (expectedVal <= stake.amount) {
+            // If value is less the the current node (the "middle"), we are
+            // done.
+            if (expectedVal < stake.amount) {
                 return stake.stakee;
             }
 
+            // Else decend the right side of the tree and continue the loop.
+            require(stake.right.value_ != bytes32(0), "missing node on the right");
+            current = stake.right.value_;
             expectedVal -= stake.amount;
-
-            current = stake.right;
         }
 
         return address(0);
@@ -258,16 +268,16 @@ contract Directory is Ownable {
         return keccak256(abi.encodePacked(staker, stakee));
     }
 
-    function getStake(address stakee) private view returns (Stake storage) {
-        return stakes[getKey(msg.sender, stakee)];
+    function getStake(address stakee) private view returns (Node storage) {
+        return nodes[getKey(msg.sender, stakee)];
     }
 
     function getTotalStake() public view returns (uint256) {
-        if (root == bytes32(0)) {
+        if (root.value_ == bytes32(0)) {
             return 0;
         }
 
-        Stake storage stake = stakes[root];
+        Node storage stake = nodes[root.value_];
 
         return stake.amount + stake.leftAmount + stake.rightAmount;
     }
@@ -285,7 +295,7 @@ contract Directory is Ownable {
         }
     }
 
-    function updateStakeAmount(bytes32 key, Stake storage stake, uint256 amount) private {
+    function updateStakeAmount(bytes32 key, Node storage stake, uint256 amount) private {
         stake.amount += amount;
         stakees[stake.stakee] += amount;
 
@@ -293,7 +303,7 @@ contract Directory is Ownable {
     }
 
     // Recursively update left/right amounts of stakes for parents of an updated stake
-    function applyStakeChange(bytes32 key, Stake storage stake, uint256 amount, bytes32 root_) private {
+    function applyStakeChange(bytes32 key, Node storage stake, uint256 amount, bytes32 root_) private {
         bytes32 parentKey = stake.parent;
 
         if (parentKey == root_) {
@@ -301,9 +311,9 @@ contract Directory is Ownable {
             return;
         }
 
-        Stake storage parent = stakes[parentKey];
+        Node storage parent = nodes[parentKey];
 
-        if (parent.left == key) {
+        if (parent.left.value_ == key) {
             parent.leftAmount += amount;
         } else {
             parent.rightAmount += amount;
@@ -313,32 +323,32 @@ contract Directory is Ownable {
     }
 
     // Move the left child of stake to current
-    function fixl(Stake storage stake, bytes32 currentKey, Stake storage current) private {
-        if (stake.left == bytes32(0)) {
+    function fixl(Node storage stake, bytes32 currentKey, Node storage current) private {
+        if (stake.left.value_ == bytes32(0)) {
             return;
         }
 
-        stakes[stake.left].parent = currentKey;
+        nodes[stake.left.value_].parent = currentKey;
         current.left = stake.left;
         current.leftAmount = stake.leftAmount;
     }
 
     // Move the right child of stake to current
-    function fixr(Stake storage stake, bytes32 currentKey, Stake storage current) private {
-        if (stake.right == bytes32(0)) {
+    function fixr(Node storage stake, bytes32 currentKey, Node storage current) private {
+        if (stake.right.value_ == bytes32(0)) {
             return;
         }
 
-        stakes[stake.right].parent = currentKey;
+        nodes[stake.right.value_].parent = currentKey;
         current.right = stake.right;
         current.rightAmount = stake.rightAmount;
     }
 
-    function setChild(Stake storage stake, bytes32 oldKey, bytes32 newKey) private {
-        if (stake.left == oldKey) {
-            stake.left = newKey;
+    function setChild(Node storage stake, bytes32 oldKey, bytes32 newKey) private {
+        if (stake.left.value_ == oldKey) {
+            stake.left.value_ = newKey;
         } else {
-            stake.right = newKey;
+            stake.right.value_ = newKey;
         }
     }
 }

@@ -53,14 +53,14 @@ type Client interface {
 
 	// Directory methods
 
-	Stakes(key [32]byte) (struct {
+	Nodes(key [32]byte) (struct {
 		Amount      *big.Int
 		LeftAmount  *big.Int
 		RightAmount *big.Int
 		Stakee      ethcommon.Address
 		Parent      [32]byte
-		Left        [32]byte
-		Right       [32]byte
+		Left        contracts.DirectoryNodePointer
+		Right       contracts.DirectoryNodePointer
 	}, error)
 	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
 	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)

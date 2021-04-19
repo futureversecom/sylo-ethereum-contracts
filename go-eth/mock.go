@@ -55,7 +55,7 @@ func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to e
 	}
 
 	gasLimit := uint64(21000) // in units
-	gasPrice, err := b.SimulatedBackend.SuggestGasPrice(context.Background())
+	gasPrice, err := b.SimulatedBackend.SuggestGasPrice(ctx)
 	if err != nil {
 		return fmt.Errorf("could not get suggested gas price: %v", err)
 	}
