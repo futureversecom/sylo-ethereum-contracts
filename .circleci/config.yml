@@ -33,7 +33,7 @@ jobs:
           command: node ./scripts/parseArtifacts.js
   test-go-client:
     docker:
-      - image: circleci/golang:1.14
+      - image: circleci/golang:1.15
 
     steps:
       - checkout
