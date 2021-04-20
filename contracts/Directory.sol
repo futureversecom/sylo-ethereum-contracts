@@ -24,7 +24,7 @@ contract Directory is Ownable {
 
         address stakee; // Address of peer that offers services
 
-        bytes32 parent; // A hash of staker + stakee
+        NodePointer parent; // Pointer to parent
         NodePointer left; // Pointer to left child
         NodePointer right; // Pointer to right child
     }
@@ -53,6 +53,7 @@ contract Directory is Ownable {
     mapping(bytes32 => Unlock) public unlockings;
 
     NodePointer root;
+    NodePointer empty;
 
     constructor(IERC20 token, uint256 _unlockDuration) public {
         _token = token;
@@ -64,7 +65,11 @@ contract Directory is Ownable {
     }
 
     function addStake(uint256 amount, address stakee) public {
+        addStake_(amount, stakee);
+        _token.transferFrom(msg.sender, address(this), amount);
+    }
 
+    function addStake_(uint256 amount, address stakee) private {
         require(stakee != address(0), "Address is null");
         require(amount != 0, "Cannot stake nothing");
 
@@ -76,12 +81,13 @@ contract Directory is Ownable {
         if (node.amount == 0) {
             // There is no node for this key in the stake tree, so we will need
             // to traverse the tree and find a place to add the stake.
-            bytes32 parent = bytes32(0);
             NodePointer storage p = root;
+            NodePointer memory parent;
+            parent.value_ = bytes32(0);
 
             while(p.value_ != bytes32(0)) {
-                parent = p.value_;
-                Node storage current = nodes[parent];
+                parent = p;
+                Node storage current = nodes[parent.value_];
                 // To decend the tree we consider the current node to be on the
                 // right. This will fill the left side of the tree first when
                 // there is a tie.
@@ -94,84 +100,107 @@ contract Directory is Ownable {
             node.stakee = stakee;
         }
 
-        if (node.parent == bytes32(0)) {
+        if (node.parent.value_ == bytes32(0)) {
             // This is the first node, so we need to define the root.
             root.value_ = key;
         }
 
         updateStakeAmount(key, node, amount);
-
-        _token.transferFrom(staker, address(this), amount);
     }
 
+    // unlockStake will immediately remove some amount of stake from the stake
+    // tree and place it into the `unlockings` data structure.
+    //
+    // Currently, unlocking more stake while stake is being unlocked will reset
+    // the `unlockAt` block for all unlocking stake since there is only one
+    // location per address to store unlocking data.
+    //
+    // Also, unlocking all stake will remove the node from the stake tree. This
+    // means that if the unlocking is cancelled, the stake may be added to a new
+    // location on the stake tree.
     function unlockStake(uint256 amount, address stakee) public returns (uint256) {
 
         bytes32 key = getKey(msg.sender, stakee);
-        Node storage node = nodes[key];
+        Node storage stakeNode = nodes[key];
+        NodePointer memory stakeNodePointer;
+        stakeNodePointer.value_ = key;
 
-        require(node.amount > 0, "Nothing to unstake");
-        require(node.amount >= amount, "Cannot unlock more than staked");
+        require(stakeNode.amount > 0, "Nothing to unstake");
+        require(stakeNode.amount >= amount, "Cannot unlock more than staked");
 
-        updateStakeAmount(key, node, -amount);
+        updateStakeAmount(stakeNodePointer.value_, stakeNode, -amount);
 
         // All stake being withdrawn, update the tree
-        if (node.amount == 0) {
-            NodePointer storage child = node.leftAmount > node.rightAmount ? node.left : node.right;
-
-            Node storage parent = nodes[node.parent];
-
-            if (child.value_ == bytes32(0)) {
-                // Stake is a leaf, we need to disconnect it from the parent
-                setChild(parent, key, bytes32(0));
-
-                // The only staker is removed, reset root
-                if (node.parent == bytes32(0)) {
+        if (stakeNode.amount == 0) {
+            if (stakeNode.leftAmount + stakeNode.rightAmount == 0) {
+                // No children have any stake value (i.e. no children)
+                if (stakeNode.parent.value_ == bytes32(0)) {
+                    // The only node is being removed, reset root
                     root.value_ = bytes32(0);
+                } else {
+                    // Stake is a leaf, we need to remove it from the parent
+                    removeChild(nodes[stakeNode.parent.value_], stakeNodePointer.value_);
                 }
             } else {
-                Node storage current = nodes[child.value_];
+                // There is a subtree. Find the leaf down the most valuable path
+                // of the subtree.
 
-                // Find the leaf of the most valuable path of the child
-                while(true) {
-                    NodePointer storage next = current.leftAmount > current.rightAmount ? current.left : current.right;
+                if (stakeNode.parent.value_ == bytes32(0)) {
+                    // parent is root
+                }
+
+                // Find the leaf node that will go into the old place on the
+                // tree.
+                NodePointer memory subtreePointer = stakeNode.leftAmount > stakeNode.rightAmount
+                    ? stakeNode.left
+                    : stakeNode.right;
+                Node storage subtreeNode = nodes[subtreePointer.value_];
+                NodePointer memory leafPointer = subtreePointer;
+                for (;;) {
+                    NodePointer memory next = subtreeNode.leftAmount > subtreeNode.rightAmount
+                        ? subtreeNode.left
+                        : subtreeNode.right;
                     if (next.value_ == bytes32(0)) {
                         break;
                     }
-                    child = next;
-                    current = nodes[next.value_];
+                    leafPointer = next;
+                    subtreeNode = nodes[next.value_];
                 }
 
-                bytes32 currentParent = current.parent;
+                NodePointer memory leafParent = subtreeNode.parent;
+                Node storage leafNode = subtreeNode;
 
-                // Move leaf to position of removed stake
-                setChild(parent, key, child.value_);
-                current.parent = node.parent;
+                // Move leaf node to position of removed stake node. It's a leaf
+                // node, so it won't have any children.
+                setChild(leafNode, bytes32(0), leafPointer.value_);
+                leafNode.parent = stakeNode.parent;
 
-                // Update the children of current to be that of what the removed stake was
-                if (currentParent != key) {
+                // Update the children of current to be that of what the removed
+                // stake was.
+                if (leafParent.value_ != key) {
 
-                    // Move the children of stake to current
-                    fixl(node, child.value_, current);
-                    fixr(node, child.value_, current);
+                    // Move the children of stakeNode to leafNode
+                    fixl(stakeNode, leafPointer.value_, leafNode);
+                    fixr(stakeNode, leafPointer.value_, leafNode);
 
                     // Place stake where current was and
-                    node.parent = currentParent; // Set parent
-                    setChild(nodes[currentParent], child.value_, key); // Set parents child
+                    stakeNode.parent = leafParent; // Set parent
+                    setChild(nodes[leafParent.value_], leafPointer.value_, stakeNodePointer.value_);
 
                     // Update all the values
-                    applyStakeChange(key, node, -current.amount, current.parent);
+                    applyStakeChange(key, stakeNode, -leafNode.amount, leafNode.parent.value_);
 
                     // Remove reference to the old stake
-                    setChild(nodes[currentParent], key, bytes32(0));
-                } else if (node.left.value_ == child.value_) {
-                    fixr(node, child.value_, current);
+                    removeChild(nodes[leafParent.value_], stakeNodePointer.value_);
+                } else if (stakeNode.left.value_ == leafPointer.value_) {
+                    fixr(stakeNode, leafPointer.value_, leafNode);
                 } else {
-                    fixl(node, child.value_, current);
+                    fixl(stakeNode, leafPointer.value_, leafNode);
                 }
 
                 // Update the root if thats changed
-                if (current.parent == bytes32(0)) {
-                    root = child;
+                if (leafNode.parent.value_ == bytes32(0)) {
+                    root = leafPointer;
                 }
             }
 
@@ -192,23 +221,21 @@ contract Directory is Ownable {
         return unlockAt;
     }
 
-    // Reverse unlocking a certain amount of stake
-    function lockStake(uint256 amount, address stakee) public {
+    // Cancel unlocking a certain amount of stake.
+    function cancelUnlocking(uint256 amount, address stakee) public {
         bytes32 key = getKey(msg.sender, stakee);
-        Node storage stake = nodes[key];
-
         pullUnlocking(key, amount);
-
-        updateStakeAmount(key, stake, amount);
+        addStake_(amount, stakee);
     }
 
-    function unstake(address stakee) public {
+    // Withdraw any unlocked stake.
+    function withdrawStake(address stakee) public {
         bytes32 key = getKey(msg.sender, stakee);
 
         Unlock storage unlock = unlockings[key];
 
         require(unlock.unlockAt < block.number, "Stake not yet unlocked");
-        require(unlock.amount > 0, "No amount to unlock");
+        require(unlock.amount > 0, "No amount to withdraw");
 
         uint256 amount = unlock.amount;
 
@@ -264,6 +291,10 @@ contract Directory is Ownable {
         return address(0);
     }
 
+    function name(NodePointer storage p) private view returns (bytes32) {
+        return p.value_;
+    }
+
     function getKey(address staker, address stakee) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(staker, stakee));
     }
@@ -302,53 +333,69 @@ contract Directory is Ownable {
         applyStakeChange(key, stake, amount, bytes32(0));
     }
 
-    // Recursively update left/right amounts of stakes for parents of an updated stake
-    function applyStakeChange(bytes32 key, Node storage stake, uint256 amount, bytes32 root_) private {
-        bytes32 parentKey = stake.parent;
+    // Recursively update left/right amounts of stakes for parents of an updated stake.
+    //
+    // TODO Are recursive smart contracts subject to attack?
+    function applyStakeChange(bytes32 key, Node storage node, uint256 amount, bytes32 root_) private {
+        NodePointer storage parent = node.parent;
 
-        if (parentKey == root_) {
+        if (parent.value_ == root_) {
             // We are at the root, theres nothing left to update
             return;
         }
 
-        Node storage parent = nodes[parentKey];
+        Node storage parentNode = nodes[parent.value_];
 
-        if (parent.left.value_ == key) {
-            parent.leftAmount += amount;
+        if (parentNode.left.value_ == key) {
+            parentNode.leftAmount += amount;
         } else {
-            parent.rightAmount += amount;
+            parentNode.rightAmount += amount;
         }
 
-        return applyStakeChange(parentKey, parent, amount, root_);
+        return applyStakeChange(parent.value_, parentNode, amount, root_);
     }
 
-    // Move the left child of stake to current
-    function fixl(Node storage stake, bytes32 currentKey, Node storage current) private {
-        if (stake.left.value_ == bytes32(0)) {
+    // Move the left child of node to current
+    function fixl(Node storage node, bytes32 currentKey, Node storage current) private {
+        if (node.left.value_ == bytes32(0)) {
             return;
         }
 
-        nodes[stake.left.value_].parent = currentKey;
-        current.left = stake.left;
-        current.leftAmount = stake.leftAmount;
+        nodes[node.left.value_].parent.value_ = currentKey;
+        current.left = node.left;
+        current.leftAmount = node.leftAmount;
     }
 
     // Move the right child of stake to current
-    function fixr(Node storage stake, bytes32 currentKey, Node storage current) private {
-        if (stake.right.value_ == bytes32(0)) {
+    function fixr(Node storage node, bytes32 currentKey, Node storage current) private {
+        if (node.right.value_ == bytes32(0)) {
             return;
         }
 
-        nodes[stake.right.value_].parent = currentKey;
-        current.right = stake.right;
-        current.rightAmount = stake.rightAmount;
+        nodes[node.right.value_].parent.value_ = currentKey;
+        current.right = node.right;
+        current.rightAmount = node.rightAmount;
     }
 
-    function setChild(Node storage stake, bytes32 oldKey, bytes32 newKey) private {
-        if (stake.left.value_ == oldKey) {
-            stake.left.value_ = newKey;
+    function setChild(Node storage node, bytes32 oldChild, bytes32 newChild) private {
+        if (node.left.value_ == oldChild) {
+            node.left.value_ = newChild;
+        } else if (node.right.value_ == oldChild) {
+            node.right.value_ = newChild;
         } else {
-            stake.right.value_ = newKey;
+            require(node.left.value_ == oldChild
+                || node.right.value_ == oldChild, "Old child cannot be changed - it does not exist");
+        }
+    }
+
+    function removeChild(Node storage node, bytes32 oldChild) private {
+        if (node.left.value_ == oldChild) {
+            node.left.value_ == bytes32(0);
+        } else if (node.right.value_ == oldChild) {
+            node.right.value_ = bytes32(0);
+        } else {
+            require(node.left.value_ == oldChild
+                || node.right.value_ == oldChild, "Old child cannot be removed - it does not exist");
         }
     }
 }

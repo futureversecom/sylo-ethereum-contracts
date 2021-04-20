@@ -325,7 +325,7 @@ func TestClient(t *testing.T) {
 		}
 		backend.Commit()
 
-		_, err = aliceClient.Unstake(aliceClient.Address())
+		_, err = aliceClient.WithdrawStake(aliceClient.Address())
 		if err == nil {
 			t.Fatalf("expected error because stake not yet unlocked")
 		}
@@ -359,7 +359,7 @@ func TestClient(t *testing.T) {
 		}
 
 		// return the unstaked amount
-		tx, err = aliceClient.Unstake(aliceClient.Address())
+		tx, err = aliceClient.WithdrawStake(aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unstake: %v", err)
 		}
@@ -394,11 +394,11 @@ func TestClient(t *testing.T) {
 		}
 
 		// try to return the unstaked amount again
-		_, err = aliceClient.Unstake(aliceClient.Address())
+		_, err = aliceClient.WithdrawStake(aliceClient.Address())
 		if err == nil {
 			t.Fatalf("expected error because should not be able to unstake again")
 		}
-		if !strings.HasSuffix(err.Error(), "No amount to unlock") {
+		if !strings.HasSuffix(err.Error(), "No amount to withdraw") {
 			t.Fatalf("could not unstake: %v", err)
 		}
 	})
@@ -427,7 +427,7 @@ func TestClient(t *testing.T) {
 		}
 
 		// locking the unlocking amount should cancel the unlocking
-		_, err = aliceClient.LockStake(stakeAmount, aliceClient.Address())
+		_, err = aliceClient.CancelUnlocking(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not lock stake: %v", err)
 		}
@@ -442,7 +442,7 @@ func TestClient(t *testing.T) {
 			t.Fatalf("unlocking amount should be zero")
 		}
 		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
-			t.Fatalf("unlocking at should be zero")
+			t.Fatalf("unlockAt should be zero")
 		}
 
 		// unlock the stake again
@@ -457,7 +457,7 @@ func TestClient(t *testing.T) {
 		}
 
 		// locking the unlocked amount should restake
-		_, err = aliceClient.LockStake(stakeAmount, aliceClient.Address())
+		_, err = aliceClient.CancelUnlocking(stakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not lock stake: %v", err)
 		}
@@ -473,6 +473,13 @@ func TestClient(t *testing.T) {
 		}
 		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
 			t.Fatalf("unlocking at should be zero")
+		}
+		stakedAmount, err := aliceClient.GetAmountStaked(aliceClient.Address())
+		if err != nil {
+			t.Fatalf("could not check amount staked: %v", err)
+		}
+		if !bigIntsEqual(stakedAmount, stakeAmount) {
+			t.Fatalf("should have the original amount staked")
 		}
 	})
 }
@@ -641,6 +648,7 @@ func TestScan(t *testing.T) {
 
 		aliceStakeAmount := big.NewInt(100)
 		stake(t, ctx, backend, aliceClient, aliceStakeAmount)
+		defer unstakeAll(t, ctx, backend, aliceClient)
 
 		aliceNode, _ := getNode(t, aliceClient)
 		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
@@ -750,12 +758,20 @@ func TestScan(t *testing.T) {
 			})
 		}
 
-		// unstake Alice (Charlie should take over root)
+		// unlock Alice's stake (Charlie should take over root)
 		//
 		//                (100)-C(100)-(0)
 		//               /
 		// (0)-B(100)-(0)
-		unstakeAll(t, ctx, backend, aliceClient)
+		tx, err := aliceClient.UnlockStake(aliceStakeAmount, aliceClient.Address())
+		if err != nil {
+			t.Fatalf("could not unlock stake: %v", err)
+		}
+		backend.Commit()
+		_, err = aliceClient.CheckTx(ctx, tx)
+		if err != nil {
+			t.Fatalf("could not check transaction: %v", err)
+		}
 
 		charlieNode, _ = getNode(t, charlieClient)
 		if !bigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
@@ -763,6 +779,9 @@ func TestScan(t *testing.T) {
 		}
 		if !bigIntsEqual(charlieNode.LeftAmount, bobStakeAmount) {
 			t.Fatalf("charlie's left tree amount should be bob's stake amount")
+		}
+		if !bigIntsEqual(charlieNode.RightAmount, big.NewInt(0)) {
+			t.Fatalf("charlie's right tree amount should be zero")
 		}
 		if !bytes.Equal(charlieNode.Left.Value[:], bobKey) {
 			t.Fatalf("bob's key should be charlies's left pointer")
@@ -960,20 +979,31 @@ func unstakeAll(t *testing.T, ctx context.Context, backend eth.SimBackend, clien
 		}
 		// wait for unlocking
 		if waitForUnlockAt(t, ctx, backend, client) {
-			// return the unstaked amount
-			tx, err := client.Unstake(client.Address())
+			// withdraw the unstaked amount
+			tx, err := client.WithdrawStake(client.Address())
 			if err != nil {
 				t.Fatalf("could not unstake: %v", err)
 			}
 			backend.Commit()
-
 			_, err = client.CheckTx(ctx, tx)
 			if err != nil {
 				t.Fatalf("could not check transaction: %v", err)
 			}
 		}
 	} else if strings.HasSuffix(err.Error(), "Nothing to unstake") {
-		// nothing to do
+		// withdraw any unstaked amount
+		tx, err := client.WithdrawStake(client.Address())
+		if err == nil {
+			backend.Commit()
+			_, err = client.CheckTx(ctx, tx)
+			if err != nil {
+				t.Fatalf("could not check transaction: %v", err)
+			}
+		} else if strings.HasSuffix(err.Error(), "No amount to withdraw") {
+			// nothing to do
+		} else {
+			t.Fatalf("could not unstake: %v", err)
+		}
 	} else {
 		// error unlocking
 		t.Fatalf("could not unlock stake: %v", err)
@@ -993,7 +1023,7 @@ func unstakeAll(t *testing.T, ctx context.Context, backend eth.SimBackend, clien
 		t.Fatalf("could not check unlocking status: %v", err)
 	}
 	if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
-		t.Fatalf("unlocking amount should be zero")
+		t.Fatalf("unlocking amount should be zero: got %v", unlocking.Amount)
 	}
 	if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
 		t.Fatalf("unlocking at should be zero")
@@ -1111,7 +1141,7 @@ func getNode(t *testing.T, client eth.Client) (struct {
 	LeftAmount  *big.Int
 	RightAmount *big.Int
 	Stakee      ethcommon.Address
-	Parent      [32]byte
+	Parent      contracts.DirectoryNodePointer
 	Left        contracts.DirectoryNodePointer
 	Right       contracts.DirectoryNodePointer
 }, []byte) {

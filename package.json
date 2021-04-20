@@ -11,8 +11,8 @@
   "author": "Sylo",
   "license": "ISC",
   "devDependencies": {
-    "@openzeppelin/contracts": "^3.0.0-rc.0",
+    "@openzeppelin/contracts": "^3.4.1",
     "solhint": "^2.3.1",
-    "truffle": "^5.1.17"
+    "truffle": "^5.3.2"
   }
 }
