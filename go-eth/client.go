@@ -58,15 +58,15 @@ type Client interface {
 		LeftAmount  *big.Int
 		RightAmount *big.Int
 		Stakee      ethcommon.Address
-		Parent      [32]byte
+		Parent      contracts.DirectoryNodePointer
 		Left        contracts.DirectoryNodePointer
 		Right       contracts.DirectoryNodePointer
 	}, error)
 	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
 	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	UnlockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	LockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	Unstake(account ethcommon.Address) (*types.Transaction, error)
+	CancelUnlocking(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	WithdrawStake(account ethcommon.Address) (*types.Transaction, error)
 	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
