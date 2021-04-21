@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"math/big"
@@ -849,7 +850,7 @@ func createBackend(t *testing.T, ctx context.Context, owner common.Address) eth.
 // createRandomClient will generate a new ecdsa key and use it to create a Sylo
 // ethereum client.
 func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBackend, addresses eth.Addresses) (eth.Client, *ecdsa.PrivateKey) {
-	pk, err := crypto.GenerateKey()
+	pk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("could not create ecdsa key: %v", err)
 	}
