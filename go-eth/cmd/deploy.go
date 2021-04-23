@@ -31,14 +31,14 @@ func main() {
 	app.Usage = "Deploy the Sylo contracts to an Ethereum blockchain."
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
-			Name:     "eth-url",
-			Usage:    "URL for the Etherum RPC",
-			Required: true,
+			Name:  "eth-url",
+			Usage: "URL for the Etherum RPC",
+			Value: "http://localhost:8545",
 		},
 		&cli.StringFlag{
-			Name:     "eth-sk",
-			Usage:    "The private key that will deploy the contracts.",
-			Required: true,
+			Name:  "eth-sk",
+			Usage: "The private key that will deploy the contracts.",
+			Value: "150934096e7bcd0485d154edd771b4466680038a068ccca8e8b483dce8527245",
 		},
 		&cli.StringFlag{
 			Name:  "unlock-duration",
@@ -48,7 +48,7 @@ func main() {
 		&cli.BoolFlag{
 			Name:  "faucet",
 			Usage: "Provide a SYLO/ETH faucet service",
-			Value: false,
+			Value: true,
 		},
 	}
 	app.Action = func(c *cli.Context) error {
@@ -83,7 +83,9 @@ func main() {
 		http.Handle("/add/eth", m.ethFaucetHandler())
 		http.Handle("/add/sylo", m.syloFaucetHandler())
 
-		fmt.Printf("Contracts deployed. Services available on port 7116.")
+		fmt.Println("Contracts deployed.")
+		fmt.Printf("Ethereum testnet is at: %s\n", c.String("eth-url"))
+		fmt.Println("Sylo contract services are at: http://localhost:7116")
 		return http.ListenAndServe(":7116", nil)
 	}
 	err := app.Run(os.Args)

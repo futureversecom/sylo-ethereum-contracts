@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"math/big"
@@ -48,7 +47,7 @@ func TestPayments(t *testing.T) {
 
 	// create bob
 	bob, bobSK := createRandomClient(t, ctx, backend, addresses)
-	bobPK := bobSK.PublicKey
+	bobPK := &bobSK.PublicKey
 	t.Log("created bob")
 	depositEth(t, faucet, bob, big.NewInt(1000000))
 	t.Log("bob deposited 1000000 wei")
@@ -94,8 +93,8 @@ func depositSylo(t *testing.T, faucet faucetF, client eth.Client, syloAmount *bi
 	}
 }
 
-func hashPublicKey(pk ecdsa.PublicKey) *big.Int {
-	hash := sha256.Sum256(elliptic.Marshal(crypto.S256(), pk.X, pk.Y))
+func hashPublicKey(pk *ecdsa.PublicKey) *big.Int {
+	hash := sha256.Sum256(crypto.FromECDSAPub(pk))
 	return new(big.Int).SetBytes(hash[:16])
 }
 
