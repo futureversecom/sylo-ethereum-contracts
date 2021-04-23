@@ -106,3 +106,4 @@ dist
 abi/
 bin/
 build/
+go-eth/deploy
