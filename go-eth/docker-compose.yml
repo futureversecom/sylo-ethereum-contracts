@@ -3,7 +3,7 @@ services:
   ganache:
     image: "trufflesuite/ganache-cli:v6.12.2"
     ports:
-      - 8545:8545
+      - 0.0.0.0:8545:8545
     entrypoint:
       - "node"
       - "/app/ganache-core.docker.cli.js"

@@ -85,6 +85,8 @@ type Client interface {
 
 	LatestBlock() (*big.Int, error)
 	CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error)
+	EthBalance(ctx context.Context) (*big.Int, error)
+	SyloBalance(ctx context.Context) (*big.Int, error)
 }
 
 type Addresses struct {
@@ -254,4 +256,24 @@ func (c *client) CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, 
 	}
 
 	return receipt.BlockNumber, nil
+}
+
+func (c *client) EthBalance(ctx context.Context) (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+
+	if c.backend == nil {
+		return nil, fmt.Errorf("client backend cannot be nil")
+	}
+
+	return c.backend.BalanceAt(ctx, c.Address(), nil)
+}
+
+func (c *client) SyloBalance(ctx context.Context) (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+
+	return c.BalanceOf(c.Address())
 }
