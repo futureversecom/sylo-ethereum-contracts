@@ -33,7 +33,7 @@ func main() {
 		&cli.StringFlag{
 			Name:  "eth-url",
 			Usage: "URL for the Etherum RPC",
-			Value: "http://localhost:8545",
+			Value: "http://0.0.0.0:8545",
 		},
 		&cli.StringFlag{
 			Name:  "eth-sk",
@@ -85,8 +85,8 @@ func main() {
 
 		fmt.Println("Contracts deployed.")
 		fmt.Printf("Ethereum testnet is at: %s\n", c.String("eth-url"))
-		fmt.Println("Sylo contract services are at: http://localhost:7116")
-		return http.ListenAndServe(":7116", nil)
+		fmt.Println("Sylo contract services are at: http://0.0.0.0:7116")
+		return http.ListenAndServe("0.0.0.0:7116", nil)
 	}
 	err := app.Run(os.Args)
 	if err != nil {
