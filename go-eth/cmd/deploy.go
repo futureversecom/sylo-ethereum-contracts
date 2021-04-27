@@ -48,7 +48,6 @@ func main() {
 		&cli.BoolFlag{
 			Name:  "faucet",
 			Usage: "Provide a SYLO/ETH faucet service",
-			Value: true,
 		},
 	}
 	app.Action = func(c *cli.Context) error {
@@ -78,6 +77,8 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("could not execute contract deployment: %w", err)
 		}
+
+		m.faucet = c.Bool("faucet")
 
 		http.Handle("/addresses", m.andressesHandler())
 		http.Handle("/add/eth", m.ethFaucetHandler())
@@ -172,25 +173,27 @@ func (m *syloEthMgr) getEth(req *faucetRequest) (err error) {
 		}
 	}()
 
-	nonce, err := m.ethC.PendingNonceAt(m.ctx, m.opts.From)
-	if err != nil {
-		return fmt.Errorf("could not get pending nonce: %v", err)
-	}
-
 	gasLimit := uint64(21000) // in units
 	gasPrice, err := m.ethC.SuggestGasPrice(m.ctx)
 	if err != nil {
 		return fmt.Errorf("could not get suggested gas price: %v", err)
 	}
 
+	nonce, err := m.ethC.PendingNonceAt(m.ctx, m.opts.From)
+	if err != nil {
+		return fmt.Errorf("could not get pending nonce: %v", err)
+	}
+
 	var data []byte
-	tx := types.NewTransaction(nonce, req.Recipient, req.Amount, gasLimit, gasPrice, data)
-	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, m.ethSK)
+	tx, err := func() (*types.Transaction, error) {
+		tx := types.NewTransaction(nonce, req.Recipient, req.Amount, gasLimit, gasPrice, data)
+		return types.SignTx(tx, types.HomesteadSigner{}, m.ethSK)
+	}()
 	if err != nil {
 		return fmt.Errorf("could not sign transaction: %v", err)
 	}
 
-	err = m.ethC.SendTransaction(m.ctx, signedTx)
+	err = m.ethC.SendTransaction(m.ctx, tx)
 	if err != nil {
 		return fmt.Errorf("could not send transaction: %v", err)
 	}
@@ -207,16 +210,16 @@ func (m *syloEthMgr) getEth(req *faucetRequest) (err error) {
 	return nil
 }
 
-func (f *syloEthMgr) getSylo(req *faucetRequest) error {
-	tx, err := f.syloC.Transfer(req.Recipient, req.Amount)
+func (m *syloEthMgr) getSylo(req *faucetRequest) error {
+	tx, err := m.syloC.Transfer(req.Recipient, req.Amount)
 	if err != nil {
 		return fmt.Errorf("could not faucet sylo: %v", err)
 	}
 
 	if req.Wait {
-		waitCtx, waitCancel := context.WithTimeout(f.ctx, time.Minute)
+		waitCtx, waitCancel := context.WithTimeout(m.ctx, time.Minute)
 		defer waitCancel()
-		_, err = waitForReceipt(waitCtx, tx, f.ethC)
+		_, err = waitForReceipt(waitCtx, tx, m.ethC)
 		if err != nil {
 			return fmt.Errorf("could not get receipt: %w", err)
 		}
@@ -235,6 +238,7 @@ func (f *syloEthMgr) ethFaucetHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !f.faucet {
 			http.Error(w, "eth faucet disabled", http.StatusForbidden)
+			return
 		}
 
 		req := new(faucetRequest)
@@ -244,14 +248,17 @@ func (f *syloEthMgr) ethFaucetHandler() http.HandlerFunc {
 			if err != nil {
 				logger.Errorf("could not decode eth request: %v", err)
 				http.Error(w, fmt.Sprintf("could not decode eth request: %v", err), http.StatusBadRequest)
+				return
 			}
 			err = f.getEth(req)
 			if err != nil {
 				logger.Errorf("could not faucet eth: %v", err)
 				http.Error(w, "could not faucet eth", http.StatusInternalServerError)
+				return
 			}
 		default:
 			http.Error(w, "only post requests are accepted", http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -260,6 +267,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !f.faucet {
 			http.Error(w, "sylo faucet disabled", http.StatusForbidden)
+			return
 		}
 
 		req := new(faucetRequest)
@@ -269,14 +277,17 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 			if err != nil {
 				logger.Errorf("could not decode sylo request: %v", err)
 				http.Error(w, fmt.Sprintf("could not decode sylo request: %v", err), http.StatusBadRequest)
+				return
 			}
 			err = f.getSylo(req)
 			if err != nil {
 				logger.Errorf("could not faucet sylo: %v", err)
 				http.Error(w, "could not faucet sylo", http.StatusInternalServerError)
+				return
 			}
 		default:
 			http.Error(w, "only post requests are accepted", http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -346,6 +357,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
 	}
 
+	opts.Nonce = nil
 	return addresses, nil
 }
 
