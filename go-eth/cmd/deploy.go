@@ -137,6 +137,7 @@ func (m *syloEthMgr) start(url string, unlockDuration *big.Int) error {
 	if err != nil {
 		return fmt.Errorf("eth client did not come online: %w", err)
 	}
+
 	m.opts, err = bind.NewKeyedTransactorWithChainID(m.ethSK, chainID)
 	if err != nil {
 		return fmt.Errorf("could not create trasactor: %w", err)
@@ -198,31 +199,38 @@ func (m *syloEthMgr) getEth(req *faucetRequest) (err error) {
 		return fmt.Errorf("could not send transaction: %v", err)
 	}
 
-	if req.Wait {
-		waitCtx, waitCancel := context.WithTimeout(m.ctx, time.Minute)
-		defer waitCancel()
-		_, err = waitForReceipt(waitCtx, tx, m.ethC)
-		if err != nil {
-			return fmt.Errorf("could not get receipt: %w", err)
-		}
+	// increment transactor nonce
+	m.opts.Nonce.Add(m.opts.Nonce, big.NewInt(1))
+
+	waitCtx, waitCancel := context.WithTimeout(m.ctx, time.Minute)
+	defer waitCancel()
+
+	_, err = waitForReceipt(waitCtx, tx, m.ethC)
+	if err != nil {
+		return fmt.Errorf("could not get receipt: %w", err)
 	}
 
 	return nil
 }
 
 func (m *syloEthMgr) getSylo(req *faucetRequest) error {
+	nonce, err := m.ethC.PendingNonceAt(context.Background(), m.syloC.Address())
+	if err != nil {
+		return fmt.Errorf("could not get pending nonce: %w", err)
+	}
+	m.opts.Nonce.SetUint64(nonce)
+
 	tx, err := m.syloC.Transfer(req.Recipient, req.Amount)
 	if err != nil {
-		return fmt.Errorf("could not faucet sylo: %v", err)
+		return fmt.Errorf("could not transfer sylo: %w", err)
 	}
 
-	if req.Wait {
-		waitCtx, waitCancel := context.WithTimeout(m.ctx, time.Minute)
-		defer waitCancel()
-		_, err = waitForReceipt(waitCtx, tx, m.ethC)
-		if err != nil {
-			return fmt.Errorf("could not get receipt: %w", err)
-		}
+	waitCtx, waitCancel := context.WithTimeout(m.ctx, 30*time.Second)
+	defer waitCancel()
+
+	_, err = m.syloC.CheckTx(waitCtx, tx)
+	if err != nil {
+		return fmt.Errorf("could not confirm transaction: %w", err)
 	}
 
 	return nil
@@ -231,7 +239,6 @@ func (m *syloEthMgr) getSylo(req *faucetRequest) error {
 type faucetRequest struct {
 	Recipient common.Address `json:"recipient"`
 	Amount    *big.Int       `json:"amount"`
-	Wait      bool           `json:"wait,omitempty"`
 }
 
 func (f *syloEthMgr) ethFaucetHandler() http.HandlerFunc {
@@ -314,30 +321,31 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy sylo token: %w", err)
 	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// deploy ticketing
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	var ticketingTx *types.Transaction
 	addresses.Ticketing, ticketingTx, _, err = contracts.DeploySyloTicketing(opts, client, addresses.Token, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// deploy directory
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	var directoryTx *types.Transaction
 	addresses.Directory, directoryTx, _, err = contracts.DeployDirectory(opts, client, addresses.Token, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// deploy listing
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	var listingTx *types.Transaction
 	addresses.Listings, listingTx, _, err = contracts.DeployListings(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy listing: %w", err)
 	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// wait for receipts
 	_, err = waitForReceipt(ctx, tokenTx, client)
@@ -357,11 +365,13 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
 	}
 
-	opts.Nonce = nil
 	return addresses, nil
 }
 
-func waitForReceipt(ctx context.Context, tx *types.Transaction, client *ethclient.Client) (*types.Receipt, error) {
+func waitForReceipt(parent context.Context, tx *types.Transaction, client *ethclient.Client) (*types.Receipt, error) {
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+	defer cancel()
+
 	for {
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		if err == nil {
