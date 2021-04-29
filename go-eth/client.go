@@ -119,14 +119,14 @@ func NewClient(
 
 	chainID, err := eth.ChainID(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("could not get chain id: %v", err)
+		return nil, fmt.Errorf("could not get chain id: %w", err)
 	}
 
 	signer := types.NewEIP155Signer(chainID)
 
 	backend, err := NewBackend(eth, signer)
 	if err != nil {
-		return nil, fmt.Errorf("could not get backend: %v", err)
+		return nil, fmt.Errorf("could not get backend: %w", err)
 	}
 
 	return NewClientWithBackend(

@@ -1110,24 +1110,24 @@ type depositF func(amount *big.Int, account ethcommon.Address) (*types.Transacti
 func addDeposit(ctx context.Context, backend eth.SimBackend, client eth.Client, amount *big.Int, f depositF) error {
 	tx, err := client.ApproveTicketing(amount)
 	if err != nil {
-		return fmt.Errorf("could not approve penalty amount: %v", err)
+		return fmt.Errorf("could not approve ticketing amount: %w", err)
 	}
 	backend.Commit()
 
 	_, err = client.CheckTx(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("could not check transaction: %v", err)
+		return fmt.Errorf("could not check transaction: %w", err)
 	}
 
 	tx, err = f(amount, client.Address())
 	if err != nil {
-		return fmt.Errorf("could not deposit penalty: %v", err)
+		return fmt.Errorf("could not deposit: %w", err)
 	}
 	backend.Commit()
 
 	_, err = client.CheckTx(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("could not confirm penalty deposit transaction: %v", err)
+		return fmt.Errorf("could not confirm deposit transaction: %w", err)
 	}
 
 	return nil
