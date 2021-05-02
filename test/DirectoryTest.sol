@@ -17,7 +17,7 @@ contract TestDirectory {
 
   function emitStake(bytes32 key) private {
 
-    (uint256 amount, uint256 leftAmount, uint256 rightAmount, address stakee,,,) = directory.nodes(key);
+    (uint256 amount, uint256 leftAmount, uint256 rightAmount, address stakee,,,) = directory.stakes(key);
     emit ScanResult(amount, leftAmount, rightAmount, stakee);
   }
 
@@ -30,6 +30,7 @@ contract TestDirectory {
   }
 
   function testScanEmptyDirectory() public {
+
     Assert.equal(directory.scan(0), address(0), "Expected null address");
     Assert.equal(directory.scan(max), address(0), "Expected null address");
   }
@@ -82,16 +83,16 @@ contract TestDirectory {
     directory.unlockStake(1 ether, address(this));
     // Not unstaked but stake should no longer be valid because of unlock period being complete
 
-    // emitStake(directory.getKey(address(this), address(this)));
-    // emitStake(directory.getKey(address(this), 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15));
+    emitStake(directory.getKey(address(this), address(this)));
+    emitStake(directory.getKey(address(this), 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15));
 
-    // Assert.equal(directory.getTotalStake(), 1 ether, "Unexpected total stake post unlock");
+    Assert.equal(directory.getTotalStake(), 1 ether, "Unexpected total stake post unlock");
 
-    // address selected = directory.scan(0);
-    // Assert.equal(selected, otherStaker, "Expected correct scan with a single staker");
+    address selected = directory.scan(0);
+    Assert.equal(selected, otherStaker, "Expected correct scan with a single staker");
 
-    // address selected2 = directory.scan(max);
-    // Assert.equal(selected2, otherStaker, "Expected correct scan with a single staker 2");
+    address selected2 = directory.scan(max);
+    Assert.equal(selected2, otherStaker, "Expected correct scan with a single staker 2");
   }
 
   function testUnlockStakeLeaf() public {
@@ -134,4 +135,24 @@ contract TestDirectory {
     address selected2 = directory.scan(max);
     Assert.equal(selected2, addrB, "Expected correct scan with a single staker 3");
   }
+
+  /* Disabled because we cannot advance the block in solidity tests */
+  // function testUnstaking() public {
+  //   address otherStaker = 0x2074D810CDaAaf8b2D04A6E584B3fac7a4d85E15;
+  //   directory.addStake(1 ether);
+  //   directory.addStakeFor(1 ether, otherStaker);
+
+  //   Assert.equal(directory.getTotalStake(), 2 ether, "Unexpected total stake");
+
+  //   directory.unlockStake();
+  //   directory.unstake();
+
+  //   Assert.equal(directory.getTotalStake(), 1 ether, "Unexpected total stake post unstake");
+
+  //   address selected = directory.scan(0);
+  //   Assert.equal(selected, otherStaker, "Expected correct scan with a single staker");
+
+  //   address selected2 = directory.scan(max);
+  //   Assert.equal(selected2, otherStaker, "Expected correct scan with a single staker 2");
+  // }
 }

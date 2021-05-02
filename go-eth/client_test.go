@@ -1142,15 +1142,15 @@ func getNode(t *testing.T, client eth.Client) (struct {
 	LeftAmount  *big.Int
 	RightAmount *big.Int
 	Stakee      ethcommon.Address
-	Parent      contracts.DirectoryNodePointer
-	Left        contracts.DirectoryNodePointer
-	Right       contracts.DirectoryNodePointer
+	Parent      contracts.DirectoryStakePointer
+	Left        contracts.DirectoryStakePointer
+	Right       contracts.DirectoryStakePointer
 }, []byte) {
 	key, err := client.GetKey(client.Address(), client.Address())
 	if err != nil {
 		t.Fatalf("could not get key: %v", err)
 	}
-	node, err := client.Nodes(key)
+	node, err := client.Stakes(key)
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}
@@ -1162,7 +1162,7 @@ func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client eth.Client, d
 	if err != nil {
 		t.Fatalf("could not get key: %v", err)
 	}
-	node, err := client.Nodes(key)
+	node, err := client.Stakes(key)
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}
