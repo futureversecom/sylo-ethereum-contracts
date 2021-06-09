@@ -90,10 +90,9 @@ contract Directory is Ownable {
             while(p.value_ != bytes32(0)) {
                 parent = p;
                 Stake storage current = stakes[parent.value_];
-                // To decend the tree we consider the current node to be on the
-                // right. This will fill the left side of the tree first when
+                // This will fill the right side of the tree first when
                 // there is a tie.
-                p = current.leftAmount < current.amount + current.rightAmount
+                p = current.leftAmount < current.rightAmount
                     ? current.left
                     : current.right;
             }
