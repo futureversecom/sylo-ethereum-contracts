@@ -164,23 +164,28 @@ contract Directory is Ownable {
                 StakePointer memory currentParent = subtreeNode.parent;
                 Stake storage current = subtreeNode;
 
-                // Move leaf to position of removed stake
-                // It is a leaf node, so it won't have any children.
-                setChild(current, bytes32(0), child.value_);
+                if (stakeNodePointer.value_ != root.value_) {
+                    // Update the child of the stake's parent to reference the new child
+                    // value
+                    Stake storage parent = stakes[stake.parent.value_];
+                    setChild(parent, key, child.value_);
+                }
+
                 current.parent = stake.parent;
 
                 // Update the children of current to be that of what the removed stake was
                 if (currentParent.value_ != key) {
 
                     // Move the children of stake to current
-                    fixl(stake, child.value_, current);
                     fixr(stake, child.value_, current);
+                    fixl(stake, child.value_, current);
 
-                    // Place stake where current was and
-                    stake.parent = currentParent; // Set parent
+                    // We set the parent of the stake to the current parent
+                    // so we can recurively update the amount values
+                    stake.parent = currentParent;
                     setChild(stakes[currentParent.value_], child.value_, stakeNodePointer.value_);
 
-                    // Update all the values
+                    // Update all values starting from the stake node now that it is a leaf
                     applyStakeChange(key, stake, -current.amount, current.parent.value_);
 
                     // Remove reference to the old stake
@@ -189,7 +194,7 @@ contract Directory is Ownable {
                     fixr(stake, child.value_, current);
                 } else {
                     fixl(stake, child.value_, current);
-                }
+                } 
 
                 // Update the root if thats changed
                 if (current.parent.value_ == bytes32(0)) {
