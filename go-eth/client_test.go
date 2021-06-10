@@ -596,16 +596,16 @@ func TestScan(t *testing.T) {
 		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !bigIntsEqual(aliceNode.LeftAmount, big.NewInt(100)) {
-			t.Fatalf("bob's stake should be in alice's left subtree")
+		if !bigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
+			t.Fatalf("bob's stake should be in alice's right subtree")
 		}
 
 		bobNode, bobKey := getNode(t, bobClient)
 		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Left.Value[:], bobKey) {
-			t.Fatalf("bob's key should be alice's left pointer")
+		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
+			t.Fatalf("bob's key should be alice's right pointer")
 		}
 
 		scanTests := [](struct {
@@ -614,11 +614,11 @@ func TestScan(t *testing.T) {
 			addr ethcommon.Address
 		}){
 			// bob
-			{desc: "zeroHalves should scan to bob", val: zeroHalves, addr: bobClient.Address()},
-			{desc: "oneHalf should scan to bob", val: oneHalf, addr: bobClient.Address()},
+			{desc: "zeroHalves should scan to alice", val: zeroHalves, addr: aliceClient.Address()},
+			{desc: "oneHalf should scan to alice", val: oneHalf, addr: aliceClient.Address()},
 			// alice
-			{desc: "oneHalfPlusOne should scan to alice", val: oneHalfPlusOne, addr: aliceClient.Address()},
-			{desc: "twoHalves should scan to alice", val: twoHalves, addr: aliceClient.Address()},
+			{desc: "oneHalfPlusOne should scan to bob", val: oneHalfPlusOne, addr: bobClient.Address()},
+			{desc: "twoHalves should scan to bob", val: twoHalves, addr: bobClient.Address()},
 		}
 
 		for _, scanTest := range scanTests {
@@ -658,9 +658,9 @@ func TestScan(t *testing.T) {
 
 		// stake Bob
 		//
-		//                (100)-A(100)-(0)
-		//               /
-		// (0)-B(100)-(0)
+		//            (100)-A(100)-(0)
+		//                            \
+		//                             (0)-B(100)-(0)
 		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
 		err = faucet(bobClient.Address(), oneEth, big.NewInt(1000000))
 		if err != nil {
@@ -676,23 +676,23 @@ func TestScan(t *testing.T) {
 		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !bigIntsEqual(aliceNode.LeftAmount, big.NewInt(100)) {
-			t.Fatalf("bob's stake should be in alice's left subtree")
+		if !bigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
+			t.Fatalf("bob's stake should be in alice's right subtree")
 		}
 
 		bobNode, bobKey := getNode(t, bobClient)
 		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Left.Value[:], bobKey) {
-			t.Fatalf("bob's key should be alice's left pointer")
+		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
+			t.Fatalf("bob's key should be alice's right pointer")
 		}
 
 		// stake Charlie
 		//
 		//                (100)-A(100)-(100)
 		//               /                  \
-		// (0)-B(100)-(0)                    (0)-C(100)-(0)
+		// (0)-C(100)-(0)                    (0)-B(100)-(0)
 		charlieClient, _ := createRandomClient(t, ctx, backend, addresses)
 		err = faucet(charlieClient.Address(), oneEth, big.NewInt(1000000))
 		if err != nil {
@@ -708,27 +708,27 @@ func TestScan(t *testing.T) {
 		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !bigIntsEqual(aliceNode.LeftAmount, bobStakeAmount) {
-			t.Fatalf("bob's stake should be in alice's left subtree")
+		if !bigIntsEqual(aliceNode.RightAmount, bobStakeAmount) {
+			t.Fatalf("bob's stake should be in alice's right subtree")
 		}
-		if !bigIntsEqual(aliceNode.RightAmount, charlieStakeAmount) {
-			t.Fatalf("charlie's stake should be in alice's right subtree")
+		if !bigIntsEqual(aliceNode.LeftAmount, charlieStakeAmount) {
+			t.Fatalf("charlie's stake should be in alice's left subtree")
 		}
 
 		bobNode, bobKey = getNode(t, bobClient)
 		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Left.Value[:], bobKey) {
-			t.Fatalf("bob's key should be alice's left pointer")
+		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
+			t.Fatalf("bob's key should be alice's right pointer")
 		}
 
 		charlieNode, charlieKey := getNode(t, charlieClient)
 		if !bigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
 			t.Fatalf("charlie stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Right.Value[:], charlieKey) {
-			t.Fatalf("charlie's key should be alice's right pointer")
+		if !bytes.Equal(aliceNode.Left.Value[:], charlieKey) {
+			t.Fatalf("charlie's key should be alice's left pointer")
 		}
 
 		scanTests := [](struct {
@@ -736,15 +736,15 @@ func TestScan(t *testing.T) {
 			val  *big.Int
 			addr ethcommon.Address
 		}){
-			// bob
-			{desc: "zeroThirds should scan to bob", val: zeroThirds, addr: bobClient.Address()},
-			{desc: "oneThird should scan to bob", val: oneThird, addr: bobClient.Address()},
+			// charlie
+			{desc: "zeroThirds should scan to charlie", val: zeroThirds, addr: charlieClient.Address()},
+			{desc: "oneThird should scan to charlie", val: oneThird, addr: charlieClient.Address()},
 			// alice
 			{desc: "oneThirdPlusOne should scan to alice", val: oneThirdPlusOne, addr: aliceClient.Address()},
 			{desc: "twoThirds should scan to alice", val: twoThirds, addr: aliceClient.Address()},
-			// charlie
-			{desc: "twoThirdsPlusOne should scan to charlie", val: twoThirdsPlusOne, addr: charlieClient.Address()},
-			{desc: "threeThirds should scan to charlie", val: threeThirds, addr: charlieClient.Address()},
+			// bob
+			{desc: "twoThirdsPlusOne should scan to bob", val: twoThirdsPlusOne, addr: bobClient.Address()},
+			{desc: "threeThirds should scan to bob", val: threeThirds, addr: bobClient.Address()},
 		}
 
 		for _, scanTest := range scanTests {
@@ -759,11 +759,11 @@ func TestScan(t *testing.T) {
 			})
 		}
 
-		// unlock Alice's stake (Charlie should take over root)
+		// unlock Alice's stake (Bob should take over root)
 		//
-		//                (100)-C(100)-(0)
+		//                (100)-B(100)-(0)
 		//               /
-		// (0)-B(100)-(0)
+		// (0)-C(100)-(0)
 		tx, err := aliceClient.UnlockStake(aliceStakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unlock stake: %v", err)
@@ -774,18 +774,18 @@ func TestScan(t *testing.T) {
 			t.Fatalf("could not check transaction: %v", err)
 		}
 
-		charlieNode, _ = getNode(t, charlieClient)
-		if !bigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
-			t.Fatalf("charlie's stake amount is not correct")
+		bobNode, _ = getNode(t, bobClient)
+		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+			t.Fatalf("bob's stake amount is not correct")
 		}
-		if !bigIntsEqual(charlieNode.LeftAmount, bobStakeAmount) {
-			t.Fatalf("charlie's left tree amount should be bob's stake amount")
+		if !bigIntsEqual(bobNode.LeftAmount, charlieStakeAmount) {
+			t.Fatalf("bob's left tree amount should be charlie's stake amount")
 		}
-		if !bigIntsEqual(charlieNode.RightAmount, big.NewInt(0)) {
-			t.Fatalf("charlie's right tree amount should be zero")
+		if !bigIntsEqual(bobNode.RightAmount, big.NewInt(0)) {
+			t.Fatalf("bob's right tree amount should be zero")
 		}
-		if !bytes.Equal(charlieNode.Left.Value[:], bobKey) {
-			t.Fatalf("bob's key should be charlies's left pointer")
+		if !bytes.Equal(bobNode.Left.Value[:], charlieKey) {
+			t.Fatalf("charlie's key should be bob's left pointer")
 		}
 
 		scanTests = [](struct {
@@ -793,12 +793,12 @@ func TestScan(t *testing.T) {
 			val  *big.Int
 			addr ethcommon.Address
 		}){
-			// bob
-			{desc: "zeroHalves should scan to bob still", val: zeroHalves, addr: bobClient.Address()},
-			{desc: "oneHalfMinusOne should scan to bob now", val: oneHalf, addr: bobClient.Address()},
 			// charlie
-			{desc: "oneHalf should scan to charlie now", val: oneHalfPlusOne, addr: charlieClient.Address()},
-			{desc: "twoHalves should scan to charlie still", val: twoHalves, addr: charlieClient.Address()},
+			{desc: "zeroHalves should scan to charlie still", val: zeroHalves, addr: charlieClient.Address()},
+			{desc: "oneHalfMinusOne should scan to charlie now", val: oneHalf, addr: charlieClient.Address()},
+			// bob
+			{desc: "oneHalf should scan to bob now", val: oneHalfPlusOne, addr: bobClient.Address()},
+			{desc: "twoHalves should scan to bob still", val: twoHalves, addr: bobClient.Address()},
 		}
 
 		for _, scanTest := range scanTests {
