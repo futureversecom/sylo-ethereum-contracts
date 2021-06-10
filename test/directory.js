@@ -5,7 +5,7 @@ const sodium = require('libsodium-wrappers-sumo');
 const Directory = artifacts.require("Directory");
 const Token = artifacts.require("SyloToken");
 
-contract('Directory', accounts => {
+contract.only('Directory', accounts => {
   let token;
   let directory;
 
@@ -68,26 +68,63 @@ contract('Directory', accounts => {
     await directory.addStake(1, accounts[1], { from: accounts[1] });
   });
 
-  it('should distribute scan results amongst stakees proportionally', async () => {
+  it('should distribute scan results amongst stakees proportionally - all equal', async () => {
+    let totalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await directory.addStake(1, accounts[i], { from: accounts[1] });
-      console.log('added stake to', accounts[i]);
+      totalStake++;
+    }
+
+    let expectedResults = {}
+    for (let i = 0; i < accounts.length; i++) {
+      expectedResults[accounts[i]] = 1/10 * 1000;
     }
 
     const results = await collectScanResults(1000);
-    console.log(results);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
   }).timeout(0);
 
-  // it('should be able to scan after unlocking all stake', async () => {
-  //   await directory.addStake(1, accounts[0], { from: accounts[1] });
-  //   await directory.addStake(1, accounts[1], { from: accounts[1] });
-  //   await directory.addStake(1, accounts[2], { from: accounts[1] });
-  // });
+  it('should distribute scan results amongst stakees proportionally - varied stake amounts', async () => {
+    let totalStake = 0;
+    for (let i = 0; i < accounts.length; i++) {
+      await directory.addStake(i + 1, accounts[i], { from: accounts[1] });
+      totalStake += i + 1;
+    }
 
-  it('should distribute scan results proporitionally after nodes unlock stake', async () => {
+    let expectedResults = {}
+    for (let i = 0; i < accounts.length; i++) {
+      expectedResults[accounts[i]] = parseInt((i+1)/totalStake * 1000);
+    }
+
+    const results = await collectScanResults(1000);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
+  }).timeout(0);
+
+  it('should be able to scan after unlocking all stake', async () => {
+    await directory.addStake(1, accounts[0], { from: accounts[1] });
+    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    await directory.addStake(1, accounts[2], { from: accounts[1] });
+
+    await directory.unlockStake(1, accounts[0], { from: accounts[1] });
+    await directory.unlockStake(1, accounts[1], { from: accounts[1] });
+    await directory.unlockStake(1, accounts[2], { from: accounts[1] });
+
+    const address = await directory.scan(0);
+
+    assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
+  });
+
+  it.only('scan after root unstakes', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await directory.addStake(1, accounts[i], { from: accounts[1] });
-      console.log('added stake to', accounts[i]);
     }
 
     /***
@@ -100,8 +137,153 @@ contract('Directory', accounts => {
     *             7   9   8
     */
 
-    console.log("unstaking for address", accounts[4]);
-    await debug(directory.unlockStake(1, accounts[4], { from: accounts[1] }));
+    await directory.unlockStake(1, accounts[0], { from: accounts[1] });
+
+    /***
+    *             8
+    *           /   \
+    *          2     1
+    *         / |   | \
+    *        6  7   5  3
+    *                \ 
+    *                 9   
+    */
+
+    let expectedResults = {}
+    for (let i = 1; i < accounts.length; i++) {
+      expectedResults[accounts[i]] = parseInt(1/9 * 1000);
+    }
+
+    const results = await collectScanResults(1000);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
+  }).timeout(0);
+
+  it('scan after nodes where parent is root unstakes', async () => {
+    for (let i = 0; i < accounts.length; i++) {
+      await directory.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    /***
+    *             0
+    *           /   \
+    *          2     1
+    *         / |   | \
+    *        6  4   5  3
+    *            \   \   \
+    *             7   9   8
+    */
+
+    await directory.unlockStake(1, accounts[1], { from: accounts[1] });
+
+    /***
+    *             0
+    *           /   \
+    *          2     8
+    *         / |   | \
+    *        6  4   5  3
+    *            \   \ 
+    *             7   9 
+    */
+
+    await directory.unlockStake(1, accounts[2], { from: accounts[1] });
+
+    /***
+    *             0
+    *           /   \
+    *          7     8
+    *         / |   | \
+    *        6  4   5  3
+    *                \ 
+    *                 9 
+    */
+
+    let expectedResults = {}
+    for (let i = 0; i < accounts.length; i++) {
+      if (i == 1 || i == 2) continue;
+      expectedResults[accounts[i]] = parseInt(1/8 * 1000);
+    }
+
+    const results = await collectScanResults(1000);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
+  }).timeout(0);
+
+  it('scan after leaf nodes unstake', async () => {
+    for (let i = 0; i < accounts.length; i++) {
+      await directory.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    /***
+    *             0
+    *           /   \
+    *          2     1
+    *         / |   | \
+    *        6  4   5  3
+    *            \   \   \
+    *             7   9   8
+    */
+
+    await directory.unlockStake(1, accounts[7], { from: accounts[1] });
+
+    /***
+    *             0
+    *           /   \
+    *          2     8
+    *         / |   | \
+    *        6  4   5  3
+    *                \  \
+    *                 9  8
+    */
+
+    await directory.unlockStake(1, accounts[8], { from: accounts[1] });
+
+    /***
+    *             0
+    *           /   \
+    *          7     8
+    *         / |   | \
+    *        6  4   5  3
+    *                \ 
+    *                 9 
+    */
+
+    let expectedResults = {}
+    for (let i = 0; i < accounts.length; i++) {
+      if (i == 7 || i == 8) continue;
+      expectedResults[accounts[i]] = parseInt(1/8 * 1000);
+    }
+
+    const results = await collectScanResults(1000);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
+  }).timeout(0);
+
+  it('scan after nodes where the child is a leaf unstake', async () => {
+    for (let i = 0; i < accounts.length; i++) {
+      await directory.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    /***
+    *             0
+    *           /   \
+    *          2     1
+    *         / |   | \
+    *        6  4   5  3
+    *            \   \   \
+    *             7   9   8
+    */
+
+    await directory.unlockStake(1, accounts[4], { from: accounts[1] });
 
     /***
     *             0
@@ -126,46 +308,57 @@ contract('Directory', accounts => {
     *                    8
     */
 
-    const results = await collectScanResults(1000);
-    console.log(results);
-
+     let expectedResults = {}
+     for (let i = 0; i < accounts.length; i++) {
+       if (i == 4 || i == 5) continue;
+       expectedResults[accounts[i]] = 1/8 * 1000;
+     }
+ 
+     const results = await collectScanResults(1000);
+     for (let key of Object.keys(expectedResults)) {
+       const expected = expectedResults[key];
+       const actual = results[key];
+       console.log('For address', key, 'expected=', expected, 'actual=', actual);
+     }
   }).timeout(0);
+
+  async function collectScanResults(iterations) {
+    const points = {};
+    const updatePoint = (address) => {
+      if (!points[address]) {
+        points[address] = 1;
+      } else {
+        points[address]++;
+      }
+    }
+  
+    function outputCompletion() {
+      if (i >= iterations) {
+        return;
+      }
+      process.stdout.write(" " + (i/iterations * 100).toPrecision(2) + "% completed\r")                                                              
+      setTimeout(outputCompletion, 1000);
+    }
+  
+    let i = 0;
+  
+    outputCompletion();
+  
+    console.log("collecting scan results for", iterations, "iterations...");
+  
+    while (i < iterations) {
+      // generate a random ed25519 key and hash with an epoch to create a
+      // 'random' point value
+      const kp = sodium.crypto_sign_keypair('uint8array');
+      const hash = crypto.createHash("sha256");
+      hash.update(kp.publicKey);
+      hash.update(Buffer.from([0])); // append epoch
+      const point = new BN(hash.digest().subarray(0, 16));
+      const address = await directory.scan(point);
+      updatePoint(address);
+      i++;
+    }
+  
+    return points;
+  }
 });
-
-async function collectScanResults(iterations) {
-  const points = {};
-  const updatePoint = (address) => {
-    if (!points[address]) {
-      points[address] = 1;
-    } else {
-      points[address]++;
-    }
-  }
-
-  function outputCompletion() {
-    if (i >= itr) {
-      return;
-    }
-    process.stdout.write(" " + (i/itr * 100).toPrecision(2) + "% complete\r")                                                              
-    setTimeout(outputCompletion, 1000);
-  }
-
-  let i = 0;
-
-  outputCompletion();
-
-  console.log("collecting scan results for", iterations, "iterations...");
-
-  while (i < iterations) {
-    const kp = sodium.crypto_sign_keypair('uint8array');
-    const hash = crypto.createHash("sha256");
-    hash.update(kp.publicKey);
-    hash.update(Buffer.from([0]));
-    const point = new BN(hash.digest().subarray(0, 16));
-    const address = await directory.scan(point);
-    updatePoint(address);
-    i++;
-  }
-
-  return points;
-}
