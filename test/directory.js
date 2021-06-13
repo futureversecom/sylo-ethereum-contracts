@@ -5,7 +5,7 @@ const sodium = require('libsodium-wrappers-sumo');
 const Directory = artifacts.require("Directory");
 const Token = artifacts.require("SyloToken");
 
-contract.only('Directory', accounts => {
+contract('Directory', accounts => {
   let token;
   let directory;
 
@@ -321,6 +321,69 @@ contract.only('Directory', accounts => {
        console.log('For address', key, 'expected=', expected, 'actual=', actual);
      }
   }).timeout(0);
+
+  it('scan results for a tree that became severely imbalanced', async () => {
+    await directory.addStake(1, accounts[0], { from: accounts[1] });
+    await directory.addStake(20, accounts[1], { from: accounts[1] });
+    for (let i = 2; i < accounts.length; i++) {
+      await directory.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    /***
+    *             0
+    *           /   \
+    *          2     1(20)
+    *         /  \   
+    *        4    3   
+    *       / \   | \     
+    *      8   6  7  5
+    *                 \
+    *                  9
+    */
+
+    let expectedResults = {}
+    expectedResults[accounts[0]] = 1/29 * 1000;
+    expectedResults[accounts[1]] = 20/29 * 1000;
+    for (let i = 2; i < accounts.length; i++) {
+      expectedResults[accounts[i]] = 1/29 * 1000;
+    }
+
+    console.log("checking results before unlocking node(1)")
+    let results = await collectScanResults(1000);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
+
+    await directory.unlockStake(20, accounts[1], { from: accounts[1] });
+
+    /***
+    *             0
+    *           / 
+    *          2 
+    *         /  \   
+    *        4    3   
+    *       / \   | \     
+    *      8   6  7  5
+    *                 \
+    *                  9
+    */
+
+    expectedResults = {}
+    for (let i = 0; i < accounts.length; i++) {
+      if (i == 1) continue;
+      expectedResults[accounts[i]] = 1/9 * 1000;
+    }
+ 
+    console.log("checking results after unlocking node(1)")
+    results = await collectScanResults(1000);
+    for (let key of Object.keys(expectedResults)) {
+      const expected = expectedResults[key];
+      const actual = results[key];
+      console.log('For address', key, 'expected=', expected, 'actual=', actual);
+    }
+  });
 
   async function collectScanResults(iterations) {
     const points = {};
