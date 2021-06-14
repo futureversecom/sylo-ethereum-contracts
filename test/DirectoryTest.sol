@@ -64,13 +64,13 @@ contract TestDirectory {
     Assert.equal(directory.getTotalStake(), 2 ether, "Expected a total stake of 2 ether");
 
     address selected = directory.scan(0);
-    Assert.equal(selected, otherStaker, "Expected correct scan with multiple stakers 1");
+    Assert.equal(selected, address(this), "Expected correct scan with multiple stakers 1");
 
     address selected2 = directory.scan(max);
-    Assert.equal(selected2, address(this), "Expected correct scan with multiple stakers 2");
+    Assert.equal(selected2, otherStaker, "Expected correct scan with multiple stakers 2");
 
     address selected3 = directory.scan(max/2);
-    Assert.equal(selected3, otherStaker, "Expected correct scan with multiple stakers 3");
+    Assert.equal(selected3, address(this), "Expected correct scan with multiple stakers 3");
   }
 
   function testUnlockStake() public {
@@ -130,10 +130,10 @@ contract TestDirectory {
     Assert.equal(directory.getTotalStake(), 10 ether, "Unexpected total stake post unlock");
 
     address selected = directory.scan(0);
-    Assert.equal(selected, addrA, "Expected correct scan with a single staker");
+    Assert.equal(selected, addrB, "Expected correct scan with a single staker");
 
     address selected2 = directory.scan(max);
-    Assert.equal(selected2, addrB, "Expected correct scan with a single staker 3");
+    Assert.equal(selected2, addrA, "Expected correct scan with a single staker 2");
   }
 
   /* Disabled because we cannot advance the block in solidity tests */
