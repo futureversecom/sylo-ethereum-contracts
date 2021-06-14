@@ -107,5 +107,4 @@ abi/
 bin/
 build/
 go-eth/deploy
-go-eth/contracts/
 
