@@ -145,6 +145,7 @@ contract SyloTicketing is Ownable {
             deposit.escrow = 0;
             deposit.penalty = deposit.penalty.sub(penaltyAmount);
             _token.transfer(ticket.receiver, ticket.faceValue.sub(penaltyAmount));
+            _token.transfer(address(_token), penaltyAmount);
         } else {
             deposit.escrow = deposit.escrow.sub(ticket.faceValue);
             _token.transfer(ticket.receiver, ticket.faceValue);

@@ -74,6 +74,13 @@ contract('Ticketing', accounts => {
       initialReceiverBalance.add(new BN(5)).toString(),
       "Expected balance of receiver to only have remaining available escrow added to it"
     );
+
+    const ticketingBalance = await token.balanceOf(ticketing.address);
+    assert.equal(
+      ticketingBalance.toString(),
+      '45',
+      'Expected penalty tokens to be burned'
+    );
   });
 
   async function createWinningTicket(sender, receiver) {
