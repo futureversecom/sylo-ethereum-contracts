@@ -122,7 +122,7 @@ contract('Directory', accounts => {
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
 
-  it.only('scan after root unstakes', async () => {
+  it('scan after root unstakes', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await directory.addStake(1, accounts[i], { from: accounts[1] });
     }
