@@ -138,17 +138,15 @@ contract SyloTicketing is Ownable {
         usedTickets[ticketHash] = true;
 
         if (ticket.faceValue > deposit.escrow) {
-            // TODO consider adding some punishment for using penalty by increasing the penaltyAmount
-
-            uint256 penaltyAmount = ticket.faceValue.sub(deposit.escrow);
+            _token.transfer(ticket.receiver, deposit.escrow);
+            _token.transfer(address(_token), deposit.penalty);
 
             deposit.escrow = 0;
-            deposit.penalty = deposit.penalty.sub(penaltyAmount);
+            deposit.penalty = 0;
         } else {
             deposit.escrow = deposit.escrow.sub(ticket.faceValue);
+            _token.transfer(ticket.receiver, ticket.faceValue);
         }
-
-        _token.transfer(ticket.receiver, ticket.faceValue);
     }
 
     function requireValidWinningTicket(
