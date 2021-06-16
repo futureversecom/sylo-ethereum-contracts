@@ -66,7 +66,7 @@ contract('Ticketing', accounts => {
 
     const deposit = await ticketing.deposits.call(accounts[0]);
     assert.equal(deposit.escrow.toString(), '0', 'Expected entire escrow to be used');
-    assert.equal(deposit.penalty.toString(), '45', 'Expected remaining portion of ticket face value to be substracted from penalty');
+    assert.equal(deposit.penalty.toString(), '0', 'Expected entire penalty to b burned');
 
     const postRedeemBalance = await token.balanceOf(accounts[1]);
     assert.equal(
@@ -78,8 +78,8 @@ contract('Ticketing', accounts => {
     const ticketingBalance = await token.balanceOf(ticketing.address);
     assert.equal(
       ticketingBalance.toString(),
-      '45',
-      'Expected penalty tokens to be burned'
+      '0',
+      'Expected all tokens to be transferred'
     );
   });
 
