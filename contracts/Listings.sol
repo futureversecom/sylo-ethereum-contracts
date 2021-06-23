@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/*
- * Stores details on the accounts listed in the directory
-*/
-contract Listings {
+contract Listings is Initializable {
 
     struct Listing {
         string multiAddr; // MultiAddr to connect to the account
@@ -14,6 +12,9 @@ contract Listings {
     }
 
     mapping(address => Listing) listings;
+
+    function initialize() public initializer {
+    }
 
     function setListing(Listing memory listing) public {
         // TODO validate listing?

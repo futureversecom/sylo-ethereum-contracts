@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../contracts/Token.sol";
 
 /*
@@ -10,7 +11,7 @@ import "../contracts/Token.sol";
  * It provides the ability for accounts to stake to become listed
  * It also provides the functionality for a client to get a random stake weighted selected service peer
 */
-contract Directory is Ownable {
+contract Directory is Initializable, OwnableUpgradeable {
 
     struct StakePointer {
         bytes32 value_;
@@ -24,7 +25,7 @@ contract Directory is Ownable {
 
         address stakee; // Address of peer that offers services
 
-        StakePointer parent; // Pointer to parent
+        StakePointer parent; // Pointear to parent
         StakePointer left; // Pointer to left child
         StakePointer right; // Pointer to right child
     }
@@ -54,7 +55,8 @@ contract Directory is Ownable {
 
     StakePointer root;
 
-    constructor(IERC20 token, uint256 _unlockDuration) public {
+    function initialize(IERC20 token, uint256 _unlockDuration) public initializer {
+        OwnableUpgradeable.__Ownable_init();
         _token = token;
         unlockDuration = _unlockDuration;
     }
@@ -129,7 +131,8 @@ contract Directory is Ownable {
         require(stake.amount > 0, "Nothing to unstake");
         require(stake.amount >= amount, "Cannot unlock more than staked");
 
-        updateStakeAmount(stakeNodePointer.value_, stake, -amount);
+        // Unchecked here will prevent solidity from panicking due to overflow on uint256
+        updateStakeAmount(stakeNodePointer.value_, stake, type(uint256).max - amount + 1 );
 
         // All stake being withdrawn, update the tree
         if (stake.amount == 0) {
@@ -186,7 +189,7 @@ contract Directory is Ownable {
                     setChild(stakes[currentParent.value_], child.value_, stakeNodePointer.value_);
 
                     // Update all values starting from the stake node now that it is a leaf
-                    applyStakeChange(key, stake, -current.amount, current.parent.value_);
+                    applyStakeChange(key, stake, type(uint256).max - current.amount + 1, current.parent.value_); 
 
                     // Remove reference to the old stake
                     removeChild(stakes[currentParent.value_], stakeNodePointer.value_);
@@ -327,8 +330,11 @@ contract Directory is Ownable {
     }
 
     function updateStakeAmount(bytes32 key, Stake storage stake, uint256 amount) private {
-        stake.amount += amount;
-        stakees[stake.stakee] += amount;
+        // unchecked here to allow uint to wrap on overflow
+        unchecked {
+            stake.amount += amount;
+            stakees[stake.stakee] += amount;
+        }
 
         applyStakeChange(key, stake, amount, bytes32(0));
     }
@@ -346,12 +352,15 @@ contract Directory is Ownable {
 
         Stake storage parent = stakes[parentKey.value_];
 
-        if (parent.left.value_ == key) {
-            parent.leftAmount += amount;
-        } else {
-            parent.rightAmount += amount;
+        // unchecked here to allow uint to wrap on overflow
+        unchecked {
+            if (parent.left.value_ == key) {
+                parent.leftAmount += amount;
+            } else {
+                parent.rightAmount += amount;
+            }
         }
-
+        
         return applyStakeChange(parentKey.value_, parent, amount, root_);
     }
 

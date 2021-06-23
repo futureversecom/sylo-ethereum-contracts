@@ -2,7 +2,7 @@ const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
 const Ticketing = artifacts.require("SyloTicketing");
 const eth = require('eth-lib');
-const { soliditySha3, encodePacked } = require("web3-utils");
+const { soliditySha3 } = require("web3-utils");
 
 contract('Ticketing', accounts => {
   let token;
@@ -27,12 +27,12 @@ contract('Ticketing', accounts => {
   });
 
   beforeEach(async () => {
-    ticketing = await Ticketing.new(token.address, 0, { from: accounts[0] });
-
+    ticketing = await Ticketing.new({ from: accounts[0] });
+    await ticketing.initialize(token.address, 0, { from: accounts[0] });
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
   });
 
-  it('can redeem winning ticket', async () => {
+  it.only('can redeem winning ticket', async () => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "truffle/Assert.sol";
@@ -15,7 +15,8 @@ contract TestSyloTicketing {
 
   function beforeEach() public {
     token = new SyloToken();
-    ticketing = new SyloTicketing(token, defaultUnlockDuration);
+    ticketing = new SyloTicketing();
+    ticketing.initialize(token, defaultUnlockDuration);
 
     // Allow ticketing to transfer tokens from user
     token.approve(address(ticketing), 100 ether);
