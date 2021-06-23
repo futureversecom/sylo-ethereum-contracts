@@ -11,11 +11,15 @@
   "author": "Sylo",
   "license": "ISC",
   "devDependencies": {
-    "@openzeppelin/contracts": "^3.4.1",
+    "@openzeppelin/contracts": "^4.1.0",
+    "@openzeppelin/contracts-upgradeable": "^4.1.0",
+    "@openzeppelin/truffle-upgrades": "^1.7.1",
     "bn.js": "^5.2.0",
+    "ganache-cli": "^6.12.2",
     "libsodium": "^0.7.9",
     "libsodium-wrappers-sumo": "^0.7.9",
     "solhint": "^2.3.1",
-    "truffle": "^5.1.65"
-  }
+    "truffle": "^5.3.2"
+  },
+  "dependencies": {}
 }

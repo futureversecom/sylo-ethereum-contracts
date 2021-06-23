@@ -14,8 +14,8 @@ contract('Directory', accounts => {
   });
 
   beforeEach(async () => {
-    directory = await Directory.new(token.address, 0, { from: accounts[0] });
-
+    directory = await Directory.new({ from: accounts[0] });
+    await directory.initialize(token.address, 0, { from: accounts[0] });
     await token.approve(directory.address, 10000, { from: accounts[1] });
   });
 

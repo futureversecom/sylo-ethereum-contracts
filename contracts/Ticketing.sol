@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
+// import "./Listings.sol";
+// import "./Directory.sol";
 import "./ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract SyloTicketing is Ownable {
+contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     using SafeMath for uint256;
 
@@ -47,7 +50,8 @@ contract SyloTicketing is Ownable {
 
     // TODO define events
 
-    constructor(IERC20 token, uint256 _unlockDuration) public {
+    function initialize(IERC20 token, uint256 _unlockDuration) public initializer {
+        OwnableUpgradeable.__Ownable_init();
         _token = token;
         unlockDuration = _unlockDuration;
     }

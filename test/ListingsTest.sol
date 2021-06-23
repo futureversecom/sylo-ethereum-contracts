@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "truffle/Assert.sol";
@@ -10,7 +10,8 @@ contract ListingsTest {
   Listings listings;
 
   function beforeEach() public {
-    listings = new Listings();
+    listings = new Listings(); 
+    listings.initialize();
   }
 
   function testSettingListing() public {

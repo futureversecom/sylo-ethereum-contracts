@@ -1056,10 +1056,17 @@ func deployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 	}
 
 	// deploy ticketing
-	addresses.Ticketing, tx, _, err = contracts.DeploySyloTicketing(transactor, backend, addresses.Token, unlockDuration)
+	ticketing := &contracts.SyloTicketing{}
+	addresses.Ticketing, tx, ticketing, err = contracts.DeploySyloTicketing(transactor, backend)
 	if err != nil {
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
+
+	_, err = ticketing.Initialize(transactor, addresses.Token, unlockDuration)
+	if err != nil {
+		t.Fatalf("could not initialize ticket contract: %v", err)
+	}
+
 	backend.Commit()
 	_, err = backend.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
@@ -1067,10 +1074,17 @@ func deployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 	}
 
 	// deploy directory
-	addresses.Directory, tx, _, err = contracts.DeployDirectory(transactor, backend, addresses.Token, unlockDuration)
+	directory := &contracts.Directory{}
+	addresses.Directory, tx, directory, err = contracts.DeployDirectory(transactor, backend)
 	if err != nil {
 		t.Fatalf("could not deploy directory: %v", err)
 	}
+
+	_, err = directory.Initialize(transactor, addresses.Token, unlockDuration)
+	if err != nil {
+		t.Fatalf("could not initialize directory contract: %v", err)
+	}
+
 	backend.Commit()
 	_, err = backend.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
@@ -1078,10 +1092,17 @@ func deployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 	}
 
 	// deploy listing
-	addresses.Listings, tx, _, err = contracts.DeployListings(transactor, backend)
+	listings := &contracts.Listings{}
+	addresses.Listings, tx, listings, err = contracts.DeployListings(transactor, backend)
 	if err != nil {
 		t.Fatalf("could not deploy listing: %v", err)
 	}
+
+	_, err = listings.Initialize(transactor)
+	if err != nil {
+		t.Fatalf("could not get listings receipt: %v", err)
+	}
+
 	backend.Commit()
 	_, err = backend.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
