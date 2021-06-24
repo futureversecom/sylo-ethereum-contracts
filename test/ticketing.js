@@ -49,6 +49,144 @@ contract('Ticketing', accounts => {
     await token.approve(directory.address, 10000, { from: accounts[1] });
   });
 
+  it('should be able to deposit escrow', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+
+    const deposit = await ticketing.deposits(accounts[0]);
+    assert.equal(deposit.escrow.toString(), '50', 'Expected 50 in escrow');
+  });
+
+  it('should be able to deposit penalty', async () => {
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const deposit = await ticketing.deposits(accounts[0]);
+    assert.equal(deposit.penalty.toString(), '50', 'Expected 50 in escrow');
+  });
+
+  it('should be able to deposit escrow multiple times', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+
+    const deposit = await ticketing.deposits(accounts[0]);
+    assert.equal(deposit.escrow.toString(), '100', 'Expected 100 in escrow');
+  });
+
+  it('should be able to depost to penalty multiple times', async () => {
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const deposit = await ticketing.deposits(accounts[0]);
+    assert.equal(deposit.penalty.toString(), '100', 'Expected 100 in penalty');
+  });
+
+  it('should fail to withdraw without unlocking', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+
+    await ticketing.withdraw({ from: accounts[0] })
+      .then(() => {
+        assert.fail('Withdrawing should fail');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Deposits not unlocked', 'Withdraw should fail due to not being unlocked');
+      });
+  });
+
+  it('should fail to unlock without deposit', async () => {
+    await ticketing.unlockDeposits({ from: accounts[0] })
+      .then(() => {
+        assert.fail('Withdrawing should fail');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Nothing to withdraw', 'Unlock should fail due to no deposit');
+      });
+  });
+  
+  it('should be able to unlock', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.unlockDeposits({ from: accounts[0] });
+
+    const deposit = await ticketing.deposits(accounts[0]);
+    assert.isAbove(deposit.unlockAt.toNumber(), 0, 'Expected deposit to go into unlocking phase');
+  });
+
+  it('should fail to unlock if already unlocking', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.unlockDeposits({ from: accounts[0] });
+
+    await ticketing.unlockDeposits({ from: accounts[0] })
+      .then(() => {
+        assert.fail('Withdrawing should fail');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Unlock already in progress', 'Unlock should fail due to already unlocking');
+      });
+  });
+
+  it('should fail to lock if already locked', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.lockDeposits({ from: accounts[0] })
+      .then(() => {
+        assert.fail('Locking should fail');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Not unlocking, cannot lock', 'Expect lock to fail as it deposit is already locked');
+      });
+  });
+
+  it('should be able to lock deposit while it is unlocked', async () => {
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.unlockDeposits({ from: accounts[0] });
+    await ticketing.lockDeposits({ from: accounts[0] });
+
+    const deposit = await ticketing.deposits(accounts[0]);
+    assert.equal(deposit.unlockAt.toString(), '0', 'Expected deposit to go into unlocking phase');
+  });
+
+  it('can not redeem expired ticket', async () => {
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    ticket.expirationBlock = 1;
+
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
+      .then(() => {
+        assert.fail('Should fail to redeem expired ticket');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Ticket has expired', 'Expected redeeming to fail due to expired ticket');
+      });
+  });
+
+  it('can not redeem ticket with invalid signature', async () => {
+    const { ticket, receiverRand } = 
+      await createWinningTicket(0, 1);
+
+    const signature = '0x00';
+
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
+      .then(() => {
+        assert.fail('Should fail to redeem ticket with invalid signature');
+      })
+      .catch(e => {
+        assert.include(e.message, 'ECDSA: invalid signature length', 'Expected redeeming to fail due to invalid signature');
+      });
+  });
+
+  it('can not redeem ticket with invalid receiver rand', async () => {
+    const { ticket, signature } = 
+      await createWinningTicket(0, 1);
+
+    const receiverRand = 999;
+
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
+      .then(() => {
+        assert.fail('Should fail to redeem ticket with invalid receiver rand');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Hash of receiverRand doesn\'t match receiverRandHash', 'Expected redeeming to fail due to invalid signature');
+      });
+  });
+
   it('can redeem winning ticket', async () => {
     // simulate having account[1] as a node with a listing and a
     // directory entry
