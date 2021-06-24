@@ -213,11 +213,12 @@ contract Directory is Initializable, OwnableUpgradeable {
             // Now that the node is unlinked from any other nodes, we can remove it
             delete stakes[key];
 
-            // Also delete the pointer to the staker
+            // Also delete the reference to the staker
             address[] storage _stakers = stakers[stakee];
             for (uint32 i = 0; i < _stakers.length; i++) {
                 if (_stakers[i] == msg.sender) {
-                    delete _stakers[i];
+                    _stakers[i] = _stakers[_stakers.length - 1];
+                    _stakers.pop();
                     break;
                 }
             }

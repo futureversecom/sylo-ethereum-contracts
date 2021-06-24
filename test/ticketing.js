@@ -49,7 +49,7 @@ contract('Ticketing', accounts => {
     await token.approve(directory.address, 10000, { from: accounts[1] });
   });
 
-  it.only('can redeem winning ticket', async () => {
+  it('can redeem winning ticket', async () => {
     // simulate having account[1] as a node with a listing and a
     // directory entry
     await directory.addStake(1, accounts[1], { from: accounts[1] });
@@ -77,6 +77,11 @@ contract('Ticketing', accounts => {
   });
 
   it('burns penalty on insufficient escrow', async () => {
+    // simulate having account[1] as a node with a listing and a
+    // directory entry
+    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", { from: accounts[1] });
+
     await ticketing.depositEscrow(5, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
@@ -102,6 +107,84 @@ contract('Ticketing', accounts => {
       ticketingBalance.toString(),
       '0',
       'Expected all tokens to be transferred'
+    );
+  });
+
+  it('should payout delegated stakers on redeeming ticket', async () => {
+    await token.transfer(accounts[2], 1000, { from: accounts[1]} );
+    await token.approve(directory.address, 1000, { from: accounts[2] });
+
+    // have account[2] as a delegated staker
+    await directory.addStake(1, accounts[1], { from: accounts[2] });
+    await listings.setListing("0.0.0.0/0", { from: accounts[1] });
+
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    const initialDelegatorBalance = await token.balanceOf(accounts[2]);
+    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+
+    // The payout percentage is 50%, so the node (accounts[1]) and the
+    // only delegator (account[2]) should split the reward equally
+    const expectedPayout = ticket.faceValue / 2;
+
+    const postDelegatorBalance = await token.balanceOf(accounts[2]);
+    const postReceiverBalance = await token.balanceOf(accounts[1]);
+
+    assert.equal(
+      postDelegatorBalance.toString(),
+      initialDelegatorBalance.add(new BN(expectedPayout)).toString(),
+      "Expected balance of delegator to have added 50% of ticket face value"
+    );
+
+    assert.equal(
+      postReceiverBalance.toString(),
+      initialReceiverBalance.add(new BN(expectedPayout)).toString(),
+      "Expected balance of receiver to have added 50% of ticket face value"
+    );
+  });
+
+  it('should payout full ticket face value to node if all delegates pull out', async () => {
+    await token.transfer(accounts[2], 1000, { from: accounts[1]} );
+    await token.approve(directory.address, 1000, { from: accounts[2] });
+
+    // have both the node and account[2] stake
+    await directory.addStake(1, accounts[1], { from: accounts[2] });
+    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", { from: accounts[1] });
+
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    // unlock account[2] stake
+    await directory.unlockStake(1, accounts[1], { from: accounts[2] });
+
+    const initialDelegatorBalance = await token.balanceOf(accounts[2]);
+    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+
+    const postDelegatorBalance = await token.balanceOf(accounts[2]);
+    const postReceiverBalance = await token.balanceOf(accounts[1]);
+
+    assert.equal(
+      postDelegatorBalance.toString(),
+      initialDelegatorBalance.toString(),
+      "Expected balance of delegator to have added 50% of ticket face value"
+    );
+
+    assert.equal(
+      postReceiverBalance.toString(),
+      initialReceiverBalance.add(new BN(ticket.faceValue)).toString(),
+      "Expected balance of receiver to have added 50% of ticket face value"
     );
   });
 
