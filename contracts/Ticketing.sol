@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-// import "./Listings.sol";
-// import "./Directory.sol";
+import "./Listings.sol";
+import "./Directory.sol";
 import "./ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -36,6 +36,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* ERC 20 compatible token we are dealing with */
     IERC20 _token;
 
+    /* Sylo Listings contract */
+    Listings _listings;
+
+    /* Sylo Directory contract */
+    Directory _directory;
+
     /*
      * The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their funds
@@ -50,9 +56,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     // TODO define events
 
-    function initialize(IERC20 token, uint256 _unlockDuration) public initializer {
+    function initialize(IERC20 token, Listings listings, Directory directory, uint256 _unlockDuration) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
+        _listings = listings;
+        _directory = directory;
         unlockDuration = _unlockDuration;
     }
 
@@ -141,6 +149,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         usedTickets[ticketHash] = true;
 
+        Listings.Listing memory listing = _listings.getListing(ticket.receiver);
+        require(listing.initialized == true, "Ticket receiver must have a valid listing");
+
+        uint256 totalStake = _directory.stakees(ticket.receiver);
+        require(totalStake != 0, "Ticket receiver must have stake");
+
         if (ticket.faceValue > deposit.escrow) {
             _token.transfer(ticket.receiver, deposit.escrow);
             _token.transfer(address(_token), deposit.penalty);
@@ -149,7 +163,19 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             deposit.penalty = 0;
         } else {
             deposit.escrow = deposit.escrow.sub(ticket.faceValue);
-            _token.transfer(ticket.receiver, ticket.faceValue);
+
+            uint256 stakersPayout = listing.payoutPercentage * ticket.faceValue / 100;
+            uint256 stakeePayout = ticket.faceValue - stakersPayout;
+
+            _token.transfer(ticket.receiver, stakeePayout);
+
+            address[] memory stakers = _directory.getStakers(ticket.receiver);
+
+            for (uint32 i = 0; i < stakers.length; i++) {
+                Directory.Stake memory stake = _directory.getStake(ticket.receiver, stakers[i]);
+                uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
+                _token.transfer(stakers[i], stakerPayout);
+            }
         }
     }
 
@@ -159,7 +185,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 receiverRand,
         bytes memory sig
     ) internal view {
-
         require(ticket.sender != address(0), "Ticket sender is null");
         require(ticket.receiver != address(0), "Ticket receiver is null");
 

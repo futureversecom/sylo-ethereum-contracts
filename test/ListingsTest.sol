@@ -11,17 +11,15 @@ contract ListingsTest {
 
   function beforeEach() public {
     listings = new Listings(); 
-    listings.initialize();
+    listings.initialize(50);
   }
 
   function testSettingListing() public {
+    string memory multiAddr = "/ip4/127.0.0.1/udp/1234";
+    listings.setListing(multiAddr);
 
-    Listings.Listing memory listing = Listings.Listing("/ip4/127.0.0.1/udp/1234");
+    Listings.Listing memory retrieved = listings.getListing(address(this));
 
-    listings.setListing(listing);
-
-    Listings.Listing memory retrieved  = listings.getListing(address(this));
-
-    Assert.equal(listing.multiAddr, retrieved.multiAddr, "Expected listing to be set");
+    Assert.equal(multiAddr, retrieved.multiAddr, "Expected listing to be set");
   }
 }

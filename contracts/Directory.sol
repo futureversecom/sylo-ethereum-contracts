@@ -47,6 +47,9 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     mapping(bytes32 => Stake) public stakes;
 
+    // Keeps track of all addresses staked to a stakee
+    mapping(address => address[]) public stakers;
+
     // Keeps track of stakees stake amount
     mapping(address => uint256) public stakees;
 
@@ -101,6 +104,8 @@ contract Directory is Initializable, OwnableUpgradeable {
             stake.parent = parent;
             p.value_ = key;
             stake.stakee = stakee;
+
+            stakers[stakee].push(staker);
         }
 
         if (stake.parent.value_ == bytes32(0)) {
@@ -207,6 +212,15 @@ contract Directory is Initializable, OwnableUpgradeable {
 
             // Now that the node is unlinked from any other nodes, we can remove it
             delete stakes[key];
+
+            // Also delete the pointer to the staker
+            address[] storage _stakers = stakers[stakee];
+            for (uint32 i = 0; i < _stakers.length; i++) {
+                if (_stakers[i] == msg.sender) {
+                    delete _stakers[i];
+                    break;
+                }
+            }
         }
 
         // Keep track of when the stake can be withdrawn
@@ -304,6 +318,14 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     function getStake(address stakee) private view returns (Stake storage) {
         return stakes[getKey(msg.sender, stakee)];
+    }
+
+    function getStake(address stakee, address staker) public view returns (Stake memory) {
+        return stakes[getKey(staker, stakee)];
+    }
+
+    function getStakers(address stakee) public view returns (address[] memory) {
+        return stakers[stakee];
     }
 
     function getTotalStake() public view returns (uint256) {

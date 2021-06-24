@@ -6,18 +6,29 @@ import "truffle/Assert.sol";
 import "truffle/DeployedAddresses.sol";
 import "../contracts/Token.sol";
 import "../contracts/Ticketing.sol";
+import "../contracts/Directory.sol";
+import "../contracts/Listings.sol";
 
 contract TestSyloTicketing {
   SyloToken token;
   SyloTicketing ticketing;
+  Directory directory;
+  Listings listings;
 
   uint256 defaultUnlockDuration = 1;
 
   function beforeEach() public {
     token = new SyloToken();
-    ticketing = new SyloTicketing();
-    ticketing.initialize(token, defaultUnlockDuration);
 
+    directory = new Directory();
+    // directory.initialize(token, defaultUnlockDuration);
+
+    listings = new Listings();
+    // listings.initialize(0);
+
+    ticketing = new SyloTicketing();
+    ticketing.initialize(token, listings, directory, defaultUnlockDuration);
+    
     // Allow ticketing to transfer tokens from user
     token.approve(address(ticketing), 100 ether);
   }
