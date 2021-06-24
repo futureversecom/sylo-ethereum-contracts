@@ -109,4 +109,4 @@ build/
 go-eth/deploy
 
 .openzeppelin/.session
-.openzeppelin/unknown-*
+.openzeppelin/unknown*.json
