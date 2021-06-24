@@ -2,22 +2,47 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract Listings is Initializable {
+contract Listings is Initializable, OwnableUpgradeable {
 
     struct Listing {
-        string multiAddr; // MultiAddr to connect to the account
-        // TODO store tags
+        // MultiAddr to connect to the account
+        string multiAddr; 
+
+        // Payout percentage to delegated stakes for winning
+        // This value is currently locked to the default payout
+        // percentage until epochs are implemented
+        uint8 payoutPercentage;
+
+        // Explicit property to check if an instance of this struct actually exists
+        bool initialized;
     }
 
     mapping(address => Listing) listings;
 
-    function initialize() public initializer {
+    uint8 public defaultPayoutPercentage;
+
+    function initialize(uint8 _defaultPayoutPercentage) public initializer {
+        OwnableUpgradeable.__Ownable_init();
+        setDefaultPayoutPercentage(_defaultPayoutPercentage);
     }
 
-    function setListing(Listing memory listing) public {
+    function setDefaultPayoutPercentage(uint8 _defaultPayoutPercentage) public onlyOwner {
+        require(
+            _defaultPayoutPercentage >= 0 && _defaultPayoutPercentage <= 100,
+            "The payout percentage must be a value between 0 and 100"
+        );
+        defaultPayoutPercentage = _defaultPayoutPercentage;
+    }
+
+    function setListing(string memory multiAddr) public {
         // TODO validate listing?
+        require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
+
+        // TODO Remove defaultPayoutPercentage once epochs are introduced
+        Listing memory listing = Listing(multiAddr, defaultPayoutPercentage, true);
         listings[msg.sender] = listing;
     }
 

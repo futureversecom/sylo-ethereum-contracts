@@ -1,12 +1,16 @@
 const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
 const Ticketing = artifacts.require("SyloTicketing");
+const Listings = artifacts.require("Listings");
+const Directory = artifacts.require("Directory");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
 contract('Ticketing', accounts => {
   let token;
   let ticketing;
+  let listings;
+  let directory;
   // private keys generated from default truffle mnemonic
   // use these to sign tickets
   const privateKeys =
@@ -27,12 +31,30 @@ contract('Ticketing', accounts => {
   });
 
   beforeEach(async () => {
-    ticketing = await Ticketing.new({ from: accounts[0] });
-    await ticketing.initialize(token.address, 0, { from: accounts[0] });
+    listings = await Listings.new({ from: accounts[1] });
+    await listings.initialize(50), { from: accounts[1] };
+
+    directory = await Directory.new({ from: accounts[1] });
+    await directory.initialize(token.address, 0, { from: accounts[1] });
+
+    ticketing = await Ticketing.new({ from: accounts[1] });
+    await ticketing.initialize(
+      token.address, 
+      listings.address, 
+      directory.address, 
+      0, 
+      { from: accounts[1] }
+    );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
+    await token.approve(directory.address, 10000, { from: accounts[1] });
   });
 
   it.only('can redeem winning ticket', async () => {
+    // simulate having account[1] as a node with a listing and a
+    // directory entry
+    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", { from: accounts[1] });
+
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
