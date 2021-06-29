@@ -13,6 +13,8 @@ import "../contracts/Token.sol";
 */
 contract Directory is Initializable, OwnableUpgradeable {
 
+    uint32 constant DELEGATED_STAKER_CAP = 10;
+
     struct StakePointer {
         bytes32 value_;
     }
@@ -84,6 +86,11 @@ contract Directory is Initializable, OwnableUpgradeable {
 
         // New stake
         if (stake.amount == 0) {
+            // The number of stakers allowed is capped
+            require(
+                stakers[stakee].length <= DELEGATED_STAKER_CAP, 
+                "This node has reached its delegated staker cap"
+            );
             // Find the node to add a new child
             //
             // There is no node for this key in the stake tree, so we will need
