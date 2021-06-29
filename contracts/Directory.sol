@@ -27,7 +27,7 @@ contract Directory is Initializable, OwnableUpgradeable {
 
         address stakee; // Address of peer that offers services
 
-        StakePointer parent; // Pointear to parent
+        StakePointer parent; // Pointer to parent
         StakePointer left; // Pointer to left child
         StakePointer right; // Pointer to right child
     }

@@ -12,6 +12,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SyloTicketing is Initializable, OwnableUpgradeable {
 
+    uint256 constant PERC_DIVISOR = 100;
+
     using SafeMath for uint256;
 
     struct Deposit {
@@ -164,18 +166,22 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         } else {
             deposit.escrow = deposit.escrow.sub(ticket.faceValue);
 
-            uint256 stakersPayout = listing.payoutPercentage * ticket.faceValue / 100;
-            uint256 stakeePayout = ticket.faceValue - stakersPayout;
-
-            _token.transfer(ticket.receiver, stakeePayout);
-
+            uint256 stakersPayout = listing.payoutPercentage * ticket.faceValue / PERC_DIVISOR;
+            
             address[] memory stakers = _directory.getStakers(ticket.receiver);
 
+            // Track any value lost from precision due to rounding down
+            uint256 stakersPayoutRemainder = stakersPayout;
             for (uint32 i = 0; i < stakers.length; i++) {
                 Directory.Stake memory stake = _directory.getStake(ticket.receiver, stakers[i]);
                 uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
+                stakersPayoutRemainder -= stakerPayout;
                 _token.transfer(stakers[i], stakerPayout);
             }
+
+            // payout any remainder to the stakee
+            uint256 stakeePayout = ticket.faceValue - stakersPayout + stakersPayoutRemainder;
+            _token.transfer(ticket.receiver, stakeePayout);
         }
     }
 
