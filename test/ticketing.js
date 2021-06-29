@@ -326,52 +326,35 @@ contract('Ticketing', accounts => {
     );
   });
 
-  // it.only('estimate gas costs', async () => {
-  //   // const rewards = Array(100).fill().map(() => {
-  //   //   const ethAcc = require('eth-lib/src/account');
-  //   //   const acc = ethAcc.create();
-  //   //   return {
-  //   //     rewardee: acc.address,
-  //   //     amount: 200
-  //   //   }
-  //   // })
-  //   // const gas = await ticketing.redeem3.estimateGas(rewards);
-  //   // console.log('gas cost', gas);
-
-  //   // for (let i = 0; i < accounts.length; i++) {
-  //   //   if (i == 1) continue;
-  //   //   await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-  //   //   await token.approve(directory.address, 1000, { from: accounts[i] });
-
-  //   //   await directory.addStake(1, accounts[1], { from: accounts[i] });
-  //   // }
-
-  //   const createDelegatedStaker = async () => {
-  //     const ethAcc = require('eth-lib/src/account');
-  //     const acc = ethAcc.create();
-  //     await directory.addStake2(1, accounts[1], acc.address, { from: accounts[1] });
-  //   }
-
-  //   for (let i = 0; i < 10; i++) {
-  //     await createDelegatedStaker();
-  //   }
+  it('gas cast should not be excessive at maximum delegators', async () => {
+    // reach 10 delegator limit
+    for (let i = 0; i < accounts.length; i++) {
+      if (i == 1) {
+        await directory.addStake(1, accounts[1], { from: accounts[1] });
+      } else {
+        await token.transfer(accounts[i], 1000, { from: accounts[1]} );
+        await token.approve(directory.address, 10000, { from: accounts[i] });
+        await directory.addStake(1, accounts[1], { from: accounts[i] });
+      }
+    }
     
-  //   // have account[2] as a delegated staker
-  //   // await directory.addStake(1, accounts[1], { from: accounts[2] });
-  //   await listings.setListing("0.0.0.0/0", { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-  //   await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-  //   await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-  //   const { ticket, receiverRand, signature } = 
-  //     await createWinningTicket(0, 1);
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
 
-  //   const g = await ticketing.redeem.estimateGas(ticket, receiverRand, signature, { from: accounts[1] });
-  //   const g2 = await ticketing.redeem2.estimateGas(ticket, receiverRand, signature, { from: accounts[1] });
-
-  //   console.log('gas', g, g2);
-
-  // });
+    await ticketing.redeem.estimateGas(
+      ticket, 
+      receiverRand, 
+      signature, 
+      { from: accounts[1],
+        gas: 350000,
+      }
+    );
+  });
 
   async function createWinningTicket(sender, receiver) {
     const receiverRand = 1;
