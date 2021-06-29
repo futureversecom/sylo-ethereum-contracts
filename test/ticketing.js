@@ -287,6 +287,51 @@ contract('Ticketing', accounts => {
     );
   });
 
+  it('should pay stakee remainders left from rounding down', async () => {
+    // have account 2 and 3 as delegated stakers
+    for (let i = 2; i < 4; i++) {
+      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
+      await token.approve(directory.address, 1000, { from: accounts[i] });
+      await directory.addStake(1, accounts[1], { from: accounts[i] });
+    }
+
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1, 15); // 15 ticket as face value
+
+    const initialDelegatorBalance = await token.balanceOf(accounts[2]);
+    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+
+    // The payout percentage is 50%, so due to rounding, 7 will go to
+    // the delegators, and 8 will go directly to the node. For the value
+    // split amongst the delegators (accounts 2 and 3), it will be split
+    // proportionally but rounded down, so both will receive 3, and the remainder (1)
+    // will be sent to the node
+    const expectedDelegatorsPayout = parseInt(ticket.faceValue / 2);
+    const expectedStakeePayout = ticket.faceValue - expectedDelegatorsPayout + 1;
+
+    const postDelegatorBalance = await token.balanceOf(accounts[2]);
+    const postReceiverBalance = await token.balanceOf(accounts[1]);
+
+    assert.equal(
+      postDelegatorBalance.toString(),
+      initialDelegatorBalance.add(new BN(parseInt(expectedDelegatorsPayout / 2))).toString(),
+      "Expected balance of delegator to have 3 added to their balance"
+    );
+
+    assert.equal(
+      postReceiverBalance.toString(),
+      initialReceiverBalance.add(new BN(expectedStakeePayout)).toString(),
+      "Expected balance of receiver to have 9 added to their balance"
+    );
+  });
+
   it('should payout full ticket face value to node if all delegates pull out', async () => {
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
     await token.approve(directory.address, 1000, { from: accounts[2] });
@@ -356,14 +401,14 @@ contract('Ticketing', accounts => {
     );
   });
 
-  async function createWinningTicket(sender, receiver) {
+  async function createWinningTicket(sender, receiver, faceValue = 10) {
     const receiverRand = 1;
     const receiverRandHash = soliditySha3(receiverRand);
 
     const ticket = {
       sender: accounts[sender],
       receiver: accounts[receiver],
-      faceValue: 10,
+      faceValue,
       winProb: (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString(), //max win prob
       expirationBlock: 0,
       receiverRandHash,
