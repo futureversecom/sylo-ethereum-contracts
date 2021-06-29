@@ -97,11 +97,6 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
 
 	backend.Commit()
-	ticketing := &contracts.SyloTicketing{}
-	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	ticketing.Initialize(&opts[0], addresses.Token, big.NewInt(1))
-
-	backend.Commit()
 	directory := &contracts.Directory{}
 	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
 	directory.Initialize(&opts[0], addresses.Token, big.NewInt(1))
@@ -109,7 +104,12 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend.Commit()
 	listings := &contracts.Listings{}
 	addresses.Listings, _, listings, _ = contracts.DeployListings(&opts[0], backend)
-	listings.Initialize(&opts[0])
+	listings.Initialize(&opts[0], 50)
+
+	backend.Commit()
+	ticketing := &contracts.SyloTicketing{}
+	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
+	ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.Directory, big.NewInt(1))
 
 	var clients []Client
 
