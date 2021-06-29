@@ -28,14 +28,17 @@ var (
 
 // ListingsListing is an auto generated low-level Go binding around an user-defined struct.
 type ListingsListing struct {
-	MultiAddr string
+	MultiAddr         string
+	PayoutPercentage  uint8
+	MinDelegatedStake *big.Int
+	Initialized       bool
 }
 
 // ListingsABI is the input ABI used to generate the binding from.
-const ListingsABI = "[{\"inputs\":[],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"multiAddr\",\"type\":\"string\"}],\"internalType\":\"structListings.Listing\",\"name\":\"listing\",\"type\":\"tuple\"}],\"name\":\"setListing\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"getListing\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"multiAddr\",\"type\":\"string\"}],\"internalType\":\"structListings.Listing\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const ListingsABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"defaultPayoutPercentage\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"_defaultPayoutPercentage\",\"type\":\"uint8\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"_defaultPayoutPercentage\",\"type\":\"uint8\"}],\"name\":\"setDefaultPayoutPercentage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"multiAddr\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"minDelegatedStake\",\"type\":\"uint256\"}],\"name\":\"setListing\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"getListing\",\"outputs\":[{\"components\":[{\"internalType\":\"string\",\"name\":\"multiAddr\",\"type\":\"string\"},{\"internalType\":\"uint8\",\"name\":\"payoutPercentage\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"minDelegatedStake\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"initialized\",\"type\":\"bool\"}],\"internalType\":\"structListings.Listing\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // ListingsBin is the compiled bytecode used for deploying new contracts.
-var ListingsBin = "0x608060405234801561001057600080fd5b50610539806100206000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c8063084af0b2146100465780634ec1d70b1461006f5780638129fc1c14610084575b600080fd5b610059610054366004610307565b61008c565b60405161006691906103fc565b60405180910390f35b61008261007d366004610342565b610162565b005b61008261018e565b60408051602080820183526060825273ffffffffffffffffffffffffffffffffffffffff84166000908152600182528390208351918201909352825491929091829082906100d9906104b2565b80601f0160208091040260200160405190810160405280929190818152602001828054610105906104b2565b80156101525780601f1061012757610100808354040283529160200191610152565b820191906000526020600020905b81548152906001019060200180831161013557829003601f168201915b5050505050815250509050919050565b33600090815260016020908152604090912082518051849361018892849291019061026e565b50505050565b600054610100900460ff16806101a7575060005460ff16155b610237576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201527f647920696e697469616c697a6564000000000000000000000000000000000000606482015260840160405180910390fd5b600054610100900460ff16158015610259576000805461ffff19166101011790555b801561026b576000805461ff00191690555b50565b82805461027a906104b2565b90600052602060002090601f01602090048101928261029c57600085556102e2565b82601f106102b557805160ff19168380011785556102e2565b828001600101855582156102e2579182015b828111156102e25782518255916020019190600101906102c7565b506102ee9291506102f2565b5090565b5b808211156102ee57600081556001016102f3565b600060208284031215610318578081fd5b813573ffffffffffffffffffffffffffffffffffffffff8116811461033b578182fd5b9392505050565b60006020808385031215610354578182fd5b823567ffffffffffffffff8082111561036b578384fd5b818501915082828703121561037e578384fd5b610386610458565b823582811115610394578586fd5b80840193505086601f8401126103a8578485fd5b8235828111156103ba576103ba6104ed565b6103cc601f8201601f19168601610481565b925080835287858286010111156103e1578586fd5b80858501868501378201909301939093525090815292915050565b60006020808352835181828501528051806040860152835b8181101561043057828101840151868201606001528301610414565b818111156104415784606083880101525b50601f01601f191693909301606001949350505050565b6040516020810167ffffffffffffffff8111828210171561047b5761047b6104ed565b60405290565b604051601f8201601f1916810167ffffffffffffffff811182821017156104aa576104aa6104ed565b604052919050565b600181811c908216806104c657607f821691505b602082108114156104e757634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fdfea26469706673582212203b945837de723ea9cd74af970d35dbfad7becb8bbf4f04fb7a1e5dd8db7d039764736f6c63430008040033"
+var ListingsBin = "0x608060405234801561001057600080fd5b50610bec806100206000396000f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c8063715018a61161005b578063715018a6146100f15780638da5cb5b146100f9578063d2a78d7f14610114578063f2fde38b1461013357600080fd5b8063084af0b21461008d5780634351e6b6146100b65780635ea1f2e0146100cb5780636f319073146100de575b600080fd5b6100a061009b3660046109da565b610146565b6040516100ad9190610adb565b60405180910390f35b6100c96100c4366004610aba565b61024d565b005b6100c96100d9366004610aba565b610317565b6100c96100ec366004610a08565b610401565b6100c96104db565b6033546040516001600160a01b0390911681526020016100ad565b6066546101219060ff1681565b60405160ff90911681526020016100ad565b6100c96101413660046109da565b61058c565b6040805160808101825260608082526000602083018190529282018390528101919091526001600160a01b0382166000908152606560205260409081902081516080810190925280548290829061019c90610b65565b80601f01602080910402602001604051908101604052809291908181526020018280546101c890610b65565b80156102155780601f106101ea57610100808354040283529160200191610215565b820191906000526020600020905b8154815290600101906020018083116101f857829003601f168201915b5050509183525050600182015460ff908116602083015260028301546040830152600390920154909116151560609091015292915050565b600054610100900460ff1680610266575060005460ff16155b6102ce5760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084015b60405180910390fd5b600054610100900460ff161580156102f0576000805461ffff19166101011790555b6102f86106cb565b61030182610317565b8015610313576000805461ff00191690555b5050565b6033546001600160a01b031633146103715760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016102c5565b60648160ff1611156103eb5760405162461bcd60e51b815260206004820152603760248201527f546865207061796f75742070657263656e74616765206d75737420626520612060448201527f76616c7565206265747765656e203020616e642031303000000000000000000060648201526084016102c5565b6066805460ff191660ff92909216919091179055565b815161044f5760405162461bcd60e51b815260206004820152601960248201527f4d756c74696164647220737472696e6720697320656d7074790000000000000060448201526064016102c5565b6040805160808101825283815260665460ff16602080830191909152818301849052600160608301523360009081526065825292909220815180519293849361049b9284920190610941565b50602082015160018201805460ff90921660ff19928316179055604083015160028301556060909201516003909101805491151591909216179055505050565b6033546001600160a01b031633146105355760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016102c5565b6033546040516000916001600160a01b0316907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0908390a36033805473ffffffffffffffffffffffffffffffffffffffff19169055565b6033546001600160a01b031633146105e65760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016102c5565b6001600160a01b0381166106625760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201527f646472657373000000000000000000000000000000000000000000000000000060648201526084016102c5565b6033546040516001600160a01b038084169216907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e090600090a36033805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0392909216919091179055565b600054610100900460ff16806106e4575060005460ff16155b6107475760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016102c5565b600054610100900460ff16158015610769576000805461ffff19166101011790555b61077161078e565b61077961083f565b801561078b576000805461ff00191690555b50565b600054610100900460ff16806107a7575060005460ff16155b61080a5760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016102c5565b600054610100900460ff16158015610779576000805461ffff1916610101179055801561078b576000805461ff001916905550565b600054610100900460ff1680610858575060005460ff16155b6108bb5760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016102c5565b600054610100900460ff161580156108dd576000805461ffff19166101011790555b6033805473ffffffffffffffffffffffffffffffffffffffff19163390811790915560405181906000907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0908290a350801561078b576000805461ff001916905550565b82805461094d90610b65565b90600052602060002090601f01602090048101928261096f57600085556109b5565b82601f1061098857805160ff19168380011785556109b5565b828001600101855582156109b5579182015b828111156109b557825182559160200191906001019061099a565b506109c19291506109c5565b5090565b5b808211156109c157600081556001016109c6565b6000602082840312156109eb578081fd5b81356001600160a01b0381168114610a01578182fd5b9392505050565b60008060408385031215610a1a578081fd5b823567ffffffffffffffff80821115610a31578283fd5b818501915085601f830112610a44578283fd5b813581811115610a5657610a56610ba0565b604051601f8201601f19908116603f01168101908382118183101715610a7e57610a7e610ba0565b81604052828152886020848701011115610a96578586fd5b82602086016020830137918201602090810195909552509694909201359450505050565b600060208284031215610acb578081fd5b813560ff81168114610a01578182fd5b60006020808352835160808285015280518060a0860152835b81811015610b105782810184015186820160c001528301610af4565b81811115610b21578460c083880101525b509185015160ff81166040860152916040860151606086015260608601519250610b4f608086018415159052565b601f01601f19169390930160c001949350505050565b600181811c90821680610b7957607f821691505b60208210811415610b9a57634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fdfea2646970667358221220e94b1c727190f9c766475e301f7f93d4e80507f6a0941862f4ae57be9dd51c8f64736f6c63430008040033"
 
 // DeployListings deploys a new Ethereum contract, binding an instance of Listings to it.
 func DeployListings(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Listings, error) {
@@ -193,9 +196,40 @@ func (_Listings *ListingsTransactorRaw) Transact(opts *bind.TransactOpts, method
 	return _Listings.Contract.contract.Transact(opts, method, params...)
 }
 
+// DefaultPayoutPercentage is a free data retrieval call binding the contract method 0xd2a78d7f.
+//
+// Solidity: function defaultPayoutPercentage() view returns(uint8)
+func (_Listings *ListingsCaller) DefaultPayoutPercentage(opts *bind.CallOpts) (uint8, error) {
+	var out []interface{}
+	err := _Listings.contract.Call(opts, &out, "defaultPayoutPercentage")
+
+	if err != nil {
+		return *new(uint8), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint8)).(*uint8)
+
+	return out0, err
+
+}
+
+// DefaultPayoutPercentage is a free data retrieval call binding the contract method 0xd2a78d7f.
+//
+// Solidity: function defaultPayoutPercentage() view returns(uint8)
+func (_Listings *ListingsSession) DefaultPayoutPercentage() (uint8, error) {
+	return _Listings.Contract.DefaultPayoutPercentage(&_Listings.CallOpts)
+}
+
+// DefaultPayoutPercentage is a free data retrieval call binding the contract method 0xd2a78d7f.
+//
+// Solidity: function defaultPayoutPercentage() view returns(uint8)
+func (_Listings *ListingsCallerSession) DefaultPayoutPercentage() (uint8, error) {
+	return _Listings.Contract.DefaultPayoutPercentage(&_Listings.CallOpts)
+}
+
 // GetListing is a free data retrieval call binding the contract method 0x084af0b2.
 //
-// Solidity: function getListing(address account) view returns((string))
+// Solidity: function getListing(address account) view returns((string,uint8,uint256,bool))
 func (_Listings *ListingsCaller) GetListing(opts *bind.CallOpts, account common.Address) (ListingsListing, error) {
 	var out []interface{}
 	err := _Listings.contract.Call(opts, &out, "getListing", account)
@@ -212,56 +246,303 @@ func (_Listings *ListingsCaller) GetListing(opts *bind.CallOpts, account common.
 
 // GetListing is a free data retrieval call binding the contract method 0x084af0b2.
 //
-// Solidity: function getListing(address account) view returns((string))
+// Solidity: function getListing(address account) view returns((string,uint8,uint256,bool))
 func (_Listings *ListingsSession) GetListing(account common.Address) (ListingsListing, error) {
 	return _Listings.Contract.GetListing(&_Listings.CallOpts, account)
 }
 
 // GetListing is a free data retrieval call binding the contract method 0x084af0b2.
 //
-// Solidity: function getListing(address account) view returns((string))
+// Solidity: function getListing(address account) view returns((string,uint8,uint256,bool))
 func (_Listings *ListingsCallerSession) GetListing(account common.Address) (ListingsListing, error) {
 	return _Listings.Contract.GetListing(&_Listings.CallOpts, account)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
-// Solidity: function initialize() returns()
-func (_Listings *ListingsTransactor) Initialize(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _Listings.contract.Transact(opts, "initialize")
+// Solidity: function owner() view returns(address)
+func (_Listings *ListingsCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _Listings.contract.Call(opts, &out, "owner")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
-// Solidity: function initialize() returns()
-func (_Listings *ListingsSession) Initialize() (*types.Transaction, error) {
-	return _Listings.Contract.Initialize(&_Listings.TransactOpts)
+// Solidity: function owner() view returns(address)
+func (_Listings *ListingsSession) Owner() (common.Address, error) {
+	return _Listings.Contract.Owner(&_Listings.CallOpts)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
-// Solidity: function initialize() returns()
-func (_Listings *ListingsTransactorSession) Initialize() (*types.Transaction, error) {
-	return _Listings.Contract.Initialize(&_Listings.TransactOpts)
+// Solidity: function owner() view returns(address)
+func (_Listings *ListingsCallerSession) Owner() (common.Address, error) {
+	return _Listings.Contract.Owner(&_Listings.CallOpts)
 }
 
-// SetListing is a paid mutator transaction binding the contract method 0x4ec1d70b.
+// Initialize is a paid mutator transaction binding the contract method 0x4351e6b6.
 //
-// Solidity: function setListing((string) listing) returns()
-func (_Listings *ListingsTransactor) SetListing(opts *bind.TransactOpts, listing ListingsListing) (*types.Transaction, error) {
-	return _Listings.contract.Transact(opts, "setListing", listing)
+// Solidity: function initialize(uint8 _defaultPayoutPercentage) returns()
+func (_Listings *ListingsTransactor) Initialize(opts *bind.TransactOpts, _defaultPayoutPercentage uint8) (*types.Transaction, error) {
+	return _Listings.contract.Transact(opts, "initialize", _defaultPayoutPercentage)
 }
 
-// SetListing is a paid mutator transaction binding the contract method 0x4ec1d70b.
+// Initialize is a paid mutator transaction binding the contract method 0x4351e6b6.
 //
-// Solidity: function setListing((string) listing) returns()
-func (_Listings *ListingsSession) SetListing(listing ListingsListing) (*types.Transaction, error) {
-	return _Listings.Contract.SetListing(&_Listings.TransactOpts, listing)
+// Solidity: function initialize(uint8 _defaultPayoutPercentage) returns()
+func (_Listings *ListingsSession) Initialize(_defaultPayoutPercentage uint8) (*types.Transaction, error) {
+	return _Listings.Contract.Initialize(&_Listings.TransactOpts, _defaultPayoutPercentage)
 }
 
-// SetListing is a paid mutator transaction binding the contract method 0x4ec1d70b.
+// Initialize is a paid mutator transaction binding the contract method 0x4351e6b6.
 //
-// Solidity: function setListing((string) listing) returns()
-func (_Listings *ListingsTransactorSession) SetListing(listing ListingsListing) (*types.Transaction, error) {
-	return _Listings.Contract.SetListing(&_Listings.TransactOpts, listing)
+// Solidity: function initialize(uint8 _defaultPayoutPercentage) returns()
+func (_Listings *ListingsTransactorSession) Initialize(_defaultPayoutPercentage uint8) (*types.Transaction, error) {
+	return _Listings.Contract.Initialize(&_Listings.TransactOpts, _defaultPayoutPercentage)
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_Listings *ListingsTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Listings.contract.Transact(opts, "renounceOwnership")
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_Listings *ListingsSession) RenounceOwnership() (*types.Transaction, error) {
+	return _Listings.Contract.RenounceOwnership(&_Listings.TransactOpts)
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_Listings *ListingsTransactorSession) RenounceOwnership() (*types.Transaction, error) {
+	return _Listings.Contract.RenounceOwnership(&_Listings.TransactOpts)
+}
+
+// SetDefaultPayoutPercentage is a paid mutator transaction binding the contract method 0x5ea1f2e0.
+//
+// Solidity: function setDefaultPayoutPercentage(uint8 _defaultPayoutPercentage) returns()
+func (_Listings *ListingsTransactor) SetDefaultPayoutPercentage(opts *bind.TransactOpts, _defaultPayoutPercentage uint8) (*types.Transaction, error) {
+	return _Listings.contract.Transact(opts, "setDefaultPayoutPercentage", _defaultPayoutPercentage)
+}
+
+// SetDefaultPayoutPercentage is a paid mutator transaction binding the contract method 0x5ea1f2e0.
+//
+// Solidity: function setDefaultPayoutPercentage(uint8 _defaultPayoutPercentage) returns()
+func (_Listings *ListingsSession) SetDefaultPayoutPercentage(_defaultPayoutPercentage uint8) (*types.Transaction, error) {
+	return _Listings.Contract.SetDefaultPayoutPercentage(&_Listings.TransactOpts, _defaultPayoutPercentage)
+}
+
+// SetDefaultPayoutPercentage is a paid mutator transaction binding the contract method 0x5ea1f2e0.
+//
+// Solidity: function setDefaultPayoutPercentage(uint8 _defaultPayoutPercentage) returns()
+func (_Listings *ListingsTransactorSession) SetDefaultPayoutPercentage(_defaultPayoutPercentage uint8) (*types.Transaction, error) {
+	return _Listings.Contract.SetDefaultPayoutPercentage(&_Listings.TransactOpts, _defaultPayoutPercentage)
+}
+
+// SetListing is a paid mutator transaction binding the contract method 0x6f319073.
+//
+// Solidity: function setListing(string multiAddr, uint256 minDelegatedStake) returns()
+func (_Listings *ListingsTransactor) SetListing(opts *bind.TransactOpts, multiAddr string, minDelegatedStake *big.Int) (*types.Transaction, error) {
+	return _Listings.contract.Transact(opts, "setListing", multiAddr, minDelegatedStake)
+}
+
+// SetListing is a paid mutator transaction binding the contract method 0x6f319073.
+//
+// Solidity: function setListing(string multiAddr, uint256 minDelegatedStake) returns()
+func (_Listings *ListingsSession) SetListing(multiAddr string, minDelegatedStake *big.Int) (*types.Transaction, error) {
+	return _Listings.Contract.SetListing(&_Listings.TransactOpts, multiAddr, minDelegatedStake)
+}
+
+// SetListing is a paid mutator transaction binding the contract method 0x6f319073.
+//
+// Solidity: function setListing(string multiAddr, uint256 minDelegatedStake) returns()
+func (_Listings *ListingsTransactorSession) SetListing(multiAddr string, minDelegatedStake *big.Int) (*types.Transaction, error) {
+	return _Listings.Contract.SetListing(&_Listings.TransactOpts, multiAddr, minDelegatedStake)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(address newOwner) returns()
+func (_Listings *ListingsTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
+	return _Listings.contract.Transact(opts, "transferOwnership", newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(address newOwner) returns()
+func (_Listings *ListingsSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _Listings.Contract.TransferOwnership(&_Listings.TransactOpts, newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(address newOwner) returns()
+func (_Listings *ListingsTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _Listings.Contract.TransferOwnership(&_Listings.TransactOpts, newOwner)
+}
+
+// ListingsOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the Listings contract.
+type ListingsOwnershipTransferredIterator struct {
+	Event *ListingsOwnershipTransferred // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ListingsOwnershipTransferredIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ListingsOwnershipTransferred)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ListingsOwnershipTransferred)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ListingsOwnershipTransferredIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ListingsOwnershipTransferredIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ListingsOwnershipTransferred represents a OwnershipTransferred event raised by the Listings contract.
+type ListingsOwnershipTransferred struct {
+	PreviousOwner common.Address
+	NewOwner      common.Address
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
+//
+// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
+func (_Listings *ListingsFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*ListingsOwnershipTransferredIterator, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+	var newOwnerRule []interface{}
+	for _, newOwnerItem := range newOwner {
+		newOwnerRule = append(newOwnerRule, newOwnerItem)
+	}
+
+	logs, sub, err := _Listings.contract.FilterLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &ListingsOwnershipTransferredIterator{contract: _Listings.contract, event: "OwnershipTransferred", logs: logs, sub: sub}, nil
+}
+
+// WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
+//
+// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
+func (_Listings *ListingsFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *ListingsOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+	var newOwnerRule []interface{}
+	for _, newOwnerItem := range newOwner {
+		newOwnerRule = append(newOwnerRule, newOwnerItem)
+	}
+
+	logs, sub, err := _Listings.contract.WatchLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ListingsOwnershipTransferred)
+				if err := _Listings.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseOwnershipTransferred is a log parse operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
+//
+// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
+func (_Listings *ListingsFilterer) ParseOwnershipTransferred(log types.Log) (*ListingsOwnershipTransferred, error) {
+	event := new(ListingsOwnershipTransferred)
+	if err := _Listings.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
