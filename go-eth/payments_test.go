@@ -31,6 +31,9 @@ func TestPayments(t *testing.T) {
 	depositSylo(t, faucet, node, big.NewInt(1000000))
 	t.Log("node deposited 1000000 sylo")
 
+	// list
+	list(t, ctx, backend, node, "0.0.0.0/0", big.NewInt(1))
+
 	// stake
 	stake(t, ctx, backend, node, big.NewInt(600))
 	t.Log("node A stake 600 sylo")
