@@ -16,7 +16,7 @@ contract ListingsTest {
 
   function testSettingListing() public {
     string memory multiAddr = "/ip4/127.0.0.1/udp/1234";
-    listings.setListing(multiAddr);
+    listings.setListing(multiAddr, 1);
 
     Listings.Listing memory retrieved = listings.getListing(address(this));
 

@@ -16,6 +16,10 @@ contract Listings is Initializable, OwnableUpgradeable {
         // percentage until epochs are implemented
         uint8 payoutPercentage;
 
+        // The minimum amount of stake that is required to
+        // add a delegated stake against this node
+        uint256 minDelegatedStake;
+
         // Explicit property to check if an instance of this struct actually exists
         bool initialized;
     }
@@ -37,12 +41,12 @@ contract Listings is Initializable, OwnableUpgradeable {
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
-    function setListing(string memory multiAddr) public {
+    function setListing(string memory multiAddr, uint256 minDelegatedStake) public {
         // TODO validate listing?
         require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
 
         // TODO Remove defaultPayoutPercentage once epochs are introduced
-        Listing memory listing = Listing(multiAddr, defaultPayoutPercentage, true);
+        Listing memory listing = Listing(multiAddr, defaultPayoutPercentage, minDelegatedStake, true);
         listings[msg.sender] = listing;
     }
 
