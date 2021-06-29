@@ -143,7 +143,6 @@ contract Directory is Initializable, OwnableUpgradeable {
         require(stake.amount > 0, "Nothing to unstake");
         require(stake.amount >= amount, "Cannot unlock more than staked");
 
-        // Unchecked here will prevent solidity from panicking due to overflow on uint256
         updateStakeAmount(stakeNodePointer.value_, stake, type(uint256).max - amount + 1 );
 
         // All stake being withdrawn, update the tree
