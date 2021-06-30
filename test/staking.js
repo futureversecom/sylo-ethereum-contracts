@@ -5,6 +5,10 @@ const utils = require('./utils.js');
 
 const Token = artifacts.require("SyloToken");
 
+// Chi Squared goodness of fit test
+const chi2gof = require('@stdlib/stats/chi2gof');
+
+const utils = require('./utils');
 
 contract('Staking', accounts => {
   let token;
@@ -156,12 +160,7 @@ contract('Staking', accounts => {
       expectedResults[accounts[i]] = 1/10 * 1000;
     }
 
-    const results = await collectScanResults(1000);
-    for (let key of Object.keys(expectedResults)) {
-      const expected = expectedResults[key];
-      const actual = results[key];
-      console.log('For address', key, 'expected=', expected, 'actual=', actual);
-    }
+    await testScanResults(1000, expectedResults);
   }).timeout(0);
 
   it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
@@ -179,12 +178,7 @@ contract('Staking', accounts => {
       expectedResults[accounts[i]] = parseInt((i+1)/totalStake * 1000);
     }
 
-    const results = await collectScanResults(1000);
-    for (let key of Object.keys(expectedResults)) {
-      const expected = expectedResults[key];
-      const actual = results[key];
-      console.log('For address', key, 'expected=', expected, 'actual=', actual);
-    }
+    await testScanResults(1000, expectedResults);
   }).timeout(0);
 
   it('should be able to scan after unlocking all stake [ @skip-on-coverage ]', async () => {
@@ -266,6 +260,22 @@ contract('Staking', accounts => {
     }
     assert.equal(found, false, "The account with no vote should not exist in the directory");
   });
+
+  async function testScanResults(iterations, expectedResults) {
+    const results = await collectScanResults(iterations);
+
+    let x = [];
+    let y = [];
+
+    for (let key of Object.keys(expectedResults)) {
+      x.push(results[key]);
+      y.push(expectedResults[key])
+    }
+
+    const chiResult = chi2gof(x, y).toJSON();
+
+    assert.isNotOk(chiResult.rejected, "Expected scan result to pass goodness-of-fit test");
+  }
 
   async function collectScanResults(iterations) {
     const points = {};

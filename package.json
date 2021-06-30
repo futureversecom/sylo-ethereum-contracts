@@ -16,6 +16,7 @@
     "@openzeppelin/contracts": "^4.1.0",
     "@openzeppelin/contracts-upgradeable": "^4.1.0",
     "@openzeppelin/truffle-upgrades": "^1.7.1",
+    "@stdlib/stdlib": "0.0.94",
     "bn.js": "^5.2.0",
     "buidler-gas-reporter": "^0.1.4",
     "ganache-cli": "^6.12.2",
