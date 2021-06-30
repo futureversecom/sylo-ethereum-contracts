@@ -185,6 +185,10 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not faucet: %v", err)
 		}
 
+		list(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
+		
+		delegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
+
 		bobRand := big.NewInt(1)
 		var bobRandHash [32]byte
 		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
@@ -261,6 +265,10 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not faucet: %v", err)
 		}
+
+		list(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
+
+		delegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
 		bobRand := big.NewInt(1)
 		var bobRandHash [32]byte
@@ -932,6 +940,40 @@ func stake(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth
 	}
 }
 
+// stake will add delegated stake to the stake tree.
+func delegateStake(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, stakee ethcommon.Address, stakeAmount *big.Int) {
+	_, err := client.ApproveDirectory(stakeAmount)
+	if err != nil {
+		t.Fatalf("could not approve spending: %v", err)
+	}
+	backend.Commit()
+
+	tx, err := client.AddStake(stakeAmount, stakee)
+	if err != nil {
+		t.Fatalf("could not add stake: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
+// list will set a listing for the node
+func list(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, multiAddr string, minimumStakeAmount *big.Int) {
+	tx, err := client.SetListing(multiAddr, minimumStakeAmount)
+	if err != nil {
+		t.Fatalf("could not add stake: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
 // waitForUnlockedAt will wait for any unlocking stake to be ready to unstake.
 //
 // Will return true once the unlockedAt block is reached, or false if the
@@ -1055,22 +1097,18 @@ func deployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not get transaction receipt: %v", err)
 	}
 
-	// deploy ticketing
-	addresses.Ticketing, tx, _, err = contracts.DeploySyloTicketing(transactor, backend, addresses.Token, unlockDuration)
-	if err != nil {
-		t.Fatalf("could not deploy ticketing: %v", err)
-	}
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
 	// deploy directory
-	addresses.Directory, tx, _, err = contracts.DeployDirectory(transactor, backend, addresses.Token, unlockDuration)
+	directory := &contracts.Directory{}
+	addresses.Directory, tx, directory, err = contracts.DeployDirectory(transactor, backend)
 	if err != nil {
 		t.Fatalf("could not deploy directory: %v", err)
 	}
+
+	_, err = directory.Initialize(transactor, addresses.Token, unlockDuration)
+	if err != nil {
+		t.Fatalf("could not initialize directory contract: %v", err)
+	}
+
 	backend.Commit()
 	_, err = backend.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
@@ -1078,10 +1116,35 @@ func deployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 	}
 
 	// deploy listing
-	addresses.Listings, tx, _, err = contracts.DeployListings(transactor, backend)
+	listings := &contracts.Listings{}
+	addresses.Listings, tx, listings, err = contracts.DeployListings(transactor, backend)
 	if err != nil {
 		t.Fatalf("could not deploy listing: %v", err)
 	}
+
+	_, err = listings.Initialize(transactor, 50)
+	if err != nil {
+		t.Fatalf("could not get listings receipt: %v", err)
+	}
+
+	backend.Commit()
+	_, err = backend.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		t.Fatalf("could not get transaction receipt: %v", err)
+	}
+
+	// deploy ticketing
+	ticketing := &contracts.SyloTicketing{}
+	addresses.Ticketing, tx, ticketing, err = contracts.DeploySyloTicketing(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy ticketing: %v", err)
+	}
+
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
+	if err != nil {
+		t.Fatalf("could not initialize ticket contract: %v", err)
+	}
+
 	backend.Commit()
 	_, err = backend.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
