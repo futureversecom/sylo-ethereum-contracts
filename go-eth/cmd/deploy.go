@@ -45,6 +45,11 @@ func main() {
 			Usage: "The `NUM` of blocks that must pass to unlock SYLO.",
 			Value: "6",
 		},
+		&cli.IntFlag {
+			Name: "payout-percentage",
+			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers",
+			Value: 50,
+		},
 		&cli.BoolFlag{
 			Name:  "faucet",
 			Usage: "Provide a SYLO/ETH faucet service",
@@ -65,6 +70,13 @@ func main() {
 			logger.Infof("unlock duration will be 6")
 			unlockDuration = big.NewInt(6)
 		}
+		payoutPercentage := c.Int("payout-percentage")
+		// bound to a value between 0 and a 100
+		if payoutPercentage < 0 {
+			payoutPercentage = 0
+		} else if payoutPercentage > 100 {
+			payoutPercentage = 100
+		}
 		ethSKstr := c.String("eth-sk")
 		if strings.TrimSpace(ethSKstr) == "" {
 			return fmt.Errorf("ethereum secret key must be provided")
@@ -73,7 +85,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("could not decode private key hex string (%s): %w", ethSKstr, err)
 		}
-		err = m.start(c.String("eth-url"), unlockDuration)
+		err = m.start(c.String("eth-url"), unlockDuration, uint8(payoutPercentage))
 		if err != nil {
 			return fmt.Errorf("could not execute contract deployment: %w", err)
 		}
@@ -108,7 +120,7 @@ type syloEthMgr struct {
 	faucet bool
 }
 
-func (m *syloEthMgr) start(url string, unlockDuration *big.Int) error {
+func (m *syloEthMgr) start(url string, unlockDuration *big.Int, payoutPercentage uint8) error {
 	var err error
 
 	ctx, cancel := context.WithTimeout(m.ctx, 3*time.Minute)
@@ -144,7 +156,7 @@ func (m *syloEthMgr) start(url string, unlockDuration *big.Int) error {
 	}
 	m.opts.Context = m.ctx
 
-	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration)
+	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, payoutPercentage)
 	if err != nil {
 		return fmt.Errorf("could not deploy contracts: %w", err)
 	}
@@ -299,7 +311,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	}
 }
 
-func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int) (addresses sylo.Addresses, err error) {
+func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, payoutPercentage uint8) (addresses sylo.Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {
@@ -323,28 +335,40 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
-	// deploy ticketing
-	var ticketingTx *types.Transaction
-	addresses.Ticketing, ticketingTx, _, err = contracts.DeploySyloTicketing(opts, client, addresses.Token, unlockDuration)
-	if err != nil {
-		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
 	// deploy directory
 	var directoryTx *types.Transaction
-	addresses.Directory, directoryTx, _, err = contracts.DeployDirectory(opts, client, addresses.Token, unlockDuration)
+	directory := &contracts.Directory{}
+	addresses.Directory, directoryTx, directory, err = contracts.DeployDirectory(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
+	directory.Initialize(opts, addresses.Token, unlockDuration)
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// deploy listing
 	var listingTx *types.Transaction
-	addresses.Listings, listingTx, _, err = contracts.DeployListings(opts, client)
+	listings := &contracts.Listings{}
+	addresses.Listings, listingTx, listings, err = contracts.DeployListings(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy listing: %w", err)
 	}
+	listings.Initialize(opts, payoutPercentage)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy ticketing
+	var ticketingTx *types.Transaction
+	ticketing := &contracts.SyloTicketing{}
+	addresses.Ticketing, ticketingTx, ticketing, err = contracts.DeploySyloTicketing(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
+	}
+	ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// wait for receipts

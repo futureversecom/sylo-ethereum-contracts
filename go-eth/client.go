@@ -73,7 +73,7 @@ type Client interface {
 
 	// Listings methods
 
-	SetListing(contracts.ListingsListing) (*types.Transaction, error)
+	SetListing(multiaddr string, minimumStakeAmount *big.Int) (*types.Transaction, error)
 	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
