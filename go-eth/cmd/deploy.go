@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"strconv"
 
 	sylo "github.com/dn3010/sylo-ethereum-contracts/go-eth"
 	sylopayments "github.com/dn3010/sylo-ethereum-contracts/go-eth"
@@ -46,10 +45,10 @@ func main() {
 			Usage: "The `NUM` of blocks that must pass to unlock SYLO.",
 			Value: "6",
 		},
-		&cli.StringFlag {
+		&cli.IntFlag {
 			Name: "payout-percentage",
-			Usage: "The percentage of ticket rewards that is paid to delegated stakers",
-			Value: "50",
+			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers",
+			Value: 50,
 		},
 		&cli.BoolFlag{
 			Name:  "faucet",
@@ -71,11 +70,12 @@ func main() {
 			logger.Infof("unlock duration will be 6")
 			unlockDuration = big.NewInt(6)
 		}
-		payoutPercentage, err := strconv.Atoi(c.String("payout-percentage"))
-		if err != nil {
-			logger.Errorf("could not parse integer from %s", c.String("payout-percentage"))
-			logger.Infof("payout percentage will be 50")
-			payoutPercentage = 50
+		payoutPercentage := c.Int("payout-percentage")
+		// bound to a value between 0 and a 100
+		if payoutPercentage < 0 {
+			payoutPercentage = 0
+		} else if payoutPercentage > 100 {
+			payoutPercentage = 100
 		}
 		ethSKstr := c.String("eth-sk")
 		if strings.TrimSpace(ethSKstr) == "" {
@@ -339,6 +339,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	var directoryTx *types.Transaction
 	directory := &contracts.Directory{}
 	addresses.Directory, directoryTx, directory, err = contracts.DeployDirectory(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
@@ -349,6 +351,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	var listingTx *types.Transaction
 	listings := &contracts.Listings{}
 	addresses.Listings, listingTx, listings, err = contracts.DeployListings(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy listing: %w", err)
 	}
@@ -359,6 +363,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	var ticketingTx *types.Transaction
 	ticketing := &contracts.SyloTicketing{}
 	addresses.Ticketing, ticketingTx, ticketing, err = contracts.DeploySyloTicketing(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}

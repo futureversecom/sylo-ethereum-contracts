@@ -42,7 +42,6 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     function setListing(string memory multiAddr, uint256 minDelegatedStake) public {
-        // TODO validate listing?
         require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
 
         // TODO Remove defaultPayoutPercentage once epochs are introduced
