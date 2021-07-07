@@ -15,7 +15,7 @@ contract PriceManager is Initializable, OwnableUpgradeable {
     /* Sylo Directory contract */
     Directory _directory;
 
-    uint256 currentPrice = 0;
+    uint256 public currentPrice = 0;
 
     struct Vote {
         address voter;
@@ -24,13 +24,11 @@ contract PriceManager is Initializable, OwnableUpgradeable {
 
     mapping (address => uint256) votes;
 
-    address constant HEAD = address(1);
-
     address[] voters;
 
     function initialize(Directory directory) public initializer {
+        OwnableUpgradeable.__Ownable_init();
         _directory = directory;
-        votes[HEAD] = 0;
     }
 
     function vote(uint256 price) public {
@@ -47,7 +45,7 @@ contract PriceManager is Initializable, OwnableUpgradeable {
     // The submitter of this transaction sorts the memory off chain,
     // and this contract only validate that it is sorted. This helps
     // to reduce gas cost.
-    function calculatePrice(Vote[] memory sortedVotes) public onlyOwner {
+    function calculatePrice(Vote[] memory sortedVotes) public onlyOwner returns (uint256 price) {
         validateSortedVotes(sortedVotes);
 
         uint256 totalStake = _directory.getTotalStake();
@@ -60,9 +58,9 @@ contract PriceManager is Initializable, OwnableUpgradeable {
             uint256 stake = _directory.stakees(sortedVotes[i].voter);
             iteratedStake += stake;
 
-            if (iteratedStake > boundary) {
+            if (iteratedStake >= boundary) {
                 currentPrice = sortedVotes[i].price;
-                break;
+                return currentPrice;
             }
         }
     }
