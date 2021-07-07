@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "../Listings.sol";
 import "../Directory.sol";
-import "./ECDSA.sol";
+import "../ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
