@@ -142,6 +142,77 @@ contract('Staking', accounts => {
     }
   }).timeout(0);
 
+  it('excludes nodes from directory without a stake', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.unlockStake(1, accounts[1], { from: accounts[1] });
+
+    await directory.constructDirectory({ from: accounts[1] });
+
+    let found = false;
+    for (let i = 0; i < accounts.length; i++) {
+      try {
+        const a = await directory.currentDirectory(i);
+        if (a == accounts[i]) {
+          found = true;
+          break;
+        }
+      } catch(e) {}
+    }
+
+    assert.equal(found, false, "The account with no stake should not exist in the directory");
+  });
+
+  it('excludes nodes from directory without a vote', async () => {
+    for (let i = 0; i < accounts.length; i++) {
+      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    for (let i = 0; i < accounts.length - 1; i++) {
+      await priceVoting.vote(1, { from: accounts[i] });
+    }
+
+    await directory.constructDirectory({ from: accounts[1] });
+
+    let found = false;
+    for (let i = 0; i < accounts.length; i++) {
+      try {
+        const a = await directory.currentDirectory(i);
+        if (a == accounts[9]) {
+          found = true;
+          break;
+        }
+      } catch(e) {}
+    }
+
+    assert.equal(found, false, "The account with no vote should not exist in the directory");
+  });
+
+  it('excludes nodes from directory with too high voted price', async () => {
+    for (let i = 0; i < accounts.length; i++) {
+      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    for (let i = 0; i < accounts.length - 1; i++) {
+      await priceVoting.vote(1, { from: accounts[i] });
+    }
+
+    await priceVoting.vote(5, { from: accounts[5] });
+
+    await directory.constructDirectory({ from: accounts[1] });
+
+    let found = false;
+    for (let i = 0; i < accounts.length; i++) {
+      try {
+        const a = await directory.currentDirectory(i);
+        if (a == accounts[5]) {
+          found = true;
+          break;
+        }
+      } catch(e) {}
+    }
+    assert.equal(found, false, "The account with no vote should not exist in the directory");
+  });
+
   async function voteAndConstructDirectory() {
     let sortedVotes = [];
     for (let i = 0; i < accounts.length; i++) {

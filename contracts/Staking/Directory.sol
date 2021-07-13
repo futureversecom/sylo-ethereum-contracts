@@ -27,12 +27,12 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     PriceVoting _priceVoting;
 
-    struct AccumalatedStake {
+    struct DirectoryEntry {
         address stakee;
-        uint256 accumalated;
+        uint256 boundary;
     }
 
-    AccumalatedStake[] public currentDirectory;
+    DirectoryEntry[] public currentDirectory;
 
     function initialize(
         PriceVoting priceVoting,
@@ -48,7 +48,7 @@ contract Directory is Initializable, OwnableUpgradeable {
     function constructDirectory() public onlyOwner {
         delete currentDirectory;
 
-        uint totalAccumalatedStake = 0;
+        uint lowerBoundary = 0;
 
         for (uint i = 0; i < _stakingManager.getCountOfStakees(); i++) {
             address stakee = _stakingManager.stakees(i);
@@ -74,9 +74,9 @@ contract Directory is Initializable, OwnableUpgradeable {
                 continue;
             }
 
-            currentDirectory.push(AccumalatedStake(stakee, totalAccumalatedStake + totalStake));
+            currentDirectory.push(DirectoryEntry(stakee, lowerBoundary + totalStake));
 
-            totalAccumalatedStake += totalStake;
+            lowerBoundary += totalStake;
         }
     }
 
@@ -97,8 +97,8 @@ contract Directory is Initializable, OwnableUpgradeable {
         while (l <= r) {
             uint index = (l + r) / 2;
 
-            uint lower = index == 0 ? 0 : currentDirectory[index - 1].accumalated;
-            uint upper = currentDirectory[index].accumalated;
+            uint lower = index == 0 ? 0 : currentDirectory[index - 1].boundary;
+            uint upper = currentDirectory[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
                 return currentDirectory[index].stakee;
