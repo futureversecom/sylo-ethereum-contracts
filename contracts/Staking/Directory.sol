@@ -45,6 +45,25 @@ contract Directory is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
     }
 
+    /*
+     * We construct the directory by iterating through each valid stakee, and
+     * creating a boundary value which is a sum of the previously iterated stakee's
+     * boundary value, and the current stakee's total stake. The previous boundary and
+     * the current boundary essentialliy create a range, where if a random point where to 
+     * fall within that range, it would belong to the current stakee. The boundary value
+     * grows in size as each stakee is iterated, thus the final directory array
+     * is sorted. This allows us to perform a binary search on the directory.
+     *
+     * Example
+     *
+     * Stakes: [ Alice/20, Bob/10, Carl/40, Dave/25 ]
+     * TotalStake: 95
+     *
+     * Directory:
+     *
+     *  |-----------|------|----------------|--------|
+     *     Alice/20  Bob/30     Carl/70      Dave/95
+     */
     function constructDirectory() public onlyOwner {
         delete currentDirectory;
 
@@ -56,6 +75,7 @@ contract Directory is Initializable, OwnableUpgradeable {
 
             // Only add stakee to the directory after passing
             // some validation
+
             if (totalStake < 1) {
                 continue;
             }
