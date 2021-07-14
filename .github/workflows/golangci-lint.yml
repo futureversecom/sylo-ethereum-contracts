@@ -20,6 +20,7 @@ jobs:
       - name: Get Go packages
         run: |
           git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          cd go-eth
           go get -d ./...
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2

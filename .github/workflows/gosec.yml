@@ -22,6 +22,7 @@ jobs:
       - name: Run gosec Security Scanner
         run: |
           git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          cd go-eth
           go get -d ./...
           curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s v2.8.0
           ./bin/gosec ./...
