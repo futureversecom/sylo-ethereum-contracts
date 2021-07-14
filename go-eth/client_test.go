@@ -34,12 +34,6 @@ func TestClient(t *testing.T) {
 		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 	})
 
-	t.Run("cannot faucet more eth than is available", func(t *testing.T) {
-		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
-		tooMuchEth := new(big.Int).Add(sylopayments.OneEth, sylopayments.FaucetEthBalance)
-		faucet(t, aliceClient.Address(), tooMuchEth, big.NewInt(0))
-	})
-
 	t.Run("can get latest block", func(t *testing.T) {
 		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(0))
