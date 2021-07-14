@@ -26,4 +26,5 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.40
+          working-directory: ./go-eth
           args: --timeout=5m
