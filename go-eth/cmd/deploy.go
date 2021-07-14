@@ -45,8 +45,8 @@ func main() {
 			Usage: "The `NUM` of blocks that must pass to unlock SYLO.",
 			Value: "6",
 		},
-		&cli.IntFlag {
-			Name: "payout-percentage",
+		&cli.IntFlag{
+			Name:  "payout-percentage",
 			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers",
 			Value: 50,
 		},
@@ -337,38 +337,44 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy directory
 	var directoryTx *types.Transaction
-	directory := &contracts.Directory{}
+	var directory *contracts.Directory
 	addresses.Directory, directoryTx, directory, err = contracts.DeployDirectory(opts, client)
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
-	directory.Initialize(opts, addresses.Token, unlockDuration)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = directory.Initialize(opts, addresses.Token, unlockDuration)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise directory: %w", err)
+	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// deploy listing
 	var listingTx *types.Transaction
-	listings := &contracts.Listings{}
+	var listings *contracts.Listings
 	addresses.Listings, listingTx, listings, err = contracts.DeployListings(opts, client)
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy listing: %w", err)
 	}
-	listings.Initialize(opts, payoutPercentage)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = listings.Initialize(opts, payoutPercentage)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise listing: %w", err)
+	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// deploy ticketing
 	var ticketingTx *types.Transaction
-	ticketing := &contracts.SyloTicketing{}
+	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, ticketingTx, ticketing, err = contracts.DeploySyloTicketing(opts, client)
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
-	ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
+	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// wait for receipts

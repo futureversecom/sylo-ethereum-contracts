@@ -3,70 +3,46 @@ package eth_test
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth"
+	sylopayments "github.com/dn3010/sylo-ethereum-contracts/go-eth"
 	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
-	"github.com/ethereum/go-ethereum/common"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-)
-
-var (
-	gasLimit         = uint64(50000000)
-	oneEth           = big.NewInt(1000000000000000000)
-	faucetEthBalance = new(big.Int).Mul(oneEth, big.NewInt(1000))
-	chainID          = big.NewInt(1337)
-	unlockDuration   = big.NewInt(10)
-	escrowAmount     = big.NewInt(100000)
-	penaltyAmount    = big.NewInt(1000)
-	uint256max       = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1)) // 2^256-1
 )
 
 func TestClient(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	backend, addresses, faucet := startupEthereum(t, ctx)
+	escrowAmount := big.NewInt(100000)
+	penaltyAmount := big.NewInt(1000)
+	unlockDuration := big.NewInt(10)
+
+	backend, addresses, faucet := sylopayments.StartupEthereum(t, ctx)
 
 	t.Run("client can be created", func(t *testing.T) {
-		createRandomClient(t, ctx, backend, addresses)
+		sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 	})
 
 	t.Run("can use faucet", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 	})
 
 	t.Run("cannot faucet more eth than is available", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		tooMuchEth := new(big.Int).Add(oneEth, faucetEthBalance)
-		err := faucet(aliceClient.Address(), tooMuchEth, big.NewInt(0))
-		if err == nil {
-			t.Fatalf("should not be able to faucet this much: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		tooMuchEth := new(big.Int).Add(sylopayments.OneEth, sylopayments.FaucetEthBalance)
+		faucet(t, aliceClient.Address(), tooMuchEth, big.NewInt(0))
 	})
 
 	t.Run("can get latest block", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(0))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(0))
 		blockNumberA, err := aliceClient.LatestBlock()
 		if err != nil {
 			t.Fatalf("could not get latest block: %v", err)
@@ -76,54 +52,45 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not get latest block: %v", err)
 		}
-		if !bigIntsEqual(blockNumberA.Add(blockNumberA, big.NewInt(1)), blockNumberB) {
+		if !sylopayments.BigIntsEqual(blockNumberA.Add(blockNumberA, big.NewInt(1)), blockNumberB) {
 			t.Fatalf("block number did not advance")
 		}
 	})
 
 	t.Run("can deposit escrow", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 
-		addEscrow(t, ctx, backend, aliceClient, escrowAmount)
+		sylopayments.AddEscrow(t, ctx, backend, aliceClient, escrowAmount)
 
 		deposit, err := aliceClient.Deposits(aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not get deposits: %v", err)
 		}
-		if !bigIntsEqual(deposit.Escrow, escrowAmount) {
+		if !sylopayments.BigIntsEqual(deposit.Escrow, escrowAmount) {
 			t.Fatalf("escrow deposit does not match: got %v: expected %v", deposit.Escrow, escrowAmount)
 		}
 	})
 
 	t.Run("can deposit penalty", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 
-		addPenalty(t, ctx, backend, aliceClient, penaltyAmount)
+		sylopayments.AddPenalty(t, ctx, backend, aliceClient, penaltyAmount)
 
 		deposit, err := aliceClient.Deposits(aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not get deposits: %v", err)
 		}
-		if !bigIntsEqual(deposit.Penalty, penaltyAmount) {
+		if !sylopayments.BigIntsEqual(deposit.Penalty, penaltyAmount) {
 			t.Fatalf("penalty deposit does not match: got %v: expected %v", deposit.Penalty, penaltyAmount)
 		}
 	})
 
 	t.Run("can withdraw ticketing", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
-		topUpDeposits(t, ctx, backend, aliceClient)
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
+		sylopayments.TopUpDeposits(t, ctx, backend, aliceClient)
 
 		tx, err := aliceClient.UnlockDeposits()
 		if err != nil {
@@ -163,31 +130,25 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not get deposits: %v", err)
 		}
-		if !bigIntsEqual(deposit.Escrow, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(deposit.Escrow, big.NewInt(0)) {
 			t.Fatalf("escrow should be withdrawn")
 		}
-		if !bigIntsEqual(deposit.Penalty, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(deposit.Penalty, big.NewInt(0)) {
 			t.Fatalf("penalty should be withdrawn")
 		}
 	})
 
 	t.Run("can redeem ticket", func(t *testing.T) {
-		aliceClient, alicePK := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
-		topUpDeposits(t, ctx, backend, aliceClient)
+		aliceClient, alicePK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
+		sylopayments.TopUpDeposits(t, ctx, backend, aliceClient)
 
-		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(bobClient.Address(), oneEth, big.NewInt(0))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		bobClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, bobClient.Address(), sylopayments.OneEth, big.NewInt(0))
 
-		list(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
-		
-		delegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
+		sylopayments.List(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
+
+		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
 		bobRand := big.NewInt(1)
 		var bobRandHash [32]byte
@@ -198,7 +159,7 @@ func TestClient(t *testing.T) {
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
 			FaceValue:        big.NewInt(1),
-			WinProb:          uint256max, // always win
+			WinProb:          sylopayments.Uint256max, // always win
 			ExpirationBlock:  big.NewInt(0),
 			SenderNonce:      1,
 		}
@@ -244,31 +205,25 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get balance for bob: %v", err)
 		}
 
-		if !bigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(ticket.FaceValue))) {
+		if !sylopayments.BigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(ticket.FaceValue))) {
 			t.Fatalf("alice's escrow is %v: expected %v", aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(ticket.FaceValue)))
 		}
-		if !bigIntsEqual(bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, ticket.FaceValue)) {
+		if !sylopayments.BigIntsEqual(bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, ticket.FaceValue)) {
 			t.Fatalf("bob's balance is %v: expected %v", bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, ticket.FaceValue))
 		}
 	})
 
 	t.Run("cannot replay ticket", func(t *testing.T) {
-		aliceClient, alicePK := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
-		topUpDeposits(t, ctx, backend, aliceClient)
+		aliceClient, alicePK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
+		sylopayments.TopUpDeposits(t, ctx, backend, aliceClient)
 
-		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(bobClient.Address(), oneEth, big.NewInt(0))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		bobClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, bobClient.Address(), sylopayments.OneEth, big.NewInt(0))
 
-		list(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
+		sylopayments.List(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
 
-		delegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
+		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
 		bobRand := big.NewInt(1)
 		var bobRandHash [32]byte
@@ -279,7 +234,7 @@ func TestClient(t *testing.T) {
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
 			FaceValue:        big.NewInt(1),
-			WinProb:          uint256max, // always win
+			WinProb:          sylopayments.Uint256max, // always win
 			ExpirationBlock:  big.NewInt(0),
 			SenderNonce:      1,
 		}
@@ -319,14 +274,11 @@ func TestClient(t *testing.T) {
 	t.Run("can stake and unstake", func(t *testing.T) {
 		stakeAmount := big.NewInt(1000)
 
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 
-		stake(t, ctx, backend, aliceClient, stakeAmount)
-		defer unstakeAll(t, ctx, backend, aliceClient)
+		sylopayments.Stake(t, ctx, backend, aliceClient, stakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, aliceClient)
 
 		tx, err := aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
@@ -353,7 +305,7 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not check unlocking status: %v", err)
 		}
 
-		if !bigIntsEqual(unlocking.Amount, stakeAmount) {
+		if !sylopayments.BigIntsEqual(unlocking.Amount, stakeAmount) {
 			t.Fatalf("unlocking amount should be zero")
 		}
 
@@ -385,10 +337,10 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not check unlocking status: %v", err)
 		}
 
-		if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(unlocking.Amount, big.NewInt(0)) {
 			t.Fatalf("unlocking amount should be zero")
 		}
-		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
 			t.Fatalf("unlocking at should be zero")
 		}
 
@@ -398,7 +350,7 @@ func TestClient(t *testing.T) {
 		}
 
 		// check the token balance has increased
-		if !bigIntsEqual(balanceAfter, new(big.Int).Add(balanceBefore, stakeAmount)) {
+		if !sylopayments.BigIntsEqual(balanceAfter, new(big.Int).Add(balanceBefore, stakeAmount)) {
 			t.Fatalf("expected stake to be returned")
 		}
 
@@ -415,14 +367,11 @@ func TestClient(t *testing.T) {
 	t.Run("can cancel unstaking", func(t *testing.T) {
 		stakeAmount := big.NewInt(1000)
 
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 
-		stake(t, ctx, backend, aliceClient, stakeAmount)
-		defer unstakeAll(t, ctx, backend, aliceClient)
+		sylopayments.Stake(t, ctx, backend, aliceClient, stakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, aliceClient)
 
 		tx, err := aliceClient.UnlockStake(stakeAmount, aliceClient.Address())
 		if err != nil {
@@ -447,10 +396,10 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not check unlocking status: %v", err)
 		}
-		if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(unlocking.Amount, big.NewInt(0)) {
 			t.Fatalf("unlocking amount should be zero")
 		}
-		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
 			t.Fatalf("unlockAt should be zero")
 		}
 
@@ -461,7 +410,7 @@ func TestClient(t *testing.T) {
 		}
 		backend.Commit()
 
-		if !waitForUnlockAt(t, ctx, backend, aliceClient) {
+		if !sylopayments.WaitForUnlockAt(t, ctx, backend, aliceClient) {
 			t.Fatalf("nothing to wait for")
 		}
 
@@ -477,17 +426,17 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not check unlocking status: %v", err)
 		}
-		if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(unlocking.Amount, big.NewInt(0)) {
 			t.Fatalf("unlocking amount should be zero")
 		}
-		if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
 			t.Fatalf("unlocking at should be zero")
 		}
 		stakedAmount, err := aliceClient.GetAmountStaked(aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not check amount staked: %v", err)
 		}
-		if !bigIntsEqual(stakedAmount, stakeAmount) {
+		if !sylopayments.BigIntsEqual(stakedAmount, stakeAmount) {
 			t.Fatalf("should have the original amount staked")
 		}
 	})
@@ -497,7 +446,7 @@ func TestScan(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	backend, addresses, faucet := startupEthereum(t, ctx)
+	backend, addresses, faucet := sylopayments.StartupEthereum(t, ctx)
 
 	zeroHalves := big.NewInt(0)
 	oneHalf, _ := new(big.Int).SetString("170141183460469231731687303715884105727", 10)        // 1 * ((2 << 128) // 2 - 1) // 2 + 0
@@ -512,11 +461,8 @@ func TestScan(t *testing.T) {
 	threeThirds, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10)      // 3 * ((3 << 128) // 3 - 1) // 3 + 0
 
 	t.Run("can scan empty stake tree", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		scanTests := []*big.Int{
@@ -537,19 +483,16 @@ func TestScan(t *testing.T) {
 	})
 
 	t.Run("can stake and be scanned", func(t *testing.T) {
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err := faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		stakeAmount := big.NewInt(100)
-		stake(t, ctx, backend, aliceClient, stakeAmount)
-		defer unstakeAll(t, ctx, backend, aliceClient)
+		sylopayments.Stake(t, ctx, backend, aliceClient, stakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, aliceClient)
 
-		aliceNode, _ := getNode(t, aliceClient)
-		if !bigIntsEqual(aliceNode.Amount, stakeAmount) {
+		aliceNode, _ := sylopayments.GetNode(t, aliceClient)
+		if !sylopayments.BigIntsEqual(aliceNode.Amount, stakeAmount) {
 			t.Fatalf("stake amount is not correct")
 		}
 
@@ -571,45 +514,37 @@ func TestScan(t *testing.T) {
 	})
 
 	t.Run("can stake 2 nodes and be scanned", func(t *testing.T) {
-		var err error
-
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		aliceStakeAmount := big.NewInt(100)
-		stake(t, ctx, backend, aliceClient, aliceStakeAmount)
-		defer unstakeAll(t, ctx, backend, aliceClient)
+		sylopayments.Stake(t, ctx, backend, aliceClient, aliceStakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, aliceClient)
 
-		aliceNode, _ := getNode(t, aliceClient)
-		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+		aliceNode, _ := sylopayments.GetNode(t, aliceClient)
+		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("stake amount is not correct")
 		}
 
-		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(bobClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		bobClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, bobClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		bobStakeAmount := big.NewInt(100)
-		stake(t, ctx, backend, bobClient, bobStakeAmount)
-		defer unstakeAll(t, ctx, backend, bobClient)
+		sylopayments.Stake(t, ctx, backend, bobClient, bobStakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, bobClient)
 
-		aliceNode, _ = getNode(t, aliceClient)
-		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+		aliceNode, _ = sylopayments.GetNode(t, aliceClient)
+		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !bigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
+		if !sylopayments.BigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
 			t.Fatalf("bob's stake should be in alice's right subtree")
 		}
 
-		bobNode, bobKey := getNode(t, bobClient)
-		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+		bobNode, bobKey := sylopayments.GetNode(t, bobClient)
+		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
 		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
@@ -648,19 +583,16 @@ func TestScan(t *testing.T) {
 		// stake Alice
 		//
 		//                (0)-A(100)-(0)
-		aliceClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(aliceClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		aliceStakeAmount := big.NewInt(100)
-		stake(t, ctx, backend, aliceClient, aliceStakeAmount)
-		defer unstakeAll(t, ctx, backend, aliceClient)
+		sylopayments.Stake(t, ctx, backend, aliceClient, aliceStakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, aliceClient)
 
-		aliceNode, _ := getNode(t, aliceClient)
-		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+		aliceNode, _ := sylopayments.GetNode(t, aliceClient)
+		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("stake amount is not correct")
 		}
 
@@ -669,27 +601,24 @@ func TestScan(t *testing.T) {
 		//            (100)-A(100)-(0)
 		//                            \
 		//                             (0)-B(100)-(0)
-		bobClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(bobClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		bobClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, bobClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		bobStakeAmount := big.NewInt(100)
-		stake(t, ctx, backend, bobClient, bobStakeAmount)
-		defer unstakeAll(t, ctx, backend, bobClient)
+		sylopayments.Stake(t, ctx, backend, bobClient, bobStakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, bobClient)
 
-		aliceNode, _ = getNode(t, aliceClient)
-		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+		aliceNode, _ = sylopayments.GetNode(t, aliceClient)
+		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !bigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
+		if !sylopayments.BigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
 			t.Fatalf("bob's stake should be in alice's right subtree")
 		}
 
-		bobNode, bobKey := getNode(t, bobClient)
-		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+		bobNode, bobKey := sylopayments.GetNode(t, bobClient)
+		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
 		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
@@ -701,38 +630,35 @@ func TestScan(t *testing.T) {
 		//                (100)-A(100)-(100)
 		//               /                  \
 		// (0)-C(100)-(0)                    (0)-B(100)-(0)
-		charlieClient, _ := createRandomClient(t, ctx, backend, addresses)
-		err = faucet(charlieClient.Address(), oneEth, big.NewInt(1000000))
-		if err != nil {
-			t.Fatalf("could not faucet: %v", err)
-		}
+		charlieClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, charlieClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
 
 		charlieStakeAmount := big.NewInt(100)
-		stake(t, ctx, backend, charlieClient, charlieStakeAmount)
-		defer unstakeAll(t, ctx, backend, charlieClient)
+		sylopayments.Stake(t, ctx, backend, charlieClient, charlieStakeAmount)
+		defer sylopayments.UnstakeAll(t, ctx, backend, charlieClient)
 
-		aliceNode, _ = getNode(t, aliceClient)
-		if !bigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
+		aliceNode, _ = sylopayments.GetNode(t, aliceClient)
+		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !bigIntsEqual(aliceNode.RightAmount, bobStakeAmount) {
+		if !sylopayments.BigIntsEqual(aliceNode.RightAmount, bobStakeAmount) {
 			t.Fatalf("bob's stake should be in alice's right subtree")
 		}
-		if !bigIntsEqual(aliceNode.LeftAmount, charlieStakeAmount) {
+		if !sylopayments.BigIntsEqual(aliceNode.LeftAmount, charlieStakeAmount) {
 			t.Fatalf("charlie's stake should be in alice's left subtree")
 		}
 
-		bobNode, bobKey = getNode(t, bobClient)
-		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+		bobNode, bobKey = sylopayments.GetNode(t, bobClient)
+		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
 		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
 			t.Fatalf("bob's key should be alice's right pointer")
 		}
 
-		charlieNode, charlieKey := getNode(t, charlieClient)
-		if !bigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
+		charlieNode, charlieKey := sylopayments.GetNode(t, charlieClient)
+		if !sylopayments.BigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
 			t.Fatalf("charlie stake amount is not correct")
 		}
 		if !bytes.Equal(aliceNode.Left.Value[:], charlieKey) {
@@ -782,14 +708,14 @@ func TestScan(t *testing.T) {
 			t.Fatalf("could not check transaction: %v", err)
 		}
 
-		bobNode, _ = getNode(t, bobClient)
-		if !bigIntsEqual(bobNode.Amount, bobStakeAmount) {
+		bobNode, _ = sylopayments.GetNode(t, bobClient)
+		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob's stake amount is not correct")
 		}
-		if !bigIntsEqual(bobNode.LeftAmount, charlieStakeAmount) {
+		if !sylopayments.BigIntsEqual(bobNode.LeftAmount, charlieStakeAmount) {
 			t.Fatalf("bob's left tree amount should be charlie's stake amount")
 		}
-		if !bigIntsEqual(bobNode.RightAmount, big.NewInt(0)) {
+		if !sylopayments.BigIntsEqual(bobNode.RightAmount, big.NewInt(0)) {
 			t.Fatalf("bob's right tree amount should be zero")
 		}
 		if !bytes.Equal(bobNode.Left.Value[:], charlieKey) {
@@ -823,404 +749,7 @@ func TestScan(t *testing.T) {
 	})
 }
 
-func startupEthereum(t *testing.T, ctx context.Context) (eth.SimBackend, eth.Addresses, faucetF) {
-	ownerPK, err := crypto.GenerateKey()
-	if err != nil {
-		t.Fatalf("could not create ecdsa key: %v", err)
-	}
-	ownerTransactor, err := bind.NewKeyedTransactorWithChainID(ownerPK, chainID)
-	if err != nil {
-		t.Fatalf("could not create transaction signer: %v", err)
-	}
-	ownerTransactor.Context = ctx
-
-	backend := createBackend(t, ctx, ownerTransactor.From)
-	addresses := deployContracts(t, ctx, ownerTransactor, backend)
-
-	ownerClient, err := eth.NewClientWithBackend(addresses, backend, ownerTransactor)
-	if err != nil {
-		t.Fatalf("could not create client: %v", err)
-	}
-
-	// create a faucet
-	faucet := makeFaucet(t, ctx, backend, ownerClient, ownerPK)
-	return backend, addresses, faucet
-}
-
-// createBackend will make a genesis block and use it to generate a new
-// simulated ethereum backend.
-func createBackend(t *testing.T, ctx context.Context, owner common.Address) eth.SimBackend {
-	genesis := make(core.GenesisAlloc)
-	genesis[owner] = core.GenesisAccount{Balance: faucetEthBalance}
-	return eth.NewSimBackend(backends.NewSimulatedBackend(genesis, gasLimit))
-}
-
-// createRandomClient will generate a new ecdsa key and use it to create a Sylo
-// ethereum client.
-func createRandomClient(t *testing.T, ctx context.Context, backend eth.SimBackend, addresses eth.Addresses) (eth.Client, *ecdsa.PrivateKey) {
-	pk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("could not create ecdsa key: %v", err)
-	}
-	opts, err := bind.NewKeyedTransactorWithChainID(pk, chainID)
-	if err != nil {
-		t.Fatalf("could not create transaction signer: %v", err)
-	}
-	opts.Context = ctx
-
-	client, err := eth.NewClientWithBackend(addresses, backend, opts)
-	if err != nil {
-		t.Fatalf("could not create client: %v", err)
-	}
-
-	return client, pk
-}
-
-type faucetF func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int) error
-
-func makeFaucet(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, pk *ecdsa.PrivateKey) faucetF {
-	return func(recipient ethcommon.Address, ethAmt *big.Int, syloAmt *big.Int) error {
-		if ethAmt.Cmp(big.NewInt(0)) == 1 {
-			err := backend.FaucetEth(ctx, client.Address(), recipient, pk, ethAmt)
-			if err != nil {
-				return fmt.Errorf("could not faucet eth: %v", err)
-			}
-		}
-		if syloAmt.Cmp(big.NewInt(0)) == 1 {
-			tx, err := client.Transfer(recipient, syloAmt)
-			if err != nil {
-				return fmt.Errorf("could not faucet sylo: %v", err)
-			}
-			backend.Commit()
-			_, err = client.CheckTx(ctx, tx)
-			if err != nil {
-				return fmt.Errorf("could not check sylo faucet transaction: %v", err)
-			}
-		}
-		return nil
-	}
-}
-
-// topUpDeposits will ensure that both the escrow and penalty accounts have
-// enough Sylo.
-func topUpDeposits(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) {
-	deposit, err := client.Deposits(client.Address())
-	if err != nil {
-		t.Fatalf("could not get deposits for top up: %v", err)
-	}
-	// make sure there is enough escrow
-	if deposit.Escrow.Cmp(escrowAmount) == -1 {
-		addAmount := new(big.Int).Add(escrowAmount, new(big.Int).Neg(deposit.Escrow))
-		addEscrow(t, ctx, backend, client, addAmount)
-	}
-	// make sure there is enough penalty
-	if deposit.Penalty.Cmp(penaltyAmount) == -1 {
-		addAmount := new(big.Int).Add(penaltyAmount, new(big.Int).Neg(deposit.Escrow))
-		addPenalty(t, ctx, backend, client, addAmount)
-	}
-}
-
-// stake will add the stakeAmount to the stake tree.
-func stake(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, stakeAmount *big.Int) {
-	_, err := client.ApproveDirectory(stakeAmount)
-	if err != nil {
-		t.Fatalf("could not approve spending: %v", err)
-	}
-	backend.Commit()
-
-	tx, err := client.AddStake(stakeAmount, client.Address())
-	if err != nil {
-		t.Fatalf("could not add stake: %v", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		t.Fatalf("could not check transaction: %v", err)
-	}
-}
-
-// stake will add delegated stake to the stake tree.
-func delegateStake(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, stakee ethcommon.Address, stakeAmount *big.Int) {
-	_, err := client.ApproveDirectory(stakeAmount)
-	if err != nil {
-		t.Fatalf("could not approve spending: %v", err)
-	}
-	backend.Commit()
-
-	tx, err := client.AddStake(stakeAmount, stakee)
-	if err != nil {
-		t.Fatalf("could not add stake: %v", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		t.Fatalf("could not check transaction: %v", err)
-	}
-}
-
-// list will set a listing for the node
-func list(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, multiAddr string, minimumStakeAmount *big.Int) {
-	tx, err := client.SetListing(multiAddr, minimumStakeAmount)
-	if err != nil {
-		t.Fatalf("could not add stake: %v", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		t.Fatalf("could not check transaction: %v", err)
-	}
-}
-
-// waitForUnlockedAt will wait for any unlocking stake to be ready to unstake.
-//
-// Will return true once the unlockedAt block is reached, or false if the
-// unlockedAt block is 0.
-func waitForUnlockAt(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) bool {
-	unlocking, err := client.GetUnlockingStake(client.Address(), client.Address())
-	if err != nil {
-		t.Fatalf("could not check unlocking status: %v", err)
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			break
-		default:
-		}
-		n, err := client.LatestBlock()
-		if err != nil {
-			t.Fatalf("could not get latest block: %v", err)
-		}
-		if bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
-			// nothing to wait for
-			return false
-		}
-		if n.Cmp(unlocking.UnlockAt) != -1 {
-			// unlock block reached
-			return true
-		}
-		backend.Commit()
-	}
-}
-
-// unstakeAll will unlock all stake and wait for it to be unlocked and
-// withdrawn.
-func unstakeAll(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client) {
-	stakeAmount, err := client.GetAmountStaked(client.Address())
-	if err != nil {
-		t.Fatalf("could not get staked amount: %v", err)
-	}
-
-	tx, err := client.UnlockStake(stakeAmount, client.Address())
-	if err == nil {
-		backend.Commit()
-		_, err = client.CheckTx(ctx, tx)
-		if err != nil {
-			t.Fatalf("could not check transaction: %v", err)
-		}
-		// wait for unlocking
-		if waitForUnlockAt(t, ctx, backend, client) {
-			// withdraw the unstaked amount
-			tx, err := client.WithdrawStake(client.Address())
-			if err != nil {
-				t.Fatalf("could not unstake: %v", err)
-			}
-			backend.Commit()
-			_, err = client.CheckTx(ctx, tx)
-			if err != nil {
-				t.Fatalf("could not check transaction: %v", err)
-			}
-		}
-	} else if strings.HasSuffix(err.Error(), "Nothing to unstake") {
-		// withdraw any unstaked amount
-		tx, err := client.WithdrawStake(client.Address())
-		if err == nil {
-			backend.Commit()
-			_, err = client.CheckTx(ctx, tx)
-			if err != nil {
-				t.Fatalf("could not check transaction: %v", err)
-			}
-		} else if strings.HasSuffix(err.Error(), "No amount to withdraw") {
-			// nothing to do
-		} else {
-			t.Fatalf("could not unstake: %v", err)
-		}
-	} else {
-		// error unlocking
-		t.Fatalf("could not unlock stake: %v", err)
-	}
-
-	// check that all the stake is gone
-	stakeAmount, err = client.GetAmountStaked(client.Address())
-	if err != nil {
-		t.Fatalf("could not get staked amount: %v", err)
-	}
-	if !bigIntsEqual(stakeAmount, big.NewInt(0)) {
-		t.Fatalf("all stake should be removed: got %v", stakeAmount)
-	}
-
-	unlocking, err := client.GetUnlockingStake(client.Address(), client.Address())
-	if err != nil {
-		t.Fatalf("could not check unlocking status: %v", err)
-	}
-	if !bigIntsEqual(unlocking.Amount, big.NewInt(0)) {
-		t.Fatalf("unlocking amount should be zero: got %v", unlocking.Amount)
-	}
-	if !bigIntsEqual(unlocking.UnlockAt, big.NewInt(0)) {
-		t.Fatalf("unlocking at should be zero")
-	}
-}
-
-func deployContracts(t *testing.T, ctx context.Context, transactor *bind.TransactOpts, backend eth.SimBackend) eth.Addresses {
-	var addresses eth.Addresses
-	var err error
-	var tx *types.Transaction
-
-	// Deploying contracts can apparently panic if the transaction fails, so
-	// we need to check for that.
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("panic during deployment of contracts: %v", r)
-		}
-	}()
-
-	// deploy Sylo token
-	addresses.Token, tx, _, err = contracts.DeploySyloToken(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy sylo token: %v", err)
-	}
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	// deploy directory
-	directory := &contracts.Directory{}
-	addresses.Directory, tx, directory, err = contracts.DeployDirectory(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy directory: %v", err)
-	}
-
-	_, err = directory.Initialize(transactor, addresses.Token, unlockDuration)
-	if err != nil {
-		t.Fatalf("could not initialize directory contract: %v", err)
-	}
-
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	// deploy listing
-	listings := &contracts.Listings{}
-	addresses.Listings, tx, listings, err = contracts.DeployListings(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy listing: %v", err)
-	}
-
-	_, err = listings.Initialize(transactor, 50)
-	if err != nil {
-		t.Fatalf("could not get listings receipt: %v", err)
-	}
-
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	// deploy ticketing
-	ticketing := &contracts.SyloTicketing{}
-	addresses.Ticketing, tx, ticketing, err = contracts.DeploySyloTicketing(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy ticketing: %v", err)
-	}
-
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
-	if err != nil {
-		t.Fatalf("could not initialize ticket contract: %v", err)
-	}
-
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	return addresses
-}
-
-func addEscrow(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, escrowAmount *big.Int) {
-	err := addDeposit(ctx, backend, client, escrowAmount, client.DepositEscrow)
-	if err != nil {
-		t.Fatalf("could not add escrow amount: %v", err)
-	}
-}
-
-func addPenalty(t *testing.T, ctx context.Context, backend eth.SimBackend, client eth.Client, penaltyAmount *big.Int) {
-	err := addDeposit(ctx, backend, client, penaltyAmount, client.DepositPenalty)
-	if err != nil {
-		t.Fatalf("could not add penalty amount: %v", err)
-	}
-}
-
-type depositF func(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
-
-func addDeposit(ctx context.Context, backend eth.SimBackend, client eth.Client, amount *big.Int, f depositF) error {
-	tx, err := client.ApproveTicketing(amount)
-	if err != nil {
-		return fmt.Errorf("could not approve ticketing amount: %w", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		return fmt.Errorf("could not check transaction: %w", err)
-	}
-
-	tx, err = f(amount, client.Address())
-	if err != nil {
-		return fmt.Errorf("could not deposit: %w", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		return fmt.Errorf("could not confirm deposit transaction: %w", err)
-	}
-
-	return nil
-}
-
-func bigIntsEqual(x *big.Int, y *big.Int) bool {
-	return x.Cmp(y) == 0
-}
-
-func getNode(t *testing.T, client eth.Client) (struct {
-	Amount      *big.Int
-	LeftAmount  *big.Int
-	RightAmount *big.Int
-	Stakee      ethcommon.Address
-	Parent      contracts.DirectoryStakePointer
-	Left        contracts.DirectoryStakePointer
-	Right       contracts.DirectoryStakePointer
-}, []byte) {
-	key, err := client.GetKey(client.Address(), client.Address())
-	if err != nil {
-		t.Fatalf("could not get key: %v", err)
-	}
-	node, err := client.Stakes(key)
-	if err != nil {
-		t.Fatalf("could not get node info: %v", err)
-	}
-	return node, key[:]
-}
-
-func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client eth.Client, desc string) {
+func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client sylopayments.Client, desc string) {
 	key, err := client.GetKey(client.Address(), client.Address())
 	if err != nil {
 		t.Fatalf("could not get key: %v", err)
