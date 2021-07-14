@@ -1,0 +1,28 @@
+name: Run golangci-lint
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  golangci:
+    name: lint checker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.DN3010_CI_SSH_KEY }}
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.DN3010_CI_SSH_KEY }}
+          known_hosts: github.com/dn3010
+      - name: Get Go packages
+        run: |
+          git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          go get -d ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.40
+          args: --timeout=5m

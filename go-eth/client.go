@@ -277,3 +277,11 @@ func (c *client) SyloBalance(ctx context.Context) (*big.Int, error) {
 
 	return c.BalanceOf(c.Address())
 }
+
+// ETH is set to 10^18
+const ETH = int64(1e18)
+
+// Eth calculates the `big.Int` for a specific ETH amount.
+func Eth(amt int64) *big.Int {
+	return new(big.Int).Mul(big.NewInt(amt), new(big.Int).SetInt64(ETH))
+}
