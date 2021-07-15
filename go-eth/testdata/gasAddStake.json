@@ -1,26 +1,77 @@
 [
   {
-    "prior_stakers": 0,
-    "prior_staker_amount": 1000,
-    "stake_amount": 1000,
-    "gas_used": 247703
+    "description": "vary stake amount",
+    "test": [
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 10,
+        "gas_used": 259647
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 100,
+        "gas_used": 259659
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 1000,
+        "gas_used": 259671
+      }
+    ]
   },
   {
-    "prior_stakers": 10,
-    "prior_staker_amount": 1000,
-    "stake_amount": 1000,
-    "gas_used": 305897
+    "description": "vary stake tree size",
+    "test": [
+      {
+        "prior_stakers": 0,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 1000,
+        "gas_used": 201477
+      },
+      {
+        "prior_stakers": 1,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 1000,
+        "gas_used": 235221
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 1000,
+        "gas_used": 259671
+      },
+      {
+        "prior_stakers": 100,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 1000,
+        "gas_used": 300346
+      }
+    ]
   },
   {
-    "prior_stakers": 100,
-    "prior_staker_amount": 1000,
-    "stake_amount": 1000,
-    "gas_used": 346572
-  },
-  {
-    "prior_stakers": 1000,
-    "prior_staker_amount": 1000,
-    "stake_amount": 1000,
-    "gas_used": 383247
+    "description": "vary prior stake amount",
+    "test": [
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 10,
+        "stake_amounts": 1000,
+        "gas_used": 259671
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 100,
+        "stake_amounts": 1000,
+        "gas_used": 259671
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amounts": 1000,
+        "gas_used": 259671
+      }
+    ]
   }
 ]

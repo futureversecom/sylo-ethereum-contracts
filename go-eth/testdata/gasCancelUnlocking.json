@@ -1,0 +1,105 @@
+[
+  {
+    "description": "vary unlock amount",
+    "test": [
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 100,
+        "gas_used": 76284
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 500,
+        "cancel_amount": 100,
+        "gas_used": 71539
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 999,
+        "cancel_amount": 100,
+        "gas_used": 71539
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 1000,
+        "cancel_amount": 100,
+        "gas_used": 239707
+      }
+    ]
+  },
+  {
+    "description": "vary prior stakers",
+    "test": [
+      {
+        "prior_stakers": 0,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 100,
+        "gas_used": 49646
+      },
+      {
+        "prior_stakers": 1,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 100,
+        "gas_used": 57050
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 100,
+        "gas_used": 76296
+      },
+      {
+        "prior_stakers": 100,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 100,
+        "gas_used": 105145
+      }
+    ]
+  },
+  {
+    "description": "vary cancel stakers",
+    "test": [
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 1,
+        "gas_used": 71539
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 10,
+        "gas_used": 71539
+      },
+      {
+        "prior_stakers": 10,
+        "prior_staker_amount": 1000,
+        "stake_amount": 1000,
+        "unlock_amount": 100,
+        "cancel_amount": 100,
+        "gas_used": 76296
+      }
+    ]
+  }
+]
