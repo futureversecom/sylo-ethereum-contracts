@@ -1,0 +1,26 @@
+[
+  {
+    "prior_stakers": 0,
+    "prior_staker_amount": 1000,
+    "stake_amount": 1000,
+    "gas_used": 289205
+  },
+  {
+    "prior_stakers": 10,
+    "prior_staker_amount": 1000,
+    "stake_amount": 1000,
+    "gas_used": 237633
+  },
+  {
+    "prior_stakers": 100,
+    "prior_staker_amount": 1000,
+    "stake_amount": 1000,
+    "gas_used": 237633
+  },
+  {
+    "prior_stakers": 1000,
+    "prior_staker_amount": 1000,
+    "stake_amount": 1000,
+    "gas_used": 237633
+  }
+]

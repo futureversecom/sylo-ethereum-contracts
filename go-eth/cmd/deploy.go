@@ -335,6 +335,49 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
+	// deploy staking manager
+	var stakingManagerTx *types.Transaction
+	stakingManager := &contracts.StakingManager{}
+	addresses.Directory, stakingManagerTx, stakingManager, err = contracts.DeployStakingManager(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy stakingManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = stakingManager.Initialize(opts, addresses.Token, unlockDuration)
+	if err != nil {
+		return addresses, fmt.Errorf("could not staking manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy price voting
+	var priceVotingTx *types.Transaction
+	priceVoting := &contracts.PriceVoting{}
+	addresses.PriceVoting, priceVotingTx, priceVoting, err = contracts.DeployPriceVoting(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy priceVoting: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = priceVoting.Initialize(opts, addresses.StakingManager)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise price voting: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy price manager
+	var priceManagerTx *types.Transaction
+	priceManager := &contracts.PriceManager{}
+	addresses.Directory, priceManagerTx, priceManager, err = contracts.DeployPriceManager(opts, client)
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy priceManager: %w", err)
+	}
+
+	_, err = priceManager.Initialize(opts, addresses.StakingManager, addresses.PriceVoting)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise price manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	// deploy directory
 	var directoryTx *types.Transaction
 	var directory *contracts.Directory
@@ -343,7 +386,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = directory.Initialize(opts, addresses.Token, unlockDuration)
+	_, err = directory.Initialize(opts, addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise directory: %w", err)
 	}
@@ -371,7 +414,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}
@@ -383,6 +426,18 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not get token deployment receipt: %w", err)
 	}
 	_, err = waitForReceipt(ctx, ticketingTx, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
+	}
+	_, err = waitForReceipt(ctx, stakingManagerTx, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
+	}
+	_, err = waitForReceipt(ctx, priceManagerTx, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
+	}
+	_, err = waitForReceipt(ctx, priceVotingTx, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
 	}

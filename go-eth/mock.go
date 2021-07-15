@@ -97,9 +97,33 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
 
 	backend.Commit()
-	var directory *contracts.Directory
+	stakingManager := &contracts.StakingManager{}
+	addresses.StakingManager, _, stakingManager, _ = contracts.DeployStakingManager(&opts[0], backend)
+	_, err := stakingManager.Initialize(&opts[0], addresses.Token, big.NewInt(1))
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
+	}
+
+	backend.Commit()
+	priceVoting := &contracts.PriceVoting{}
+	addresses.PriceVoting, _, priceVoting, _ = contracts.DeployPriceVoting(&opts[0], backend)
+	_, err = priceVoting.Initialize(&opts[0], addresses.StakingManager)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
+	}
+
+	backend.Commit()
+	priceManager := &contracts.PriceManager{}
+	addresses.PriceManager, _, priceManager, _ = contracts.DeployPriceManager(&opts[0], backend)
+	_, err = priceManager.Initialize(&opts[0], addresses.StakingManager, addresses.PriceVoting)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise price manager: %w", err)
+	}
+
+	backend.Commit()
+	directory := &contracts.Directory{}
 	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
-	_, err := directory.Initialize(&opts[0], addresses.Token, big.NewInt(1))
+	_, err = directory.Initialize(&opts[0], addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
 	}
@@ -115,7 +139,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend.Commit()
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.Directory, big.NewInt(1))
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}
