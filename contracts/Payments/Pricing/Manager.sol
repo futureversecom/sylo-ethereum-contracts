@@ -29,14 +29,28 @@ contract PriceManager is Initializable, OwnableUpgradeable {
         _voting = voting;
     }
 
-    // The submitter of this transaction sorts the memory off chain,
-    // and this contract only validates that it is sorted. This helps
-    // to reduce gas cost.
     function calculatePrices(
         PriceVoting.Vote[] memory sortedVotes
     ) public onlyOwner returns (uint256 servicePrice, uint256 upperPrice) {
-        _voting.validateSortedVotes(sortedVotes);
+        // we were given a list of sorted votes, validate the votes instead
+        if (sortedVotes.length > 0) {
+            _voting.validateSortedVotes(sortedVotes);
+            return _calculatePrices(sortedVotes);
+        } else {
+            (address[] memory voters, uint256[] memory votes) = _voting.sortVotes();
+            PriceVoting.Vote[] memory _sortedVotes = new PriceVoting.Vote[](voters.length);
 
+            for (uint i = 0; i < voters.length; i++) {
+                _sortedVotes[i] = PriceVoting.Vote(voters[i], votes[i]);
+            }
+
+            return _calculatePrices(_sortedVotes);
+        }
+    }
+
+    function _calculatePrices(
+        PriceVoting.Vote[] memory sortedVotes
+    ) internal onlyOwner returns (uint256 servicePrice, uint256 upperPrice) {
         uint256 totalStake = _stakingManager.totalStake();
         uint256 lowerBoundary = LOWER_QUARTILE_PERC * totalStake / PERC_DIVISOR;
         uint256 upperBoundary = UPPER_BOUNDARY_PERC * totalStake / PERC_DIVISOR;
@@ -47,6 +61,17 @@ contract PriceManager is Initializable, OwnableUpgradeable {
         // until we have crossed 25% of the total stake
         for (uint i = 0; i < sortedVotes.length; i++) {
             uint256 stake = _stakingManager.totalStakes(sortedVotes[i].voter);
+
+            // Only consider nodes with a valid stake
+            if (stake == 0) {
+                continue;
+            }
+
+            // Only consider nodes with a valid vote
+            if (sortedVotes[i].price == 0) {
+                continue;
+            }
+
             needle += stake;
 
             if (needle >= lowerBoundary) {
@@ -59,12 +84,23 @@ contract PriceManager is Initializable, OwnableUpgradeable {
 
         // Iterate through the votes starting from the end, and
         // substract each stake until we cross the upper boundary
-        for (uint i = sortedVotes.length - 1; i != 0; i--) {
-            uint256 stake = _stakingManager.totalStakes(sortedVotes[i].voter);
+        for (uint i = sortedVotes.length; i > 0; i--) {
+            uint256 stake = _stakingManager.totalStakes(sortedVotes[i - 1].voter);
+
+            // Only consider nodes with a valid stake
+            if (stake == 0) {
+                continue;
+            }
+
+            // Only consider nodes with a valid vote
+            if (sortedVotes[i - 1].price == 0) {
+                continue;
+            }
+
             needle -= stake;
 
             if (needle <= upperBoundary) {
-                currentUpperPrice = sortedVotes[i].price;
+                currentUpperPrice = sortedVotes[i - 1].price;
             }
         }
 

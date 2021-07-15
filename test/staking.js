@@ -121,12 +121,11 @@ contract('Staking', accounts => {
       await stakingManager.unlockStake(1, accounts[i], { from: accounts[1] });
     }
 
-    let sortedVotes = [];
     for (let i = 0; i < 5; i++) {
       await priceVoting.vote(1, { from: accounts[i] });
-      sortedVotes.push({ voter: accounts[i], price: 1 });
     }
-    await priceManager.calculatePrices(sortedVotes, { from: accounts[1] });
+
+    await priceManager.calculatePrices([], { from: accounts[1] });
     await directory.constructDirectory({ from: accounts[1] });
 
     let expectedResults = {}
@@ -214,13 +213,11 @@ contract('Staking', accounts => {
   });
 
   async function voteAndConstructDirectory() {
-    let sortedVotes = [];
     for (let i = 0; i < accounts.length; i++) {
       await priceVoting.vote(1, { from: accounts[i] });
-      sortedVotes.push({ voter: accounts[i], price: 1 });
     }
-    sortedVotes.sort((a, b) => a.price - b.price);
-    await priceManager.calculatePrices(sortedVotes, { from: accounts[1] });
+
+    await priceManager.calculatePrices([], { from: accounts[1] });
     await directory.constructDirectory({ from: accounts[1] });
   }
 
@@ -263,8 +260,4 @@ contract('Staking', accounts => {
   
     return points;
   }
-
-  async function stakeAndVote(address, stakeAmount) {
-
-  } 
 });

@@ -20,7 +20,7 @@ func TestPayments(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	backend, addresses, faucet := sylopayments.StartupEthereum(t, ctx)
+	backend, addresses, faucet, owner := sylopayments.StartupEthereum(t, ctx)
 	t.Log("started ethereum")
 
 	// create a node
@@ -37,6 +37,15 @@ func TestPayments(t *testing.T) {
 	// stake
 	sylopayments.Stake(t, ctx, backend, node, big.NewInt(600))
 	t.Log("node A stake 600 sylo")
+
+	// vote
+	sylopayments.Vote(t, ctx, backend, node, big.NewInt(1))
+
+	// calculate prices
+	sylopayments.CalculatePrices(t, ctx, backend, owner, []contracts.PriceVotingVote{})
+
+	// construct directory
+	sylopayments.ConstructDirectory(t, ctx, backend, owner)
 
 	// create alice
 	alice, aliceSK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)

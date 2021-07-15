@@ -23,7 +23,7 @@ func TestClient(t *testing.T) {
 	penaltyAmount := big.NewInt(1000)
 	unlockDuration := big.NewInt(10)
 
-	backend, addresses, faucet := sylopayments.StartupEthereum(t, ctx)
+	backend, addresses, faucet, _ := sylopayments.StartupEthereum(t, ctx)
 
 	t.Run("client can be created", func(t *testing.T) {
 		sylopayments.CreateRandomClient(t, ctx, backend, addresses)
@@ -440,7 +440,7 @@ func TestScan(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	backend, addresses, faucet := sylopayments.StartupEthereum(t, ctx)
+	backend, addresses, faucet, ownerClient := sylopayments.StartupEthereum(t, ctx)
 
 	zeroHalves := big.NewInt(0)
 	oneHalf, _ := new(big.Int).SetString("170141183460469231731687303715884105727", 10)        // 1 * ((2 << 128) // 2 - 1) // 2 + 0
@@ -484,6 +484,12 @@ func TestScan(t *testing.T) {
 		stakeAmount := big.NewInt(100)
 		sylopayments.Stake(t, ctx, backend, aliceClient, stakeAmount)
 		defer sylopayments.UnstakeAll(t, ctx, backend, aliceClient)
+
+		voteAmount := big.NewInt(1)
+		sylopayments.Vote(t, ctx, backend, aliceClient, voteAmount)
+
+		sylopayments.CalculatePrices(t, ctx, backend, ownerClient, []contracts.PriceVotingVote{})
+		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
 
 		aliceNode, _ := sylopayments.GetNode(t, aliceClient)
 		if !sylopayments.BigIntsEqual(aliceNode.Amount, stakeAmount) {
@@ -533,16 +539,18 @@ func TestScan(t *testing.T) {
 		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !sylopayments.BigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
-			t.Fatalf("bob's stake should be in alice's right subtree")
-		}
 
-		bobNode, bobKey := sylopayments.GetNode(t, bobClient)
+		voteAmount := big.NewInt(1)
+		sylopayments.Vote(t, ctx, backend, aliceClient, voteAmount)
+		sylopayments.Vote(t, ctx, backend, bobClient, voteAmount)
+
+		sylopayments.CalculatePrices(t, ctx, backend, ownerClient, []contracts.PriceVotingVote{})
+
+		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
+
+		bobNode, _ := sylopayments.GetNode(t, bobClient)
 		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
-		}
-		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
-			t.Fatalf("bob's key should be alice's right pointer")
 		}
 
 		scanTests := [](struct {
@@ -575,8 +583,6 @@ func TestScan(t *testing.T) {
 		var err error
 
 		// stake Alice
-		//
-		//                (0)-A(100)-(0)
 		aliceClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 		faucet(t, aliceClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
@@ -591,10 +597,6 @@ func TestScan(t *testing.T) {
 		}
 
 		// stake Bob
-		//
-		//            (100)-A(100)-(0)
-		//                            \
-		//                             (0)-B(100)-(0)
 		bobClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 		faucet(t, bobClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
@@ -607,23 +609,12 @@ func TestScan(t *testing.T) {
 		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !sylopayments.BigIntsEqual(aliceNode.RightAmount, big.NewInt(100)) {
-			t.Fatalf("bob's stake should be in alice's right subtree")
-		}
-
-		bobNode, bobKey := sylopayments.GetNode(t, bobClient)
+		bobNode, _ := sylopayments.GetNode(t, bobClient)
 		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
-			t.Fatalf("bob's key should be alice's right pointer")
-		}
 
 		// stake Charlie
-		//
-		//                (100)-A(100)-(100)
-		//               /                  \
-		// (0)-C(100)-(0)                    (0)-B(100)-(0)
 		charlieClient, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 		faucet(t, charlieClient.Address(), sylopayments.OneEth, big.NewInt(1000000))
 		backend.Commit()
@@ -636,28 +627,24 @@ func TestScan(t *testing.T) {
 		if !sylopayments.BigIntsEqual(aliceNode.Amount, aliceStakeAmount) {
 			t.Fatalf("alice stake amount is not correct")
 		}
-		if !sylopayments.BigIntsEqual(aliceNode.RightAmount, bobStakeAmount) {
-			t.Fatalf("bob's stake should be in alice's right subtree")
-		}
-		if !sylopayments.BigIntsEqual(aliceNode.LeftAmount, charlieStakeAmount) {
-			t.Fatalf("charlie's stake should be in alice's left subtree")
-		}
-
-		bobNode, bobKey = sylopayments.GetNode(t, bobClient)
+		bobNode, _ = sylopayments.GetNode(t, bobClient)
 		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Right.Value[:], bobKey) {
-			t.Fatalf("bob's key should be alice's right pointer")
-		}
 
-		charlieNode, charlieKey := sylopayments.GetNode(t, charlieClient)
+		charlieNode, _ := sylopayments.GetNode(t, charlieClient)
 		if !sylopayments.BigIntsEqual(charlieNode.Amount, charlieStakeAmount) {
 			t.Fatalf("charlie stake amount is not correct")
 		}
-		if !bytes.Equal(aliceNode.Left.Value[:], charlieKey) {
-			t.Fatalf("charlie's key should be alice's left pointer")
-		}
+
+		voteAmount := big.NewInt(1)
+		sylopayments.Vote(t, ctx, backend, aliceClient, voteAmount)
+		sylopayments.Vote(t, ctx, backend, bobClient, voteAmount)
+		sylopayments.Vote(t, ctx, backend, charlieClient, voteAmount)
+
+		sylopayments.CalculatePrices(t, ctx, backend, ownerClient, []contracts.PriceVotingVote{})
+
+		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
 
 		scanTests := [](struct {
 			desc string
@@ -665,14 +652,14 @@ func TestScan(t *testing.T) {
 			addr ethcommon.Address
 		}){
 			// charlie
-			{desc: "zeroThirds should scan to charlie", val: zeroThirds, addr: charlieClient.Address()},
-			{desc: "oneThird should scan to charlie", val: oneThird, addr: charlieClient.Address()},
+			{desc: "zeroThirds should scan to alice", val: zeroThirds, addr: aliceClient.Address()},
+			{desc: "oneThird should scan to alice", val: oneThird, addr: aliceClient.Address()},
 			// alice
-			{desc: "oneThirdPlusOne should scan to alice", val: oneThirdPlusOne, addr: aliceClient.Address()},
-			{desc: "twoThirds should scan to alice", val: twoThirds, addr: aliceClient.Address()},
+			{desc: "oneThirdPlusOne should scan to bob", val: oneThirdPlusOne, addr: bobClient.Address()},
+			{desc: "twoThirds should scan to bob", val: twoThirds, addr: bobClient.Address()},
 			// bob
-			{desc: "twoThirdsPlusOne should scan to bob", val: twoThirdsPlusOne, addr: bobClient.Address()},
-			{desc: "threeThirds should scan to bob", val: threeThirds, addr: bobClient.Address()},
+			{desc: "twoThirdsPlusOne should scan to charlie", val: twoThirdsPlusOne, addr: charlieClient.Address()},
+			{desc: "threeThirds should scan to charlie", val: threeThirds, addr: charlieClient.Address()},
 		}
 
 		for _, scanTest := range scanTests {
@@ -687,11 +674,7 @@ func TestScan(t *testing.T) {
 			})
 		}
 
-		// unlock Alice's stake (Bob should take over root)
-		//
-		//                (100)-B(100)-(0)
-		//               /
-		// (0)-C(100)-(0)
+		// unlock Alice's stake
 		tx, err := aliceClient.UnlockStake(aliceStakeAmount, aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not unlock stake: %v", err)
@@ -706,15 +689,9 @@ func TestScan(t *testing.T) {
 		if !sylopayments.BigIntsEqual(bobNode.Amount, bobStakeAmount) {
 			t.Fatalf("bob's stake amount is not correct")
 		}
-		if !sylopayments.BigIntsEqual(bobNode.LeftAmount, charlieStakeAmount) {
-			t.Fatalf("bob's left tree amount should be charlie's stake amount")
-		}
-		if !sylopayments.BigIntsEqual(bobNode.RightAmount, big.NewInt(0)) {
-			t.Fatalf("bob's right tree amount should be zero")
-		}
-		if !bytes.Equal(bobNode.Left.Value[:], charlieKey) {
-			t.Fatalf("charlie's key should be bob's left pointer")
-		}
+
+		// reconstruct directory
+		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
 
 		scanTests = [](struct {
 			desc string
@@ -722,11 +699,11 @@ func TestScan(t *testing.T) {
 			addr ethcommon.Address
 		}){
 			// charlie
-			{desc: "zeroHalves should scan to charlie still", val: zeroHalves, addr: charlieClient.Address()},
-			{desc: "oneHalfMinusOne should scan to charlie now", val: oneHalf, addr: charlieClient.Address()},
+			{desc: "zeroHalves should scan to bob now", val: zeroHalves, addr: bobClient.Address()},
+			{desc: "oneHalfMinusOne should scan to bob now", val: oneHalf, addr: bobClient.Address()},
 			// bob
-			{desc: "oneHalf should scan to bob now", val: oneHalfPlusOne, addr: bobClient.Address()},
-			{desc: "twoHalves should scan to bob still", val: twoHalves, addr: bobClient.Address()},
+			{desc: "oneHalf should scan to charli now", val: oneHalfPlusOne, addr: charlieClient.Address()},
+			{desc: "twoHalves should scan to charlie still", val: twoHalves, addr: charlieClient.Address()},
 		}
 
 		for _, scanTest := range scanTests {
@@ -753,9 +730,7 @@ func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client sylopayments.
 		t.Fatalf("could not get node info: %v", err)
 	}
 	keyStr := base64.RawStdEncoding.EncodeToString(key[:])
-	leftStr := base64.RawStdEncoding.EncodeToString(node.Left.Value[:])
-	rightStr := base64.RawStdEncoding.EncodeToString(node.Right.Value[:])
-	t.Logf("%s (%v): Stake amount=%v, Stake left=%v (%v), Stake right=%v (%v)", desc, keyStr, node.Amount, node.LeftAmount, leftStr, node.RightAmount, rightStr)
+	t.Logf("%s (%v): Stake amount=%v", desc, keyStr, node.Amount)
 }
 
 var _ = prettyPrintNodeInfo

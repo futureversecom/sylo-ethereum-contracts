@@ -57,7 +57,7 @@ func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	backend, addresses, faucet := StartupEthereum(t, ctx)
+	backend, addresses, faucet, _ := StartupEthereum(t, ctx)
 
 	// populate stake tree
 	for i := uint64(0); i < tc.PriorStakers; i++ {
@@ -75,7 +75,7 @@ func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
 }
 
 func approveDirectoryGas(t *testing.T, ctx context.Context, c *client, amount *big.Int) uint64 {
-	tx, err := c.ApproveDirectory(amount)
+	tx, err := c.ApproveStakingManager(amount)
 	if err != nil {
 		t.Fatalf("could not approve spending: %v", err)
 	}
