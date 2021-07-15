@@ -337,7 +337,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy staking manager
 	var stakingManagerTx *types.Transaction
-	stakingManager := &contracts.StakingManager{}
+	var stakingManager *contracts.StakingManager
 	addresses.Directory, stakingManagerTx, stakingManager, err = contracts.DeployStakingManager(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy stakingManager: %w", err)
@@ -351,7 +351,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy price voting
 	var priceVotingTx *types.Transaction
-	priceVoting := &contracts.PriceVoting{}
+	var priceVoting *contracts.PriceVoting
 	addresses.PriceVoting, priceVotingTx, priceVoting, err = contracts.DeployPriceVoting(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy priceVoting: %w", err)
@@ -365,7 +365,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy price manager
 	var priceManagerTx *types.Transaction
-	priceManager := &contracts.PriceManager{}
+	var priceManager *contracts.PriceManager
 	addresses.Directory, priceManagerTx, priceManager, err = contracts.DeployPriceManager(opts, client)
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	if err != nil {
