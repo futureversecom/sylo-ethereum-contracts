@@ -98,7 +98,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         totalStake += amount;
     }
 
-    function unlockStake(uint256 amount, address stakee) public {
+    function unlockStake(uint256 amount, address stakee) public returns (uint256) {
         bytes32 key = getKey(msg.sender, stakee);
         Stake storage stake = stakes[key];
 
@@ -123,6 +123,18 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         totalStakes[stakee] -= amount;
         totalStake -= amount;
+
+        // Keep track of when the stake can be withdrawn
+        Unlock storage unlock = unlockings[key];
+
+        uint256 unlockAt = block.number + unlockDuration;
+        if (unlock.unlockAt < unlockAt) {
+            unlock.unlockAt = unlockAt;
+        }
+
+        unlock.amount += amount;
+
+        return unlockAt;
     }
 
     // Withdraw any unlocked stake.
