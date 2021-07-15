@@ -97,7 +97,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
 
 	backend.Commit()
-	stakingManager := &contracts.StakingManager{}
+	var stakingManager *contracts.StakingManager
 	addresses.StakingManager, _, stakingManager, _ = contracts.DeployStakingManager(&opts[0], backend)
 	_, err := stakingManager.Initialize(&opts[0], addresses.Token, big.NewInt(1))
 	if err != nil {
@@ -105,7 +105,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 
 	backend.Commit()
-	priceVoting := &contracts.PriceVoting{}
+	var priceVoting *contracts.PriceVoting
 	addresses.PriceVoting, _, priceVoting, _ = contracts.DeployPriceVoting(&opts[0], backend)
 	_, err = priceVoting.Initialize(&opts[0], addresses.StakingManager)
 	if err != nil {
@@ -113,7 +113,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 
 	backend.Commit()
-	priceManager := &contracts.PriceManager{}
+	var priceManager *contracts.PriceManager
 	addresses.PriceManager, _, priceManager, _ = contracts.DeployPriceManager(&opts[0], backend)
 	_, err = priceManager.Initialize(&opts[0], addresses.StakingManager, addresses.PriceVoting)
 	if err != nil {
@@ -121,7 +121,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 
 	backend.Commit()
-	directory := &contracts.Directory{}
+	var directory *contracts.Directory
 	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
 	_, err = directory.Initialize(&opts[0], addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
 	if err != nil {

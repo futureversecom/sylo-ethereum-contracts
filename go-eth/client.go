@@ -199,6 +199,9 @@ func NewClientWithBackend(
 	}
 
 	priceManager, err := contracts.NewPriceManager(addresses.PriceManager, backend)
+	if err != nil {
+		return nil, err
+	}
 
 	PriceManagerSession := &contracts.PriceManagerSession{
 		Contract:     priceManager,
@@ -206,6 +209,9 @@ func NewClientWithBackend(
 	}
 
 	priceVoting, err := contracts.NewPriceVoting(addresses.PriceVoting, backend)
+	if err != nil {
+		return nil, err
+	}
 
 	PriceVotingSession := &contracts.PriceVotingSession{
 		Contract:     priceVoting,
@@ -213,6 +219,9 @@ func NewClientWithBackend(
 	}
 
 	stakingManager, err := contracts.NewStakingManager(addresses.StakingManager, backend)
+	if err != nil {
+		return nil, err
+	}
 
 	StakingManagerSession := &contracts.StakingManagerSession{
 		Contract:     stakingManager,
