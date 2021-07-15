@@ -37,14 +37,21 @@ contract('Pricing', accounts => {
   });
 
   it('allows a staked account to vote', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await priceVoting.vote(1, { from: accounts[1] });
   });
 
   it('allows updating a vote', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await priceVoting.vote(1, { from: accounts[1] });
     await priceVoting.vote(2, { from: accounts[1] });
+  });
+
+  it('allows withdrawing a vote', async () => {
+    await priceVoting.vote(1, { from: accounts[1] });
+    await priceVoting.withdraw({ from: accounts[1] });
+
+    const price = await priceVoting.votes(accounts[1]);
+
+    assert.equal(price.toNumber(), 0, "Expected vote to equal 0");
   });
 
   it('prevents vote with value set to 0', async () => {
@@ -101,6 +108,26 @@ contract('Pricing', accounts => {
     console.log(`Gas cost for calculating prices using on chain sort=${sortingGasCost}`);
     console.log(`Gas cost for calculating price using validating sorted array=${validatingGasCost}`)
   }).timeout(0);
+
+  it('nodes without a stake are considered in price calculation', async () => {
+    for (let i = 0; i < 3; i++) {
+      await stakingManager.addStake(10, accounts[i], { from: accounts[1] });
+    }
+
+    const prices = [2, 3, 4, 1];
+    
+    for (let i = 0; i < 4; i++) {
+      await priceVoting.vote(prices[i], { from: accounts[i] });
+    }
+
+    await priceManager.calculatePrices([], { from: accounts[1] });
+
+    const currentPrice = await priceManager.currentServicePrice();
+
+    // If the last node with vote 1 was counted in price, the price would be
+    // 1, but if not, then it should be 2
+    assert.equal(currentPrice.toNumber(), 2, "Calculated price does not match expected price");
+  });
 
   async function voteAndStake(stakee, vote, stake, account) {
     const tokenContract = new web3.eth.Contract(Token.abi, token.address);
