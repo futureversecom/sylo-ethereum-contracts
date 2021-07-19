@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 	"testing"
 
@@ -30,7 +31,7 @@ var (
 	penaltyAmount  = big.NewInt(1000)
 )
 
-func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, FaucetF) {
+func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, FaucetF, Client) {
 	ownerPK, err := crypto.GenerateKey()
 	if err != nil {
 		t.Fatalf("could not create ecdsa key: %v", err)
@@ -51,11 +52,11 @@ func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, 
 
 	// create a faucet
 	faucet := MakeFaucet(t, ctx, backend, ownerClient, ownerPK)
-	return backend, addresses, faucet
+	return backend, addresses, faucet, ownerClient
 }
 
 func CreateBackend(t *testing.T, ctx context.Context, owner common.Address) SimBackend {
-	gasLimit := uint64(4712388)
+	gasLimit := uint64(100000000000000)
 	genesis := make(core.GenesisAlloc)
 	genesis[owner] = core.GenesisAccount{Balance: FaucetEthBalance}
 	return NewSimBackend(backends.NewSimulatedBackend(genesis, gasLimit))
@@ -127,7 +128,7 @@ func TopUpDeposits(t *testing.T, ctx context.Context, backend SimBackend, client
 }
 
 func Stake(t *testing.T, ctx context.Context, backend SimBackend, client Client, stakeAmount *big.Int) {
-	_, err := client.ApproveDirectory(stakeAmount)
+	_, err := client.ApproveStakingManager(stakeAmount)
 	if err != nil {
 		t.Fatalf("could not approve spending: %v", err)
 	}
@@ -145,8 +146,79 @@ func Stake(t *testing.T, ctx context.Context, backend SimBackend, client Client,
 	}
 }
 
+func Vote(t *testing.T, ctx context.Context, backend SimBackend, client Client, vote *big.Int) {
+	tx, err := client.Vote(vote)
+	if err != nil {
+		t.Fatalf("could not add stake: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
+type SortedVote struct {
+	Voter ethcommon.Address
+	Price *big.Int
+	Index *big.Int
+}
+
+func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, client Client) *types.Transaction {
+	voters, prices, err := client.GetVotes()
+	if err != nil {
+		t.Fatalf("could not retrieve votes: %v", err)
+	}
+
+	fmt.Printf("utils_test %v", voters)
+
+	sortedVotes := []SortedVote{}
+
+	for i := 0; i < len(voters); i++ {
+		sortedVotes = append(
+			sortedVotes,
+			SortedVote{voters[i], prices[i], big.NewInt(int64(i))},
+		)
+	}
+	sort.Slice(sortedVotes, func(i, j int) bool {
+		return sortedVotes[i].Price.Cmp(sortedVotes[j].Price) == -1
+	})
+
+	sortedIndexes := []*big.Int{}
+	for i := 0; i < len(voters); i++ {
+		sortedIndexes = append(sortedIndexes, sortedVotes[i].Index)
+	}
+
+	tx, err := client.CalculatePrices(sortedIndexes)
+	if err != nil {
+		t.Fatalf("could not add stake: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+
+	return tx
+}
+
+func ConstructDirectory(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.ConstructDirectory()
+	if err != nil {
+		t.Fatalf("could not add stake: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
 func DelegateStake(t *testing.T, ctx context.Context, backend SimBackend, client Client, stakee ethcommon.Address, stakeAmount *big.Int) {
-	_, err := client.ApproveDirectory(stakeAmount)
+	_, err := client.ApproveStakingManager(stakeAmount)
 	if err != nil {
 		t.Fatalf("could not approve spending: %v", err)
 	}
@@ -296,6 +368,45 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not get transaction receipt: %v", err)
 	}
 
+	// deploy staking manager
+	var stakingManager *contracts.StakingManager
+	addresses.StakingManager, _, stakingManager, err = contracts.DeployStakingManager(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy staking manager")
+	}
+
+	_, err = stakingManager.Initialize(transactor, addresses.Token, unlockDuration)
+	if err != nil {
+		t.Fatalf("could not initialize directory contract: %v", err)
+	}
+	backend.Commit()
+
+	// deploy price voting
+	var priceVoting *contracts.PriceVoting
+	addresses.PriceVoting, _, priceVoting, err = contracts.DeployPriceVoting(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy price voting")
+	}
+
+	_, err = priceVoting.Initialize(transactor, addresses.StakingManager)
+	if err != nil {
+		t.Fatalf("could not initialize price voting contract: %v", err)
+	}
+	backend.Commit()
+
+	// deploy price maanger
+	var priceManager *contracts.PriceManager
+	addresses.PriceManager, _, priceManager, err = contracts.DeployPriceManager(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy price manager")
+	}
+
+	_, err = priceManager.Initialize(transactor, addresses.StakingManager, addresses.PriceVoting)
+	if err != nil {
+		t.Fatalf("could not initialize price manager contract: %v", err)
+	}
+	backend.Commit()
+
 	// deploy directory
 	var directory *contracts.Directory
 	addresses.Directory, tx, directory, err = contracts.DeployDirectory(transactor, backend)
@@ -303,7 +414,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy directory: %v", err)
 	}
 
-	_, err = directory.Initialize(transactor, addresses.Token, unlockDuration)
+	_, err = directory.Initialize(transactor, addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
 	if err != nil {
 		t.Fatalf("could not initialize directory contract: %v", err)
 	}
@@ -339,7 +450,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
 
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.Directory, unlockDuration)
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration)
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}
@@ -400,13 +511,8 @@ func BigIntsEqual(x *big.Int, y *big.Int) bool {
 }
 
 func GetNode(t *testing.T, client Client) (struct {
-	Amount      *big.Int
-	LeftAmount  *big.Int
-	RightAmount *big.Int
-	Stakee      ethcommon.Address
-	Parent      contracts.DirectoryStakePointer
-	Left        contracts.DirectoryStakePointer
-	Right       contracts.DirectoryStakePointer
+	Amount *big.Int
+	Stakee ethcommon.Address
 }, []byte) {
 	key, err := client.GetKey(client.Address(), client.Address())
 	if err != nil {

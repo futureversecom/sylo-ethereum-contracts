@@ -2,7 +2,7 @@ const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
 const Ticketing = artifacts.require("SyloTicketing");
 const Listings = artifacts.require("Listings");
-const Directory = artifacts.require("Directory");
+const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
@@ -10,7 +10,7 @@ contract('Ticketing', accounts => {
   let token;
   let ticketing;
   let listings;
-  let directory;
+  let stakingManager;
   // private keys generated from default truffle mnemonic
   // use these to sign tickets
   const privateKeys =
@@ -34,19 +34,19 @@ contract('Ticketing', accounts => {
     listings = await Listings.new({ from: accounts[1] });
     await listings.initialize(50), { from: accounts[1] };
 
-    directory = await Directory.new({ from: accounts[1] });
-    await directory.initialize(token.address, 0, { from: accounts[1] });
+    stakingManager = await StakingManager.new({ from: accounts[1] });
+    await stakingManager.initialize(token.address, 0, { from: accounts[1] });
 
     ticketing = await Ticketing.new({ from: accounts[1] });
     await ticketing.initialize(
       token.address, 
       listings.address, 
-      directory.address, 
+      stakingManager.address, 
       0, 
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
-    await token.approve(directory.address, 10000, { from: accounts[1] });
+    await token.approve(stakingManager.address, 10000, { from: accounts[1] });
   });
 
   it('should be able to deposit escrow', async () => {
@@ -189,8 +189,8 @@ contract('Ticketing', accounts => {
 
   it('can redeem winning ticket', async () => {
     // simulate having account[1] as a node with a listing and a
-    // directory entry
-    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    // stakingManager entry
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
@@ -216,8 +216,8 @@ contract('Ticketing', accounts => {
 
   it('burns penalty on insufficient escrow', async () => {
     // simulate having account[1] as a node with a listing and a
-    // directory entry
-    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    // stakingManager entry
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await ticketing.depositEscrow(5, accounts[0], { from: accounts[1] });
@@ -250,10 +250,10 @@ contract('Ticketing', accounts => {
 
   it('should payout delegated stakers on redeeming ticket', async () => {
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
-    await token.approve(directory.address, 1000, { from: accounts[2] });
+    await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
     // have account[2] as a delegated staker
-    await directory.addStake(1, accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
@@ -291,8 +291,8 @@ contract('Ticketing', accounts => {
     // have account 2 and 3 as delegated stakers
     for (let i = 2; i < 4; i++) {
       await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(directory.address, 1000, { from: accounts[i] });
-      await directory.addStake(1, accounts[1], { from: accounts[i] });
+      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await stakingManager.addStake(1, accounts[1], { from: accounts[i] });
     }
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
@@ -334,11 +334,11 @@ contract('Ticketing', accounts => {
 
   it('should payout full ticket face value to node if all delegates pull out', async () => {
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
-    await token.approve(directory.address, 1000, { from: accounts[2] });
+    await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
     // have both the node and account[2] stake
-    await directory.addStake(1, accounts[1], { from: accounts[2] });
-    await directory.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
@@ -348,7 +348,7 @@ contract('Ticketing', accounts => {
       await createWinningTicket(0, 1);
 
     // unlock account[2] stake
-    await directory.unlockStake(1, accounts[1], { from: accounts[2] });
+    await stakingManager.unlockStake(1, accounts[1], { from: accounts[2] });
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
@@ -375,11 +375,11 @@ contract('Ticketing', accounts => {
     // reach 10 delegator limit
     for (let i = 0; i < accounts.length; i++) {
       if (i == 1) {
-        await directory.addStake(1, accounts[1], { from: accounts[1] });
+        await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
       } else {
         await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-        await token.approve(directory.address, 10000, { from: accounts[i] });
-        await directory.addStake(1, accounts[1], { from: accounts[i] });
+        await token.approve(stakingManager.address, 10000, { from: accounts[i] });
+        await stakingManager.addStake(1, accounts[1], { from: accounts[i] });
       }
     }
     

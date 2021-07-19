@@ -1,0 +1,18 @@
+[
+  {
+    "voters": 1,
+    "gas_used": 97468
+  },
+  {
+    "voters": 100,
+    "gas_used": 1145437
+  },
+  {
+    "voters": 200,
+    "gas_used": 2208413
+  },
+  {
+    "voters": 300,
+    "gas_used": 3277134
+  }
+]

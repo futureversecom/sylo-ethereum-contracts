@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "./Listings.sol";
-import "./Directory.sol";
-import "./ECDSA.sol";
+import "../Listings.sol";
+import "../Staking/Manager.sol";
+import "../ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -42,7 +42,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     Listings _listings;
 
     /* Sylo Directory contract */
-    Directory _directory;
+    StakingManager _stakingManager;
 
     /*
      * The number of blocks a user must wait after calling "unlock"
@@ -58,11 +58,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     // TODO define events
 
-    function initialize(IERC20 token, Listings listings, Directory directory, uint256 _unlockDuration) public initializer {
+    function initialize(
+        IERC20 token, 
+        Listings listings, 
+        StakingManager stakingManager, 
+        uint256 _unlockDuration
+    ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _listings = listings;
-        _directory = directory;
+        _stakingManager = stakingManager;
         unlockDuration = _unlockDuration;
     }
 
@@ -154,7 +159,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Listings.Listing memory listing = _listings.getListing(ticket.receiver);
         require(listing.initialized == true, "Ticket receiver must have a valid listing");
 
-        uint256 totalStake = _directory.stakees(ticket.receiver);
+        uint256 totalStake = _stakingManager.totalStakes(ticket.receiver);
         require(totalStake != 0, "Ticket receiver must have stake");
 
         if (ticket.faceValue > deposit.escrow) {
@@ -168,12 +173,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
             uint256 stakersPayout = listing.payoutPercentage * ticket.faceValue / PERC_DIVISOR;
             
-            address[] memory stakers = _directory.getStakers(ticket.receiver);
+            address[] memory stakers = _stakingManager.getStakers(ticket.receiver);
 
             // Track any value lost from precision due to rounding down
             uint256 stakersPayoutRemainder = stakersPayout;
             for (uint32 i = 0; i < stakers.length; i++) {
-                Directory.Stake memory stake = _directory.getStake(ticket.receiver, stakers[i]);
+                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], ticket.receiver);
                 uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
                 stakersPayoutRemainder -= stakerPayout;
                 _token.transfer(stakers[i], stakerPayout);
