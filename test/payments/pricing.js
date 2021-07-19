@@ -85,30 +85,6 @@ contract('Pricing', accounts => {
     assert.equal(currentPrice.toNumber(), 10, "Calculated price does not match expected price");
   });
 
-  it('tests gas costs of calculating a 100 votes', async () => {
-    const prices = [20, 10, 5, 30, 45, 12, 17, 9, 24, 10];
-    
-    for (let i = 0; i < 100; i++) {
-      const account = await utils.fundRandomAccount(accounts[1], token.address);
-      await voteAndStake(account.address, prices[i % prices.length], 1, account); 
-    }
-
-    // calculate the gas cost for sorting on chain
-    const sortingGasCost = await priceManager.calculatePrices.estimateGas([], { from: accounts[1] });
-
-    // calculate the gas cost for providing a sorted votes array
-    const votes = await priceVoting.getVotes();
-    const sortedVotes = [];
-    for (let i = 0; i < votes['0'].length; i++) {
-      sortedVotes.push({ voter: votes['0'][i], price: votes['1'][i] });
-    }
-    sortedVotes.sort((a, b) => a.price - b.price);
-    const validatingGasCost = await priceManager.calculatePrices.estimateGas(sortedVotes, { from: accounts[1] });
-
-    console.log(`Gas cost for calculating prices using on chain sort=${sortingGasCost}`);
-    console.log(`Gas cost for calculating price using validating sorted array=${validatingGasCost}`)
-  }).timeout(0);
-
   it('nodes without a stake are considered in price calculation', async () => {
     for (let i = 0; i < 3; i++) {
       await stakingManager.addStake(10, accounts[i], { from: accounts[1] });

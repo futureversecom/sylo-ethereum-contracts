@@ -37,20 +37,32 @@ func TestGasAddStake(t *testing.T) {
 		t.Fatalf("could not marshal test results: %v", err)
 	}
 
-	var out bytes.Buffer
-	err = json.Indent(&out, b, "", "  ")
-	if err != nil {
-		t.Fatalf("could not indent test results: %v", err)
+	writeJsonOutput(t, b, "testdata/gasAddStakeOut.json")
+}
+
+type gasCalculatePricesTest struct {
+	Nodes   uint64 `json:"voters"`
+	GasUsed uint64 `json:"gas_used"`
+}
+
+func TestGasCalculatePrices(t *testing.T) {
+	tcs := []*gasCalculatePricesTest{
+		{Nodes: 1},
+		{Nodes: 100},
+		{Nodes: 200},
+		{Nodes: 300},
 	}
-	f, err := os.Create(path.Clean("testdata/gasAddStakeOut.json"))
-	if err != nil {
-		t.Fatalf("could not create test result file: %v", err)
+
+	for _, tc := range tcs {
+		runGasCalculatePrices(t, tc)
 	}
-	defer f.Close()
-	_, err = out.WriteTo(f)
+
+	b, err := json.Marshal(tcs)
 	if err != nil {
-		t.Fatalf("could not write test results to file: %v", err)
+		t.Fatalf("could not marshal test results: %v", err)
 	}
+
+	writeJsonOutput(t, b, "testdata/gasCalculatePricesOut.json")
 }
 
 func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
@@ -59,22 +71,22 @@ func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
 
 	backend, addresses, faucet, _ := StartupEthereum(t, ctx)
 
-	// populate stake tree
+	// populate stakes
 	for i := uint64(0); i < tc.PriorStakers; i++ {
 		c, _ := CreateRandomClient(t, ctx, backend, addresses)
 		faucet(t, c.Address(), OneEth, big.NewInt(1000000))
-		approveDirectoryGas(t, ctx, c, tc.PriorStakerAmount)
+		approveStakingManager(t, ctx, c, tc.PriorStakerAmount)
 		addStakeGas(t, ctx, c, tc.PriorStakerAmount, c.Address())
 	}
 
 	c, _ := CreateRandomClient(t, ctx, backend, addresses)
 	faucet(t, c.Address(), OneEth, big.NewInt(1000000))
 	tc.GasUsed =
-		approveDirectoryGas(t, ctx, c, tc.StakeAmount) +
+		approveStakingManager(t, ctx, c, tc.StakeAmount) +
 			addStakeGas(t, ctx, c, tc.StakeAmount, c.Address())
 }
 
-func approveDirectoryGas(t *testing.T, ctx context.Context, c *client, amount *big.Int) uint64 {
+func approveStakingManager(t *testing.T, ctx context.Context, c *client, amount *big.Int) uint64 {
 	tx, err := c.ApproveStakingManager(amount)
 	if err != nil {
 		t.Fatalf("could not approve spending: %v", err)
@@ -88,4 +100,50 @@ func addStakeGas(t *testing.T, ctx context.Context, c *client, amount *big.Int, 
 		t.Fatalf("could not add stake: %v", err)
 	}
 	return tx.Gas()
+}
+
+func voteGas(t *testing.T, ctx context.Context, c *client, price *big.Int) uint64 {
+	tx, err := c.Vote(price)
+	if err != nil {
+		t.Fatalf("could not vote: %v", err)
+	}
+	return tx.Gas()
+}
+
+func runGasCalculatePrices(t *testing.T, tc *gasCalculatePricesTest) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	backend, addresses, faucet, owner := StartupEthereum(t, ctx)
+
+	// populate stakes and votes
+	for i := uint64(0); i < tc.Nodes; i++ {
+		c, _ := CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, c.Address(), OneEth, big.NewInt(1000000))
+		approveStakingManager(t, ctx, c, big.NewInt(100))
+		addStakeGas(t, ctx, c, big.NewInt(100), c.Address())
+		voteGas(t, ctx, c, big.NewInt(1))
+		backend.Commit()
+	}
+
+	tx := CalculatePrices(t, ctx, backend, owner)
+
+	tc.GasUsed = tx.Gas()
+}
+
+func writeJsonOutput(t *testing.T, b []byte, filename string) {
+	var out bytes.Buffer
+	err := json.Indent(&out, b, "", "  ")
+	if err != nil {
+		t.Fatalf("could not indent test results: %v", err)
+	}
+	f, err := os.Create(path.Clean(filename))
+	if err != nil {
+		t.Fatalf("could not create test result file: %v", err)
+	}
+	defer f.Close()
+	_, err = out.WriteTo(f)
+	if err != nil {
+		t.Fatalf("could not write test results to file: %v", err)
+	}
 }

@@ -488,7 +488,7 @@ func TestScan(t *testing.T) {
 		voteAmount := big.NewInt(1)
 		sylopayments.Vote(t, ctx, backend, aliceClient, voteAmount)
 
-		sylopayments.CalculatePrices(t, ctx, backend, ownerClient, []contracts.PriceVotingVote{})
+		sylopayments.CalculatePrices(t, ctx, backend, ownerClient)
 		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
 
 		aliceNode, _ := sylopayments.GetNode(t, aliceClient)
@@ -544,7 +544,7 @@ func TestScan(t *testing.T) {
 		sylopayments.Vote(t, ctx, backend, aliceClient, voteAmount)
 		sylopayments.Vote(t, ctx, backend, bobClient, voteAmount)
 
-		sylopayments.CalculatePrices(t, ctx, backend, ownerClient, []contracts.PriceVotingVote{})
+		sylopayments.CalculatePrices(t, ctx, backend, ownerClient)
 
 		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
 
@@ -642,7 +642,7 @@ func TestScan(t *testing.T) {
 		sylopayments.Vote(t, ctx, backend, bobClient, voteAmount)
 		sylopayments.Vote(t, ctx, backend, charlieClient, voteAmount)
 
-		sylopayments.CalculatePrices(t, ctx, backend, ownerClient, []contracts.PriceVotingVote{})
+		sylopayments.CalculatePrices(t, ctx, backend, ownerClient)
 
 		sylopayments.ConstructDirectory(t, ctx, backend, ownerClient)
 
