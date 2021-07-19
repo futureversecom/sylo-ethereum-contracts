@@ -76,7 +76,7 @@ contract('Pricing', accounts => {
       await priceVoting.vote(prices[i], { from: accounts[i] });
     }
 
-    await priceManager.calculatePrices([], { from: accounts[1] });
+    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
 
     const currentPrice = await priceManager.currentServicePrice();
 
@@ -96,7 +96,7 @@ contract('Pricing', accounts => {
       await priceVoting.vote(prices[i], { from: accounts[i] });
     }
 
-    await priceManager.calculatePrices([], { from: accounts[1] });
+    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
 
     const currentPrice = await priceManager.currentServicePrice();
 
