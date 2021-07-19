@@ -79,6 +79,7 @@ func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to e
 func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var gasLimit uint64 = 50000000
 	var addresses Addresses = Addresses{}
+	var winProb = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 
 	if len(opts) < 1 {
 		return nil, nil, errors.New("Please provide at least one option")
@@ -139,7 +140,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend.Commit()
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1))
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1), big.NewInt(1), winProb)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

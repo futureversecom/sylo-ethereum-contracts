@@ -25,6 +25,8 @@ func TestClient(t *testing.T) {
 
 	backend, addresses, faucet, _ := sylopayments.StartupEthereum(t, ctx)
 
+	faceValue := big.NewInt(1)
+
 	t.Run("client can be created", func(t *testing.T) {
 		sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 	})
@@ -152,8 +154,6 @@ func TestClient(t *testing.T) {
 			Sender:           aliceClient.Address(),
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
-			FaceValue:        big.NewInt(1),
-			WinProb:          sylopayments.Uint256max, // always win
 			ExpirationBlock:  big.NewInt(0),
 			SenderNonce:      1,
 		}
@@ -199,11 +199,11 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get balance for bob: %v", err)
 		}
 
-		if !sylopayments.BigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(ticket.FaceValue))) {
-			t.Fatalf("alice's escrow is %v: expected %v", aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(ticket.FaceValue)))
+		if !sylopayments.BigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue))) {
+			t.Fatalf("alice's escrow is %v: expected %v", aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue)))
 		}
-		if !sylopayments.BigIntsEqual(bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, ticket.FaceValue)) {
-			t.Fatalf("bob's balance is %v: expected %v", bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, ticket.FaceValue))
+		if !sylopayments.BigIntsEqual(bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, faceValue)) {
+			t.Fatalf("bob's balance is %v: expected %v", bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, faceValue))
 		}
 	})
 
@@ -227,8 +227,6 @@ func TestClient(t *testing.T) {
 			Sender:           aliceClient.Address(),
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
-			FaceValue:        big.NewInt(1),
-			WinProb:          sylopayments.Uint256max, // always win
 			ExpirationBlock:  big.NewInt(0),
 			SenderNonce:      1,
 		}

@@ -28,8 +28,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     struct Ticket {
         address sender; // Address of the ticket sender
         address receiver; // Address of the intended recipient
-        uint256 faceValue; // The value of a winning ticket
-        uint256 winProb; // The chance of a ticket winning
         uint256 expirationBlock; // Block number the ticket is valid until
         bytes32 receiverRandHash; // keccak256 hash of receivers random value
         uint32 senderNonce; // Senders ticket counter
@@ -43,6 +41,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     /* Sylo Directory contract */
     StakingManager _stakingManager;
+
+    // The value of a winning ticket
+    uint256 public faceValue;
+
+    // The chance of a ticket winning
+    uint256 public winProb;
 
     /*
      * The number of blocks a user must wait after calling "unlock"
@@ -62,17 +66,29 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         IERC20 token, 
         Listings listings, 
         StakingManager stakingManager, 
-        uint256 _unlockDuration
+        uint256 _unlockDuration,
+        uint256 _faceValue,
+        uint256 _winProb
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _listings = listings;
         _stakingManager = stakingManager;
         unlockDuration = _unlockDuration;
+        faceValue = _faceValue;
+        winProb = _winProb;
     }
 
     function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
         unlockDuration = newUnlockDuration;
+    }
+
+    function setFaceValue(uint256 _faceValue) public onlyOwner {
+        faceValue = _faceValue;
+    }
+
+    function setWinProb(uint256 _winProb) public onlyOwner {
+        winProb = _winProb;
     }
 
     function depositEscrow(uint256 amount, address account) public {
@@ -150,7 +166,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Deposit storage deposit = getDeposit(ticket.sender);
 
         require(
-            deposit.escrow + deposit.penalty >= ticket.faceValue,
+            deposit.escrow + deposit.penalty >= faceValue,
             "Sender doesn't have enough funds to pay"
         );
 
@@ -162,16 +178,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 totalStake = _stakingManager.totalStakes(ticket.receiver);
         require(totalStake != 0, "Ticket receiver must have stake");
 
-        if (ticket.faceValue > deposit.escrow) {
+        if (faceValue > deposit.escrow) {
             _token.transfer(ticket.receiver, deposit.escrow);
             _token.transfer(address(_token), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            deposit.escrow = deposit.escrow.sub(ticket.faceValue);
+            deposit.escrow = deposit.escrow.sub(faceValue);
 
-            uint256 stakersPayout = listing.payoutPercentage * ticket.faceValue / PERC_DIVISOR;
+            uint256 stakersPayout = listing.payoutPercentage * faceValue / PERC_DIVISOR;
             
             address[] memory stakers = _stakingManager.getStakers(ticket.receiver);
 
@@ -185,7 +201,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             }
 
             // payout any remainder to the stakee
-            uint256 stakeePayout = ticket.faceValue - stakersPayout + stakersPayoutRemainder;
+            uint256 stakeePayout = faceValue - stakersPayout + stakersPayoutRemainder;
             _token.transfer(ticket.receiver, stakeePayout);
         }
     }
@@ -210,7 +226,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
 
         require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
-        require(isWinningTicket(sig, receiverRand, ticket.winProb), "Ticket is not a winner");
+        require(isWinningTicket(sig, receiverRand, winProb), "Ticket is not a winner");
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
@@ -228,18 +244,18 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     function isWinningTicket(
         bytes memory sig,
         uint256 receiverRand,
-        uint256 winProb
+        uint256 _winProb
     ) internal pure returns (bool) {
-        return uint256(keccak256(abi.encodePacked(sig, receiverRand))) < winProb;
+        return uint256(keccak256(abi.encodePacked(sig, receiverRand))) < _winProb;
     }
 
-    function getTicketHash(Ticket memory ticket) public pure returns (bytes32) {
+    function getTicketHash(Ticket memory ticket) public view returns (bytes32) {
         return keccak256(
             abi.encodePacked(
                 ticket.sender,
                 ticket.receiver,
-                ticket.faceValue,
-                ticket.winProb,
+                faceValue,
+                winProb,
                 ticket.expirationBlock,
                 ticket.receiverRandHash,
                 ticket.senderNonce

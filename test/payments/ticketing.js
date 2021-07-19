@@ -7,6 +7,11 @@ const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
 contract('Ticketing', accounts => {
+  const faceValue = 15;
+
+  // max win prob
+  const winProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString(); 
+
   let token;
   let ticketing;
   let listings;
@@ -42,7 +47,9 @@ contract('Ticketing', accounts => {
       token.address, 
       listings.address, 
       stakingManager.address, 
-      0, 
+      0,
+      faceValue,
+      winProb,
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
@@ -203,13 +210,13 @@ contract('Ticketing', accounts => {
     await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
 
     const deposit = await ticketing.deposits.call(accounts[0]);
-    assert.equal(deposit.escrow.toString(), '40', 'Expected ticket face value to be substracted from escrow');
+    assert.equal(deposit.escrow.toString(), '35', 'Expected ticket face value to be substracted from escrow');
     assert.equal(deposit.penalty.toString(), '50', 'Expected penalty to not be changed');
 
     const postRedeemBalance = await token.balanceOf(accounts[1]);
     assert.equal(
       postRedeemBalance.toString(),
-      initialReceiverBalance.add(new BN(ticket.faceValue)).toString(),
+      initialReceiverBalance.add(new BN(faceValue)).toString(),
       "Expected balance of receiver to have added the ticket face value"
     );
   });
@@ -269,7 +276,7 @@ contract('Ticketing', accounts => {
 
     // The payout percentage is 50%, so the node (accounts[1]) and the
     // only delegator (account[2]) should split the reward equally
-    const expectedPayout = ticket.faceValue / 2;
+    const expectedPayout = faceValue / 2;
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
     const postReceiverBalance = await token.balanceOf(accounts[1]);
@@ -282,7 +289,7 @@ contract('Ticketing', accounts => {
 
     assert.equal(
       postReceiverBalance.toString(),
-      initialReceiverBalance.add(new BN(expectedPayout)).toString(),
+      initialReceiverBalance.add(new BN(expectedPayout + 1 /* add 1 due to rounding  */)).toString(),
       "Expected balance of receiver to have added 50% of ticket face value"
     );
   });
@@ -301,7 +308,7 @@ contract('Ticketing', accounts => {
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
     const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1, 15); // 15 ticket as face value
+      await createWinningTicket(0, 1);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
@@ -313,8 +320,8 @@ contract('Ticketing', accounts => {
     // split amongst the delegators (accounts 2 and 3), it will be split
     // proportionally but rounded down, so both will receive 3, and the remainder (1)
     // will be sent to the node
-    const expectedDelegatorsPayout = parseInt(ticket.faceValue / 2);
-    const expectedStakeePayout = ticket.faceValue - expectedDelegatorsPayout + 1;
+    const expectedDelegatorsPayout = parseInt(faceValue / 2);
+    const expectedStakeePayout = faceValue - expectedDelegatorsPayout + 1;
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
     const postReceiverBalance = await token.balanceOf(accounts[1]);
@@ -366,7 +373,7 @@ contract('Ticketing', accounts => {
 
     assert.equal(
       postReceiverBalance.toString(),
-      initialReceiverBalance.add(new BN(ticket.faceValue)).toString(),
+      initialReceiverBalance.add(new BN(faceValue)).toString(),
       "Expected balance of receiver to have added 50% of ticket face value"
     );
   });
@@ -401,29 +408,19 @@ contract('Ticketing', accounts => {
     );
   });
 
-  async function createWinningTicket(sender, receiver, faceValue = 10) {
+  async function createWinningTicket(sender, receiver) {
     const receiverRand = 1;
     const receiverRandHash = soliditySha3(receiverRand);
 
     const ticket = {
       sender: accounts[sender],
       receiver: accounts[receiver],
-      faceValue,
-      winProb: (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString(), //max win prob
       expirationBlock: 0,
       receiverRandHash,
       senderNonce: 1
-    }
-    
-    const ticketHash = soliditySha3(
-      ticket.sender,
-      ticket.receiver,
-      ticket.faceValue,
-      { t: 'uint256', v: ticket.winProb.toString() },
-      ticket.expirationBlock,
-      ticket.receiverRandHash,
-      { t: 'uint32', v: ticket.senderNonce }
-    );
+    };
+
+    const ticketHash = await ticketing.getTicketHash(ticket);
 
     const signature = eth.Account.sign(ticketHash, privateKeys[sender]);
 
