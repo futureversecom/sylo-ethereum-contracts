@@ -45,59 +45,6 @@ contract PriceVoting is Initializable, OwnableUpgradeable {
         }
     }
 
-    function sortVotes() view public returns (address[] memory, uint256[] memory) {
-        Vote[] memory copy = new Vote[](voters.length);
-        for (uint i = 0; i < voters.length; i++) {
-            address voter = voters[i];
-            copy[i] = Vote(voter, votes[voter]);
-        }
-
-        quickSort(copy, int(0), int(copy.length - 1));
-
-        address[] memory a = new address[](copy.length);
-        uint256[] memory b = new uint256[](copy.length);
-
-        for (uint i = 0; i < copy.length; i++) {
-            a[i] = copy[i].voter;
-            b[i] = copy[i].price;
-        }
-
-        return (a, b);
-    }
-
-    function quickSort(Vote[] memory data, int low, int high) internal pure {
-        if (low < high) {
-            int pi = partition(data, low, high);
-
-            quickSort(data, low, pi - 1);
-            quickSort(data, pi + 1, high);
-        }
-    }
-
-    function partition(Vote[] memory data, int low, int high) internal pure returns (int) {
-        // pivot (Element to be placed at right position)
-        Vote memory pivot = data[uint(high)];  
-    
-        int i = low - 1;
-
-        for (int j = low; j <= high - 1; j++) {
-            // If current element is smaller than the pivot
-            if (data[uint(j)].price < pivot.price) {
-                i++;    // increment index of smaller element
-
-                // swap
-                Vote memory copy = data[uint(j)];
-                data[uint(j)] = data[uint(i)];
-                data[uint(i)] = copy;
-            }
-        }
-
-        // place pivot in correct position
-        data[uint(high)] = data[uint(i + 1)];
-        data[uint(i + 1)] = pivot;
-        return i + 1;
-    }
-
     function getVotes() view public returns (address[] memory, uint256[] memory) {
         address[] memory _voters = new address[](voters.length);
         uint256[] memory _votes = new uint256[](voters.length);
@@ -113,33 +60,42 @@ contract PriceVoting is Initializable, OwnableUpgradeable {
     // This function validates that the given list of votes is
     // sorted from lowest to highest, and each voter is included in the list,
     // and that all voters in the given list have actually voted
-    function validateSortedVotes(Vote[] memory sortedVotes) view public {
+    function validateSortedVotes(uint256[] memory sortedIndexes) public view returns (Vote[] memory) {
+        // If we validate there are no duplicates, and the length of the sorted 
+        // array is equal to the voter array, then all voters are accounted for
+        require(sortedIndexes.length == voters.length, "Not all voters were present in sorted voter array");
+
+        // used to validate there are no duplicate votes
+        bool[] memory seen = new bool[](voters.length);
+
+        // used to validate that votes are in order
         uint256 curr = 0;
 
-        address[] memory knownVoters = new address[](sortedVotes.length);
+        // sorted voter list constructed from querying sorted indexes
+        Vote[] memory sortedVotes = new Vote[](voters.length);
 
-        for (uint i = 0; i < sortedVotes.length; i++) {
-            require(sortedVotes[i].price >= curr, "Given vote array is not sorted");
-            curr = sortedVotes[i].price;
+        for (uint i = 0; i < sortedIndexes.length; i++) {
+            address voter = voters[sortedIndexes[i]];
+            uint256 price = votes[voter];
 
-            require(votes[sortedVotes[i].voter] > 0, "Found invalid voter in sorted voter array");
+            require(price >= curr, "Given vote array is not sorted");
+            curr = votes[voter];
 
-            // ensure there are no duplicates in the sorted array
-            for (uint j = 0; j < knownVoters.length; j++) {
-                require(knownVoters[j] != sortedVotes[i].voter, "Found duplicate in sorted voter array");
+            require(!seen[sortedIndexes[i]], "Found duplicate");
+            seen[sortedIndexes[i]] = true;
 
-                // end of array
-                if (knownVoters[j] == address(0)) {
-                    break;
-                }
-            }
-
-            knownVoters[i] = sortedVotes[i].voter;
+            sortedVotes[i] = Vote(voter, price);
         }
 
-        // If we validate each voter in the sorted array has voted, and there are no
-        // duplicates, and the length of the sorted array is equal to the voter array, 
-        // then all voters are accounted for
-        require(sortedVotes.length == voters.length, "Not all voters were present in sorted voter array");
+        return sortedVotes;
+    }
+
+    function seek(address[] memory hmap, address e, uint idx) internal pure returns (uint256) {
+        if (hmap[idx] == address(0) || hmap[idx] == e) {
+            return idx;
+        } else {
+            idx++;
+            return seek(hmap, e, idx % hmap.length);
+        }
     }
 }

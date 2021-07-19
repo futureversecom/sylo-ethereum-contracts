@@ -30,22 +30,11 @@ contract PriceManager is Initializable, OwnableUpgradeable {
     }
 
     function calculatePrices(
-        PriceVoting.Vote[] memory sortedVotes
+        uint256[] memory sortedIndexes
     ) public onlyOwner returns (uint256 servicePrice, uint256 upperPrice) {
         // we were given a list of sorted votes, validate the votes instead
-        if (sortedVotes.length > 0) {
-            _voting.validateSortedVotes(sortedVotes);
-            return _calculatePrices(sortedVotes);
-        } else {
-            (address[] memory voters, uint256[] memory votes) = _voting.sortVotes();
-            PriceVoting.Vote[] memory _sortedVotes = new PriceVoting.Vote[](voters.length);
-
-            for (uint i = 0; i < voters.length; i++) {
-                _sortedVotes[i] = PriceVoting.Vote(voters[i], votes[i]);
-            }
-
-            return _calculatePrices(_sortedVotes);
-        }
+        PriceVoting.Vote[] memory sortedVotes = _voting.validateSortedVotes(sortedIndexes);
+        return _calculatePrices(sortedVotes);
     }
 
     function _calculatePrices(

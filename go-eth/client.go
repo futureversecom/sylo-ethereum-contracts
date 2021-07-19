@@ -56,11 +56,12 @@ type Client interface {
 
 	// PriceManager methods
 
-	CalculatePrices(sortedVotes []contracts.PriceVotingVote) (*types.Transaction, error)
+	CalculatePrices(sortedVotes []*big.Int) (*types.Transaction, error)
 
 	// PriceVoting methods
 
 	Vote(price *big.Int) (*types.Transaction, error)
+	GetVotes() ([]ethcommon.Address, []*big.Int, error)
 	WithdrawVote() (*types.Transaction, error)
 
 	// StakingManager methods

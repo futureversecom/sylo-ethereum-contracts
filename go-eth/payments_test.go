@@ -42,7 +42,7 @@ func TestPayments(t *testing.T) {
 	sylopayments.Vote(t, ctx, backend, node, big.NewInt(1))
 
 	// calculate prices
-	sylopayments.CalculatePrices(t, ctx, backend, owner, []contracts.PriceVotingVote{})
+	sylopayments.CalculatePrices(t, ctx, backend, owner)
 
 	// construct directory
 	sylopayments.ConstructDirectory(t, ctx, backend, owner)

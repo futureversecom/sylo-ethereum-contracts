@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 	"testing"
 
@@ -55,7 +56,7 @@ func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, 
 }
 
 func CreateBackend(t *testing.T, ctx context.Context, owner common.Address) SimBackend {
-	gasLimit := uint64(4712388)
+	gasLimit := uint64(100000000000000)
 	genesis := make(core.GenesisAlloc)
 	genesis[owner] = core.GenesisAccount{Balance: FaucetEthBalance}
 	return NewSimBackend(backends.NewSimulatedBackend(genesis, gasLimit))
@@ -158,8 +159,38 @@ func Vote(t *testing.T, ctx context.Context, backend SimBackend, client Client, 
 	}
 }
 
-func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, client Client, sortedVotes []contracts.PriceVotingVote) {
-	tx, err := client.CalculatePrices(sortedVotes)
+type SortedVote struct {
+	Voter ethcommon.Address
+	Price *big.Int
+	Index *big.Int
+}
+
+func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, client Client) *types.Transaction {
+	voters, prices, err := client.GetVotes()
+	if err != nil {
+		t.Fatalf("could not retrieve votes: %v", err)
+	}
+
+	fmt.Printf("utils_test %v", voters)
+
+	sortedVotes := []SortedVote{}
+
+	for i := 0; i < len(voters); i++ {
+		sortedVotes = append(
+			sortedVotes,
+			SortedVote{voters[i], prices[i], big.NewInt(int64(i))},
+		)
+	}
+	sort.Slice(sortedVotes, func(i, j int) bool {
+		return sortedVotes[i].Price.Cmp(sortedVotes[j].Price) == -1
+	})
+
+	sortedIndexes := []*big.Int{}
+	for i := 0; i < len(voters); i++ {
+		sortedIndexes = append(sortedIndexes, sortedVotes[i].Index)
+	}
+
+	tx, err := client.CalculatePrices(sortedIndexes)
 	if err != nil {
 		t.Fatalf("could not add stake: %v", err)
 	}
@@ -169,6 +200,8 @@ func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, clie
 	if err != nil {
 		t.Fatalf("could not check transaction: %v", err)
 	}
+
+	return tx
 }
 
 func ConstructDirectory(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
