@@ -32,3 +32,16 @@ exports.sendContractTransaction = async function(contractAddress, method, accoun
   const signedTx = await web3.eth.accounts.signTransaction(rawTx, account.privateKey);
   await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
 }
+
+exports.calculatePrices = async function(priceManager, priceVoting, owner){
+  const r = await priceVoting.getVotes();
+  const sortedVotes = [];
+  for (let i = 0; i < r['1'].length; i++) {
+    sortedVotes.push({ p: r['1'][i], i });
+  }
+  sortedVotes.sort((a, b) => {
+    return a.p - b.p;
+  });
+  const sortedIndexes = sortedVotes.map(x => x.i);
+  await priceManager.calculatePrices(sortedIndexes, { from: owner });
+}

@@ -8,6 +8,8 @@ const PriceManager = artifacts.require("PriceManager");
 const PriceVoting = artifacts.require("PriceVoting");
 const Token = artifacts.require("SyloToken");
 
+const utils = require('./utils');
+
 contract('Staking', accounts => {
   let token;
   let stakingManager;
@@ -125,7 +127,7 @@ contract('Staking', accounts => {
       await priceVoting.vote(1, { from: accounts[i] });
     }
 
-    await priceManager.calculatePrices([], { from: accounts[1] });
+    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
     await directory.constructDirectory({ from: accounts[1] });
 
     let expectedResults = {}
@@ -217,7 +219,7 @@ contract('Staking', accounts => {
       await priceVoting.vote(1, { from: accounts[i] });
     }
 
-    await priceManager.calculatePrices([], { from: accounts[1] });
+    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
     await directory.constructDirectory({ from: accounts[1] });
   }
 
