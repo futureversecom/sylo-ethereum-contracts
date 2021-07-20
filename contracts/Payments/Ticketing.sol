@@ -194,7 +194,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            deposit.escrow = deposit.escrow.sub(faceValue);
+            deposit.escrow = deposit.escrow.sub(payout);
 
             uint256 stakersPayout = listing.payoutPercentage * payout / PERC_DIVISOR;
             
@@ -210,7 +210,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             }
 
             // payout any remainder to the stakee
-            uint256 stakeePayout = faceValue - stakersPayout + stakersPayoutRemainder;
+            uint256 stakeePayout = payout - stakersPayout + stakersPayoutRemainder;
             _token.transfer(ticket.receiver, stakeePayout);
         }
     }

@@ -158,7 +158,7 @@ func TestClient(t *testing.T) {
 			Sender:           aliceClient.Address(),
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
-			GenerationBlock:  latestBlock,
+			GenerationBlock:  latestBlock.Add(latestBlock, big.NewInt(1)),
 			SenderRandHash:   1,
 		}
 
@@ -235,7 +235,7 @@ func TestClient(t *testing.T) {
 			Sender:           aliceClient.Address(),
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
-			GenerationBlock:  latestBlock,
+			GenerationBlock:  latestBlock.Add(latestBlock, big.NewInt(1)),
 			SenderRandHash:   1,
 		}
 

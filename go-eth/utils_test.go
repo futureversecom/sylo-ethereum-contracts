@@ -171,8 +171,6 @@ func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, clie
 		t.Fatalf("could not retrieve votes: %v", err)
 	}
 
-	fmt.Printf("utils_test %v", voters)
-
 	sortedVotes := []SortedVote{}
 
 	for i := 0; i < len(voters); i++ {

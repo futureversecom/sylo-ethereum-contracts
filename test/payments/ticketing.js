@@ -6,7 +6,7 @@ const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
-contract.only('Ticketing', accounts => {
+contract('Ticketing', accounts => {
   const faceValue = 15;
 
   // max win prob
@@ -191,14 +191,15 @@ contract.only('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
+    
     const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1);
-
+    await createWinningTicket(0, 1);
+    
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
     await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
 
     const deposit = await ticketing.deposits.call(accounts[0]);
-    assert.equal(deposit.escrow.toString(), '35', 'Expected ticket face value to be substracted from escrow');
+    assert.equal(deposit.escrow.toString(), '35', 'Expected ticket payout to be substracted from escrow');
     assert.equal(deposit.penalty.toString(), '50', 'Expected penalty to not be changed');
 
     const postRedeemBalance = await token.balanceOf(accounts[1]);
@@ -339,14 +340,14 @@ contract.only('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1);
-
     // unlock account[2] stake
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[2] });
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
+
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
 
     await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
 
@@ -396,6 +397,47 @@ contract.only('Ticketing', accounts => {
     );
   });
 
+  it('should decay payout as ticket gets older', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    // advance the block 50 times (halfway to ticket expiry)
+    for (let i = 0; i < 50; i++) {
+      await advanceBlock();
+    }
+
+    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+
+    const postRedeemBalance = await token.balanceOf(accounts[1]);
+    assert.equal(
+      postRedeemBalance.toString(),
+      initialReceiverBalance.add(new BN(faceValue / 2)).toString(),
+      "Expected balance of receiver to have added the ticket face value"
+    );
+  });
+
+  async function advanceBlock() {
+    return await new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+        jsonrpc: '2.0',
+        method: 'evm_mine',
+        id: new Date().getTime()
+      }, (err, result) => {
+        if (err) { return reject(err) }
+        const newBlockHash = web3.eth.getBlock('latest').hash
+  
+        return resolve(newBlockHash)
+      })
+    })
+  }
+
   async function createWinningTicket(sender, receiver) {
     const receiverRand = 1;
     const receiverRandHash = soliditySha3(receiverRand);
@@ -405,7 +447,7 @@ contract.only('Ticketing', accounts => {
     const ticket = {
       sender: accounts[sender],
       receiver: accounts[receiver],
-      generationBlock: new BN(generationBlock).toString(),
+      generationBlock: new BN(generationBlock + 1).toString(),
       receiverRandHash,
       senderRandHash: 1
     };
