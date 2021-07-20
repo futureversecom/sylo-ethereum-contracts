@@ -122,8 +122,8 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 		Sender:           sender.Address(),
 		Receiver:         receiver,
 		ReceiverRandHash: hashBytes,
-		ExpirationBlock:  big.NewInt(0),
-		SenderNonce:      1,
+		GenerationBlock:  big.NewInt(0),
+		SenderRandHash:   1,
 	}
 
 	ticketHash, err := sender.GetTicketHash(ticket)

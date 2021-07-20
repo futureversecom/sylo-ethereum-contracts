@@ -150,12 +150,16 @@ func TestClient(t *testing.T) {
 		var bobRandHash [32]byte
 		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
 
+		latestBlock, err := aliceClient.LatestBlock()
+		if err != nil {
+			t.Fatalf("could not retrieve latest block %v", err)
+		}
 		ticket := contracts.SyloTicketingTicket{
 			Sender:           aliceClient.Address(),
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
-			ExpirationBlock:  big.NewInt(0),
-			SenderNonce:      1,
+			GenerationBlock:  latestBlock,
+			SenderRandHash:   1,
 		}
 
 		ticketHash, err := aliceClient.GetTicketHash(ticket)
@@ -223,12 +227,16 @@ func TestClient(t *testing.T) {
 		var bobRandHash [32]byte
 		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
 
+		latestBlock, err := aliceClient.LatestBlock()
+		if err != nil {
+			t.Fatalf("could not retrieve latest block %v", err)
+		}
 		ticket := contracts.SyloTicketingTicket{
 			Sender:           aliceClient.Address(),
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
-			ExpirationBlock:  big.NewInt(0),
-			SenderNonce:      1,
+			GenerationBlock:  latestBlock,
+			SenderRandHash:   1,
 		}
 
 		ticketHash, err := aliceClient.GetTicketHash(ticket)
