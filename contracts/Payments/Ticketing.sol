@@ -28,9 +28,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     struct Ticket {
         address sender; // Address of the ticket sender
         address receiver; // Address of the intended recipient
-        uint256 expirationBlock; // Block number the ticket is valid until
+        uint256 generationBlock; // Block number the ticket was generated
         bytes32 receiverRandHash; // keccak256 hash of receivers random value
-        uint32 senderNonce; // Senders ticket counter
+        uint32 senderRandHash; // Senders ticket counter
     }
 
     /* ERC 20 compatible token we are dealing with */
@@ -47,6 +47,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     // The chance of a ticket winning
     uint256 public winProb;
+
+    // The length in blocks before a ticket is considered expired.
+    // The default initialization value is 80,000. This equates
+    // to roughly two weeks (15s per block).
+    uint256 public ticketLength;
 
     /*
      * The number of blocks a user must wait after calling "unlock"
@@ -68,7 +73,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         StakingManager stakingManager, 
         uint256 _unlockDuration,
         uint256 _faceValue,
-        uint256 _winProb
+        uint256 _winProb,
+        uint256 _ticketLength
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
@@ -77,6 +83,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         unlockDuration = _unlockDuration;
         faceValue = _faceValue;
         winProb = _winProb;
+        ticketLength = _ticketLength;
     }
 
     function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
@@ -165,8 +172,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         Deposit storage deposit = getDeposit(ticket.sender);
 
+        uint256 payout = calculatePayout(ticket);
+
         require(
-            deposit.escrow + deposit.penalty >= faceValue,
+            deposit.escrow + deposit.penalty >= payout,
             "Sender doesn't have enough funds to pay"
         );
 
@@ -187,7 +196,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         } else {
             deposit.escrow = deposit.escrow.sub(faceValue);
 
-            uint256 stakersPayout = listing.payoutPercentage * faceValue / PERC_DIVISOR;
+            uint256 stakersPayout = listing.payoutPercentage * payout / PERC_DIVISOR;
             
             address[] memory stakers = _stakingManager.getStakers(ticket.receiver);
 
@@ -215,10 +224,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         require(ticket.sender != address(0), "Ticket sender is null");
         require(ticket.receiver != address(0), "Ticket receiver is null");
 
-        require(
-            ticket.expirationBlock == 0 || ticket.expirationBlock >= block.number,
-            "Ticket has expired"
-        );
         require(!usedTickets[ticketHash], "Ticket already redeemed");
         require(
             keccak256(abi.encodePacked(receiverRand)) == ticket.receiverRandHash,
@@ -249,6 +254,23 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         return uint256(keccak256(abi.encodePacked(sig, receiverRand))) < _winProb;
     }
 
+    function calculatePayout(
+        Ticket memory ticket
+    ) public view returns (uint256) {
+        uint256 expiry = ticket.generationBlock + ticketLength;
+        if (expiry <= block.number) {
+            // ticket has expired
+            return 0;
+        } else {
+            // determine the number of blocks the ticket will remain alive for
+            uint256 remainingLifetime = ticketLength - (block.number - ticket.generationBlock);
+
+            // determine the payout value
+            uint256 payout = remainingLifetime * faceValue / ticketLength;
+            return payout;
+        }
+    }
+
     function getTicketHash(Ticket memory ticket) public view returns (bytes32) {
         return keccak256(
             abi.encodePacked(
@@ -256,9 +278,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
                 ticket.receiver,
                 faceValue,
                 winProb,
-                ticket.expirationBlock,
+                ticket.generationBlock,
                 ticket.receiverRandHash,
-                ticket.senderNonce
+                ticket.senderRandHash
             )
         );
     }

@@ -6,11 +6,13 @@ const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
-contract('Ticketing', accounts => {
+contract.only('Ticketing', accounts => {
   const faceValue = 15;
 
   // max win prob
-  const winProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString(); 
+  const winProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString();
+
+  const ticketLength = 100;
 
   let token;
   let ticketing;
@@ -50,6 +52,7 @@ contract('Ticketing', accounts => {
       0,
       faceValue,
       winProb,
+      ticketLength,
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
@@ -147,21 +150,6 @@ contract('Ticketing', accounts => {
 
     const deposit = await ticketing.deposits(accounts[0]);
     assert.equal(deposit.unlockAt.toString(), '0', 'Expected deposit to go into unlocking phase');
-  });
-
-  it('can not redeem expired ticket', async () => {
-    const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1);
-
-    ticket.expirationBlock = 1;
-
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
-      .then(() => {
-        assert.fail('Should fail to redeem expired ticket');
-      })
-      .catch(e => {
-        assert.include(e.message, 'Ticket has expired', 'Expected redeeming to fail due to expired ticket');
-      });
   });
 
   it('can not redeem ticket with invalid signature', async () => {
@@ -412,12 +400,14 @@ contract('Ticketing', accounts => {
     const receiverRand = 1;
     const receiverRandHash = soliditySha3(receiverRand);
 
+    const generationBlock = await web3.eth.getBlockNumber();
+
     const ticket = {
       sender: accounts[sender],
       receiver: accounts[receiver],
-      expirationBlock: 0,
+      generationBlock: new BN(generationBlock).toString(),
       receiverRandHash,
-      senderNonce: 1
+      senderRandHash: 1
     };
 
     const ticketHash = await ticketing.getTicketHash(ticket);
