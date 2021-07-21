@@ -8,7 +8,7 @@
         "stake_amount": 1000,
         "unlock_amount": 100,
         "cancel_amount": 100,
-        "gas_used": 76284
+        "gas_used": 76296
       },
       {
         "prior_stakers": 10,

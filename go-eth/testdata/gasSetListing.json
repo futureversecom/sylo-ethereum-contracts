@@ -1,0 +1,59 @@
+[
+  {
+    "description": "vary multiaddr",
+    "test": [
+      {
+        "multiaddr": "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2",
+        "minimum_delegated_stake": 1000,
+        "overwrite_an_existing_listing": false,
+        "gas_used": 181282
+      },
+      {
+        "multiaddr": "/ip4/255.255.255.255/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2/p2p-circuit/p2p/12D3KooWBDsmZbA7ZvMTvE2kv3owqjnUULfjY4XhkqSSJD1mmprL",
+        "minimum_delegated_stake": 1000,
+        "overwrite_an_existing_listing": false,
+        "gas_used": 226814
+      }
+    ]
+  },
+  {
+    "description": "vary minimum delegated stake",
+    "test": [
+      {
+        "multiaddr": "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2",
+        "minimum_delegated_stake": 10,
+        "overwrite_an_existing_listing": false,
+        "gas_used": 181270
+      },
+      {
+        "multiaddr": "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2",
+        "minimum_delegated_stake": 100,
+        "overwrite_an_existing_listing": false,
+        "gas_used": 181270
+      },
+      {
+        "multiaddr": "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2",
+        "minimum_delegated_stake": 1000,
+        "overwrite_an_existing_listing": false,
+        "gas_used": 181282
+      }
+    ]
+  },
+  {
+    "description": "overwrite existing listing",
+    "test": [
+      {
+        "multiaddr": "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2",
+        "minimum_delegated_stake": 100,
+        "overwrite_an_existing_listing": false,
+        "gas_used": 181270
+      },
+      {
+        "multiaddr": "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2",
+        "minimum_delegated_stake": 100,
+        "overwrite_an_existing_listing": true,
+        "gas_used": 44142
+      }
+    ]
+  }
+]

@@ -21,7 +21,7 @@ type gasTests struct {
 type gasAddStakeTest struct {
 	PriorStakers      uint64   `json:"prior_stakers"`
 	PriorStakerAmount *big.Int `json:"prior_staker_amount"`
-	StakeAmount       *big.Int `json:"stake_amounts"`
+	StakeAmount       *big.Int `json:"stake_amount"`
 	GasUsed           uint64   `json:"gas_used"`
 }
 
@@ -289,6 +289,67 @@ func runGasWithdrawStake(t *testing.T, i interface{}) {
 	tc.GasUsed = withdrawStakeGas(t, ctx, c, c.Address())
 }
 
+type gasSetListingTest struct {
+	Multiaddr         string   `json:"multiaddr"`
+	MinDelegatedStake *big.Int `json:"minimum_delegated_stake"`
+	OverwriteExisting bool     `json:"overwrite_an_existing_listing"`
+	GasUsed           uint64   `json:"gas_used"`
+}
+
+func (t *gasSetListingTest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(*t)
+}
+
+func TestGasSetListing(t *testing.T) {
+	suite := []*gasTests{
+		{
+			Description: "vary multiaddr",
+			Tests: []json.Marshaler{
+				&gasSetListingTest{Multiaddr: "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2", MinDelegatedStake: big.NewInt(1000), OverwriteExisting: false},
+				&gasSetListingTest{Multiaddr: "/ip4/255.255.255.255/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2/p2p-circuit/p2p/12D3KooWBDsmZbA7ZvMTvE2kv3owqjnUULfjY4XhkqSSJD1mmprL", MinDelegatedStake: big.NewInt(1000), OverwriteExisting: false},
+			},
+		},
+		{
+			Description: "vary minimum delegated stake",
+			Tests: []json.Marshaler{
+				&gasSetListingTest{Multiaddr: "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2", MinDelegatedStake: big.NewInt(10), OverwriteExisting: false},
+				&gasSetListingTest{Multiaddr: "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2", MinDelegatedStake: big.NewInt(100), OverwriteExisting: false},
+				&gasSetListingTest{Multiaddr: "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2", MinDelegatedStake: big.NewInt(1000), OverwriteExisting: false},
+			},
+		},
+		{
+			Description: "overwrite existing listing",
+			Tests: []json.Marshaler{
+				&gasSetListingTest{Multiaddr: "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2", MinDelegatedStake: big.NewInt(100), OverwriteExisting: false},
+				&gasSetListingTest{Multiaddr: "/ip4/1.1.1.1/tcp/12733/p2p/12D3KooWBDsmZbA7ZvSkv3owqjnUUMTLfjY4XhkqSJD1mmprLvE2", MinDelegatedStake: big.NewInt(100), OverwriteExisting: true},
+			},
+		},
+	}
+	runner(t, suite, runGasSetListing, "gasSetListing.json")
+}
+
+func runGasSetListing(t *testing.T, i interface{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tc, ok := i.(*gasSetListingTest)
+	if !ok {
+		t.Fatal("received an invalid test case")
+	}
+
+	backend, addresses, faucet := StartupEthereum(t, ctx)
+
+	c, _ := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, c.Address(), OneEth, big.NewInt(1000000))
+	tc.GasUsed = setListingGas(t, ctx, c, tc.Multiaddr, tc.MinDelegatedStake)
+	if tc.OverwriteExisting {
+		backend.Commit()
+		tc.GasUsed = setListingGas(t, ctx, c, tc.Multiaddr, tc.MinDelegatedStake)
+	}
+}
+
+// INDIVIDUAL FUNCTIONS FOR CALLING CONTRACTS AND RETURNING GAS
+
 func addStakeGas(t *testing.T, ctx context.Context, c *client, amount *big.Int, stakee ethcommon.Address) uint64 {
 	tx, err := c.AddStake(amount, stakee)
 	if err != nil {
@@ -321,6 +382,14 @@ func withdrawStakeGas(t *testing.T, ctx context.Context, c *client, stakee ethco
 	return tx.Gas()
 }
 
+func setListingGas(t *testing.T, ctx context.Context, c *client, multiaddr string, minDelegatedStake *big.Int) uint64 {
+	tx, err := c.SetListing(multiaddr, minDelegatedStake)
+	if err != nil {
+		t.Fatalf("could not set listing: %v", err)
+	}
+	return tx.Gas()
+}
+
 func approveDirectoryGas(t *testing.T, ctx context.Context, c *client, amount *big.Int) uint64 {
 	tx, err := c.ApproveDirectory(amount)
 	if err != nil {
@@ -329,6 +398,7 @@ func approveDirectoryGas(t *testing.T, ctx context.Context, c *client, amount *b
 	return tx.Gas()
 }
 
+// runner is a test runner for the gas suite.
 func runner(t *testing.T, suite []*gasTests, f func(t *testing.T, tc interface{}), outFile string) {
 	for _, s := range suite {
 		for _, tc := range s.Tests {

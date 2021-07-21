@@ -21,7 +21,7 @@
         "prior_staker_amount": 1000,
         "stake_amount": 1000,
         "unlock_amount": 999,
-        "gas_used": 112832
+        "gas_used": 112820
       },
       {
         "prior_stakers": 10,
@@ -40,7 +40,7 @@
         "prior_staker_amount": 1000,
         "stake_amount": 1000,
         "unlock_amount": 100,
-        "gas_used": 83961
+        "gas_used": 83949
       },
       {
         "prior_stakers": 1,
