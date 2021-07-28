@@ -18,7 +18,6 @@ import (
 )
 
 var unlockDuration = big.NewInt(10)
-var alwaysFailing = "failed to estimate gas needed: gas required exceeds allowance or always failing transaction"
 
 func startSimulatedBackend(auth *bind.TransactOpts) SimBackend {
 	var gasLimit uint64 = 50000000
@@ -247,9 +246,10 @@ func TestClient_WithdrawTicketing(t *testing.T) {
 	_, err = client.CheckTxTimeout(tx, 10*time.Second)
 
 	// Expect error because unlock period isn't complete
+	exp := "failed to estimate gas needed: execution reverted: Unlock period not complete"
 	tx, err = client.Withdraw()
 	if assert.Error(t, err) {
-		assert.Equal(t, alwaysFailing, err.Error())
+		assert.Equal(t, exp, err.Error())
 	}
 
 	// Advance enough blocks for the unlock period to end
@@ -376,10 +376,11 @@ func TestClient_ReplayTicket(t *testing.T) {
 	_, err = client.CheckTxTimeout(tx, duration)
 	assert.Nil(t, err, "Failed to confirm redeem")
 
+	exp := "failed to estimate gas needed: execution reverted: Ticket already redeemed"
 	tx, err = client.Redeem(ticket, receiverRand, sig)
 	if assert.Error(t, err) {
 		// Transaction should always fail because ticket has already been used
-		assert.Equal(t, alwaysFailing, err.Error())
+		assert.Equal(t, exp, err.Error())
 	}
 }
 
@@ -417,9 +418,10 @@ func TestClient_Unstake(t *testing.T) {
 
 	backend.Commit()
 
+	exp := "failed to estimate gas needed: execution reverted: Stake not yet unlocked"
 	_, err = client.Unstake(auth.From)
 	if assert.Error(t, err) {
-		assert.Equal(t, alwaysFailing, err.Error())
+		assert.Equal(t, exp, err.Error())
 	}
 
 	_, err = client.CheckTxTimeout(tx, duration)
@@ -430,7 +432,7 @@ func TestClient_Unstake(t *testing.T) {
 		backend.Commit()
 	}
 
-	balanceBefore, err := client.BalanceOf(auth.From);
+	balanceBefore, err := client.BalanceOf(auth.From)
 
 	tx, err = client.Unstake(auth.From)
 	assert.Nil(t, err, "Failed to unstake")
@@ -441,22 +443,22 @@ func TestClient_Unstake(t *testing.T) {
 	assert.Nil(t, err, "Failed to confirm unstake")
 
 	// Check that unlocking state is reset
-	unlocking, err := client.GetUnlockingStake(auth.From, auth.From);
-	assert.Nil(t, err, "Should be able to get unlocking");
+	unlocking, err := client.GetUnlockingStake(auth.From, auth.From)
+	assert.Nil(t, err, "Should be able to get unlocking")
 
 	assert.Zero(t, unlocking.Amount.Uint64(), "Unlocking should be cleared")
 	assert.Zero(t, unlocking.UnlockAt.Uint64(), "Unlocking should be cleared")
 
-	balanceAfter, err := client.BalanceOf(auth.From);
+	balanceAfter, err := client.BalanceOf(auth.From)
 
 	// Check the token balance has increased
 	assert.Equal(t, balanceAfter.Cmp(new(big.Int).Add(balanceBefore, stakeAmount)), 0, "Expected stake to be returned")
 
 	// Should not be able to unstake again
+	exp = "failed to estimate gas needed: execution reverted: No amount to unlock"
 	tx, err = client.Unstake(auth.From)
-
-	if (assert.Error(t, err)) {
-		assert.Equal(t, alwaysFailing, err.Error())
+	if assert.Error(t, err) {
+		assert.Equal(t, exp, err.Error())
 	}
 
 }
