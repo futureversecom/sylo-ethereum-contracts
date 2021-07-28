@@ -166,7 +166,7 @@ func makeABIMap() (map[string]*abi.ABI, error) {
 			return map[string]*abi.ABI{}, err
 		}
 		for _, m := range parsedAbi.Methods {
-			abiMap[string(m.ID())] = &parsedAbi
+			abiMap[string(m.ID)] = &parsedAbi
 		}
 	}
 
