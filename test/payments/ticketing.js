@@ -6,11 +6,14 @@ const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
-contract('Ticketing', accounts => {
+contract.only('Ticketing', accounts => {
   const faceValue = 15;
 
   // max win prob
-  const winProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString();
+  const baseWinProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString();
+
+  // min prob constant
+  const minProbConstant = (new BN(2)).pow(new BN(128)).toString();
 
   const ticketLength = 100;
 
@@ -51,7 +54,8 @@ contract('Ticketing', accounts => {
       stakingManager.address, 
       0,
       faceValue,
-      winProb,
+      baseWinProb,
+      minProbConstant,
       ticketLength,
       { from: accounts[1] }
     );
@@ -397,7 +401,7 @@ contract('Ticketing', accounts => {
     );
   });
 
-  it('should decay payout as ticket gets older', async () => {
+  it('should decay winning probability as ticket approaches expiry', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
@@ -449,7 +453,7 @@ contract('Ticketing', accounts => {
       receiver: accounts[receiver],
       generationBlock: new BN(generationBlock + 1).toString(),
       receiverRandHash,
-      senderRandHash: 1
+      senderNonce: 1
     };
 
     const ticketHash = await ticketing.getTicketHash(ticket);

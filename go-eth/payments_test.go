@@ -123,7 +123,7 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 		Receiver:         receiver,
 		ReceiverRandHash: hashBytes,
 		GenerationBlock:  big.NewInt(0),
-		SenderRandHash:   1,
+		SenderNonce:      1,
 	}
 
 	ticketHash, err := sender.GetTicketHash(ticket)

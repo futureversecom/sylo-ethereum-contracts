@@ -30,7 +30,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         address receiver; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 receiverRandHash; // keccak256 hash of receivers random value
-        uint32 senderRandHash; // Senders ticket counter
+        uint32 senderNonce;
     }
 
     /* ERC 20 compatible token we are dealing with */
@@ -46,7 +46,17 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     uint256 public faceValue;
 
     // The chance of a ticket winning
-    uint256 public winProb;
+    uint256 public baseWinProb;
+
+    // A percentage value representing the proportion of the base win probability
+    // that will be decayed once a ticket has expired.
+    // Example: 80% decayRate indicates that a ticket will retain 20% of its
+    // base win probability once it has expired.
+    uint32 public decayRate;
+
+    // A constant value added to the probability calculated from
+    // multiplying the base win probability by the decay rate
+    uint256 public minProbConstant;
 
     // The length in blocks before a ticket is considered expired.
     // The default initialization value is 80,000. This equates
@@ -73,7 +83,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         StakingManager stakingManager, 
         uint256 _unlockDuration,
         uint256 _faceValue,
-        uint256 _winProb,
+        uint256 _baseWinProb,
+        uint256 _minProbConstant,
         uint256 _ticketLength
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
@@ -82,7 +93,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
         unlockDuration = _unlockDuration;
         faceValue = _faceValue;
-        winProb = _winProb;
+        baseWinProb = _baseWinProb;
+        minProbConstant = _minProbConstant;
         ticketLength = _ticketLength;
     }
 
@@ -94,8 +106,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         faceValue = _faceValue;
     }
 
-    function setWinProb(uint256 _winProb) public onlyOwner {
-        winProb = _winProb;
+    function setWinProb(uint256 _baseWinProb) public onlyOwner {
+        baseWinProb = _baseWinProb;
     }
 
     function depositEscrow(uint256 amount, address account) public {
@@ -231,7 +243,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
 
         require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
-        require(isWinningTicket(sig, receiverRand, winProb), "Ticket is not a winner");
+
+        uint256 realWinProb = calculateWinningProbability(ticket);
+        require(isWinningTicket(sig, receiverRand, realWinProb), "Ticket is not a winner");
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
@@ -249,9 +263,26 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     function isWinningTicket(
         bytes memory sig,
         uint256 receiverRand,
-        uint256 _winProb
+        uint256 winProb
     ) internal pure returns (bool) {
-        return uint256(keccak256(abi.encodePacked(sig, receiverRand))) < _winProb;
+        return uint256(keccak256(abi.encodePacked(sig, receiverRand))) < winProb;
+    }
+
+    function calculateWinningProbability(
+        Ticket memory ticket
+    ) public view returns (uint256) {
+        uint256 elapsedDuration = block.number - ticket.generationBlock;
+        uint256 elapsedPercentage = elapsedDuration * 100 / ticketLength;
+
+        uint256 maxDecayValue = decayRate * 100 / baseWinProb;
+        uint256 decayedProbability = maxDecayValue * elapsedPercentage;
+
+        // avoid overflow
+        if (baseWinProb > type(uint256).max - minProbConstant) {
+            return type(uint256).max;
+        } else {
+            return baseWinProb - decayedProbability + minProbConstant;
+        }
     }
 
     function calculatePayout(
@@ -277,10 +308,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
                 ticket.sender,
                 ticket.receiver,
                 faceValue,
-                winProb,
+                baseWinProb,
                 ticket.generationBlock,
                 ticket.receiverRandHash,
-                ticket.senderRandHash
+                ticket.senderNonce
             )
         );
     }

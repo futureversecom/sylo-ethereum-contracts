@@ -140,7 +140,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend.Commit()
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1), big.NewInt(1), big.NewInt(100), winProb)
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1), big.NewInt(1), big.NewInt(100), winProb, big.NewInt(100))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

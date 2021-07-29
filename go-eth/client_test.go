@@ -159,7 +159,7 @@ func TestClient(t *testing.T) {
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
 			GenerationBlock:  latestBlock.Add(latestBlock, big.NewInt(1)),
-			SenderRandHash:   1,
+			SenderNonce:      1,
 		}
 
 		ticketHash, err := aliceClient.GetTicketHash(ticket)
@@ -236,7 +236,7 @@ func TestClient(t *testing.T) {
 			Receiver:         bobClient.Address(),
 			ReceiverRandHash: bobRandHash,
 			GenerationBlock:  latestBlock.Add(latestBlock, big.NewInt(1)),
-			SenderRandHash:   1,
+			SenderNonce:      1,
 		}
 
 		ticketHash, err := aliceClient.GetTicketHash(ticket)
