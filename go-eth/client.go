@@ -4,19 +4,20 @@ package eth
 //go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/token.go --bin ../bin/SyloToken.bin
 //go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
 //go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
+//go:generate abigen --abi ../abi/PriceManager.abi --pkg contracts --type PriceManager --out contracts/price_manager.go --bin ../bin/PriceManager.bin
+//go:generate abigen --abi ../abi/PriceVoting.abi --pkg contracts --type PriceVoting --out contracts/price_voting.go --bin ../bin/PriceVoting.bin
+//go:generate abigen --abi ../abi/StakingManager.abi --pkg contracts --type StakingManager --out contracts/staking_manager.go --bin ../bin/StakingManager.bin
 
 import (
 	"context"
+	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	"github.com/pkg/errors"
 )
 
 type Unlocking struct {
@@ -28,12 +29,13 @@ type Client interface {
 	Address() ethcommon.Address
 
 	// Ticketing methods
+
+	GetTicketHash(ticket contracts.SyloTicketingTicket) ([32]byte, error)
 	Deposits(account ethcommon.Address) (struct {
 		Escrow   *big.Int
 		Penalty  *big.Int
 		UnlockAt *big.Int
 	}, error)
-	//UnlockDuration() (*big.Int, error)  // Conflicting names
 	DepositEscrow(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	DepositPenalty(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	UnlockDeposits() (*types.Transaction, error)
@@ -43,6 +45,7 @@ type Client interface {
 	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
 
 	// Token methods
+
 	Allowance(owner ethcommon.Address, spender ethcommon.Address) (*big.Int, error)
 	Approve(spender ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	DecreaseAllowance(spender ethcommon.Address, subtractedValue *big.Int) (*types.Transaction, error)
@@ -51,44 +54,60 @@ type Client interface {
 	Transfer(recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	TransferFrom(sender ethcommon.Address, recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 
-	// Directory methods
+	// PriceManager methods
+
+	CalculatePrices(sortedVotes []*big.Int) (*types.Transaction, error)
+
+	// PriceVoting methods
+
+	Vote(price *big.Int) (*types.Transaction, error)
+	GetVotes() ([]ethcommon.Address, []*big.Int, error)
+	WithdrawVote() (*types.Transaction, error)
+
+	// StakingManager methods
+
 	Stakes(key [32]byte) (struct {
-		Amount      *big.Int
-		LeftAmount  *big.Int
-		RightAmount *big.Int
-		Stakee      ethcommon.Address
-		Parent      [32]byte
-		Left        [32]byte
-		Right       [32]byte
+		Amount *big.Int
+		Stakee ethcommon.Address
 	}, error)
 	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
 	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	UnlockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	LockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
-	Unstake(account ethcommon.Address) (*types.Transaction, error)
+	CancelUnlocking(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
+	WithdrawStake(account ethcommon.Address) (*types.Transaction, error)
 	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
+
+	// Directory methods
+	ConstructDirectory() (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 
 	// Listings methods
-	SetListing(contracts.ListingsListing) (*types.Transaction, error)
+
+	SetListing(multiaddr string, minimumStakeAmount *big.Int) (*types.Transaction, error)
 	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
-	ApproveTicketing(amount *big.Int) (*types.Transaction, error)
-	ApproveDirectory(amount *big.Int) (*types.Transaction, error)
 
-	//Utils
+	ApproveTicketing(amount *big.Int) (*types.Transaction, error)
+	ApproveStakingManager(amount *big.Int) (*types.Transaction, error)
+
+	// Utils
+
 	LatestBlock() (*big.Int, error)
-	CheckTxTimeout(tx *types.Transaction, timeout time.Duration) (*big.Int, error)
 	CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error)
+	EthBalance(ctx context.Context) (*big.Int, error)
+	SyloBalance(ctx context.Context) (*big.Int, error)
 }
 
 type Addresses struct {
-	Token     ethcommon.Address
-	Ticketing ethcommon.Address
-	Directory ethcommon.Address
-	Listings  ethcommon.Address
+	Token          ethcommon.Address
+	Ticketing      ethcommon.Address
+	Directory      ethcommon.Address
+	Listings       ethcommon.Address
+	PriceManager   ethcommon.Address
+	PriceVoting    ethcommon.Address
+	StakingManager ethcommon.Address
 }
 
 type client struct {
@@ -101,6 +120,9 @@ type client struct {
 	*contracts.SyloTokenSession
 	*contracts.DirectorySession
 	*contracts.ListingsSession
+	*contracts.PriceManagerSession
+	*contracts.PriceVotingSession
+	*contracts.StakingManagerSession
 
 	backend Backend
 }
@@ -114,14 +136,14 @@ func NewClient(
 
 	chainID, err := eth.ChainID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get chain id: %w", err)
 	}
 
 	signer := types.NewEIP155Signer(chainID)
 
 	backend, err := NewBackend(eth, signer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get backend: %w", err)
 	}
 
 	return NewClientWithBackend(
@@ -177,14 +199,47 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
+	priceManager, err := contracts.NewPriceManager(addresses.PriceManager, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	PriceManagerSession := &contracts.PriceManagerSession{
+		Contract:     priceManager,
+		TransactOpts: *opts,
+	}
+
+	priceVoting, err := contracts.NewPriceVoting(addresses.PriceVoting, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	PriceVotingSession := &contracts.PriceVotingSession{
+		Contract:     priceVoting,
+		TransactOpts: *opts,
+	}
+
+	stakingManager, err := contracts.NewStakingManager(addresses.StakingManager, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	StakingManagerSession := &contracts.StakingManagerSession{
+		Contract:     stakingManager,
+		TransactOpts: *opts,
+	}
+
 	return &client{
-		addresses:            addresses,
-		backend:              backend,
-		SyloTicketingSession: TicketingSession,
-		SyloTokenSession:     TokenSession,
-		DirectorySession:     DirectorySession,
-		ListingsSession:      ListingsSession,
-		opts:                 opts,
+		addresses:             addresses,
+		backend:               backend,
+		SyloTicketingSession:  TicketingSession,
+		SyloTokenSession:      TokenSession,
+		PriceManagerSession:   PriceManagerSession,
+		PriceVotingSession:    PriceVotingSession,
+		StakingManagerSession: StakingManagerSession,
+		DirectorySession:      DirectorySession,
+		ListingsSession:       ListingsSession,
+		opts:                  opts,
 	}, nil
 }
 
@@ -196,12 +251,20 @@ func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
 	return c.Approve(c.addresses.Ticketing, amount)
 }
 
-func (c *client) ApproveDirectory(amount *big.Int) (*types.Transaction, error) {
-	return c.Approve(c.addresses.Directory, amount)
+func (c *client) ApproveStakingManager(amount *big.Int) (*types.Transaction, error) {
+	return c.Approve(c.addresses.StakingManager, amount)
 }
 
 func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
-	return c.Stakees(stakee)
+	return c.TotalStakes(stakee)
+}
+
+func (c *client) Withdraw() (*types.Transaction, error) {
+	return c.SyloTicketingSession.Withdraw()
+}
+
+func (c *client) WithdrawVote() (*types.Transaction, error) {
+	return c.PriceVotingSession.Withdraw()
 }
 
 func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error) {
@@ -213,6 +276,12 @@ func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Ad
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+	if c.backend == nil {
+		return nil, fmt.Errorf("backend cannot be nil")
+	}
 
 	header, err := c.backend.HeaderByNumber(context.Background(), nil)
 	if err != nil {
@@ -222,23 +291,55 @@ func (c *client) LatestBlock() (*big.Int, error) {
 	return header.Number, nil
 }
 
-func (c *client) CheckTxTimeout(tx *types.Transaction, timeout time.Duration) (*big.Int, error) {
-
-	ctxT, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	return c.CheckTx(ctxT, tx)
-}
-
 func (c *client) CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+
+	if tx == nil {
+		return nil, fmt.Errorf("transaction cannot be nil")
+	}
+
+	if c.backend == nil {
+		return nil, fmt.Errorf("client backend cannot be nil")
+	}
+
 	receipt, err := bind.WaitMined(ctx, c.backend, tx)
 	if err != nil {
 		return nil, err
 	}
 
 	if receipt.Status == uint64(0) {
-		return receipt.BlockNumber, errors.Errorf("Tx %v failed with status %v, %v", tx.Hash().Hex(), receipt.Status, receipt.PostState)
+		return receipt.BlockNumber, fmt.Errorf("Tx %v failed with status %v, %v", tx.Hash().Hex(), receipt.Status, receipt.PostState)
 	}
 
 	return receipt.BlockNumber, nil
+}
+
+func (c *client) EthBalance(ctx context.Context) (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+
+	if c.backend == nil {
+		return nil, fmt.Errorf("client backend cannot be nil")
+	}
+
+	return c.backend.BalanceAt(ctx, c.Address(), nil)
+}
+
+func (c *client) SyloBalance(ctx context.Context) (*big.Int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client cannot be nil")
+	}
+
+	return c.BalanceOf(c.Address())
+}
+
+// ETH is set to 10^18
+const ETH = int64(1e18)
+
+// Eth calculates the `big.Int` for a specific ETH amount.
+func Eth(amt int64) *big.Int {
+	return new(big.Int).Mul(big.NewInt(amt), new(big.Int).SetInt64(ETH))
 }

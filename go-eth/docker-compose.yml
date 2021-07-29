@@ -1,0 +1,14 @@
+version: '3.7'
+services:
+  ganache:
+    image: "trufflesuite/ganache-cli:v6.12.2"
+    ports:
+      - 0.0.0.0:8545:8545
+    entrypoint:
+      - "node"
+      - "/app/ganache-core.docker.cli.js"
+      - "--deterministic"
+      - "--blockTime"
+      - "10"
+      - "--mnemonic"
+      - "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup"

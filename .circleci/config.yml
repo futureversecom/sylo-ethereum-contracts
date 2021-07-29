@@ -8,7 +8,7 @@ jobs:
     steps:
       - checkout
 
-      - restore_cache: 
+      - restore_cache:
           key: dependency-cache-{{ checksum "package.json" }}
 
       - run:
@@ -33,7 +33,7 @@ jobs:
           command: node ./scripts/parseArtifacts.js
   test-go-client:
     docker:
-      - image: circleci/golang:1.14
+      - image: circleci/golang:1.15
 
     steps:
       - checkout
@@ -58,6 +58,3 @@ workflows:
       - build-contracts
       - test-go-client
   version: 2
-
-
-
