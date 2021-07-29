@@ -3,24 +3,24 @@
     "prior_stakers": 0,
     "prior_staker_amount": 1000,
     "stake_amount": 1000,
-    "gas_used": 289205
+    "gas_used": 289069
   },
   {
     "prior_stakers": 10,
     "prior_staker_amount": 1000,
     "stake_amount": 1000,
-    "gas_used": 237633
+    "gas_used": 237497
   },
   {
     "prior_stakers": 100,
     "prior_staker_amount": 1000,
     "stake_amount": 1000,
-    "gas_used": 237621
+    "gas_used": 237497
   },
   {
     "prior_stakers": 1000,
     "prior_staker_amount": 1000,
     "stake_amount": 1000,
-    "gas_used": 237633
+    "gas_used": 237497
   }
 ]
