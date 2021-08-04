@@ -1,16 +1,19 @@
 const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
+const SyloUtils = artifacts.require("SyloUtils");
 const Ticketing = artifacts.require("SyloTicketing");
 const Listings = artifacts.require("Listings");
 const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
-contract.only('Ticketing', accounts => {
+contract('Ticketing', accounts => {
   const faceValue = 15;
 
   // max win prob
   const baseWinProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString();
+
+  const decayRate = 80;
 
   // min prob constant
   const minProbConstant = (new BN(2)).pow(new BN(128)).toString();
@@ -55,6 +58,7 @@ contract.only('Ticketing', accounts => {
       0,
       faceValue,
       baseWinProb,
+      decayRate,
       minProbConstant,
       ticketLength,
       { from: accounts[1] }
@@ -405,25 +409,63 @@ contract.only('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    // deploy another ticketing contract with simpler parameters
+    ticketing = await Ticketing.new({ from: accounts[1] });
+    await ticketing.initialize(
+      token.address, 
+      listings.address, 
+      stakingManager.address, 
+      0,
+      faceValue,
+      100000,
+      80,
+      1000,
+      100,
+      { from: accounts[1] }
+    );
+    await token.approve(ticketing.address, 10000, { from: accounts[1] });
+
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
     const { ticket, receiverRand, signature } = 
       await createWinningTicket(0, 1);
 
-    // advance the block 50 times (halfway to ticket expiry)
-    for (let i = 0; i < 50; i++) {
+    // advance the block halfway to ticket expiry
+    for (let i = 0; i < 51; i++) {
       await advanceBlock();
     }
 
-    const initialReceiverBalance = await token.balanceOf(accounts[1]);
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+    // check if the probability has decayed 50% of the maximum decayed value (80%) plus the min probability constant
+    const expectedProbability = new BN(100000 - (0.5 * 0.8 * 100000) + 1000);
 
-    const postRedeemBalance = await token.balanceOf(accounts[1]);
+    const decayedProbability = await ticketing.calculateWinningProbability(ticket);
+
     assert.equal(
-      postRedeemBalance.toString(),
-      initialReceiverBalance.add(new BN(faceValue / 2)).toString(),
-      "Expected balance of receiver to have added the ticket face value"
+      decayedProbability.toString(), 
+      expectedProbability.toString(), 
+      "Expected probablity of ticket winning to decay"
+    );
+  });
+
+  it('returns 0 winning probability if ticket has expired', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    const { ticket, receiverRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    // advance the block all the way to ticket expiry
+    for (let i = 0; i < 101; i++) {
+      await advanceBlock();
+    }
+
+    const p = await ticketing.calculateWinningProbability(ticket);
+
+    assert.equal(
+      '0',
+      p.toString(),
+      'Expected probabilit to be 0'
     );
   });
 

@@ -448,7 +448,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
 
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, big.NewInt(1), Uint256max, big.NewInt(100), big.NewInt(100))
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, big.NewInt(1), Uint256max, uint8(80), big.NewInt(100), big.NewInt(100))
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}

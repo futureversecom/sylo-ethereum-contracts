@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "../Listings.sol";
 import "../Staking/Manager.sol";
 import "../ECDSA.sol";
+import "../Utils.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -84,6 +85,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 _unlockDuration,
         uint256 _faceValue,
         uint256 _baseWinProb,
+        uint8 _decayRate,
         uint256 _minProbConstant,
         uint256 _ticketLength
     ) public initializer {
@@ -94,6 +96,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         unlockDuration = _unlockDuration;
         faceValue = _faceValue;
         baseWinProb = _baseWinProb;
+        decayRate = _decayRate;
         minProbConstant = _minProbConstant;
         ticketLength = _ticketLength;
     }
@@ -272,16 +275,21 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Ticket memory ticket
     ) public view returns (uint256) {
         uint256 elapsedDuration = block.number - ticket.generationBlock;
-        uint256 elapsedPercentage = elapsedDuration * 100 / ticketLength;
+        uint256 elapsedPercentage = SyloUtils.toPerc(elapsedDuration, ticketLength);
 
-        uint256 maxDecayValue = decayRate * 100 / baseWinProb;
-        uint256 decayedProbability = maxDecayValue * elapsedPercentage;
+        // Ticket has completely expired, preventing any chance of winning
+        if (elapsedPercentage >= 100) {
+            return 0;
+        }
 
-        // avoid overflow
-        if (baseWinProb > type(uint256).max - minProbConstant) {
+        uint256 maxDecayValue = SyloUtils.percOf(baseWinProb, decayRate);
+        uint256 decayedProbability = baseWinProb - SyloUtils.percOf(maxDecayValue, elapsedPercentage);
+
+        // add the minimum probability constant but avoid overflow
+        if (type(uint256).max - minProbConstant < decayedProbability) {
             return type(uint256).max;
         } else {
-            return baseWinProb - decayedProbability + minProbConstant;
+            return decayedProbability + minProbConstant;
         }
     }
 
