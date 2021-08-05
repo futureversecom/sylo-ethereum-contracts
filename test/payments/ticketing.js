@@ -1,6 +1,7 @@
 const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
-const SyloUtils = artifacts.require("SyloUtils");
+const crypto = require("crypto");
+const sodium = require('libsodium-wrappers-sumo');
 const Ticketing = artifacts.require("SyloTicketing");
 const Listings = artifacts.require("Listings");
 const StakingManager = artifacts.require("StakingManager");
@@ -479,6 +480,68 @@ contract('Ticketing', accounts => {
       'Expected probabilit to be 0'
     );
   });
+
+  it('simulates scenario between sender, node, and oracle', async () => {
+    const sender = accounts[0];
+    const node = accounts[1];
+
+    // set up the node's stake and listing
+    await stakingManager.addStake(1, node, { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    // set up the sender's escrow
+    await ticketing.depositEscrow(50, sender, { from: accounts[1] });
+    await ticketing.depositPenalty(50, sender, { from: accounts[1] });
+
+    // have the node and sender generate random numbers
+    const nodeRand = crypto.randomBytes(32);
+    const senderRand = crypto.randomBytes(32);
+
+    // create commits from those random numbers
+    const nodeCommit = soliditySha3(nodeRand);
+    const senderCommit = soliditySha3(senderRand);
+
+    // create the ticket to be given to the node
+    const ticket = {
+      sender: accounts[0],
+      redeemer: accounts[1],
+      generationBlock: new BN((await web3.eth.getBlockNumber()) + 1).toString(),
+      senderCommit,
+      redeemerCommit: nodeCommit
+    };
+
+    // have sender sign the hash of the ticket
+    const ticketHash = await ticketing.getTicketHash(ticket);
+    const signature = eth.Account.sign(ticketHash, privateKeys[0]);
+
+    // establish the oracle
+    const oracle = sodium.crypto_sign_keypair('uint8array');
+
+    // encrypt senderRandom to create the key
+    const key = sodium.crypto_box_seal(
+      senderRand,
+      sodium.crypto_sign_ed25519_pk_to_curve25519(oracle.publicKey),
+      'uint8array'
+    );
+
+    // have oracle decrypt the key and reveal the random number to the node
+    const revealedSenderRand = sodium.crypto_box_seal_open(
+      key,
+      sodium.crypto_sign_ed25519_pk_to_curve25519(oracle.publicKey),
+      sodium.crypto_sign_ed25519_sk_to_curve25519(oracle.privateKey),
+      'uint8array'
+    );
+
+    // once secret has been revealed, the node can now redeem the ticket
+    await ticketing.redeem(
+      ticket,
+      revealedSenderRand,
+      nodeRand,
+      signature,
+      { from: node }
+    );
+  });
+
 
   async function advanceBlock() {
     return await new Promise((resolve, reject) => {
