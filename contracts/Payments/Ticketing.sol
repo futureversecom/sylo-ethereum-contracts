@@ -22,14 +22,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 unlockAt; // Block number a user can withdraw their balances
     }
 
-    // Properties are ordered to decrease storage size
-    // https://solidity.readthedocs.io/en/v0.6.4/miscellaneous.html#layout-of-state-variables-in-storage
     struct Ticket {
         address sender; // Address of the ticket sender
-        address receiver; // Address of the intended recipient
+        address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
-        bytes32 receiverRandHash; // keccak256 hash of receivers random value
-        uint32 senderNonce;
+        bytes32 senderCommit; // Hash of the secret random number of the sender
+        bytes32 redeemerCommit; // Hash of the secret random number of the redeemder
     }
 
     /* ERC 20 compatible token we are dealing with */
@@ -41,26 +39,30 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* Sylo Directory contract */
     StakingManager _stakingManager;
 
-    // The value of a winning ticket
+    /* The value of a winning ticket */
     uint256 public faceValue;
 
-    // The chance of a ticket winning
-    uint256 public baseWinProb;
+    /* The probability of a ticket winning during the start of its lifetime */
+    uint256 public baseLiveWinProb;
 
-    // A percentage value representing the proportion of the base win probability
-    // that will be decayed once a ticket has expired.
-    // Example: 80% decayRate indicates that a ticket will retain 20% of its
-    // base win probability once it has expired.
+    /* The probability of a ticket winning after it has expired */
+    uint256 public expiredWinProb;
+
+    /** 
+     * A percentage value representing the proportion of the base win probability
+     * that will be decayed once a ticket has expired.
+     * Example: 80% decayRate indicates that a ticket will retain 20% of its
+     * base win probability once it has expired.
+     */
     uint32 public decayRate;
 
-    // A constant value added to the probability calculated from
-    // multiplying the base win probability by the decay rate
-    uint256 public minProbConstant;
 
-    // The length in blocks before a ticket is considered expired.
-    // The default initialization value is 80,000. This equates
-    // to roughly two weeks (15s per block).
-    uint256 public ticketLength;
+    /**
+     * The length in blocks before a ticket is considered expired.
+     * The default initialization value is 80,000. This equates
+     * to roughly two weeks (15s per block).
+     */
+    uint256 public ticketDuration;
 
     /*
      * The number of blocks a user must wait after calling "unlock"
@@ -68,10 +70,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     uint256 public unlockDuration;
 
-    // Mapping of user deposits to their address
+    /* Mapping of user deposits to their address */
     mapping(address => Deposit) public deposits;
 
-    // Mapping of ticket hashes, used to check if ticket has been redeemed
+    /* Mapping of ticket hashes, used to check if ticket has been redeemed */
     mapping (bytes32 => bool) public usedTickets;
 
     // TODO define events
@@ -82,10 +84,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         StakingManager stakingManager, 
         uint256 _unlockDuration,
         uint256 _faceValue,
-        uint256 _baseWinProb,
+        uint256 _baseLiveWinProb,
+        uint256 _expiredWinProb,
         uint8 _decayRate,
-        uint256 _minProbConstant,
-        uint256 _ticketLength
+        uint256 _ticketDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
@@ -93,10 +95,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
         unlockDuration = _unlockDuration;
         faceValue = _faceValue;
-        baseWinProb = _baseWinProb;
+        baseLiveWinProb = _baseLiveWinProb;
+        expiredWinProb = _expiredWinProb;
         decayRate = _decayRate;
-        minProbConstant = _minProbConstant;
-        ticketLength = _ticketLength;
+        ticketDuration = _ticketDuration;
     }
 
     function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
@@ -107,8 +109,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         faceValue = _faceValue;
     }
 
-    function setWinProb(uint256 _baseWinProb) public onlyOwner {
-        baseWinProb = _baseWinProb;
+    function setBaseLiveWinProb(uint256 _baseLiveWinProb) public onlyOwner {
+        baseLiveWinProb = _baseLiveWinProb;
+    }
+
+    function setExpiredWinProb(uint256 _expiredWinProb) public onlyOwner {
+        expiredWinProb = _expiredWinProb;
     }
 
     function depositEscrow(uint256 amount, address account) public {
@@ -175,78 +181,87 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     function redeem(
         Ticket memory ticket,
-        uint256 receiverRand,
+        uint256 senderRand,
+        uint256 redeemerRand,
         bytes memory sig
     ) public {
 
         bytes32 ticketHash = getTicketHash(ticket);
 
-        requireValidWinningTicket(ticket, ticketHash, receiverRand, sig);
+        requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
 
         Deposit storage deposit = getDeposit(ticket.sender);
 
-        uint256 payout = calculatePayout(ticket);
-
         require(
-            deposit.escrow + deposit.penalty >= payout,
+            deposit.escrow + deposit.penalty >= faceValue,
             "Sender doesn't have enough funds to pay"
         );
 
         usedTickets[ticketHash] = true;
 
-        Listings.Listing memory listing = _listings.getListing(ticket.receiver);
-        require(listing.initialized == true, "Ticket receiver must have a valid listing");
+        Listings.Listing memory listing = _listings.getListing(ticket.redeemer);
+        require(listing.initialized == true, "Ticket redeemer must have a valid listing");
 
-        uint256 totalStake = _stakingManager.totalStakes(ticket.receiver);
-        require(totalStake != 0, "Ticket receiver must have stake");
+        uint256 totalStake = _stakingManager.totalStakes(ticket.redeemer);
+        require(totalStake != 0, "Ticket redeemer must have stake");
 
         if (faceValue > deposit.escrow) {
-            _token.transfer(ticket.receiver, deposit.escrow);
+            _token.transfer(ticket.redeemer, deposit.escrow);
             _token.transfer(address(_token), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            deposit.escrow = deposit.escrow.sub(payout);
+            deposit.escrow = deposit.escrow.sub(faceValue);
 
-            uint256 stakersPayout = SyloUtils.percOf(payout, listing.payoutPercentage);
+            uint256 stakersPayout = SyloUtils.percOf(faceValue, listing.payoutPercentage);
             
-            address[] memory stakers = _stakingManager.getStakers(ticket.receiver);
+            address[] memory stakers = _stakingManager.getStakers(ticket.redeemer);
 
             // Track any value lost from precision due to rounding down
             uint256 stakersPayoutRemainder = stakersPayout;
             for (uint32 i = 0; i < stakers.length; i++) {
-                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], ticket.receiver);
+                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], ticket.redeemer);
                 uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
                 stakersPayoutRemainder -= stakerPayout;
                 _token.transfer(stakers[i], stakerPayout);
             }
 
             // payout any remainder to the stakee
-            uint256 stakeePayout = payout - stakersPayout + stakersPayoutRemainder;
-            _token.transfer(ticket.receiver, stakeePayout);
+            uint256 stakeePayout = faceValue - stakersPayout + stakersPayoutRemainder;
+            _token.transfer(ticket.redeemer, stakeePayout);
         }
     }
 
     function requireValidWinningTicket(
         Ticket memory ticket,
         bytes32 ticketHash,
-        uint256 receiverRand,
+        uint256 senderRand,
+        uint256 redeemerRand,
         bytes memory sig
     ) internal view {
         require(ticket.sender != address(0), "Ticket sender is null");
-        require(ticket.receiver != address(0), "Ticket receiver is null");
+        require(ticket.redeemer != address(0), "Ticket redeemer is null");
 
         require(!usedTickets[ticketHash], "Ticket already redeemed");
+
+        // validate that the sender's random number has been revealed to 
+        // the redeemer
         require(
-            keccak256(abi.encodePacked(receiverRand)) == ticket.receiverRandHash,
-            "Hash of receiverRand doesn't match receiverRandHash"
+            keccak256(abi.encodePacked(senderRand)) == ticket.senderCommit,
+            "Hash of redeemerRand doesn't match redeemerRandHash"
+        );
+
+        // validate the redeemer has knowledge of the redeemer rand
+        require(
+            keccak256(abi.encodePacked(redeemerRand)) == ticket.redeemerCommit,
+            "Hash of redeemerRand doesn't match redeemerRandHash"
         );
 
         require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
 
         uint256 realWinProb = calculateWinningProbability(ticket);
-        require(isWinningTicket(sig, receiverRand, realWinProb), "Ticket is not a winner");
+        require(isWinningTicket(sig, redeemerRand, realWinProb), "Ticket is not a winner");
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
@@ -263,61 +278,39 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     function isWinningTicket(
         bytes memory sig,
-        uint256 receiverRand,
+        uint256 redeemerRand,
         uint256 winProb
     ) internal pure returns (bool) {
-        return uint256(keccak256(abi.encodePacked(sig, receiverRand))) < winProb;
+        return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < winProb;
     }
 
     function calculateWinningProbability(
         Ticket memory ticket
     ) public view returns (uint256) {
         uint256 elapsedDuration = block.number - ticket.generationBlock;
-        uint256 elapsedPercentage = SyloUtils.toPerc(elapsedDuration, ticketLength);
+        uint256 elapsedPercentage = SyloUtils.toPerc(elapsedDuration, ticketDuration);
 
-        // Ticket has completely expired, preventing any chance of winning
+        // Ticket has completely expired
         if (elapsedPercentage >= 100) {
             return 0;
         }
 
-        uint256 maxDecayValue = SyloUtils.percOf(baseWinProb, decayRate);
-        uint256 decayedProbability = baseWinProb - SyloUtils.percOf(maxDecayValue, elapsedPercentage);
+        uint256 maxDecayValue = SyloUtils.percOf(baseLiveWinProb, decayRate);
+        uint256 decayedProbability = baseLiveWinProb - SyloUtils.percOf(maxDecayValue, elapsedPercentage);
 
-        // add the minimum probability constant but avoid overflow
-        if (type(uint256).max - minProbConstant < decayedProbability) {
-            return type(uint256).max;
-        } else {
-            return decayedProbability + minProbConstant;
-        }
-    }
-
-    function calculatePayout(
-        Ticket memory ticket
-    ) public view returns (uint256) {
-        uint256 expiry = ticket.generationBlock + ticketLength;
-        if (expiry <= block.number) {
-            // ticket has expired
-            return 0;
-        } else {
-            // determine the number of blocks the ticket will remain alive for
-            uint256 remainingLifetime = ticketLength - (block.number - ticket.generationBlock);
-
-            // determine the payout value
-            uint256 payout = remainingLifetime * faceValue / ticketLength;
-            return payout;
-        }
+        return decayedProbability;
     }
 
     function getTicketHash(Ticket memory ticket) public view returns (bytes32) {
         return keccak256(
             abi.encodePacked(
                 ticket.sender,
-                ticket.receiver,
+                ticket.redeemer,
                 faceValue,
-                baseWinProb,
+                baseLiveWinProb,
                 ticket.generationBlock,
-                ticket.receiverRandHash,
-                ticket.senderNonce
+                ticket.senderCommit,
+                ticket.redeemerCommit
             )
         );
     }
