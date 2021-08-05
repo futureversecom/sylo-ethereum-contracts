@@ -78,16 +78,19 @@ func TestPayments(t *testing.T) {
 	}
 	t.Log("alice scanned and found the node to be serving bob")
 
+	// alice makes a random number for the node
+	aliceRand, aliceRandHash := createRandomNumber(t)
+
 	// the node makes a random number for alice
 	nodeRand, nodeRandHash := createRandomNumber(t)
 	t.Log("alice received a random hash from the node")
 
 	// alice creates a ticket for the scanned node
-	ticket, sig := createSignedTicket(t, alice, aliceSK, node.Address(), nodeRandHash)
+	ticket, sig := createSignedTicket(t, alice, aliceSK, node.Address(), aliceRandHash, nodeRandHash)
 	t.Log("alice created a signed ticket for the node")
 
 	// the node redeems the ticket
-	redeemTicket(t, ctx, backend, node, ticket, nodeRand, sig)
+	redeemTicket(t, ctx, backend, node, ticket, aliceRand, nodeRand, sig)
 	t.Log("node redeemed the ticket")
 }
 
@@ -104,26 +107,30 @@ func hashPublicKey(pk *ecdsa.PublicKey) *big.Int {
 	return new(big.Int).SetBytes(hash[:16])
 }
 
-func createRandomNumber(t *testing.T) (n *big.Int, h []byte) {
+func createRandomNumber(t *testing.T) (n *big.Int, h [32]byte) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
 		t.Fatalf("could not read random bytes: %v", err)
 	}
 	randNum := new(big.Int).SetBytes(b)
-	randNumHash := make([]byte, 32)
-	return randNum, crypto.Keccak256(randNum.FillBytes(randNumHash[:]))
+	var randNumHash [32]byte
+	copy(randNumHash[:], crypto.Keccak256(randNum.FillBytes(randNumHash[:])))
+	return randNum, randNumHash
 }
 
-func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecdsa.PrivateKey, receiver common.Address, receiverRandHash []byte) (contracts.SyloTicketingTicket, []byte) {
-	var hashBytes [32]byte
-	copy(hashBytes[:], receiverRandHash)
+func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecdsa.PrivateKey, receiver common.Address, senderCommit [32]byte, redeemerCommit [32]byte) (contracts.SyloTicketingTicket, []byte) {
+	// var senderCommitBytes [32]byte
+	// copy(senderCommit[:], senderCommit)
+
+	// var redeemerCommitBytes [32]byte
+	// copy(redeemerCommit[:], redeemerCommit)
 	ticket := contracts.SyloTicketingTicket{
-		Sender:           sender.Address(),
-		Receiver:         receiver,
-		ReceiverRandHash: hashBytes,
-		GenerationBlock:  big.NewInt(0),
-		SenderNonce:      1,
+		Sender:          sender.Address(),
+		Redeemer:        receiver,
+		SenderCommit:    senderCommit,
+		RedeemerCommit:  redeemerCommit,
+		GenerationBlock: big.NewInt(0),
 	}
 
 	ticketHash, err := sender.GetTicketHash(ticket)
@@ -138,8 +145,8 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 	return ticket, sig
 }
 
-func redeemTicket(t *testing.T, ctx context.Context, backend sylopayments.SimBackend, client sylopayments.Client, ticket contracts.SyloTicketingTicket, rand *big.Int, sig []byte) {
-	tx, err := client.Redeem(ticket, rand, sig)
+func redeemTicket(t *testing.T, ctx context.Context, backend sylopayments.SimBackend, client sylopayments.Client, ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
+	tx, err := client.Redeem(ticket, senderRand, redeemerRand, sig)
 	if err != nil {
 		t.Fatalf("could not redeem ticket: %v", err)
 	}

@@ -182,7 +182,7 @@ contract('Ticketing', accounts => {
         assert.fail('Should fail to redeem ticket with invalid redeemer rand');
       })
       .catch(e => {
-        assert.include(e.message, 'Hash of redeemerRand doesn\'t match redeemerRandHash', 'Expected redeeming to fail due to invalid signature');
+        assert.include(e.message, 'Hash of senderRand doesn\'t match senderRandHash', 'Expected redeeming to fail due to invalid signature');
       });
   });
 

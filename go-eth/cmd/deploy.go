@@ -51,15 +51,15 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:  "win-prob",
-			Usage: "A uint256 value representing probability of a ticket winning",
+			Usage: "The numerator used in the win probability calculation, where p = `VALUE` / 2^256",
 		},
 		&cli.StringFlag{
 			Name:  "decay-rate",
 			Usage: "The `PERCENTAGE` of a ticket's probability that may decay over it's lifetime",
 		},
 		&cli.StringFlag{
-			Name:  "min-prob-constant",
-			Usage: "A uint256 value representing the minimum probability of a ticket winning",
+			Name:  "expired-win-prob",
+			Usage: "The numerator used in the win probability calculation after ticket expiration, where p = `VALUE` / 2^256",
 		},
 		&cli.StringFlag{
 			Name:  "ticket-length",
@@ -109,7 +109,7 @@ func main() {
 			decayRate = 100
 		}
 
-		minProbConstant, ok := new(big.Int).SetString(c.String("min-prob-constant"), 10)
+		expiredWinProb, ok := new(big.Int).SetString(c.String("min-prob-constant"), 10)
 		if !ok {
 			return fmt.Errorf("could not parse integer from %s", c.String("win-prob"))
 		}
@@ -134,7 +134,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("could not decode private key hex string (%s): %w", ethSKstr, err)
 		}
-		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, uint8(decayRate), minProbConstant, ticketLength, uint8(payoutPercentage))
+		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, expiredWinProb, uint8(decayRate), ticketLength, uint8(payoutPercentage))
 		if err != nil {
 			return fmt.Errorf("could not execute contract deployment: %w", err)
 		}
@@ -169,7 +169,7 @@ type syloEthMgr struct {
 	faucet bool
 }
 
-func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, decayRate uint8, minProbConstant *big.Int, ticketLength *big.Int, payoutPercentage uint8) error {
+func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint8, ticketLength *big.Int, payoutPercentage uint8) error {
 	var err error
 
 	ctx, cancel := context.WithTimeout(m.ctx, 3*time.Minute)
@@ -205,7 +205,7 @@ func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.I
 	}
 	m.opts.Context = m.ctx
 
-	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, faceValue, winProb, decayRate, minProbConstant, ticketLength, payoutPercentage)
+	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength, payoutPercentage)
 	if err != nil {
 		return fmt.Errorf("could not deploy contracts: %w", err)
 	}
@@ -360,7 +360,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	}
 }
 
-func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, decayRate uint8, minProbConstant *big.Int, ticketLength *big.Int, payoutPercentage uint8) (addresses sylo.Addresses, err error) {
+func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint8, ticketLength *big.Int, payoutPercentage uint8) (addresses sylo.Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {
@@ -463,7 +463,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, faceValue, winProb, decayRate, minProbConstant, ticketLength)
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

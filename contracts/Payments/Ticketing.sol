@@ -249,7 +249,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // the redeemer
         require(
             keccak256(abi.encodePacked(senderRand)) == ticket.senderCommit,
-            "Hash of redeemerRand doesn't match redeemerRandHash"
+            "Hash of senderRand doesn't match senderRandHash"
         );
 
         // validate the redeemer has knowledge of the redeemer rand

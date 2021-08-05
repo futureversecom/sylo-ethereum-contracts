@@ -146,6 +146,10 @@ func TestClient(t *testing.T) {
 
 		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
+		aliceRand := big.NewInt(1)
+		var aliceRandHash [32]byte
+		copy(aliceRandHash[:], crypto.Keccak256(aliceRand.FillBytes(aliceRandHash[:])))
+
 		bobRand := big.NewInt(1)
 		var bobRandHash [32]byte
 		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
@@ -155,11 +159,11 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not retrieve latest block %v", err)
 		}
 		ticket := contracts.SyloTicketingTicket{
-			Sender:           aliceClient.Address(),
-			Receiver:         bobClient.Address(),
-			ReceiverRandHash: bobRandHash,
-			GenerationBlock:  latestBlock.Add(latestBlock, big.NewInt(1)),
-			SenderNonce:      1,
+			Sender:          aliceClient.Address(),
+			Redeemer:        bobClient.Address(),
+			SenderCommit:    aliceRandHash,
+			RedeemerCommit:  bobRandHash,
+			GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
 		}
 
 		ticketHash, err := aliceClient.GetTicketHash(ticket)
@@ -182,7 +186,7 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get balance for bob: %v", err)
 		}
 
-		tx, err := bobClient.Redeem(ticket, bobRand, sig)
+		tx, err := bobClient.Redeem(ticket, aliceRand, bobRand, sig)
 		if err != nil {
 			t.Fatalf("could not redeem ticket: %v", err)
 		}
@@ -223,6 +227,10 @@ func TestClient(t *testing.T) {
 
 		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
+		aliceRand := big.NewInt(1)
+		var aliceRandHash [32]byte
+		copy(aliceRandHash[:], crypto.Keccak256(aliceRand.FillBytes(aliceRandHash[:])))
+
 		bobRand := big.NewInt(1)
 		var bobRandHash [32]byte
 		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
@@ -232,11 +240,11 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not retrieve latest block %v", err)
 		}
 		ticket := contracts.SyloTicketingTicket{
-			Sender:           aliceClient.Address(),
-			Receiver:         bobClient.Address(),
-			ReceiverRandHash: bobRandHash,
-			GenerationBlock:  latestBlock.Add(latestBlock, big.NewInt(1)),
-			SenderNonce:      1,
+			Sender:          aliceClient.Address(),
+			Redeemer:        bobClient.Address(),
+			SenderCommit:    aliceRandHash,
+			RedeemerCommit:  bobRandHash,
+			GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
 		}
 
 		ticketHash, err := aliceClient.GetTicketHash(ticket)
@@ -250,7 +258,7 @@ func TestClient(t *testing.T) {
 		}
 
 		// good redemption
-		tx, err := bobClient.Redeem(ticket, bobRand, sig)
+		tx, err := bobClient.Redeem(ticket, aliceRand, bobRand, sig)
 		if err != nil {
 			t.Fatalf("could not redeem ticket: %v", err)
 		}
@@ -262,7 +270,7 @@ func TestClient(t *testing.T) {
 		}
 
 		// replay redemption
-		_, err = bobClient.Redeem(ticket, bobRand, sig)
+		_, err = bobClient.Redeem(ticket, aliceRand, bobRand, sig)
 		if err == nil {
 			t.Fatalf("expected error because ticket has already been used")
 		}
