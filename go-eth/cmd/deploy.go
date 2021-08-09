@@ -61,7 +61,7 @@ func main() {
 			Name:  "expired-win-prob",
 			Usage: "The numerator used in the win probability calculation after ticket expiration, where p = `VALUE` / 2^256",
 		},
-		&cli.StringFlag{
+		&cli.IntFlag{
 			Name:  "ticket-length",
 			Usage: "The `NUM` of blocks that tickets stay valid for",
 		},
@@ -114,10 +114,7 @@ func main() {
 			return fmt.Errorf("could not parse integer from %s", c.String("win-prob"))
 		}
 
-		ticketLength, ok := new(big.Int).SetString(c.String("ticket-length"), 10)
-		if !ok {
-			return fmt.Errorf("could not parse integer from %s", c.String("ticket-length"))
-		}
+		ticketLength := new(big.Int).SetInt64(int64(c.Int("ticket-length")))
 
 		payoutPercentage := c.Int("payout-percentage")
 		// bound to a value between 0 and a 10000
