@@ -2,14 +2,19 @@
 pragma solidity ^0.8.0;
 
 library SyloUtils {
-    uint256 constant PERCENTEGE_DENOMINATOR = 100;
+    /* 
+     * Percentages are expressed as a ratio where 10000 is the denominator.
+     * A large denominator allows for more precision, e.g representing 12.5%
+     * can be done as 1250 / 10000
+     */
+    uint256 constant PERCENTEGE_DENOMINATOR = 10000;
 
     /*
      * Multiply a value by a given percentage.
      * Converts the provided uint128 value to uint256 to avoid
      * any reverts on overflow.
      */
-    function percOf(uint128 value, uint256 percentage) internal pure returns (uint256) {
-        return value * percentage / PERCENTEGE_DENOMINATOR;
+    function percOf(uint128 value, uint16 percentage) internal pure returns (uint256) {
+        return uint256(value) * percentage / PERCENTEGE_DENOMINATOR;
     }
 }

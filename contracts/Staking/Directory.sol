@@ -18,7 +18,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 contract Directory is Initializable, OwnableUpgradeable {
 
     // Nodes are excluded if their voted price exceeds service price + 10%
-    uint256 constant PRICE_THRESHOLD = 110;
+    uint16 constant PRICE_THRESHOLD = 11000;
 
     StakingManager _stakingManager;
 

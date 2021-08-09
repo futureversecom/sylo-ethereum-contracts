@@ -11,8 +11,9 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PriceManager is Initializable, OwnableUpgradeable {
 
-    uint8 constant LOWER_QUARTILE_PERC = 25;
-    uint8 constant UPPER_BOUNDARY_PERC = 90;
+    // Percentage values are expressed as a fraction of 10000
+    uint16 constant LOWER_QUARTILE_PERC = 2500;
+    uint16 constant UPPER_BOUNDARY_PERC = 9000;
 
     /* Sylo Directory contract */
     StakingManager _stakingManager;

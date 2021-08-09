@@ -9,11 +9,13 @@ const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
 contract('Ticketing', accounts => {
+  const payoutPercentage = 5000;
+
   const faceValue = 15;
 
   const baseLiveWinProb = (new BN(2)).pow(new BN(128)).sub(new BN(1)).toString();
   const expiredWinProb = 1000;
-  const decayRate = 80;
+  const decayRate = 8000;
   const ticketDuration = 100;
 
   let token;
@@ -41,7 +43,7 @@ contract('Ticketing', accounts => {
 
   beforeEach(async () => {
     listings = await Listings.new({ from: accounts[1] });
-    await listings.initialize(50), { from: accounts[1] };
+    await listings.initialize(payoutPercentage), { from: accounts[1] };
 
     stakingManager = await StakingManager.new({ from: accounts[1] });
     await stakingManager.initialize(token.address, 0, { from: accounts[1] });
@@ -431,7 +433,7 @@ contract('Ticketing', accounts => {
       faceValue,
       100000,
       1000,
-      80,
+      8000,
       100,
       { from: accounts[1] }
     );

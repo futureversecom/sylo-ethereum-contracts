@@ -81,7 +81,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var addresses Addresses = Addresses{}
 	var winProb = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	var expiredWinProb = big.NewInt(10000)
-	var decayRate = uint8(80)
+	var decayRate = uint16(8000)
 	var ticketDuration = big.NewInt(100)
 
 	if len(opts) < 1 {

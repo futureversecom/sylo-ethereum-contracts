@@ -11,10 +11,11 @@ contract Listings is Initializable, OwnableUpgradeable {
         // MultiAddr to connect to the account
         string multiAddr; 
 
-        // Payout percentage to delegated stakes for winning
-        // This value is currently locked to the default payout
-        // percentage until epochs are implemented
-        uint8 payoutPercentage;
+        // Percentage of a tickets value that will be rewarded to
+        // delagated stakers expressed as a fraction of 10000.
+        // This value is currently locked to the default payout percentage
+        // until epochs are implemented.
+        uint16 payoutPercentage;
 
         // The minimum amount of stake that is required to
         // add a delegated stake against this node
@@ -26,17 +27,17 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     mapping(address => Listing) listings;
 
-    uint8 public defaultPayoutPercentage;
+    uint16 public defaultPayoutPercentage;
 
-    function initialize(uint8 _defaultPayoutPercentage) public initializer {
+    function initialize(uint16 _defaultPayoutPercentage) public initializer {
         OwnableUpgradeable.__Ownable_init();
         setDefaultPayoutPercentage(_defaultPayoutPercentage);
     }
 
-    function setDefaultPayoutPercentage(uint8 _defaultPayoutPercentage) public onlyOwner {
+    function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) public onlyOwner {
         require(
-            _defaultPayoutPercentage >= 0 && _defaultPayoutPercentage <= 100,
-            "The payout percentage must be a value between 0 and 100"
+            _defaultPayoutPercentage >= 0 && _defaultPayoutPercentage <= 10000,
+            "The payout percentage must be a value between 0 and 10000"
         );
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }

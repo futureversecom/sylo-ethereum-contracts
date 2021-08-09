@@ -55,7 +55,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:  "decay-rate",
-			Usage: "The `PERCENTAGE` of a ticket's probability that may decay over it's lifetime",
+			Usage: "The `PERCENTAGE` of a ticket's probability that may decay over it's lifetime expressed as a fraction of 10000",
 		},
 		&cli.StringFlag{
 			Name:  "expired-win-prob",
@@ -67,8 +67,8 @@ func main() {
 		},
 		&cli.IntFlag{
 			Name:  "payout-percentage",
-			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers",
-			Value: 50,
+			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers expressed as a fraction of 10000",
+			Value: 5000,
 		},
 		&cli.BoolFlag{
 			Name:  "faucet",
@@ -102,11 +102,11 @@ func main() {
 		}
 
 		decayRate := c.Int("decay-rate")
-		// bound to a value between 0 and a 100
+		// bound to a value between 0 and 10000
 		if decayRate < 0 {
 			decayRate = 0
-		} else if decayRate > 100 {
-			decayRate = 100
+		} else if decayRate > 10000 {
+			decayRate = 10000
 		}
 
 		expiredWinProb, ok := new(big.Int).SetString(c.String("min-prob-constant"), 10)
@@ -120,11 +120,11 @@ func main() {
 		}
 
 		payoutPercentage := c.Int("payout-percentage")
-		// bound to a value between 0 and a 100
+		// bound to a value between 0 and a 10000
 		if payoutPercentage < 0 {
 			payoutPercentage = 0
-		} else if payoutPercentage > 100 {
-			payoutPercentage = 100
+		} else if payoutPercentage > 10000 {
+			payoutPercentage = 10000
 		}
 		ethSKstr := c.String("eth-sk")
 		if strings.TrimSpace(ethSKstr) == "" {
@@ -134,7 +134,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("could not decode private key hex string (%s): %w", ethSKstr, err)
 		}
-		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, expiredWinProb, uint8(decayRate), ticketLength, uint8(payoutPercentage))
+		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, expiredWinProb, uint16(decayRate), ticketLength, uint16(payoutPercentage))
 		if err != nil {
 			return fmt.Errorf("could not execute contract deployment: %w", err)
 		}
@@ -169,7 +169,7 @@ type syloEthMgr struct {
 	faucet bool
 }
 
-func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint8, ticketLength *big.Int, payoutPercentage uint8) error {
+func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16) error {
 	var err error
 
 	ctx, cancel := context.WithTimeout(m.ctx, 3*time.Minute)
@@ -360,7 +360,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	}
 }
 
-func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint8, ticketLength *big.Int, payoutPercentage uint8) (addresses sylo.Addresses, err error) {
+func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16) (addresses sylo.Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {

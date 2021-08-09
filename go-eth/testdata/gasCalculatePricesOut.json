@@ -1,18 +1,18 @@
 [
   {
     "voters": 1,
-    "gas_used": 97576
+    "gas_used": 97588
   },
   {
     "voters": 100,
-    "gas_used": 1145545
+    "gas_used": 1145557
   },
   {
     "voters": 200,
-    "gas_used": 2208521
+    "gas_used": 2208533
   },
   {
     "voters": 300,
-    "gas_used": 3277242
+    "gas_used": 3277254
   }
 ]

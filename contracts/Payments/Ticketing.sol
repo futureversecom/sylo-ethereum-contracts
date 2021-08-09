@@ -76,10 +76,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /** 
      * A percentage value representing the proportion of the base win probability
      * that will be decayed once a ticket has expired.
-     * Example: 80% decayRate indicates that a ticket will retain 20% of its
-     * base win probability once it has expired.
+     * Example: 80% decayRate indicates that a ticket will decay down to 20% of its
+     * base win probability upon reaching the block before its expiry.
+     * The value is expressed as a fraction of 10000. 
      */
-    uint8 public decayRate;
+    uint16 public decayRate;
 
     /* Mapping of user deposits to their address */
     mapping(address => Deposit) public deposits;
@@ -97,7 +98,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 _faceValue,
         uint128 _baseLiveWinProb,
         uint128 _expiredWinProb,
-        uint8 _decayRate,
+        uint16 _decayRate,
         uint256 _ticketDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
@@ -109,7 +110,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         baseLiveWinProb = _baseLiveWinProb;
         expiredWinProb = _expiredWinProb;
         decayRate = _decayRate;
-        ticketDuration = _ticketDuration;
+        setTicketDuration(_ticketDuration);
     }
 
     function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
@@ -126,6 +127,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     function setExpiredWinProb(uint128 _expiredWinProb) public onlyOwner {
         expiredWinProb = _expiredWinProb;
+    }
+
+    function setTicketDuration(uint256 _ticketDuration) public onlyOwner {
+        require(_ticketDuration > 0, "Ticket duration cannot be 0");
+        ticketDuration = _ticketDuration;
     }
 
     function depositEscrow(uint256 amount, address account) public {
@@ -295,7 +301,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint128 winProb
     ) internal pure returns (bool) {
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
-        uint256 prob =  uint256(winProb) << 128;
+        uint256 prob = winProb == MAX_PROB ? type(uint256).max : uint256(winProb) << 128;
         return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
     }
 
@@ -313,7 +319,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         // determine the amount of probability that has actually decayed
         // by multiplying the maximum decay value against ratio of the tickets elapsed duration 
-        // vs the actual ticket duration
+        // vs the actual ticket duration. The max decay value is calculated from a fraction of a
+        // uint128 value so we cannot phantom overflow here
         uint256 decayedProbability = maxDecayValue * elapsedDuration / ticketDuration;
 
         // calculate the remaining probability by substracting the decayed probability
