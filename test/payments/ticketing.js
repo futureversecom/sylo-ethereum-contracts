@@ -11,7 +11,7 @@ const { soliditySha3 } = require("web3-utils");
 contract('Ticketing', accounts => {
   const faceValue = 15;
 
-  const baseLiveWinProb = (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString();
+  const baseLiveWinProb = (new BN(2)).pow(new BN(128)).sub(new BN(1)).toString();
   const expiredWinProb = 1000;
   const decayRate = 80;
   const ticketDuration = 100;

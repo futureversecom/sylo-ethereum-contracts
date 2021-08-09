@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "./Manager.sol";
 import "../Payments/Pricing/Manager.sol";
 import "../Payments/Pricing/Voting.sol";
+import "../Utils.sol";
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -15,8 +16,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * random points which will return a staked node's address in proportion to the stake it has.
 */
 contract Directory is Initializable, OwnableUpgradeable {
-
-    uint256 constant PERC_DIVISOR = 100;
 
     // Nodes are excluded if their voted price exceeds service price + 10%
     uint256 constant PRICE_THRESHOLD = 110;
@@ -90,7 +89,7 @@ contract Directory is Initializable, OwnableUpgradeable {
             // Voted with price aboove 90th percentile and 
             // above service price + 10%
             if (votedPrice > _priceManager.currentUpperPrice() &&
-                votedPrice > (_priceManager.currentServicePrice() * PRICE_THRESHOLD / PERC_DIVISOR)) {
+                votedPrice > (SyloUtils.percOf(uint128(_priceManager.currentServicePrice()), PRICE_THRESHOLD))) {
                 continue;
             }
 
@@ -106,6 +105,7 @@ contract Directory is Initializable, OwnableUpgradeable {
         }
 
         uint256 totalStake = _stakingManager.getTotalStake();
+
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
         uint256 expectedVal = totalStake * uint256(point) >> 128;

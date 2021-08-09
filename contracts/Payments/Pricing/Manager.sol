@@ -11,8 +11,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PriceManager is Initializable, OwnableUpgradeable {
 
-    uint32 constant LOWER_QUARTILE_PERC = 25;
-    uint32 constant UPPER_BOUNDARY_PERC = 90;
+    uint8 constant LOWER_QUARTILE_PERC = 25;
+    uint8 constant UPPER_BOUNDARY_PERC = 90;
 
     /* Sylo Directory contract */
     StakingManager _stakingManager;
@@ -40,7 +40,9 @@ contract PriceManager is Initializable, OwnableUpgradeable {
     function _calculatePrices(
         PriceVoting.Vote[] memory sortedVotes
     ) internal onlyOwner returns (uint256 servicePrice, uint256 upperPrice) {
-        uint256 totalStake = _stakingManager.totalStake();
+        // We can safely cast total stake to 128 bits here as all Sylo Tokens
+        // would fit within 94 bits
+        uint128 totalStake = uint128(_stakingManager.totalStake());
 
         uint256 lowerBoundary = SyloUtils.percOf(totalStake, LOWER_QUARTILE_PERC);
         uint256 upperBoundary = SyloUtils.percOf(totalStake, UPPER_BOUNDARY_PERC);

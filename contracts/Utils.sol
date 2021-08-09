@@ -4,34 +4,14 @@ pragma solidity ^0.8.0;
 import "abdk-libraries-solidity/ABDKMathQuad.sol";
 
 library SyloUtils {
-    /* 
-     * Perform operation `a = x * y / z` that avoids phantom overflow during
-     * `x * y` calculation. Will only revert if `a` does not fit into 256-bit.
-     */
-    function mulDiv(uint x, uint y, uint z) internal pure returns (uint) {
-      return
-        ABDKMathQuad.toUInt(
-            ABDKMathQuad.div(
-                ABDKMathQuad.mul(
-                    ABDKMathQuad.fromUInt(x),
-                    ABDKMathQuad.fromUInt(y)
-                ),
-                ABDKMathQuad.fromUInt(z)
-            )
-        );
-    }
+    uint256 constant PERCENTEGE_DENOMINATOR = 100;
 
     /*
-     * Convert a fraction to a percentage value
+     * Multiply a value by a given percentage.
+     * Converts the provided uint128 value to uint256 to avoid
+     * any reverts on overflow.
      */
-    function toPerc(uint numerator, uint denominator) internal pure returns (uint) {
-        return mulDiv(numerator, 100, denominator);
-    }
-
-    /*
-     * Multiply a value by a given percentage
-     */
-    function percOf(uint value, uint percentage) internal pure returns (uint) {
-        return mulDiv(value, percentage, 100);
+    function percOf(uint128 value, uint256 percentage) internal pure returns (uint256) {
+        return value * percentage / PERCENTEGE_DENOMINATOR;
     }
 }

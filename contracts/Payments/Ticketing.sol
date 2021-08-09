@@ -13,7 +13,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SyloTicketing is Initializable, OwnableUpgradeable {
 
-    using SafeMath for uint256;
+    /**
+     * The maximum probability value, where probability is represented
+     * as an integer between 0 to 2^128 - 1.
+     */
+    uint128 constant MAX_PROB = type(uint128).max;
 
     struct Deposit {
         uint256 escrow; // Balance of users escrow
@@ -42,20 +46,19 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* The value of a winning ticket */
     uint256 public faceValue;
 
-    /* The probability of a ticket winning during the start of its lifetime */
-    uint256 public baseLiveWinProb;
-
-    /* The probability of a ticket winning after it has expired */
-    uint256 public expiredWinProb;
+    /** 
+     * The probability of a ticket winning during the start of its lifetime.
+     * This is a uint128 value representing the numerator in the probability
+     * ratio where 2^128 - 1 is the denominator.
+     */
+    uint128 public baseLiveWinProb;
 
     /** 
-     * A percentage value representing the proportion of the base win probability
-     * that will be decayed once a ticket has expired.
-     * Example: 80% decayRate indicates that a ticket will retain 20% of its
-     * base win probability once it has expired.
+     * The probability of a ticket winning after it has expired.
+     * This is a uint128 value representing the numerator in the probability
+     * ratio where 2^128 - 1 is the denominator.
      */
-    uint32 public decayRate;
-
+    uint128 public expiredWinProb;
 
     /**
      * The length in blocks before a ticket is considered expired.
@@ -69,6 +72,14 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * before they can withdraw their funds
      */
     uint256 public unlockDuration;
+
+    /** 
+     * A percentage value representing the proportion of the base win probability
+     * that will be decayed once a ticket has expired.
+     * Example: 80% decayRate indicates that a ticket will retain 20% of its
+     * base win probability once it has expired.
+     */
+    uint8 public decayRate;
 
     /* Mapping of user deposits to their address */
     mapping(address => Deposit) public deposits;
@@ -84,8 +95,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         StakingManager stakingManager, 
         uint256 _unlockDuration,
         uint256 _faceValue,
-        uint256 _baseLiveWinProb,
-        uint256 _expiredWinProb,
+        uint128 _baseLiveWinProb,
+        uint128 _expiredWinProb,
         uint8 _decayRate,
         uint256 _ticketDuration
     ) public initializer {
@@ -109,11 +120,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         faceValue = _faceValue;
     }
 
-    function setBaseLiveWinProb(uint256 _baseLiveWinProb) public onlyOwner {
+    function setBaseLiveWinProb(uint128 _baseLiveWinProb) public onlyOwner {
         baseLiveWinProb = _baseLiveWinProb;
     }
 
-    function setExpiredWinProb(uint256 _expiredWinProb) public onlyOwner {
+    function setExpiredWinProb(uint128 _expiredWinProb) public onlyOwner {
         expiredWinProb = _expiredWinProb;
     }
 
@@ -212,9 +223,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            deposit.escrow = deposit.escrow.sub(faceValue);
+            deposit.escrow = deposit.escrow - faceValue;
 
-            uint256 stakersPayout = SyloUtils.percOf(faceValue, listing.payoutPercentage);
+            // We can safely cast faceValue to 128 bits as all Sylo Tokens
+            // would fit within 94 bits
+            uint256 stakersPayout = SyloUtils.percOf(uint128(faceValue), listing.payoutPercentage);
             
             address[] memory stakers = _stakingManager.getStakers(ticket.redeemer);
 
@@ -260,8 +273,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
 
-        uint256 realWinProb = calculateWinningProbability(ticket);
-        require(isWinningTicket(sig, redeemerRand, realWinProb), "Ticket is not a winner");
+        uint128 remainingProbability = calculateWinningProbability(ticket);
+        require(isWinningTicket(sig, redeemerRand, remainingProbability), "Ticket is not a winner");
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
@@ -279,26 +292,33 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     function isWinningTicket(
         bytes memory sig,
         uint256 redeemerRand,
-        uint256 winProb
+        uint128 winProb
     ) internal pure returns (bool) {
-        return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < winProb;
+        // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
+        uint256 prob =  uint256(winProb) << 128;
+        return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
     }
 
     function calculateWinningProbability(
         Ticket memory ticket
-    ) public view returns (uint256) {
+    ) public view returns (uint128) {
         uint256 elapsedDuration = block.number - ticket.generationBlock;
-        uint256 elapsedPercentage = SyloUtils.toPerc(elapsedDuration, ticketDuration);
 
         // Ticket has completely expired
-        if (elapsedPercentage >= 100) {
+        if (elapsedDuration >= ticketDuration) {
             return 0;
         }
 
         uint256 maxDecayValue = SyloUtils.percOf(baseLiveWinProb, decayRate);
-        uint256 decayedProbability = baseLiveWinProb - SyloUtils.percOf(maxDecayValue, elapsedPercentage);
 
-        return decayedProbability;
+        // determine the amount of probability that has actually decayed
+        // by multiplying the maximum decay value against ratio of the tickets elapsed duration 
+        // vs the actual ticket duration
+        uint256 decayedProbability = maxDecayValue * elapsedDuration / ticketDuration;
+
+        // calculate the remaining probability by substracting the decayed probability
+        // from the base
+        return baseLiveWinProb - uint128(decayedProbability);
     }
 
     function getTicketHash(Ticket memory ticket) public view returns (bytes32) {
