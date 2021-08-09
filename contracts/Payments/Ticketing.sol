@@ -209,11 +209,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         Deposit storage deposit = getDeposit(ticket.sender);
 
-        require(
-            deposit.escrow + deposit.penalty >= faceValue,
-            "Sender doesn't have enough funds to pay"
-        );
-
         usedTickets[ticketHash] = true;
 
         Listings.Listing memory listing = _listings.getListing(ticket.redeemer);
@@ -224,7 +219,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         if (faceValue > deposit.escrow) {
             _token.transfer(ticket.redeemer, deposit.escrow);
-            _token.transfer(address(_token), deposit.penalty);
+            _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;

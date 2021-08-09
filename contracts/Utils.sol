@@ -7,7 +7,7 @@ library SyloUtils {
      * A large denominator allows for more precision, e.g representing 12.5%
      * can be done as 1250 / 10000
      */
-    uint256 constant PERCENTEGE_DENOMINATOR = 10000;
+    uint256 constant PERCENTAGE_DENOMINATOR = 10000;
 
     /*
      * Multiply a value by a given percentage.
@@ -15,6 +15,6 @@ library SyloUtils {
      * any reverts on overflow.
      */
     function percOf(uint128 value, uint16 percentage) internal pure returns (uint256) {
-        return uint256(value) * percentage / PERCENTEGE_DENOMINATOR;
+        return uint256(value) * percentage / PERCENTAGE_DENOMINATOR;
     }
 }

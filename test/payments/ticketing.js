@@ -263,6 +263,13 @@ contract('Ticketing', accounts => {
       '0',
       'Expected all tokens to be transferred'
     );
+
+    const deadBalance = await token.balanceOf('0x000000000000000000000000000000000000dEaD');
+    assert.equal(
+      deadBalance.toString(),
+      '50',
+      'Expected dead address to receive burned tokens'
+    );
   });
 
   it('should payout delegated stakers on redeeming ticket', async () => {
