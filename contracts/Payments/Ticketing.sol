@@ -301,7 +301,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint128 winProb
     ) internal pure returns (bool) {
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
-        uint256 prob = winProb == MAX_PROB ? type(uint256).max : uint256(winProb) << 128;
+        uint256 prob = uint256(winProb) << 128 | uint256(winProb);
         return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
     }
 
