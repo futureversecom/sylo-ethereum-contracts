@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "abdk-libraries-solidity/ABDKMathQuad.sol";
-
 library SyloUtils {
     uint256 constant PERCENTEGE_DENOMINATOR = 100;
 
