@@ -120,17 +120,17 @@ func createRandomNumber(t *testing.T) (n *big.Int, h [32]byte) {
 }
 
 func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecdsa.PrivateKey, receiver common.Address, senderCommit [32]byte, redeemerCommit [32]byte) (contracts.SyloTicketingTicket, []byte) {
-	// var senderCommitBytes [32]byte
-	// copy(senderCommit[:], senderCommit)
+	latestBlock, err := sender.LatestBlock()
+	if err != nil {
+		t.Fatalf("could not retrieve the latest block: %v", err)
+	}
 
-	// var redeemerCommitBytes [32]byte
-	// copy(redeemerCommit[:], redeemerCommit)
 	ticket := contracts.SyloTicketingTicket{
 		Sender:          sender.Address(),
 		Redeemer:        receiver,
 		SenderCommit:    senderCommit,
 		RedeemerCommit:  redeemerCommit,
-		GenerationBlock: big.NewInt(0),
+		GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
 	}
 
 	ticketHash, err := sender.GetTicketHash(ticket)
