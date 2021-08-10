@@ -40,7 +40,7 @@ type Client interface {
 	DepositPenalty(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	UnlockDeposits() (*types.Transaction, error)
 	LockDeposits() (*types.Transaction, error)
-	Redeem(ticket contracts.SyloTicketingTicket, receiverRand *big.Int, sig []byte) (*types.Transaction, error)
+	Redeem(ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) (*types.Transaction, error)
 	Withdraw() (*types.Transaction, error)
 	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
 

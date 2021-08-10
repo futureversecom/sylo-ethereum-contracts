@@ -1,5 +1,7 @@
 const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
+const crypto = require("crypto");
+const sodium = require('libsodium-wrappers-sumo');
 const Ticketing = artifacts.require("SyloTicketing");
 const Listings = artifacts.require("Listings");
 const StakingManager = artifacts.require("StakingManager");
@@ -7,6 +9,15 @@ const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
 
 contract('Ticketing', accounts => {
+  const payoutPercentage = 5000;
+
+  const faceValue = 15;
+
+  const baseLiveWinProb = (new BN(2)).pow(new BN(128)).sub(new BN(1)).toString();
+  const expiredWinProb = 1000;
+  const decayRate = 8000;
+  const ticketDuration = 100;
+
   let token;
   let ticketing;
   let listings;
@@ -32,7 +43,7 @@ contract('Ticketing', accounts => {
 
   beforeEach(async () => {
     listings = await Listings.new({ from: accounts[1] });
-    await listings.initialize(50), { from: accounts[1] };
+    await listings.initialize(payoutPercentage), { from: accounts[1] };
 
     stakingManager = await StakingManager.new({ from: accounts[1] });
     await stakingManager.initialize(token.address, 0, { from: accounts[1] });
@@ -42,7 +53,12 @@ contract('Ticketing', accounts => {
       token.address, 
       listings.address, 
       stakingManager.address, 
-      0, 
+      0,
+      faceValue,
+      baseLiveWinProb,
+      expiredWinProb,
+      decayRate,
+      ticketDuration,
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
@@ -142,28 +158,13 @@ contract('Ticketing', accounts => {
     assert.equal(deposit.unlockAt.toString(), '0', 'Expected deposit to go into unlocking phase');
   });
 
-  it('can not redeem expired ticket', async () => {
-    const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1);
-
-    ticket.expirationBlock = 1;
-
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
-      .then(() => {
-        assert.fail('Should fail to redeem expired ticket');
-      })
-      .catch(e => {
-        assert.include(e.message, 'Ticket has expired', 'Expected redeeming to fail due to expired ticket');
-      });
-  });
-
   it('can not redeem ticket with invalid signature', async () => {
-    const { ticket, receiverRand } = 
+    const { ticket, senderRand, redeemerRand } = 
       await createWinningTicket(0, 1);
 
     const signature = '0x00';
 
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
       .then(() => {
         assert.fail('Should fail to redeem ticket with invalid signature');
       })
@@ -172,18 +173,33 @@ contract('Ticketing', accounts => {
       });
   });
 
-  it('can not redeem ticket with invalid receiver rand', async () => {
-    const { ticket, signature } = 
+  it('can not redeem ticket with invalid sender rand', async () => {
+    const { ticket, redeemerRand, signature } = 
       await createWinningTicket(0, 1);
 
-    const receiverRand = 999;
+    const senderRand = 999;
 
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] })
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
       .then(() => {
-        assert.fail('Should fail to redeem ticket with invalid receiver rand');
+        assert.fail('Should fail to redeem ticket with invalid redeemer rand');
       })
       .catch(e => {
-        assert.include(e.message, 'Hash of receiverRand doesn\'t match receiverRandHash', 'Expected redeeming to fail due to invalid signature');
+        assert.include(e.message, 'Hash of senderRand doesn\'t match senderRandHash', 'Expected redeeming to fail due to invalid signature');
+      });
+  });
+
+  it('can not redeem ticket with invalid redeemer rand', async () => {
+    const { ticket, senderRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    const redeemerRand = 999;
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
+      .then(() => {
+        assert.fail('Should fail to redeem ticket with invalid redeemer rand');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Hash of redeemerRand doesn\'t match redeemerRandHash', 'Expected redeeming to fail due to invalid signature');
       });
   });
 
@@ -196,21 +212,22 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1);
-
+    
+    const { ticket, senderRand, redeemerRand, signature } = 
+    await createWinningTicket(0, 1);
+    
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
     const deposit = await ticketing.deposits.call(accounts[0]);
-    assert.equal(deposit.escrow.toString(), '40', 'Expected ticket face value to be substracted from escrow');
+    assert.equal(deposit.escrow.toString(), '35', 'Expected ticket payout to be substracted from escrow');
     assert.equal(deposit.penalty.toString(), '50', 'Expected penalty to not be changed');
 
     const postRedeemBalance = await token.balanceOf(accounts[1]);
     assert.equal(
       postRedeemBalance.toString(),
-      initialReceiverBalance.add(new BN(ticket.faceValue)).toString(),
-      "Expected balance of receiver to have added the ticket face value"
+      initialReceiverBalance.add(new BN(faceValue)).toString(),
+      "Expected balance of redeemer to have added the ticket face value"
     );
   });
 
@@ -223,11 +240,11 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(5, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } = 
       await createWinningTicket(0, 1);
 
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
     const deposit = await ticketing.deposits.call(accounts[0]);
     assert.equal(deposit.escrow.toString(), '0', 'Expected entire escrow to be used');
@@ -237,7 +254,7 @@ contract('Ticketing', accounts => {
     assert.equal(
       postRedeemBalance.toString(),
       initialReceiverBalance.add(new BN(5)).toString(),
-      "Expected balance of receiver to only have remaining available escrow added to it"
+      "Expected balance of redeemer to only have remaining available escrow added to it"
     );
 
     const ticketingBalance = await token.balanceOf(ticketing.address);
@@ -245,6 +262,13 @@ contract('Ticketing', accounts => {
       ticketingBalance.toString(),
       '0',
       'Expected all tokens to be transferred'
+    );
+
+    const deadBalance = await token.balanceOf('0x000000000000000000000000000000000000dEaD');
+    assert.equal(
+      deadBalance.toString(),
+      '50',
+      'Expected dead address to receive burned tokens'
     );
   });
 
@@ -259,17 +283,17 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } = 
       await createWinningTicket(0, 1);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
 
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
     // The payout percentage is 50%, so the node (accounts[1]) and the
     // only delegator (account[2]) should split the reward equally
-    const expectedPayout = ticket.faceValue / 2;
+    const expectedPayout = faceValue / 2;
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
     const postReceiverBalance = await token.balanceOf(accounts[1]);
@@ -282,8 +306,8 @@ contract('Ticketing', accounts => {
 
     assert.equal(
       postReceiverBalance.toString(),
-      initialReceiverBalance.add(new BN(expectedPayout)).toString(),
-      "Expected balance of receiver to have added 50% of ticket face value"
+      initialReceiverBalance.add(new BN(expectedPayout + 1 /* add 1 due to rounding  */)).toString(),
+      "Expected balance of redeemer to have added 50% of ticket face value"
     );
   });
 
@@ -300,21 +324,21 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1, 15); // 15 ticket as face value
+    const { ticket, senderRand, redeemerRand, signature } = 
+      await createWinningTicket(0, 1);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
 
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
     // The payout percentage is 50%, so due to rounding, 7 will go to
     // the delegators, and 8 will go directly to the node. For the value
     // split amongst the delegators (accounts 2 and 3), it will be split
     // proportionally but rounded down, so both will receive 3, and the remainder (1)
     // will be sent to the node
-    const expectedDelegatorsPayout = parseInt(ticket.faceValue / 2);
-    const expectedStakeePayout = ticket.faceValue - expectedDelegatorsPayout + 1;
+    const expectedDelegatorsPayout = parseInt(faceValue / 2);
+    const expectedStakeePayout = faceValue - expectedDelegatorsPayout + 1;
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
     const postReceiverBalance = await token.balanceOf(accounts[1]);
@@ -328,7 +352,7 @@ contract('Ticketing', accounts => {
     assert.equal(
       postReceiverBalance.toString(),
       initialReceiverBalance.add(new BN(expectedStakeePayout)).toString(),
-      "Expected balance of receiver to have 9 added to their balance"
+      "Expected balance of redeemer to have 9 added to their balance"
     );
   });
 
@@ -344,16 +368,16 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
-      await createWinningTicket(0, 1);
-
     // unlock account[2] stake
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[2] });
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
 
-    await ticketing.redeem(ticket, receiverRand, signature, { from: accounts[1] });
+    const { ticket, senderRand, redeemerRand, signature } = 
+      await createWinningTicket(0, 1);
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
     const postReceiverBalance = await token.balanceOf(accounts[1]);
@@ -366,8 +390,8 @@ contract('Ticketing', accounts => {
 
     assert.equal(
       postReceiverBalance.toString(),
-      initialReceiverBalance.add(new BN(ticket.faceValue)).toString(),
-      "Expected balance of receiver to have added 50% of ticket face value"
+      initialReceiverBalance.add(new BN(faceValue)).toString(),
+      "Expected balance of redeemer to have added 50% of ticket face value"
     );
   });
 
@@ -388,12 +412,13 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
 
-    const { ticket, receiverRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } = 
       await createWinningTicket(0, 1);
 
     await ticketing.redeem.estimateGas(
       ticket, 
-      receiverRand, 
+      senderRand,
+      redeemerRand, 
       signature, 
       { from: accounts[1],
         gas: 350000,
@@ -401,33 +426,169 @@ contract('Ticketing', accounts => {
     );
   });
 
-  async function createWinningTicket(sender, receiver, faceValue = 10) {
-    const receiverRand = 1;
-    const receiverRandHash = soliditySha3(receiverRand);
+  it('should decay winning probability as ticket approaches expiry', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    // deploy another ticketing contract with simpler parameters
+    ticketing = await Ticketing.new({ from: accounts[1] });
+    await ticketing.initialize(
+      token.address, 
+      listings.address, 
+      stakingManager.address, 
+      0,
+      faceValue,
+      100000,
+      1000,
+      8000,
+      100,
+      { from: accounts[1] }
+    );
+    await token.approve(ticketing.address, 10000, { from: accounts[1] });
+
+    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+
+    const { ticket } = 
+      await createWinningTicket(0, 1);
+
+    // advance the block halfway to ticket expiry
+    for (let i = 0; i < 51; i++) {
+      await advanceBlock();
+    }
+
+    // check if the probability has decayed 50% of the maximum decayed value (80%)
+    const expectedProbability = new BN(100000 - (0.5 * 0.8 * 100000));
+
+    const decayedProbability = await ticketing.calculateWinningProbability(ticket);
+
+    assert.equal(
+      decayedProbability.toString(), 
+      expectedProbability.toString(), 
+      "Expected probablity of ticket winning to decay"
+    );
+  });
+
+  it('returns 0 winning probability if ticket has expired', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    const { ticket } = 
+      await createWinningTicket(0, 1);
+
+    // advance the block all the way to ticket expiry
+    for (let i = 0; i < 101; i++) {
+      await advanceBlock();
+    }
+
+    const p = await ticketing.calculateWinningProbability(ticket);
+
+    assert.equal(
+      '0',
+      p.toString(),
+      'Expected probabilit to be 0'
+    );
+  });
+
+  it('simulates scenario between sender, node, and oracle', async () => {
+    const sender = accounts[0];
+    const node = accounts[1];
+
+    // set up the node's stake and listing
+    await stakingManager.addStake(1, node, { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    // set up the sender's escrow
+    await ticketing.depositEscrow(50, sender, { from: accounts[1] });
+    await ticketing.depositPenalty(50, sender, { from: accounts[1] });
+
+    // have the node and sender generate random numbers
+    const nodeRand = crypto.randomBytes(32);
+    const senderRand = crypto.randomBytes(32);
+
+    // create commits from those random numbers
+    const nodeCommit = soliditySha3(nodeRand);
+    const senderCommit = soliditySha3(senderRand);
+
+    // create the ticket to be given to the node
+    const ticket = {
+      sender: accounts[0],
+      redeemer: accounts[1],
+      generationBlock: new BN((await web3.eth.getBlockNumber()) + 1).toString(),
+      senderCommit,
+      redeemerCommit: nodeCommit
+    };
+
+    // have sender sign the hash of the ticket
+    const ticketHash = await ticketing.getTicketHash(ticket);
+    const signature = eth.Account.sign(ticketHash, privateKeys[0]);
+
+    // establish the oracle
+    const oracle = sodium.crypto_sign_keypair('uint8array');
+
+    // encrypt senderRandom to create the key
+    const key = sodium.crypto_box_seal(
+      senderRand,
+      sodium.crypto_sign_ed25519_pk_to_curve25519(oracle.publicKey),
+      'uint8array'
+    );
+
+    // have oracle decrypt the key and reveal the random number to the node
+    const revealedSenderRand = sodium.crypto_box_seal_open(
+      key,
+      sodium.crypto_sign_ed25519_pk_to_curve25519(oracle.publicKey),
+      sodium.crypto_sign_ed25519_sk_to_curve25519(oracle.privateKey),
+      'uint8array'
+    );
+
+    // once secret has been revealed, the node can now redeem the ticket
+    await ticketing.redeem(
+      ticket,
+      revealedSenderRand,
+      nodeRand,
+      signature,
+      { from: node }
+    );
+  });
+
+
+  async function advanceBlock() {
+    return await new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+        jsonrpc: '2.0',
+        method: 'evm_mine',
+        id: new Date().getTime()
+      }, (err, result) => {
+        if (err) { return reject(err) }
+        const newBlockHash = web3.eth.getBlock('latest').hash
+  
+        return resolve(newBlockHash)
+      })
+    })
+  }
+
+  async function createWinningTicket(sender, redeemer) {
+    const senderRand = 1;
+    const senderCommit = soliditySha3(senderRand);
+
+    const redeemerRand = 1;
+    const redeemerCommit = soliditySha3(redeemerRand);
+
+    const generationBlock = await web3.eth.getBlockNumber();
 
     const ticket = {
       sender: accounts[sender],
-      receiver: accounts[receiver],
-      faceValue,
-      winProb: (new BN(2)).pow(new BN(256)).sub(new BN(1)).toString(), //max win prob
-      expirationBlock: 0,
-      receiverRandHash,
-      senderNonce: 1
-    }
-    
-    const ticketHash = soliditySha3(
-      ticket.sender,
-      ticket.receiver,
-      ticket.faceValue,
-      { t: 'uint256', v: ticket.winProb.toString() },
-      ticket.expirationBlock,
-      ticket.receiverRandHash,
-      { t: 'uint32', v: ticket.senderNonce }
-    );
+      redeemer: accounts[redeemer],
+      generationBlock: new BN(generationBlock + 1).toString(),
+      senderCommit,
+      redeemerCommit
+    };
+
+    const ticketHash = await ticketing.getTicketHash(ticket);
 
     const signature = eth.Account.sign(ticketHash, privateKeys[sender]);
 
-    return { ticket, receiverRand, signature, ticketHash }
+    return { ticket, senderRand, redeemerRand, signature, ticketHash }
   }
 
 });

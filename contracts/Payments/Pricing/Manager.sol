@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./Voting.sol";
+import "../../Utils.sol";
 import "../../Staking/Manager.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -10,9 +11,9 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract PriceManager is Initializable, OwnableUpgradeable {
 
-    uint32 constant LOWER_QUARTILE_PERC = 25;
-    uint32 constant UPPER_BOUNDARY_PERC = 90;
-    uint256 constant PERC_DIVISOR = 100;
+    // Percentage values are expressed as a fraction of 10000
+    uint16 constant LOWER_QUARTILE_PERC = 2500;
+    uint16 constant UPPER_BOUNDARY_PERC = 9000;
 
     /* Sylo Directory contract */
     StakingManager _stakingManager;
@@ -40,9 +41,12 @@ contract PriceManager is Initializable, OwnableUpgradeable {
     function _calculatePrices(
         PriceVoting.Vote[] memory sortedVotes
     ) internal onlyOwner returns (uint256 servicePrice, uint256 upperPrice) {
-        uint256 totalStake = _stakingManager.totalStake();
-        uint256 lowerBoundary = LOWER_QUARTILE_PERC * totalStake / PERC_DIVISOR;
-        uint256 upperBoundary = UPPER_BOUNDARY_PERC * totalStake / PERC_DIVISOR;
+        // We can safely cast total stake to 128 bits here as all Sylo Tokens
+        // would fit within 94 bits
+        uint128 totalStake = uint128(_stakingManager.totalStake());
+
+        uint256 lowerBoundary = SyloUtils.percOf(totalStake, LOWER_QUARTILE_PERC);
+        uint256 upperBoundary = SyloUtils.percOf(totalStake, UPPER_BOUNDARY_PERC);
 
         uint256 needle = 0;
 

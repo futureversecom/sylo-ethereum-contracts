@@ -45,10 +45,30 @@ func main() {
 			Usage: "The `NUM` of blocks that must pass to unlock SYLO.",
 			Value: "6",
 		},
+		&cli.StringFlag{
+			Name:  "face-value",
+			Usage: "A uint256 value representing the face value of a winning ticket",
+		},
+		&cli.StringFlag{
+			Name:  "win-prob",
+			Usage: "The numerator used in the win probability calculation, where p = `VALUE` / 2^256",
+		},
+		&cli.StringFlag{
+			Name:  "decay-rate",
+			Usage: "The `PERCENTAGE` of a ticket's probability that may decay over it's lifetime expressed as a fraction of 10000",
+		},
+		&cli.StringFlag{
+			Name:  "expired-win-prob",
+			Usage: "The numerator used in the win probability calculation after ticket expiration, where p = `VALUE` / 2^256",
+		},
+		&cli.IntFlag{
+			Name:  "ticket-length",
+			Usage: "The `NUM` of blocks that tickets stay valid for",
+		},
 		&cli.IntFlag{
 			Name:  "payout-percentage",
-			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers",
-			Value: 50,
+			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers expressed as a fraction of 10000",
+			Value: 5000,
 		},
 		&cli.BoolFlag{
 			Name:  "faucet",
@@ -70,12 +90,38 @@ func main() {
 			logger.Infof("unlock duration will be 6")
 			unlockDuration = big.NewInt(6)
 		}
+
+		faceValue, ok := new(big.Int).SetString(c.String("face-value"), 10)
+		if !ok {
+			return fmt.Errorf("could not parse integer from %s", c.String("face-value"))
+		}
+
+		winProb, ok := new(big.Int).SetString(c.String("win-prob"), 10)
+		if !ok {
+			return fmt.Errorf("could not parse integer from %s", c.String("win-prob"))
+		}
+
+		decayRate := c.Int("decay-rate")
+		// bound to a value between 0 and 10000
+		if decayRate < 0 {
+			decayRate = 0
+		} else if decayRate > 10000 {
+			decayRate = 10000
+		}
+
+		expiredWinProb, ok := new(big.Int).SetString(c.String("min-prob-constant"), 10)
+		if !ok {
+			return fmt.Errorf("could not parse integer from %s", c.String("win-prob"))
+		}
+
+		ticketLength := new(big.Int).SetInt64(int64(c.Int("ticket-length")))
+
 		payoutPercentage := c.Int("payout-percentage")
-		// bound to a value between 0 and a 100
+		// bound to a value between 0 and a 10000
 		if payoutPercentage < 0 {
 			payoutPercentage = 0
-		} else if payoutPercentage > 100 {
-			payoutPercentage = 100
+		} else if payoutPercentage > 10000 {
+			payoutPercentage = 10000
 		}
 		ethSKstr := c.String("eth-sk")
 		if strings.TrimSpace(ethSKstr) == "" {
@@ -85,7 +131,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("could not decode private key hex string (%s): %w", ethSKstr, err)
 		}
-		err = m.start(c.String("eth-url"), unlockDuration, uint8(payoutPercentage))
+		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, expiredWinProb, uint16(decayRate), ticketLength, uint16(payoutPercentage))
 		if err != nil {
 			return fmt.Errorf("could not execute contract deployment: %w", err)
 		}
@@ -120,7 +166,7 @@ type syloEthMgr struct {
 	faucet bool
 }
 
-func (m *syloEthMgr) start(url string, unlockDuration *big.Int, payoutPercentage uint8) error {
+func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16) error {
 	var err error
 
 	ctx, cancel := context.WithTimeout(m.ctx, 3*time.Minute)
@@ -156,7 +202,7 @@ func (m *syloEthMgr) start(url string, unlockDuration *big.Int, payoutPercentage
 	}
 	m.opts.Context = m.ctx
 
-	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, payoutPercentage)
+	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength, payoutPercentage)
 	if err != nil {
 		return fmt.Errorf("could not deploy contracts: %w", err)
 	}
@@ -311,7 +357,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	}
 }
 
-func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, payoutPercentage uint8) (addresses sylo.Addresses, err error) {
+func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16) (addresses sylo.Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {
@@ -414,7 +460,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration)
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

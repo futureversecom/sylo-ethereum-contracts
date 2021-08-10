@@ -11,7 +11,7 @@ contract ListingsTest {
 
   function beforeEach() public {
     listings = new Listings(); 
-    listings.initialize(50);
+    listings.initialize(5000);
   }
 
   function testSettingListing() public {

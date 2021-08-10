@@ -23,7 +23,7 @@ import (
 var (
 	OneEth           = big.NewInt(1000000000000000000)
 	FaucetEthBalance = new(big.Int).Mul(OneEth, big.NewInt(10000))
-	Uint256max       = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1)) // 2^256-1
+	Uint128max       = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)) // 2^128-1
 
 	chainID        = big.NewInt(1337)
 	unlockDuration = big.NewInt(10)
@@ -170,8 +170,6 @@ func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, clie
 	if err != nil {
 		t.Fatalf("could not retrieve votes: %v", err)
 	}
-
-	fmt.Printf("utils_test %v", voters)
 
 	sortedVotes := []SortedVote{}
 
@@ -450,7 +448,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
 
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration)
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(100))
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}
