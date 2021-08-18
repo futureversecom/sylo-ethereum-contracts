@@ -464,7 +464,7 @@ contract('Ticketing', accounts => {
 
     // advance the block halfway to ticket expiry
     for (let i = 0; i < 51; i++) {
-      await advanceBlock();
+      await utils.advanceBlock();
     }
 
     // check if the probability has decayed 50% of the maximum decayed value (80%)
@@ -490,7 +490,7 @@ contract('Ticketing', accounts => {
 
     // advance the block all the way to ticket expiry
     for (let i = 0; i < 101; i++) {
-      await advanceBlock();
+      await utils.advanceBlock();
     }
 
     const p = await ticketing.calculateWinningProbability(ticket);
@@ -562,22 +562,6 @@ contract('Ticketing', accounts => {
       { from: node }
     );
   });
-
-
-  async function advanceBlock() {
-    return await new Promise((resolve, reject) => {
-      web3.currentProvider.send({
-        jsonrpc: '2.0',
-        method: 'evm_mine',
-        id: new Date().getTime()
-      }, (err, result) => {
-        if (err) { return reject(err) }
-        const newBlockHash = web3.eth.getBlock('latest').hash
-  
-        return resolve(newBlockHash)
-      })
-    })
-  }
 
   async function createWinningTicket(sender, redeemer) {
     const senderRand = 1;
