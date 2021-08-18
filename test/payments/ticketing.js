@@ -7,6 +7,7 @@ const Listings = artifacts.require("Listings");
 const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
 const { soliditySha3 } = require("web3-utils");
+const utils = require('../utils');
 
 contract('Ticketing', accounts => {
   const payoutPercentage = 5000;
@@ -159,8 +160,9 @@ contract('Ticketing', accounts => {
   });
 
   it('can not redeem ticket with invalid signature', async () => {
+    const alice = web3.eth.accounts.create();
     const { ticket, senderRand, redeemerRand } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     const signature = '0x00';
 
@@ -174,8 +176,9 @@ contract('Ticketing', accounts => {
   });
 
   it('can not redeem ticket with invalid sender rand', async () => {
+    const alice = web3.eth.accounts.create();
     const { ticket, redeemerRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     const senderRand = 999;
 
@@ -189,8 +192,9 @@ contract('Ticketing', accounts => {
   });
 
   it('can not redeem ticket with invalid redeemer rand', async () => {
+    const alice = web3.eth.accounts.create();
     const { ticket, senderRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     const redeemerRand = 999;
 
@@ -209,17 +213,17 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    
     const { ticket, senderRand, redeemerRand, signature } = 
-    await createWinningTicket(0, 1);
+    await createWinningTicket(alice, 1);
     
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
-    const deposit = await ticketing.deposits.call(accounts[0]);
+    const deposit = await ticketing.deposits.call(alice.address);
     assert.equal(deposit.escrow.toString(), '35', 'Expected ticket payout to be substracted from escrow');
     assert.equal(deposit.penalty.toString(), '50', 'Expected penalty to not be changed');
 
@@ -237,16 +241,17 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-    await ticketing.depositEscrow(5, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(5, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
-    const deposit = await ticketing.deposits.call(accounts[0]);
+    const deposit = await ticketing.deposits.call(alice.address);
     assert.equal(deposit.escrow.toString(), '0', 'Expected entire escrow to be used');
     assert.equal(deposit.penalty.toString(), '0', 'Expected entire penalty to b burned');
 
@@ -280,11 +285,12 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
@@ -321,11 +327,12 @@ contract('Ticketing', accounts => {
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
@@ -365,8 +372,9 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     // unlock account[2] stake
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[2] });
@@ -375,7 +383,7 @@ contract('Ticketing', accounts => {
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
@@ -395,7 +403,7 @@ contract('Ticketing', accounts => {
     );
   });
 
-  it('gas cast should not be excessive at maximum delegators', async () => {
+  it('gas cast should not be excessive at maximum delegators [ @skip-on-coverage ]', async () => {
     // reach 10 delegator limit
     for (let i = 0; i < accounts.length; i++) {
       if (i == 1) {
@@ -409,11 +417,12 @@ contract('Ticketing', accounts => {
     
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     await ticketing.redeem.estimateGas(
       ticket, 
@@ -446,11 +455,12 @@ contract('Ticketing', accounts => {
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
 
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     // advance the block halfway to ticket expiry
     for (let i = 0; i < 51; i++) {
@@ -473,8 +483,10 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    const alice = web3.eth.accounts.create();
+
     const { ticket } = 
-      await createWinningTicket(0, 1);
+      await createWinningTicket(alice, 1);
 
     // advance the block all the way to ticket expiry
     for (let i = 0; i < 101; i++) {
@@ -491,7 +503,7 @@ contract('Ticketing', accounts => {
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {
-    const sender = accounts[0];
+    const sender = web3.eth.accounts.create();
     const node = accounts[1];
 
     // set up the node's stake and listing
@@ -499,8 +511,8 @@ contract('Ticketing', accounts => {
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     // set up the sender's escrow
-    await ticketing.depositEscrow(50, sender, { from: accounts[1] });
-    await ticketing.depositPenalty(50, sender, { from: accounts[1] });
+    await ticketing.depositEscrow(50, sender.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, sender.address, { from: accounts[1] });
 
     // have the node and sender generate random numbers
     const nodeRand = crypto.randomBytes(32);
@@ -512,8 +524,8 @@ contract('Ticketing', accounts => {
 
     // create the ticket to be given to the node
     const ticket = {
-      sender: accounts[0],
-      redeemer: accounts[1],
+      sender: sender.address,
+      redeemer: node,
       generationBlock: new BN((await web3.eth.getBlockNumber()) + 1).toString(),
       senderCommit,
       redeemerCommit: nodeCommit
@@ -521,7 +533,7 @@ contract('Ticketing', accounts => {
 
     // have sender sign the hash of the ticket
     const ticketHash = await ticketing.getTicketHash(ticket);
-    const signature = eth.Account.sign(ticketHash, privateKeys[0]);
+    const signature = eth.Account.sign(ticketHash, sender.privateKey);
 
     // establish the oracle
     const oracle = sodium.crypto_sign_keypair('uint8array');
@@ -577,7 +589,7 @@ contract('Ticketing', accounts => {
     const generationBlock = await web3.eth.getBlockNumber();
 
     const ticket = {
-      sender: accounts[sender],
+      sender: sender.address,
       redeemer: accounts[redeemer],
       generationBlock: new BN(generationBlock + 1).toString(),
       senderCommit,
@@ -586,7 +598,7 @@ contract('Ticketing', accounts => {
 
     const ticketHash = await ticketing.getTicketHash(ticket);
 
-    const signature = eth.Account.sign(ticketHash, privateKeys[sender]);
+    const signature = eth.Account.sign(ticketHash, sender.privateKey);
 
     return { ticket, senderRand, redeemerRand, signature, ticketHash }
   }

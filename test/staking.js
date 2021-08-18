@@ -58,7 +58,17 @@ contract('Staking', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
   });
 
-  it('should distribute scan results amongst stakees proportionally - all equal', async () => {
+  it('should be able to scan', async () => {
+    await stakingManager.addStake(1, accounts[0], { from: accounts[1] });
+
+    await priceVoting.vote(1, { from: accounts[0] });
+    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
+    await directory.constructDirectory({ from: accounts[1] });
+
+    await directory.scan(new BN(0));
+  });
+
+  it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
     }
@@ -78,7 +88,7 @@ contract('Staking', accounts => {
     }
   }).timeout(0);
 
-  it('should distribute scan results amongst stakees proportionally - varied stake amounts', async () => {
+  it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
     let totalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(i + 1, accounts[i], { from: accounts[1] });
@@ -100,7 +110,7 @@ contract('Staking', accounts => {
     }
   }).timeout(0);
 
-  it('should be able to scan after unlocking all stake', async () => {
+  it('should be able to scan after unlocking all stake [ @skip-on-coverage ]', async () => {
     await stakingManager.addStake(1, accounts[0], { from: accounts[1] });
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await stakingManager.addStake(1, accounts[2], { from: accounts[1] });
@@ -114,7 +124,7 @@ contract('Staking', accounts => {
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
 
-  it('scan after some nodes unstake', async () => {
+  it('scan after some nodes unstake [ @skip-on-coverage ]', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
     }
