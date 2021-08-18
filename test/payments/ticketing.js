@@ -40,16 +40,23 @@ contract('Ticketing', accounts => {
 
   before(async () => {
     token = await Token.new({ from: accounts[1] });
-  });
 
-  beforeEach(async () => {
     listings = await Listings.new({ from: accounts[1] });
     await listings.initialize(payoutPercentage), { from: accounts[1] };
 
+    await initializeStakingManager();
+    await initializeTicketing();
+  });
+
+  async function initializeStakingManager() {
     stakingManager = await StakingManager.new({ from: accounts[1] });
     await stakingManager.initialize(token.address, 0, { from: accounts[1] });
+    await token.approve(stakingManager.address, 10000, { from: accounts[1] });
+    return stakingManager;
+  }
 
-    ticketing = await Ticketing.new({ from: accounts[1] });
+  async function initializeTicketing() {
+    ticketing = await Ticketing.new({ from: accounts[1] })
     await ticketing.initialize(
       token.address, 
       listings.address, 
@@ -63,36 +70,40 @@ contract('Ticketing', accounts => {
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
-    await token.approve(stakingManager.address, 10000, { from: accounts[1] });
-  });
+    return ticketing;
+  }
 
   it('should be able to deposit escrow', async () => {
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
 
-    const deposit = await ticketing.deposits(accounts[0]);
+    const deposit = await ticketing.deposits(alice.address);
     assert.equal(deposit.escrow.toString(), '50', 'Expected 50 in escrow');
   });
 
   it('should be able to deposit penalty', async () => {
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const deposit = await ticketing.deposits(accounts[0]);
+    const deposit = await ticketing.deposits(alice.address);
     assert.equal(deposit.penalty.toString(), '50', 'Expected 50 in escrow');
   });
 
   it('should be able to deposit escrow multiple times', async () => {
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
 
-    const deposit = await ticketing.deposits(accounts[0]);
+    const deposit = await ticketing.deposits(alice.address);
     assert.equal(deposit.escrow.toString(), '100', 'Expected 100 in escrow');
   });
 
   it('should be able to depost to penalty multiple times', async () => {
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
-    await ticketing.depositPenalty(50, accounts[0], { from: accounts[1] });
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const deposit = await ticketing.deposits(accounts[0]);
+    const deposit = await ticketing.deposits(alice.address);
     assert.equal(deposit.penalty.toString(), '100', 'Expected 100 in penalty');
   });
 
@@ -109,7 +120,7 @@ contract('Ticketing', accounts => {
   });
 
   it('should fail to unlock without deposit', async () => {
-    await ticketing.unlockDeposits({ from: accounts[0] })
+    await ticketing.unlockDeposits({ from: accounts[2] })
       .then(() => {
         assert.fail('Withdrawing should fail');
       })
@@ -119,7 +130,6 @@ contract('Ticketing', accounts => {
   });
   
   it('should be able to unlock', async () => {
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
     await ticketing.unlockDeposits({ from: accounts[0] });
 
     const deposit = await ticketing.deposits(accounts[0]);
@@ -127,9 +137,6 @@ contract('Ticketing', accounts => {
   });
 
   it('should fail to unlock if already unlocking', async () => {
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.unlockDeposits({ from: accounts[0] });
-
     await ticketing.unlockDeposits({ from: accounts[0] })
       .then(() => {
         assert.fail('Withdrawing should fail');
@@ -140,8 +147,8 @@ contract('Ticketing', accounts => {
   });
 
   it('should fail to lock if already locked', async () => {
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.lockDeposits({ from: accounts[0] })
+    await ticketing.depositEscrow(50, accounts[3], { from: accounts[1] });
+    await ticketing.lockDeposits({ from: accounts[3] })
       .then(() => {
         assert.fail('Locking should fail');
       })
@@ -151,12 +158,10 @@ contract('Ticketing', accounts => {
   });
 
   it('should be able to lock deposit while it is unlocked', async () => {
-    await ticketing.depositEscrow(50, accounts[0], { from: accounts[1] });
-    await ticketing.unlockDeposits({ from: accounts[0] });
     await ticketing.lockDeposits({ from: accounts[0] });
 
     const deposit = await ticketing.deposits(accounts[0]);
-    assert.equal(deposit.unlockAt.toString(), '0', 'Expected deposit to go into unlocking phase');
+    assert.equal(deposit.unlockAt.toString(), '0', 'Expected deposit to move out of unlocking phase');
   });
 
   it('can not redeem ticket with invalid signature', async () => {
@@ -236,6 +241,8 @@ contract('Ticketing', accounts => {
   });
 
   it('burns penalty on insufficient escrow', async () => {
+    const ticketing = await initializeTicketing();
+
     // simulate having account[1] as a node with a listing and a
     // stakingManager entry
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
@@ -266,7 +273,7 @@ contract('Ticketing', accounts => {
     assert.equal(
       ticketingBalance.toString(),
       '0',
-      'Expected all tokens to be transferred'
+      'Expected tokens from ticket contract to be removed'
     );
 
     const deadBalance = await token.balanceOf('0x000000000000000000000000000000000000dEaD');
@@ -278,6 +285,9 @@ contract('Ticketing', accounts => {
   });
 
   it('should payout delegated stakers on redeeming ticket', async () => {
+    await initializeStakingManager();
+    await initializeTicketing();
+
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
     await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
@@ -318,6 +328,9 @@ contract('Ticketing', accounts => {
   });
 
   it('should pay stakee remainders left from rounding down', async () => {
+    await initializeStakingManager();
+    await initializeTicketing();
+
     // have account 2 and 3 as delegated stakers
     for (let i = 2; i < 4; i++) {
       await token.transfer(accounts[i], 1000, { from: accounts[1]} );
@@ -364,6 +377,9 @@ contract('Ticketing', accounts => {
   });
 
   it('should payout full ticket face value to node if all delegates pull out', async () => {
+    await initializeStakingManager();
+    await initializeTicketing();
+
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
     await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
@@ -503,6 +519,8 @@ contract('Ticketing', accounts => {
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {
+    const ticketing = await initializeTicketing();
+
     const sender = web3.eth.accounts.create();
     const node = accounts[1];
 
