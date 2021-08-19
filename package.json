@@ -6,7 +6,8 @@
   "scripts": {
     "build": "truffle compile",
     "lint": "solhint \"contracts/**/*.sol\"",
-    "test": "truffle test"
+    "test": "truffle test",
+    "coverage": "truffle run coverage --network testNetwork"
   },
   "author": "Sylo",
   "license": "ISC",
@@ -19,6 +20,7 @@
     "libsodium": "^0.7.9",
     "libsodium-wrappers-sumo": "^0.7.9",
     "solhint": "^2.3.1",
+    "solidity-coverage": "^0.7.16",
     "truffle": "^5.3.14"
   },
   "dependencies": {}

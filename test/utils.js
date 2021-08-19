@@ -33,7 +33,7 @@ exports.sendContractTransaction = async function(contractAddress, method, accoun
   await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
 }
 
-exports.calculatePrices = async function(priceManager, priceVoting, owner){
+exports.calculatePrices = async function(priceManager, priceVoting, owner) {
   const r = await priceVoting.getVotes();
   const sortedVotes = [];
   for (let i = 0; i < r['1'].length; i++) {
@@ -44,4 +44,19 @@ exports.calculatePrices = async function(priceManager, priceVoting, owner){
   });
   const sortedIndexes = sortedVotes.map(x => x.i);
   await priceManager.calculatePrices(sortedIndexes, { from: owner });
+}
+
+exports.advanceBlock = async function() {
+  return await new Promise((resolve, reject) => {
+    web3.currentProvider.send({
+      jsonrpc: '2.0',
+      method: 'evm_mine',
+      id: new Date().getTime()
+    }, (err, result) => {
+      if (err) { return reject(err) }
+      const newBlockHash = web3.eth.getBlock('latest').hash
+
+      return resolve(newBlockHash)
+    })
+  })
 }

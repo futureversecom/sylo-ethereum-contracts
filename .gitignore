@@ -110,3 +110,5 @@ go-eth/deploy
 
 .openzeppelin/.session
 .openzeppelin/unknown*.json
+
+coverage.json
