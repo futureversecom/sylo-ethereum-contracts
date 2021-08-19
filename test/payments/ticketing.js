@@ -52,7 +52,6 @@ contract('Ticketing', accounts => {
     stakingManager = await StakingManager.new({ from: accounts[1] });
     await stakingManager.initialize(token.address, 0, { from: accounts[1] });
     await token.approve(stakingManager.address, 10000, { from: accounts[1] });
-    return stakingManager;
   }
 
   async function initializeTicketing() {
@@ -70,7 +69,6 @@ contract('Ticketing', accounts => {
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
-    return ticketing;
   }
 
   it('should be able to deposit escrow', async () => {
@@ -241,13 +239,6 @@ contract('Ticketing', accounts => {
   });
 
   it('burns penalty on insufficient escrow', async () => {
-    const ticketing = await initializeTicketing();
-
-    // simulate having account[1] as a node with a listing and a
-    // stakingManager entry
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
-
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(5, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
@@ -255,6 +246,7 @@ contract('Ticketing', accounts => {
     const { ticket, senderRand, redeemerRand, signature } = 
       await createWinningTicket(alice, 1);
 
+    const initialTicketingBalance = await token.balanceOf(ticketing.address);
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
@@ -272,7 +264,7 @@ contract('Ticketing', accounts => {
     const ticketingBalance = await token.balanceOf(ticketing.address);
     assert.equal(
       ticketingBalance.toString(),
-      '0',
+      initialTicketingBalance.sub(new BN(55)).toString(),
       'Expected tokens from ticket contract to be removed'
     );
 
@@ -285,34 +277,31 @@ contract('Ticketing', accounts => {
   });
 
   it('should payout delegated stakers on redeeming ticket', async () => {
-    await initializeStakingManager();
-    await initializeTicketing();
-
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
     await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
     // have account[2] as a delegated staker
-    await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+    await stakingManager.addStake(1, accounts[3], { from: accounts[2] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[3] });
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(alice, 1);
+      await createWinningTicket(alice, 3);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
-    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+    const initialReceiverBalance = await token.balanceOf(accounts[3]);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[3] });
 
     // The payout percentage is 50%, so the node (accounts[1]) and the
     // only delegator (account[2]) should split the reward equally
     const expectedPayout = faceValue / 2;
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
-    const postReceiverBalance = await token.balanceOf(accounts[1]);
+    const postReceiverBalance = await token.balanceOf(accounts[3]);
 
     assert.equal(
       postDelegatorBalance.toString(),
@@ -328,29 +317,26 @@ contract('Ticketing', accounts => {
   });
 
   it('should pay stakee remainders left from rounding down', async () => {
-    await initializeStakingManager();
-    await initializeTicketing();
-
     // have account 2 and 3 as delegated stakers
     for (let i = 2; i < 4; i++) {
       await token.transfer(accounts[i], 1000, { from: accounts[1]} );
       await token.approve(stakingManager.address, 1000, { from: accounts[i] });
-      await stakingManager.addStake(1, accounts[1], { from: accounts[i] });
+      await stakingManager.addStake(1, accounts[4], { from: accounts[i] });
     }
 
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[4] });
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(alice, 1);
+      await createWinningTicket(alice, 4);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
-    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+    const initialReceiverBalance = await token.balanceOf(accounts[4]);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[4] });
 
     // The payout percentage is 50%, so due to rounding, 7 will go to
     // the delegators, and 8 will go directly to the node. For the value
@@ -361,7 +347,7 @@ contract('Ticketing', accounts => {
     const expectedStakeePayout = faceValue - expectedDelegatorsPayout + 1;
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
-    const postReceiverBalance = await token.balanceOf(accounts[1]);
+    const postReceiverBalance = await token.balanceOf(accounts[4]);
 
     assert.equal(
       postDelegatorBalance.toString(),
@@ -383,28 +369,31 @@ contract('Ticketing', accounts => {
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
     await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
+    await token.transfer(accounts[5], 1000, { from: accounts[1]} );
+    await token.approve(stakingManager.address, 1000, { from: accounts[5] });
+
     // have both the node and account[2] stake
-    await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+    await stakingManager.addStake(1, accounts[5], { from: accounts[2] });
+    await stakingManager.addStake(1, accounts[5], { from: accounts[5] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[5] });
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     // unlock account[2] stake
-    await stakingManager.unlockStake(1, accounts[1], { from: accounts[2] });
+    await stakingManager.unlockStake(1, accounts[5], { from: accounts[2] });
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
-    const initialReceiverBalance = await token.balanceOf(accounts[1]);
+    const initialReceiverBalance = await token.balanceOf(accounts[5]);
 
     const { ticket, senderRand, redeemerRand, signature } = 
-      await createWinningTicket(alice, 1);
+      await createWinningTicket(alice, 5);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[5] });
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
-    const postReceiverBalance = await token.balanceOf(accounts[1]);
+    const postReceiverBalance = await token.balanceOf(accounts[5]);
 
     assert.equal(
       postDelegatorBalance.toString(),
@@ -519,7 +508,7 @@ contract('Ticketing', accounts => {
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {
-    const ticketing = await initializeTicketing();
+    await initializeTicketing();
 
     const sender = web3.eth.accounts.create();
     const node = accounts[1];
