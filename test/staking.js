@@ -49,7 +49,7 @@ contract('Staking', accounts => {
     );
   });
 
-  it('should be able to unlocking duration', async () => {
+  it('should be able to get unlocking duration', async () => {
     await stakingManager.setUnlockDuration(100, { from: accounts[1] });
     const unlockDuration = await stakingManager.unlockDuration();
     assert.equal(unlockDuration.toNumber(), 100, "Expected unlock duration to be updated");
@@ -65,7 +65,7 @@ contract('Staking', accounts => {
     assert.equal(
       initialBalance.sub(new BN(100)).toString(),
       postStakeBalance.toString(),
-      "100 tokens should be substracted from intial balance after staking"
+      "100 tokens should be subtracted from initial balance after staking"
     );
   });
 
