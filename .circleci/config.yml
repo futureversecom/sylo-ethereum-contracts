@@ -46,7 +46,6 @@ jobs:
   test-coverage:
     docker:
       - image: circleci/node:10
-    resource_class: large
     working_directory: ~/sylo-ethereum-contracts
     steps:
       - restore_cache:

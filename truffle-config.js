@@ -6,9 +6,9 @@ module.exports = {
   // for more details on how to specify configuration options!
   //
   networks: {
-   develop: {
+   testNetwork: {
      host: "127.0.0.1",
-     port: 8545,
+     port: 8555,
      network_id: "*",
      websockets: true,
      disableConfirmationListener: true

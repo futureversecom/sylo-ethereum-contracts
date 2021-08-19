@@ -7,7 +7,7 @@
     "build": "truffle compile",
     "lint": "solhint \"contracts/**/*.sol\"",
     "test": "truffle test",
-    "coverage": "truffle run coverage"
+    "coverage": "truffle run coverage --network testNetwork"
   },
   "author": "Sylo",
   "license": "ISC",
