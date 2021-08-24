@@ -89,13 +89,4 @@ contract PriceVoting is Initializable, OwnableUpgradeable {
 
         return sortedVotes;
     }
-
-    function seek(address[] memory hmap, address e, uint idx) internal pure returns (uint256) {
-        if (hmap[idx] == address(0) || hmap[idx] == e) {
-            return idx;
-        } else {
-            idx++;
-            return seek(hmap, e, idx % hmap.length);
-        }
-    }
 }
