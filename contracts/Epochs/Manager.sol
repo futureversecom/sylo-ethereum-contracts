@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "../Payments/Pricing/Manager.sol";
+import "../Payments/Ticketing/Parameters.sol";
 import "../Staking/Directory.sol";
 
 contract EpochsManager is Initializable, OwnableUpgradeable {
@@ -23,17 +24,18 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         bytes32 directoryId;
 
         // ticketing variables
-        // uint256 faceValue;
-        // uint128 baseLiveWinProb;
-        // uint128 expiredWinProb;
-        // uint256 ticketDuration;
-        // uint256 unlockDuration;
-        // uint16 decayRate;
+        uint256 faceValue;
+        uint128 baseLiveWinProb;
+        uint128 expiredWinProb;
+        uint256 ticketDuration;
+        uint16 decayRate;
     }
 
-    PriceManager priceManager;
+    PriceManager _priceManager;
 
-    Directory directory;
+    Directory _directory;
+
+    TicketingParameters _ticketingParameters;
 
     /* Define all Epoch specific parameters here.
      * When initializing an epoch, these parameters are read,
@@ -49,10 +51,15 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     mapping (bytes32 => Epoch) epochs;
 
-    function initialize(PriceManager _priceManager, Directory _directory) public initializer {
+    function initialize(
+        PriceManager priceManager, 
+        Directory directory, 
+        TicketingParameters ticketingParameters
+    ) public initializer {
         OwnableUpgradeable.__Ownable_init();
-        priceManager = _priceManager;
-        directory = _directory;
+        _priceManager = priceManager;
+        _directory = directory;
+        _ticketingParameters = ticketingParameters;
     }
 
     function initializeRound(
@@ -62,16 +69,21 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         require(end <= block.number, "Current epoch has not yet ended");
 
         // Calculate the service prices for this epoch
-        (uint256 servicePrice, uint256 upperPrice) = priceManager.calculatePrices(sortedIndexes);
+        (uint256 servicePrice, uint256 upperPrice) = _priceManager.calculatePrices(sortedIndexes);
 
-        bytes32 directoryId = directory.constructDirectory2();
+        bytes32 directoryId = _directory.constructDirectory();
 
         Epoch memory nextEpoch = Epoch(
             block.number, 
             epochDuration, 
             servicePrice, 
             upperPrice,
-            directoryId
+            directoryId,
+            _ticketingParameters.faceValue(),
+            _ticketingParameters.baseLiveWinProb(),
+            _ticketingParameters.expiredWinProb(),
+            _ticketingParameters.ticketDuration(),
+            _ticketingParameters.decayRate()
         );
         
         bytes32 id = getEpochId(nextEpoch);
@@ -88,5 +100,9 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
                 epoch.duration
             )
         );
+    }
+
+    function getEpoch(bytes32 epochId) public view returns (Epoch memory) {
+        return epochs[epochId];
     }
 }

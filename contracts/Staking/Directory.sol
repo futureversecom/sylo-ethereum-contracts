@@ -65,43 +65,7 @@ contract Directory is Initializable, OwnableUpgradeable {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
-    function constructDirectory() public onlyOwner {
-        delete currentDirectory;
-
-        uint lowerBoundary = 0;
-
-        for (uint i = 0; i < _stakingManager.getCountOfStakees(); i++) {
-            address stakee = _stakingManager.stakees(i);
-            uint totalStake = _stakingManager.totalStakes(stakee);
-
-            // Only add stakee to the directory after passing
-            // some validation
-
-            if (totalStake < 1) {
-                continue;
-            }
-
-            uint votedPrice = _priceVoting.votes(stakee);
-
-            // absent vote
-            if (votedPrice == 0) {
-                continue;
-            }
-
-            // Voted with price aboove 90th percentile and 
-            // above service price + 10%
-            if (votedPrice > _priceManager.currentUpperPrice() &&
-                votedPrice > (SyloUtils.percOf(uint128(_priceManager.currentServicePrice()), PRICE_THRESHOLD))) {
-                continue;
-            }
-
-            currentDirectory.push(DirectoryEntry(stakee, lowerBoundary + totalStake));
-
-            lowerBoundary += totalStake;
-        }
-    }
-
-    function constructDirectory2() public onlyOwner returns (bytes32 direcrtoryId) {
+    function constructDirectory() public onlyOwner returns (bytes32 direcrtoryId) {
         bytes32 directoryId = keccak256(abi.encodePacked(block.number));
 
         uint lowerBoundary = 0;
