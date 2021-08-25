@@ -22,10 +22,6 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     StakingManager _stakingManager;
 
-    PriceManager _priceManager;
-
-    PriceVoting _priceVoting;
-
     struct DirectoryEntry {
         address stakee;
         uint256 boundary;
@@ -36,13 +32,9 @@ contract Directory is Initializable, OwnableUpgradeable {
     mapping (bytes32 => DirectoryEntry[]) directories;
 
     function initialize(
-        PriceVoting priceVoting,
-        PriceManager priceManager,
         StakingManager stakingManager
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
-        _priceVoting = priceVoting;
-        _priceManager = priceManager;
         _stakingManager = stakingManager;
     }
 
@@ -78,20 +70,6 @@ contract Directory is Initializable, OwnableUpgradeable {
             // some validation
 
             if (totalStake < 1) {
-                continue;
-            }
-
-            uint votedPrice = _priceVoting.votes(stakee);
-
-            // absent vote
-            if (votedPrice == 0) {
-                continue;
-            }
-
-            // Voted with price aboove 90th percentile and 
-            // above service price + 10%
-            if (votedPrice > _priceManager.currentUpperPrice() &&
-                votedPrice > (SyloUtils.percOf(uint128(_priceManager.currentServicePrice()), PRICE_THRESHOLD))) {
                 continue;
             }
 
