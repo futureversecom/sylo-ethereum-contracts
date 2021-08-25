@@ -16,10 +16,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint256 startBlock;
         uint256 duration;
 
-        // pricing variables
-        uint256 currentServicePrice;
-        uint256 currentUpperPrice;
-
         // pointer to directory constructed for this epoch
         bytes32 directoryId;
 
@@ -52,32 +48,23 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     mapping (bytes32 => Epoch) epochs;
 
     function initialize(
-        PriceManager priceManager, 
         Directory directory, 
         TicketingParameters ticketingParameters
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
-        _priceManager = priceManager;
         _directory = directory;
         _ticketingParameters = ticketingParameters;
     }
 
-    function initializeRound(
-        uint256[] memory sortedIndexes
-    ) public onlyOwner {
+    function initializeRound() public onlyOwner {
         uint256 end = currentActiveEpoch.startBlock + currentActiveEpoch.duration;
         require(end <= block.number, "Current epoch has not yet ended");
-
-        // Calculate the service prices for this epoch
-        (uint256 servicePrice, uint256 upperPrice) = _priceManager.calculatePrices(sortedIndexes);
 
         bytes32 directoryId = _directory.constructDirectory();
 
         Epoch memory nextEpoch = Epoch(
             block.number, 
             epochDuration, 
-            servicePrice, 
-            upperPrice,
             directoryId,
             _ticketingParameters.faceValue(),
             _ticketingParameters.baseLiveWinProb(),
@@ -97,7 +84,12 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         return keccak256(
             abi.encodePacked(
                 epoch.startBlock,
-                epoch.duration
+                epoch.duration,
+                epoch.faceValue,
+                epoch.baseLiveWinProb,
+                epoch.expiredWinProb,
+                epoch.ticketDuration,
+                epoch.decayRate
             )
         );
     }

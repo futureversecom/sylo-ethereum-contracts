@@ -4,8 +4,6 @@ const sodium = require('libsodium-wrappers-sumo');
 
 const Directory = artifacts.require("Directory");
 const StakingManager = artifacts.require("StakingManager");
-const PriceManager = artifacts.require("PriceManager");
-const PriceVoting = artifacts.require("PriceVoting");
 const Token = artifacts.require("SyloToken");
 
 const utils = require('./utils');
@@ -13,8 +11,6 @@ const utils = require('./utils');
 contract('Staking', accounts => {
   let token;
   let stakingManager;
-  let priceManager;
-  let priceVoting;
   let directory;
 
   before(async () => {
@@ -25,25 +21,10 @@ contract('Staking', accounts => {
     stakingManager = await StakingManager.new({ from: accounts[1] });
     await stakingManager.initialize(token.address, 0, { from: accounts[1] });
 
-    priceVoting = await PriceVoting.new({ from: accounts[1] });
-    await priceVoting.initialize(
-      stakingManager.address,
-      { from: accounts[1] }
-    )
-
-    priceManager = await PriceManager.new({ from: accounts[1] });
-    await priceManager.initialize(
-      stakingManager.address,
-      priceVoting.address,
-      { from: accounts[1] }
-    );
-
     await token.approve(stakingManager.address, 10000, { from: accounts[1] });
 
     directory = await Directory.new({ from: accounts[1] });
     await directory.initialize(
-        priceVoting.address, 
-        priceManager.address, 
         stakingManager.address, 
       { from: accounts[1] }
     );
@@ -120,8 +101,6 @@ contract('Staking', accounts => {
   it('should be able to scan', async () => {
     await stakingManager.addStake(1, accounts[0], { from: accounts[1] });
 
-    await priceVoting.vote(1, { from: accounts[0] });
-    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
     await directory.constructDirectory({ from: accounts[1] });
 
     await directory.scan(new BN(0));
@@ -132,7 +111,7 @@ contract('Staking', accounts => {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
     }
 
-    await voteAndConstructDirectory();
+    await directory.constructDirectory({ from: accounts[1] });
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -154,7 +133,7 @@ contract('Staking', accounts => {
       totalStake += i + 1;
     }
 
-    await voteAndConstructDirectory();
+    await directory.constructDirectory({ from: accounts[1] });
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -192,11 +171,6 @@ contract('Staking', accounts => {
       await stakingManager.unlockStake(1, accounts[i], { from: accounts[1] });
     }
 
-    for (let i = 0; i < 5; i++) {
-      await priceVoting.vote(1, { from: accounts[i] });
-    }
-
-    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
     await directory.constructDirectory({ from: accounts[1] });
 
     let expectedResults = {}
@@ -232,7 +206,7 @@ contract('Staking', accounts => {
     assert.equal(found, false, "The account with no stake should not exist in the directory");
   });
 
-  it('excludes nodes from directory without a vote', async () => {
+  it.skip('excludes nodes from directory without a vote', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
     }
@@ -257,7 +231,7 @@ contract('Staking', accounts => {
     assert.equal(found, false, "The account with no vote should not exist in the directory");
   });
 
-  it('excludes nodes from directory with too high voted price', async () => {
+  it.skip('excludes nodes from directory with too high voted price', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
     }
@@ -282,15 +256,6 @@ contract('Staking', accounts => {
     }
     assert.equal(found, false, "The account with no vote should not exist in the directory");
   });
-
-  async function voteAndConstructDirectory() {
-    for (let i = 0; i < accounts.length; i++) {
-      await priceVoting.vote(1, { from: accounts[i] });
-    }
-
-    await utils.calculatePrices(priceManager, priceVoting, accounts[1]);
-    await directory.constructDirectory({ from: accounts[1] });
-  }
 
   async function collectScanResults(iterations) {
     const points = {};
