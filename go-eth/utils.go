@@ -1,14 +1,43 @@
 package eth
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"math/big"
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
+
+// WaitForReceipt will return when a transaction receipt is obtained or the
+// context ends.
+//
+// If the backend is simulated, it will attempt to commit a block to speed up
+// the process.
+func WaitForReceipt(parent context.Context, tx *types.Transaction, backend Backend) (*types.Receipt, error) {
+	ctx, cancel := context.WithTimeout(parent, time.Minute)
+	defer cancel()
+
+	simBackend, ok := backend.(SimBackend)
+	if ok {
+		simBackend.Commit()
+	}
+	for {
+		receipt, err := backend.TransactionReceipt(ctx, tx.Hash())
+		if err == nil {
+			return receipt, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, context.DeadlineExceeded
+		case <-time.After(3 * time.Second):
+		}
+	}
+}
 
 func decodeTxParams(abi *abi.ABI, v map[string]interface{}, data []byte) error {
 	m, err := abi.MethodById(data[:4])

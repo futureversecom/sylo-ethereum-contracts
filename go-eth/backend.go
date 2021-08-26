@@ -42,10 +42,10 @@ type backend struct {
 	*ethclient.Client
 	abiMap       map[string]*abi.ABI
 	nonceManager *NonceManager
-	signer       types.Signer
+	validator    types.Signer // NOTE: not actually a signer (see `types.Signer` description)
 }
 
-func NewBackend(client *ethclient.Client, signer types.Signer) (Backend, error) {
+func NewBackend(client *ethclient.Client, validator types.Signer) (Backend, error) {
 	abiMap, err := makeABIMap()
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func NewBackend(client *ethclient.Client, signer types.Signer) (Backend, error) 
 		client,
 		abiMap,
 		NewNonceManager(client),
-		signer,
+		validator,
 	}, nil
 }
 
@@ -70,7 +70,7 @@ func (b *backend) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	sendErr := b.Client.SendTransaction(ctx, tx)
 
 	// update local nonce
-	msg, err := tx.AsMessage(b.signer)
+	msg, err := tx.AsMessage(b.validator)
 	if err != nil {
 		return err
 	}

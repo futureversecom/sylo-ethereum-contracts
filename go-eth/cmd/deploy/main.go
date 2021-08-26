@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	sylo "github.com/dn3010/sylo-ethereum-contracts/go-eth"
 	sylopayments "github.com/dn3010/sylo-ethereum-contracts/go-eth"
 	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -166,7 +165,7 @@ type syloEthMgr struct {
 
 	ethC  *ethclient.Client
 	ethSK *ecdsa.PrivateKey
-	syloC sylo.Client
+	syloC sylopayments.Client
 	opts  *bind.TransactOpts
 
 	addrs sylopayments.Addresses
@@ -215,7 +214,7 @@ func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.I
 		return fmt.Errorf("could not deploy contracts: %w", err)
 	}
 
-	m.syloC, err = sylopayments.NewClient(m.ctx, m.addrs, m.ethC, m.opts)
+	m.syloC, err = sylopayments.NewSyloPaymentsClient(m.addrs, m.ethC, m.opts)
 	if err != nil {
 		return fmt.Errorf("could not set up sylo payments: %w", err)
 	}
@@ -365,7 +364,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	}
 }
 
-func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16, epochsDuration *big.Int) (addresses sylo.Addresses, err error) {
+func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16, epochsDuration *big.Int) (addresses sylopayments.Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {
