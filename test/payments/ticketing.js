@@ -2,7 +2,10 @@ const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
 const crypto = require("crypto");
 const sodium = require('libsodium-wrappers-sumo');
+const TicketingParameters = artifacts.require('TicketingParameters');
 const Ticketing = artifacts.require("SyloTicketing");
+const EpochsManager = artifacts.require("EpochsManager");
+const Directory = artifacts.require("Directory");
 const Listings = artifacts.require("Listings");
 const StakingManager = artifacts.require("StakingManager");
 const eth = require('eth-lib');
@@ -19,8 +22,16 @@ contract('Ticketing', accounts => {
   const decayRate = 8000;
   const ticketDuration = 100;
 
+  const epochDuration = 80000;
+
   let token;
+
+  let epochsManager;
+  let ticketingParameters;
   let ticketing;
+
+  let directory;
+
   let listings;
   let stakingManager;
   // private keys generated from default truffle mnemonic
@@ -55,17 +66,39 @@ contract('Ticketing', accounts => {
   }
 
   async function initializeTicketing() {
-    ticketing = await Ticketing.new({ from: accounts[1] })
-    await ticketing.initialize(
-      token.address, 
-      listings.address, 
-      stakingManager.address, 
-      0,
+    ticketingParameters = await TicketingParameters.new({ from: accounts[1] });
+    await ticketingParameters.initialize(
       faceValue,
       baseLiveWinProb,
       expiredWinProb,
       decayRate,
       ticketDuration,
+      { from: accounts[1] }
+    );
+
+    directory = await Directory.new({ from: accounts[1] });
+    await directory.initialize(
+        stakingManager.address, 
+      { from: accounts[1] }
+    );
+
+    epochsManager = await EpochsManager.new({ from: accounts[1] });
+    await epochsManager.initialize(
+      directory.address,
+      ticketingParameters.address,
+      epochDuration,
+      { from: accounts[1] }
+    );
+
+    await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
+
+    ticketing = await Ticketing.new({ from: accounts[1] })
+    await ticketing.initialize(
+      token.address, 
+      listings.address, 
+      stakingManager.address, 
+      epochsManager.address,
+      0,
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
@@ -164,9 +197,12 @@ contract('Ticketing', accounts => {
 
   it('can not redeem ticket with invalid signature', async () => {
     const alice = web3.eth.accounts.create();
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+
     const { ticket, senderRand, redeemerRand } = 
       await createWinningTicket(alice, 1);
-
+    
     const signature = '0x00';
 
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
@@ -366,6 +402,8 @@ contract('Ticketing', accounts => {
     await initializeStakingManager();
     await initializeTicketing();
 
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
     await token.approve(stakingManager.address, 1000, { from: accounts[2] });
 
@@ -440,22 +478,46 @@ contract('Ticketing', accounts => {
     );
   });
 
-  it('should decay winning probability as ticket approaches expiry', async () => {
+  it.only('should decay winning probability as ticket approaches expiry', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     // deploy another ticketing contract with simpler parameters
-    ticketing = await Ticketing.new({ from: accounts[1] });
-    await ticketing.initialize(
-      token.address, 
-      listings.address, 
-      stakingManager.address, 
-      0,
+    ticketingParameters = await TicketingParameters.new({ from: accounts[1] });
+    await ticketingParameters.initialize(
       faceValue,
       100000,
       1000,
       8000,
       100,
+      { from: accounts[1] }
+    );
+
+    directory = await Directory.new({ from: accounts[1] });
+    await directory.initialize(
+        stakingManager.address, 
+      { from: accounts[1] }
+    );
+
+    epochsManager = await EpochsManager.new({ from: accounts[1] });
+    await epochsManager.initialize(
+      directory.address,
+      ticketingParameters.address,
+      epochDuration,
+      { from: accounts[1] }
+    );
+
+    await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+
+    ticketing = await Ticketing.new({ from: accounts[1] });
+    await ticketing.initialize(
+      token.address, 
+      listings.address, 
+      stakingManager.address,
+      epochsManager.address,
+      0,
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
@@ -475,7 +537,10 @@ contract('Ticketing', accounts => {
     // check if the probability has decayed 50% of the maximum decayed value (80%)
     const expectedProbability = new BN(100000 - (0.5 * 0.8 * 100000));
 
-    const decayedProbability = await ticketing.calculateWinningProbability(ticket);
+    const decayedProbability = await ticketing.calculateWinningProbability(
+      ticket,
+      await epochsManager.getEpoch(ticket.epochId)
+    );
 
     assert.equal(
       decayedProbability.toString(), 
@@ -498,7 +563,10 @@ contract('Ticketing', accounts => {
       await utils.advanceBlock();
     }
 
-    const p = await ticketing.calculateWinningProbability(ticket);
+    const p = await ticketing.calculateWinningProbability(
+      ticket,
+      await epochsManager.getEpoch(ticket.epochId)
+    );
 
     assert.equal(
       '0',
@@ -509,6 +577,8 @@ contract('Ticketing', accounts => {
 
   it('simulates scenario between sender, node, and oracle', async () => {
     await initializeTicketing();
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const sender = web3.eth.accounts.create();
     const node = accounts[1];
@@ -529,8 +599,13 @@ contract('Ticketing', accounts => {
     const nodeCommit = soliditySha3(nodeRand);
     const senderCommit = soliditySha3(senderRand);
 
+    const epochId = await epochsManager.getCurrentActiveEpoch().then(e =>
+      epochsManager.getEpochId(e)
+    );
+
     // create the ticket to be given to the node
     const ticket = {
+      epochId,
       sender: sender.address,
       redeemer: node,
       generationBlock: new BN((await web3.eth.getBlockNumber()) + 1).toString(),
@@ -579,7 +654,12 @@ contract('Ticketing', accounts => {
 
     const generationBlock = await web3.eth.getBlockNumber();
 
+    const epochId = await epochsManager.getCurrentActiveEpoch().then(e =>
+      epochsManager.getEpochId(e)
+    );
+
     const ticket = {
+      epochId,
       sender: sender.address,
       redeemer: accounts[redeemer],
       generationBlock: new BN(generationBlock + 1).toString(),

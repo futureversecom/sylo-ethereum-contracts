@@ -47,16 +47,20 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     mapping (bytes32 => Epoch) epochs;
 
+    event NewEpoch(bytes32 epochId);
+
     function initialize(
         Directory directory, 
-        TicketingParameters ticketingParameters
+        TicketingParameters ticketingParameters,
+        uint256 _epochDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _directory = directory;
         _ticketingParameters = ticketingParameters;
+        epochDuration = _epochDuration;
     }
 
-    function initializeRound() public onlyOwner {
+    function initializeEpoch() public returns (bytes32) {
         uint256 end = currentActiveEpoch.startBlock + currentActiveEpoch.duration;
         require(end <= block.number, "Current epoch has not yet ended");
 
@@ -73,12 +77,20 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             _ticketingParameters.decayRate()
         );
         
-        bytes32 id = getEpochId(nextEpoch);
+        bytes32 epochId = getEpochId(nextEpoch);
 
-        epochs[id] = nextEpoch;
+        epochs[epochId] = nextEpoch;
         previousActiveEpoch = currentActiveEpoch;
         currentActiveEpoch = nextEpoch;
+
+        emit NewEpoch(epochId);
+
+        return epochId;
     }
+
+    function getCurrentActiveEpoch() public view returns (Epoch memory epoch) {
+        return currentActiveEpoch;
+    } 
 
     function getEpochId(Epoch memory epoch) public pure returns (bytes32) {
         return keccak256(

@@ -83,6 +83,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var expiredWinProb = big.NewInt(10000)
 	var decayRate = uint16(8000)
 	var ticketDuration = big.NewInt(100)
+	var epochsDuration = big.NewInt(80000)
 
 	if len(opts) < 1 {
 		return nil, nil, errors.New("Please provide at least one option")
@@ -99,51 +100,65 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend := NewSimBackend(sim)
 
 	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
-
 	backend.Commit()
+
 	var stakingManager *contracts.StakingManager
 	addresses.StakingManager, _, stakingManager, _ = contracts.DeployStakingManager(&opts[0], backend)
 	_, err := stakingManager.Initialize(&opts[0], addresses.Token, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
-
 	backend.Commit()
+
 	var priceVoting *contracts.PriceVoting
 	addresses.PriceVoting, _, priceVoting, _ = contracts.DeployPriceVoting(&opts[0], backend)
 	_, err = priceVoting.Initialize(&opts[0], addresses.StakingManager)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
-
 	backend.Commit()
+
 	var priceManager *contracts.PriceManager
 	addresses.PriceManager, _, priceManager, _ = contracts.DeployPriceManager(&opts[0], backend)
 	_, err = priceManager.Initialize(&opts[0], addresses.StakingManager, addresses.PriceVoting)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise price manager: %w", err)
 	}
-
 	backend.Commit()
+
 	var directory *contracts.Directory
 	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
-	_, err = directory.Initialize(&opts[0], addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
+	_, err = directory.Initialize(&opts[0], addresses.StakingManager)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
 	}
-
 	backend.Commit()
+
 	var listings *contracts.Listings
 	addresses.Listings, _, listings, _ = contracts.DeployListings(&opts[0], backend)
 	_, err = listings.Initialize(&opts[0], 50)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
-
 	backend.Commit()
+
+	var ticketingParameters *contracts.TicketingParameters
+	addresses.TicketingParameters, _, ticketingParameters, _ = contracts.DeployTicketingParameters(&opts[0], backend)
+	_, err = ticketingParameters.Initialize(&opts[0], big.NewInt(1), winProb, expiredWinProb, decayRate, ticketDuration)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise ticketingParameters: %w", err)
+	}
+
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
+	_, err = epochsManager.Initialize(&opts[0], addresses.Directory, addresses.TicketingParameters, epochsDuration)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise epochsManager: %w", err)
+	}
+
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1), big.NewInt(1), winProb, expiredWinProb, decayRate, ticketDuration)
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, addresses.EpochsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

@@ -23,7 +23,7 @@ func TestClient(t *testing.T) {
 	penaltyAmount := big.NewInt(1000)
 	unlockDuration := big.NewInt(10)
 
-	backend, addresses, faucet, _ := sylopayments.StartupEthereum(t, ctx)
+	backend, addresses, faucet, owner := sylopayments.StartupEthereum(t, ctx)
 
 	faceValue := big.NewInt(1)
 
@@ -146,6 +146,9 @@ func TestClient(t *testing.T) {
 
 		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
+		owner.TransferDirectoryOwnership(addresses.EpochsManager)
+		sylopayments.InitializeEpoch(t, ctx, backend, owner)
+
 		aliceRand := big.NewInt(1)
 		var aliceRandHash [32]byte
 		copy(aliceRandHash[:], crypto.Keccak256(aliceRand.FillBytes(aliceRandHash[:])))
@@ -158,7 +161,16 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not retrieve latest block %v", err)
 		}
+		epoch, err := aliceClient.GetCurrentActiveEpoch()
+		if err != nil {
+			t.Fatalf("could not retrieve current epoch %v", err)
+		}
+		epochId, err := aliceClient.GetEpochId(epoch)
+		if err != nil {
+			t.Fatalf("could not retrieve epoch id %v", err)
+		}
 		ticket := contracts.SyloTicketingTicket{
+			EpochId:         epochId,
 			Sender:          aliceClient.Address(),
 			Redeemer:        bobClient.Address(),
 			SenderCommit:    aliceRandHash,
@@ -239,7 +251,16 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not retrieve latest block %v", err)
 		}
+		epoch, err := aliceClient.GetCurrentActiveEpoch()
+		if err != nil {
+			t.Fatalf("could not retrieve current epoch %v", err)
+		}
+		epochId, err := aliceClient.GetEpochId(epoch)
+		if err != nil {
+			t.Fatalf("could not retrieve epoch id %v", err)
+		}
 		ticket := contracts.SyloTicketingTicket{
+			EpochId:         epochId,
 			Sender:          aliceClient.Address(),
 			Redeemer:        bobClient.Address(),
 			SenderCommit:    aliceRandHash,
