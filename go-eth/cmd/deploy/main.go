@@ -70,6 +70,11 @@ func main() {
 			Usage: "The `PERCENTAGE` of ticket rewards that is paid to delegated stakers expressed as a fraction of 10000",
 			Value: 5000,
 		},
+		&cli.IntFlag{
+			Name:  "epochs-duration",
+			Usage: "The duration an epoch will last for in blocks",
+			Value: 80000,
+		},
 		&cli.BoolFlag{
 			Name:  "faucet",
 			Usage: "Provide a SYLO/ETH faucet service",
@@ -123,6 +128,9 @@ func main() {
 		} else if payoutPercentage > 10000 {
 			payoutPercentage = 10000
 		}
+
+		epochsDuration := new(big.Int).SetInt64(int64(c.Int("epochs-duration")))
+
 		ethSKstr := c.String("eth-sk")
 		if strings.TrimSpace(ethSKstr) == "" {
 			return fmt.Errorf("ethereum secret key must be provided")
@@ -131,7 +139,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("could not decode private key hex string (%s): %w", ethSKstr, err)
 		}
-		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, expiredWinProb, uint16(decayRate), ticketLength, uint16(payoutPercentage))
+		err = m.start(c.String("eth-url"), unlockDuration, faceValue, winProb, expiredWinProb, uint16(decayRate), ticketLength, uint16(payoutPercentage), epochsDuration)
 		if err != nil {
 			return fmt.Errorf("could not execute contract deployment: %w", err)
 		}
@@ -166,7 +174,7 @@ type syloEthMgr struct {
 	faucet bool
 }
 
-func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16) error {
+func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16, epochsDuration *big.Int) error {
 	var err error
 
 	ctx, cancel := context.WithTimeout(m.ctx, 3*time.Minute)
@@ -202,7 +210,7 @@ func (m *syloEthMgr) start(url string, unlockDuration *big.Int, faceValue *big.I
 	}
 	m.opts.Context = m.ctx
 
-	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength, payoutPercentage)
+	m.addrs, err = deployContracts(m.opts.Context, m.opts, m.ethC, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength, payoutPercentage, epochsDuration)
 	if err != nil {
 		return fmt.Errorf("could not deploy contracts: %w", err)
 	}
@@ -357,7 +365,7 @@ func (f *syloEthMgr) syloFaucetHandler() http.HandlerFunc {
 	}
 }
 
-func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16) (addresses sylo.Addresses, err error) {
+func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethclient.Client, unlockDuration *big.Int, faceValue *big.Int, winProb *big.Int, expiredWinProb *big.Int, decayRate uint16, ticketLength *big.Int, payoutPercentage uint16, epochsDuration *big.Int) (addresses sylo.Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {
@@ -432,7 +440,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = directory.Initialize(opts, addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
+	_, err = directory.Initialize(opts, addresses.StakingManager)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise directory: %w", err)
 	}
@@ -452,6 +460,34 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
+	// deploy ticketing parameters
+	var ticketingParametersTx *types.Transaction
+	var ticketingParameters *contracts.TicketingParameters
+	addresses.TicketingParameters, ticketingParametersTx, ticketingParameters, err = contracts.DeployTicketingParameters(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy ticketingParameters: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = ticketingParameters.Initialize(opts, faceValue, winProb, expiredWinProb, decayRate, ticketLength)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise ticketingParameters: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy epochs manager
+	var epochsManagerTx *types.Transaction
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, epochsManagerTx, epochsManager, err = contracts.DeployEpochsManager(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy epochsManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = epochsManager.Initialize(opts, addresses.Directory, addresses.TicketingParameters, epochsDuration)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise epochsManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	// deploy ticketing
 	var ticketingTx *types.Transaction
 	var ticketing *contracts.SyloTicketing
@@ -460,7 +496,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, faceValue, winProb, expiredWinProb, decayRate, ticketLength)
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.EpochsManager, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}
@@ -470,6 +506,14 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	_, err = waitForReceipt(ctx, tokenTx, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not get token deployment receipt: %w", err)
+	}
+	_, err = waitForReceipt(ctx, ticketingParametersTx, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
+	}
+	_, err = waitForReceipt(ctx, epochsManagerTx, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
 	}
 	_, err = waitForReceipt(ctx, ticketingTx, client)
 	if err != nil {

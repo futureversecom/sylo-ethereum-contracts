@@ -27,7 +27,7 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 boundary;
     }
 
-    DirectoryEntry[] public currentDirectory;
+    bytes32 public currentDirectory;
 
     mapping (bytes32 => DirectoryEntry[]) directories;
 
@@ -78,11 +78,13 @@ contract Directory is Initializable, OwnableUpgradeable {
             lowerBoundary += totalStake;
         }
 
+        currentDirectory = directoryId;
+
         return directoryId;
     }
 
     function scan(uint128 point) public view returns (address) {
-        if (currentDirectory.length == 0) {
+        if (directories[currentDirectory].length == 0) {
             return address(0);
         }
 
@@ -93,17 +95,17 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 expectedVal = totalStake * uint256(point) >> 128;
 
         uint256 l = 0;
-        uint256 r = currentDirectory.length - 1;
+        uint256 r = directories[currentDirectory].length - 1;
 
         // perform a binary search through the directory
         while (l <= r) {
             uint index = (l + r) / 2;
 
-            uint lower = index == 0 ? 0 : currentDirectory[index - 1].boundary;
-            uint upper = currentDirectory[index].boundary;
+            uint lower = index == 0 ? 0 : directories[currentDirectory][index - 1].boundary;
+            uint upper = directories[currentDirectory][index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
-                return currentDirectory[index].stakee;
+                return directories[currentDirectory][index].stakee;
             } else if (expectedVal < lower) {
                 r = index - 1;
             } else if (expectedVal >= upper) {
