@@ -1,6 +1,8 @@
 package eth
 
 //go:generate abigen --abi ../abi/SyloTicketing.abi --pkg contracts --type SyloTicketing --out contracts/ticketing.go --bin ../bin/SyloTicketing.bin
+//go:generate abigen --abi ../abi/TicketingParameters.abi --pkg contracts --type TicketingParameters --out contracts/ticketing_parameters.go --bin ../bin/TicketingParameters.bin
+//go:generate abigen --abi ../abi/EpochsManager.abi --pkg contracts --type EpochsManager --out contracts/epochs_manager.go --bin ../bin/EpochsManager.bin
 //go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/token.go --bin ../bin/SyloToken.bin
 //go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
 //go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
@@ -81,11 +83,18 @@ type Client interface {
 	// Directory methods
 	ConstructDirectory() (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
+	TransferDirectoryOwnership(newOwner ethcommon.Address) (*types.Transaction, error)
 
 	// Listings methods
 
 	SetListing(multiaddr string, minimumStakeAmount *big.Int) (*types.Transaction, error)
 	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
+
+	// EpochsManager methods
+
+	InitializeEpoch() (*types.Transaction, error)
+	GetCurrentActiveEpoch() (contracts.EpochsManagerEpoch, error)
+	GetEpochId(contracts.EpochsManagerEpoch) ([32]byte, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 
@@ -101,13 +110,15 @@ type Client interface {
 }
 
 type Addresses struct {
-	Token          ethcommon.Address
-	Ticketing      ethcommon.Address
-	Directory      ethcommon.Address
-	Listings       ethcommon.Address
-	PriceManager   ethcommon.Address
-	PriceVoting    ethcommon.Address
-	StakingManager ethcommon.Address
+	Token               ethcommon.Address
+	Ticketing           ethcommon.Address
+	TicketingParameters ethcommon.Address
+	Directory           ethcommon.Address
+	Listings            ethcommon.Address
+	PriceManager        ethcommon.Address
+	PriceVoting         ethcommon.Address
+	StakingManager      ethcommon.Address
+	EpochsManager       ethcommon.Address
 }
 
 type client struct {
@@ -116,6 +127,7 @@ type client struct {
 	opts *bind.TransactOpts
 
 	// Embedded contracts
+	*contracts.TicketingParametersSession
 	*contracts.SyloTicketingSession
 	*contracts.SyloTokenSession
 	*contracts.DirectorySession
@@ -123,6 +135,7 @@ type client struct {
 	*contracts.PriceManagerSession
 	*contracts.PriceVotingSession
 	*contracts.StakingManagerSession
+	*contracts.EpochsManagerSession
 
 	backend Backend
 }
@@ -169,6 +182,16 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
+	ticketingParamters, err := contracts.NewTicketingParameters(addresses.TicketingParameters, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	TicketingParametersSession := &contracts.TicketingParametersSession{
+		Contract:     ticketingParamters,
+		TransactOpts: *opts,
+	}
+
 	syloTicketing, err := contracts.NewSyloTicketing(addresses.Ticketing, backend)
 	if err != nil {
 		return nil, err
@@ -196,6 +219,16 @@ func NewClientWithBackend(
 
 	ListingsSession := &contracts.ListingsSession{
 		Contract:     listings,
+		TransactOpts: *opts,
+	}
+
+	epochsManager, err := contracts.NewEpochsManager(addresses.EpochsManager, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	EpochsManagerSession := &contracts.EpochsManagerSession{
+		Contract:     epochsManager,
 		TransactOpts: *opts,
 	}
 
@@ -230,16 +263,18 @@ func NewClientWithBackend(
 	}
 
 	return &client{
-		addresses:             addresses,
-		backend:               backend,
-		SyloTicketingSession:  TicketingSession,
-		SyloTokenSession:      TokenSession,
-		PriceManagerSession:   PriceManagerSession,
-		PriceVotingSession:    PriceVotingSession,
-		StakingManagerSession: StakingManagerSession,
-		DirectorySession:      DirectorySession,
-		ListingsSession:       ListingsSession,
-		opts:                  opts,
+		addresses:                  addresses,
+		backend:                    backend,
+		TicketingParametersSession: TicketingParametersSession,
+		SyloTicketingSession:       TicketingSession,
+		SyloTokenSession:           TokenSession,
+		PriceManagerSession:        PriceManagerSession,
+		EpochsManagerSession:       EpochsManagerSession,
+		PriceVotingSession:         PriceVotingSession,
+		StakingManagerSession:      StakingManagerSession,
+		DirectorySession:           DirectorySession,
+		ListingsSession:            ListingsSession,
+		opts:                       opts,
 	}, nil
 }
 
@@ -273,6 +308,10 @@ func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Ad
 		return Unlocking{}, err
 	}
 	return c.Unlockings(key)
+}
+
+func (c *client) TransferDirectoryOwnership(newOwner ethcommon.Address) (*types.Transaction, error) {
+	return c.DirectorySession.TransferOwnership(newOwner)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {

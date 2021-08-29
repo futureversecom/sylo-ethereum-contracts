@@ -215,6 +215,19 @@ func ConstructDirectory(t *testing.T, ctx context.Context, backend SimBackend, c
 	}
 }
 
+func InitializeEpoch(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.InitializeEpoch()
+	if err != nil {
+		t.Fatalf("could not initializ epoch: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
 func DelegateStake(t *testing.T, ctx context.Context, backend SimBackend, client Client, stakee ethcommon.Address, stakeAmount *big.Int) {
 	_, err := client.ApproveStakingManager(stakeAmount)
 	if err != nil {
@@ -412,7 +425,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy directory: %v", err)
 	}
 
-	_, err = directory.Initialize(transactor, addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
+	_, err = directory.Initialize(transactor, addresses.StakingManager)
 	if err != nil {
 		t.Fatalf("could not initialize directory contract: %v", err)
 	}
@@ -441,6 +454,42 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not get transaction receipt: %v", err)
 	}
 
+	// deploy ticketing parameters
+	var ticketingParameters *contracts.TicketingParameters
+	addresses.TicketingParameters, tx, ticketingParameters, err = contracts.DeployTicketingParameters(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy ticketingParameters: %v", err)
+	}
+
+	_, err = ticketingParameters.Initialize(transactor, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(100))
+	if err != nil {
+		t.Fatalf("could not initialize ticket contract: %v", err)
+	}
+
+	backend.Commit()
+	_, err = backend.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		t.Fatalf("could not get transaction receipt: %v", err)
+	}
+
+	// deploy epochs manager
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, tx, epochsManager, err = contracts.DeployEpochsManager(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy epochsManager: %v", err)
+	}
+
+	_, err = epochsManager.Initialize(transactor, addresses.Directory, addresses.TicketingParameters, big.NewInt(80000))
+	if err != nil {
+		t.Fatalf("could not initialize ticket contract: %v", err)
+	}
+
+	backend.Commit()
+	_, err = backend.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		t.Fatalf("could not get transaction receipt: %v", err)
+	}
+
 	// deploy ticketing
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, tx, ticketing, err = contracts.DeploySyloTicketing(transactor, backend)
@@ -448,7 +497,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
 
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(100))
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.EpochsManager, unlockDuration)
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}

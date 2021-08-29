@@ -44,8 +44,9 @@ func TestPayments(t *testing.T) {
 	// calculate prices
 	sylopayments.CalculatePrices(t, ctx, backend, owner)
 
-	// construct directory
-	sylopayments.ConstructDirectory(t, ctx, backend, owner)
+	// initialize epoch
+	owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
 	// create alice
 	alice, aliceSK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
@@ -125,7 +126,18 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 		t.Fatalf("could not retrieve the latest block: %v", err)
 	}
 
+	epoch, err := sender.GetCurrentActiveEpoch()
+	if err != nil {
+		t.Fatalf("could not retrieve current epoch %v", err)
+	}
+
+	epochId, err := sender.GetEpochId(epoch)
+	if err != nil {
+		t.Fatalf("could not retrieve epoch id %v", err)
+	}
+
 	ticket := contracts.SyloTicketingTicket{
+		EpochId:         epochId,
 		Sender:          sender.Address(),
 		Redeemer:        receiver,
 		SenderCommit:    senderCommit,
