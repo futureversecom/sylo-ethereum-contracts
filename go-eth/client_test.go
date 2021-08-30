@@ -146,7 +146,11 @@ func TestClient(t *testing.T) {
 
 		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
-		owner.TransferDirectoryOwnership(addresses.EpochsManager)
+		_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
+		if err != nil {
+			t.Fatalf("could not transfer directory ownership: %v", err)
+		}
+
 		sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
 		aliceRand := big.NewInt(1)

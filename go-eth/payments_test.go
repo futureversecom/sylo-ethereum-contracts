@@ -45,7 +45,11 @@ func TestPayments(t *testing.T) {
 	sylopayments.CalculatePrices(t, ctx, backend, owner)
 
 	// initialize epoch
-	owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	if err != nil {
+		t.Fatalf("could transfer directory ownership: %v", err)
+	}
+
 	sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
 	// create alice
