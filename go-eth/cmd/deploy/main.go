@@ -72,7 +72,7 @@ func main() {
 		},
 		&cli.IntFlag{
 			Name:  "epochs-duration",
-			Usage: "The duration an epoch will last for in blocks",
+			Usage: "The duration an epoch will last for in `BLOCKS`",
 			Value: 80000,
 		},
 		&cli.BoolFlag{

@@ -9,7 +9,7 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     struct Listing {
         // MultiAddr to connect to the account
-        string multiAddr; 
+        string multiAddr;
 
         // Percentage of a tickets value that will be rewarded to
         // delagated stakers expressed as a fraction of 10000.

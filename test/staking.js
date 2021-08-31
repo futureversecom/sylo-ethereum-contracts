@@ -25,7 +25,7 @@ contract('Staking', accounts => {
 
     directory = await Directory.new({ from: accounts[1] });
     await directory.initialize(
-        stakingManager.address, 
+        stakingManager.address,
       { from: accounts[1] }
     );
   });
@@ -266,21 +266,21 @@ contract('Staking', accounts => {
         points[address]++;
       }
     }
-  
+
     function outputCompletion() {
       if (i >= iterations) {
         return;
       }
-      process.stdout.write(" " + (i/iterations * 100).toPrecision(2) + "% completed\r")                                                              
+      process.stdout.write(" " + (i/iterations * 100).toPrecision(2) + "% completed\r")
       setTimeout(outputCompletion, 1000);
     }
-  
+
     let i = 0;
-  
+
     outputCompletion();
-  
+
     console.log("collecting scan results for", iterations, "iterations...");
-  
+
     while (i < iterations) {
       // generate a random ed25519 key and hash with an epoch to create a
       // 'random' point value
@@ -293,7 +293,7 @@ contract('Staking', accounts => {
       updatePoint(address);
       i++;
     }
-  
+
     return points;
   }
 });

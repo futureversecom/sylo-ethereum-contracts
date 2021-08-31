@@ -78,7 +78,7 @@ contract('Ticketing', accounts => {
 
     directory = await Directory.new({ from: accounts[1] });
     await directory.initialize(
-        stakingManager.address, 
+        stakingManager.address,
       { from: accounts[1] }
     );
 
@@ -94,9 +94,9 @@ contract('Ticketing', accounts => {
 
     ticketing = await Ticketing.new({ from: accounts[1] })
     await ticketing.initialize(
-      token.address, 
-      listings.address, 
-      stakingManager.address, 
+      token.address,
+      listings.address,
+      stakingManager.address,
       epochsManager.address,
       0,
       { from: accounts[1] }
@@ -159,7 +159,7 @@ contract('Ticketing', accounts => {
         assert.include(e.message, 'Nothing to withdraw', 'Unlock should fail due to no deposit');
       });
   });
-  
+
   it('should be able to unlock', async () => {
     await ticketing.unlockDeposits({ from: accounts[0] });
 
@@ -200,9 +200,9 @@ contract('Ticketing', accounts => {
 
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
-    const { ticket, senderRand, redeemerRand } = 
+    const { ticket, senderRand, redeemerRand } =
       await createWinningTicket(alice, 1);
-    
+
     const signature = '0x00';
 
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
@@ -216,7 +216,7 @@ contract('Ticketing', accounts => {
 
   it('can not redeem ticket with invalid sender rand', async () => {
     const alice = web3.eth.accounts.create();
-    const { ticket, redeemerRand, signature } = 
+    const { ticket, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
 
     const senderRand = 999;
@@ -232,7 +232,7 @@ contract('Ticketing', accounts => {
 
   it('can not redeem ticket with invalid redeemer rand', async () => {
     const alice = web3.eth.accounts.create();
-    const { ticket, senderRand, signature } = 
+    const { ticket, senderRand, signature } =
       await createWinningTicket(alice, 1);
 
     const redeemerRand = 999;
@@ -248,7 +248,7 @@ contract('Ticketing', accounts => {
 
   it('can not redeem ticket if associated epoch does not exist', async () => {
     const alice = web3.eth.accounts.create();
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
 
     ticket.epochId = '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -264,7 +264,7 @@ contract('Ticketing', accounts => {
 
   it('can not redeem ticket if not generated during associated epoch', async () => {
     const alice = web3.eth.accounts.create();
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
 
     ticket.generationBlock = 1;
@@ -288,9 +288,9 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
-    
+
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
@@ -311,7 +311,7 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(5, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
 
     const initialTicketingBalance = await token.balanceOf(ticketing.address);
@@ -356,7 +356,7 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 3);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
@@ -398,7 +398,7 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 4);
 
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
@@ -457,7 +457,7 @@ contract('Ticketing', accounts => {
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
     const initialReceiverBalance = await token.balanceOf(accounts[5]);
 
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 5);
 
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[5] });
@@ -489,21 +489,21 @@ contract('Ticketing', accounts => {
         await stakingManager.addStake(1, accounts[1], { from: accounts[i] });
       }
     }
-    
+
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const { ticket, senderRand, redeemerRand, signature } = 
+    const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
 
     await ticketing.redeem.estimateGas(
-      ticket, 
+      ticket,
       senderRand,
-      redeemerRand, 
-      signature, 
+      redeemerRand,
+      signature,
       { from: accounts[1],
         gas: 350000,
       }
@@ -527,7 +527,7 @@ contract('Ticketing', accounts => {
 
     directory = await Directory.new({ from: accounts[1] });
     await directory.initialize(
-        stakingManager.address, 
+        stakingManager.address,
       { from: accounts[1] }
     );
 
@@ -545,8 +545,8 @@ contract('Ticketing', accounts => {
 
     ticketing = await Ticketing.new({ from: accounts[1] });
     await ticketing.initialize(
-      token.address, 
-      listings.address, 
+      token.address,
+      listings.address,
       stakingManager.address,
       epochsManager.address,
       0,
@@ -558,7 +558,7 @@ contract('Ticketing', accounts => {
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
-    const { ticket } = 
+    const { ticket } =
       await createWinningTicket(alice, 1);
 
     // advance the block halfway to ticket expiry
@@ -575,8 +575,8 @@ contract('Ticketing', accounts => {
     );
 
     assert.equal(
-      decayedProbability.toString(), 
-      expectedProbability.toString(), 
+      decayedProbability.toString(),
+      expectedProbability.toString(),
       "Expected probablity of ticket winning to decay"
     );
   });
@@ -587,7 +587,7 @@ contract('Ticketing', accounts => {
 
     const alice = web3.eth.accounts.create();
 
-    const { ticket } = 
+    const { ticket } =
       await createWinningTicket(alice, 1);
 
     // advance the block all the way to ticket expiry

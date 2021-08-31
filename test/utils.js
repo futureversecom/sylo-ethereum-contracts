@@ -2,7 +2,7 @@ const Token = artifacts.require("SyloToken");
 
 exports.fundRandomAccount = async function(funder, tokenAddress) {
   const acc = web3.eth.accounts.create();
-  
+
   const contract = new web3.eth.Contract(Token.abi, tokenAddress);
 
   // send sylos
