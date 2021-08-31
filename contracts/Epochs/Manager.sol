@@ -13,8 +13,10 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     struct Epoch {
         // time related variables
-        uint256 startBlock;
-        uint256 duration;
+        uint256 startBlock; // Block the epoch was initialized
+        uint256 duration; // Minimum time epoch will be alive measued in number of blocks
+        uint256 endBlock; // Block the epoch ended (and when the next epoch was initialised)
+                          // Zero here represents the epoch has not yet ended.
 
         // pointer to directory constructed for this epoch
         bytes32 directoryId;
@@ -41,9 +43,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     uint256 public epochDuration;
 
-    Epoch public currentActiveEpoch;
-
-    Epoch public previousActiveEpoch;
+    bytes32 public currentActiveEpoch;
 
     mapping (bytes32 => Epoch) epochs;
 
@@ -61,14 +61,17 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     function initializeEpoch() public returns (bytes32) {
-        uint256 end = currentActiveEpoch.startBlock + currentActiveEpoch.duration;
+        Epoch storage current = epochs[currentActiveEpoch];
+
+        uint256 end = current.startBlock + current.duration;
         require(end <= block.number, "Current epoch has not yet ended");
 
         bytes32 directoryId = _directory.constructDirectory();
 
         Epoch memory nextEpoch = Epoch(
             block.number, 
-            epochDuration, 
+            epochDuration,
+            0,
             directoryId,
             _ticketingParameters.faceValue(),
             _ticketingParameters.baseLiveWinProb(),
@@ -80,8 +83,9 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         bytes32 epochId = getEpochId(nextEpoch);
 
         epochs[epochId] = nextEpoch;
-        previousActiveEpoch = currentActiveEpoch;
-        currentActiveEpoch = nextEpoch;
+        current.endBlock = block.number;
+
+        currentActiveEpoch = epochId;
 
         emit NewEpoch(epochId);
 
@@ -89,7 +93,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     function getCurrentActiveEpoch() public view returns (Epoch memory epoch) {
-        return currentActiveEpoch;
+        return epochs[currentActiveEpoch];
     } 
 
     function getEpochId(Epoch memory epoch) public pure returns (bytes32) {

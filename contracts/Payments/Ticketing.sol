@@ -153,6 +153,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) public {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         require(epoch.startBlock > 0, "Ticket's associated epoch does not exist");
+        require(
+            ticket.generationBlock >= epoch.startBlock && 
+                (epoch.endBlock > 0 ? ticket.generationBlock < epoch.endBlock : true),
+            "This ticket was not generated during it's associated epoch"
+        );
 
         bytes32 ticketHash = getTicketHash(ticket);
 
