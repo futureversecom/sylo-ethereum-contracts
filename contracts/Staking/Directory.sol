@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /*
  * The Directory contract constructs and manages a structure holding the current stakes,
- * which is queried against using the scan function. The scan function allows submitting 
+ * which is queried against using the scan function. The scan function allows submitting
  * random points which will return a staked node's address in proportion to the stake it has.
 */
 contract Directory is Initializable, OwnableUpgradeable {
@@ -42,7 +42,7 @@ contract Directory is Initializable, OwnableUpgradeable {
      * We construct the directory by iterating through each valid stakee, and
      * creating a boundary value which is a sum of the previously iterated stakee's
      * boundary value, and the current stakee's total stake. The previous boundary and
-     * the current boundary essentially create a range, where if a random point were to 
+     * the current boundary essentially create a range, where if a random point were to
      * fall within that range, it would belong to the current stakee. The boundary value
      * grows in size as each stakee is iterated, thus the final directory array
      * is sorted. This allows us to perform a binary search on the directory.

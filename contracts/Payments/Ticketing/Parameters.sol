@@ -14,14 +14,14 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
     /* The value of a winning ticket */
     uint256 public faceValue;
 
-    /** 
+    /**
      * The probability of a ticket winning during the start of its lifetime.
      * This is a uint128 value representing the numerator in the probability
      * ratio where 2^128 - 1 is the denominator.
      */
     uint128 public baseLiveWinProb;
 
-    /** 
+    /**
      * The probability of a ticket winning after it has expired.
      * This is a uint128 value representing the numerator in the probability
      * ratio where 2^128 - 1 is the denominator.
@@ -35,12 +35,12 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      */
     uint256 public ticketDuration;
 
-    /** 
+    /**
      * A percentage value representing the proportion of the base win probability
      * that will be decayed once a ticket has expired.
      * Example: 80% decayRate indicates that a ticket will decay down to 20% of its
      * base win probability upon reaching the block before its expiry.
-     * The value is expressed as a fraction of 10000. 
+     * The value is expressed as a fraction of 10000.
      */
     uint16 public decayRate;
 

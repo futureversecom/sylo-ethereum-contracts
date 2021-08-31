@@ -32,7 +32,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      */
     uint256 public unlockDuration;
 
-    
+
     // Tracks all keys
     bytes32[] keys;
 
@@ -81,7 +81,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         // New stake
         if (stake.amount == 0) {
             require(
-                stakers[stakee].length < DELEGATED_STAKER_CAP, 
+                stakers[stakee].length < DELEGATED_STAKER_CAP,
                 "This node has reached its delegated staker cap"
             );
             stakers[stakee].push(staker);
