@@ -30,6 +30,7 @@ var (
 type EpochsManagerEpoch struct {
 	StartBlock      *big.Int
 	Duration        *big.Int
+	EndBlock        *big.Int
 	DirectoryId     [32]byte
 	FaceValue       *big.Int
 	BaseLiveWinProb *big.Int
@@ -39,10 +40,10 @@ type EpochsManagerEpoch struct {
 }
 
 // EpochsManagerABI is the input ABI used to generate the binding from.
-const EpochsManagerABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"epochId\",\"type\":\"bytes32\"}],\"name\":\"NewEpoch\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"currentActiveEpoch\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"epochDuration\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"previousActiveEpoch\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"contractDirectory\",\"name\":\"directory\",\"type\":\"address\"},{\"internalType\":\"contractTicketingParameters\",\"name\":\"ticketingParameters\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_epochDuration\",\"type\":\"uint256\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initializeEpoch\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getCurrentActiveEpoch\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"internalType\":\"structEpochsManager.Epoch\",\"name\":\"epoch\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"internalType\":\"structEpochsManager.Epoch\",\"name\":\"epoch\",\"type\":\"tuple\"}],\"name\":\"getEpochId\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"epochId\",\"type\":\"bytes32\"}],\"name\":\"getEpoch\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"internalType\":\"structEpochsManager.Epoch\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const EpochsManagerABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"epochId\",\"type\":\"bytes32\"}],\"name\":\"NewEpoch\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"currentActiveEpoch\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"epochDuration\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"contractDirectory\",\"name\":\"directory\",\"type\":\"address\"},{\"internalType\":\"contractTicketingParameters\",\"name\":\"ticketingParameters\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_epochDuration\",\"type\":\"uint256\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initializeEpoch\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getCurrentActiveEpoch\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endBlock\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"internalType\":\"structEpochsManager.Epoch\",\"name\":\"epoch\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endBlock\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"internalType\":\"structEpochsManager.Epoch\",\"name\":\"epoch\",\"type\":\"tuple\"}],\"name\":\"getEpochId\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"epochId\",\"type\":\"bytes32\"}],\"name\":\"getEpoch\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startBlock\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"duration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endBlock\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"directoryId\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"faceValue\",\"type\":\"uint256\"},{\"internalType\":\"uint128\",\"name\":\"baseLiveWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint128\",\"name\":\"expiredWinProb\",\"type\":\"uint128\"},{\"internalType\":\"uint256\",\"name\":\"ticketDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"decayRate\",\"type\":\"uint16\"}],\"internalType\":\"structEpochsManager.Epoch\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // EpochsManagerBin is the compiled bytecode used for deploying new contracts.
-var EpochsManagerBin = "0x608060405234801561001057600080fd5b506112a6806100206000396000f3fe608060405234801561001057600080fd5b50600436106100c95760003560e01c80638da5cb5b11610081578063e1519a751161005b578063e1519a7514610338578063e34bf01314610340578063f2fde38b146103e757600080fd5b80638da5cb5b1461025e578063923e672414610279578063ae4a4d57146102fe57600080fd5b8063715018a6116100b2578063715018a6146100ff57806373f99a5d146101075780637e6d64a51461011a57600080fd5b80631794bb3c146100ce5780634ff0876a146100e3575b600080fd5b6100e16100dc3660046110ed565b6103fa565b005b6100ec60685481565b6040519081526020015b60405180910390f35b6100e161050a565b6100ec61011536600461112d565b610570565b6101ea6101283660046110bd565b6040805161010081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810182905260e081019190915250600090815260776020908152604091829020825161010081018452815481526001820154928101929092526002810154928201929092526003820154606082015260048201546001600160801b038082166080840152600160801b9091041660a0820152600582015460c082015260069091015461ffff1660e082015290565b6040516100f691906000610100820190508251825260208301516020830152604083015160408301526060830151606083015260808301516001600160801b0380821660808501528060a08601511660a0850152505060c083015160c083015261ffff60e08401511660e083015292915050565b6033546040516001600160a01b0390911681526020016100f6565b6070546071546072546073546074546075546076546102b396959493926001600160801b0380821693600160801b909204169161ffff1688565b6040805198895260208901979097529587019490945260608601929092526001600160801b0390811660808601521660a084015260c083015261ffff1660e0820152610100016100f6565b606954606a54606b54606c54606d54606e54606f546102b396959493926001600160801b0380821693600160801b909204169161ffff1688565b6100ec610640565b6101ea6040805161010081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810182905260e08101919091525060408051610100810182526069548152606a546020820152606b5491810191909152606c546060820152606d546001600160801b038082166080840152600160801b9091041660a0820152606e5460c0820152606f5461ffff1660e082015290565b6100e16103f536600461109a565b610d19565b600054610100900460ff1680610413575060005460ff16155b61047b5760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084015b60405180910390fd5b600054610100900460ff1615801561049d576000805461ffff19166101011790555b6104a5610dfb565b606680546001600160a01b038087167fffffffffffffffffffffffff000000000000000000000000000000000000000092831617909255606780549286169290911691909117905560688290558015610504576000805461ff00191690555b50505050565b6033546001600160a01b031633146105645760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152606401610472565b61056e6000610ebd565b565b600081600001518260200151836060015184608001518560a001518660c001518760e00151604051602001610623979695949392919096875260208701959095526040860193909352608091821b7fffffffffffffffffffffffffffffffff00000000000000000000000000000000908116606087015290821b16607085015283015260f01b7fffff0000000000000000000000000000000000000000000000000000000000001660a082015260a20190565b604051602081830303815290604052805190602001209050919050565b606a5460695460009182916106559190611212565b9050438111156106a75760405162461bcd60e51b815260206004820152601f60248201527f43757272656e742065706f636820686173206e6f742079657420656e646564006044820152606401610472565b606654604080517f859ea34700000000000000000000000000000000000000000000000000000000815290516000926001600160a01b03169163859ea34791600480830192602092919082900301818787803b15801561070657600080fd5b505af115801561071a573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061073e91906110d5565b905060006040518061010001604052804381526020016068548152602001838152602001606760009054906101000a90046001600160a01b03166001600160a01b03166344fd9caa6040518163ffffffff1660e01b815260040160206040518083038186803b1580156107b057600080fd5b505afa1580156107c4573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906107e891906110d5565b8152606754604080517fdedcebda00000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b039093169263dedcebda9260048082019391829003018186803b15801561084957600080fd5b505afa15801561085d573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061088191906111da565b6001600160801b03168152606754604080517fbcbee54300000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b039093169263bcbee5439260048082019391829003018186803b1580156108eb57600080fd5b505afa1580156108ff573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061092391906111da565b6001600160801b03168152606754604080517f87bcc0c500000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b03909316926387bcc0c59260048082019391829003018186803b15801561098d57600080fd5b505afa1580156109a1573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906109c591906110d5565b8152606754604080517fa9c1f2f100000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b039093169263a9c1f2f19260048082019391829003018186803b158015610a2657600080fd5b505afa158015610a3a573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610a5e91906111f6565b61ffff16905290506000610a7182610570565b905081607760008381526020019081526020016000206000820151816000015560208201518160010155604082015181600201556060820151816003015560808201518160040160006101000a8154816001600160801b0302191690836001600160801b0316021790555060a08201518160040160106101000a8154816001600160801b0302191690836001600160801b0316021790555060c0820151816005015560e08201518160060160006101000a81548161ffff021916908361ffff16021790555090505060696070600082015481600001556001820154816001015560028201548160020155600382015481600301556004820160009054906101000a90046001600160801b03168160040160006101000a8154816001600160801b0302191690836001600160801b031602179055506004820160109054906101000a90046001600160801b03168160040160106101000a8154816001600160801b0302191690836001600160801b03160217905550600582015481600501556006820160009054906101000a900461ffff168160060160006101000a81548161ffff021916908361ffff1602179055509050508160696000820151816000015560208201518160010155604082015181600201556060820151816003015560808201518160040160006101000a8154816001600160801b0302191690836001600160801b0316021790555060a08201518160040160106101000a8154816001600160801b0302191690836001600160801b0316021790555060c0820151816005015560e08201518160060160006101000a81548161ffff021916908361ffff1602179055509050507fddc860800a99149017c480ec51523bf4143b7215e78956ae5c31e5c568f5383a81604051610d0991815260200190565b60405180910390a1949350505050565b6033546001600160a01b03163314610d735760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152606401610472565b6001600160a01b038116610def5760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201527f64647265737300000000000000000000000000000000000000000000000000006064820152608401610472565b610df881610ebd565b50565b600054610100900460ff1680610e14575060005460ff16155b610e775760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b6064820152608401610472565b600054610100900460ff16158015610e99576000805461ffff19166101011790555b610ea1610f27565b610ea9610fd8565b8015610df8576000805461ff001916905550565b603380546001600160a01b038381167fffffffffffffffffffffffff0000000000000000000000000000000000000000831681179093556040519116919082907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e090600090a35050565b600054610100900460ff1680610f40575060005460ff16155b610fa35760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b6064820152608401610472565b600054610100900460ff16158015610ea9576000805461ffff19166101011790558015610df8576000805461ff001916905550565b600054610100900460ff1680610ff1575060005460ff16155b6110545760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b6064820152608401610472565b600054610100900460ff16158015611076576000805461ffff19166101011790555b610ea933610ebd565b803561108a8161124b565b919050565b803561108a81611260565b6000602082840312156110ab578081fd5b81356110b681611236565b9392505050565b6000602082840312156110ce578081fd5b5035919050565b6000602082840312156110e6578081fd5b5051919050565b600080600060608486031215611101578182fd5b833561110c81611236565b9250602084013561111c81611236565b929592945050506040919091013590565b6000610100808385031215611140578182fd5b6040519081019067ffffffffffffffff8211818310171561116f57634e487b7160e01b83526041600452602483fd5b81604052833581526020840135602082015260408401356040820152606084013560608201526111a16080850161107f565b60808201526111b260a0850161107f565b60a082015260c084013560c08201526111cd60e0850161108f565b60e0820152949350505050565b6000602082840312156111eb578081fd5b81516110b68161124b565b600060208284031215611207578081fd5b81516110b681611260565b6000821982111561123157634e487b7160e01b81526011600452602481fd5b500190565b6001600160a01b0381168114610df857600080fd5b6001600160801b0381168114610df857600080fd5b61ffff81168114610df857600080fdfea264697066735822122015f3e556948b70b87293abde7395db60af4533edda1850103efbc392daa0aa4464736f6c63430008040033"
+var EpochsManagerBin = "0x608060405234801561001057600080fd5b5061110b806100206000396000f3fe608060405234801561001057600080fd5b50600436106100be5760003560e01c8063ae4a4d5711610076578063e34bf0131161005b578063e34bf0131461022e578063edcbc4e61461031f578063f2fde38b1461033257600080fd5b8063ae4a4d571461021d578063e1519a751461022657600080fd5b8063715018a6116100a7578063715018a6146100f45780637e6d64a5146100fc5780638da5cb5b1461020257600080fd5b80631794bb3c146100c35780634ff0876a146100d8575b600080fd5b6100d66100d1366004610eaa565b610345565b005b6100e160685481565b6040519081526020015b60405180910390f35b6100d6610455565b6101f561010a366004610e7a565b6040805161012081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810182905260e08101829052610100810191909152506000908152606a602090815260409182902082516101208101845281548152600182015492810192909252600281015492820192909252600382015460608201526004820154608082015260058201546fffffffffffffffffffffffffffffffff80821660a08401527001000000000000000000000000000000009091041660c0820152600682015460e082015260079091015461ffff1661010082015290565b6040516100eb9190610fad565b6033546040516001600160a01b0390911681526020016100eb565b6100e160695481565b6100e16104bb565b6101f56040805161012081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810182905260e08101829052610100810191909152506069546000908152606a602090815260409182902082516101208101845281548152600182015492810192909252600281015492820192909252600382015460608201526004820154608082015260058201546fffffffffffffffffffffffffffffffff80821660a08401527001000000000000000000000000000000009091041660c0820152600682015460e082015260079091015461ffff1661010082015290565b6100e161032d366004610eea565b610a05565b6100d6610340366004610e57565b610ad6565b600054610100900460ff168061035e575060005460ff16155b6103c65760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084015b60405180910390fd5b600054610100900460ff161580156103e8576000805461ffff19166101011790555b6103f0610bb8565b606680546001600160a01b038087167fffffffffffffffffffffffff00000000000000000000000000000000000000009283161790925560678054928616929091169190911790556068829055801561044f576000805461ff00191690555b50505050565b6033546001600160a01b031633146104af5760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016103bd565b6104b96000610c7a565b565b6069546000908152606a602052604081206001810154815483916104de9161106e565b9050438111156105305760405162461bcd60e51b815260206004820152601f60248201527f43757272656e742065706f636820686173206e6f742079657420656e6465640060448201526064016103bd565b606654604080517f859ea34700000000000000000000000000000000000000000000000000000000815290516000926001600160a01b03169163859ea34791600480830192602092919082900301818787803b15801561058f57600080fd5b505af11580156105a3573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906105c79190610e92565b90506000604051806101200160405280438152602001606854815260200160008152602001838152602001606760009054906101000a90046001600160a01b03166001600160a01b03166344fd9caa6040518163ffffffff1660e01b815260040160206040518083038186803b15801561064057600080fd5b505afa158015610654573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106789190610e92565b8152606754604080517fdedcebda00000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b039093169263dedcebda9260048082019391829003018186803b1580156106d957600080fd5b505afa1580156106ed573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906107119190610f75565b6fffffffffffffffffffffffffffffffff168152606754604080517fbcbee54300000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b039093169263bcbee5439260048082019391829003018186803b15801561078457600080fd5b505afa158015610798573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906107bc9190610f75565b6fffffffffffffffffffffffffffffffff168152606754604080517f87bcc0c500000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b03909316926387bcc0c59260048082019391829003018186803b15801561082f57600080fd5b505afa158015610843573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108679190610e92565b8152606754604080517fa9c1f2f100000000000000000000000000000000000000000000000000000000815290516020938401936001600160a01b039093169263a9c1f2f19260048082019391829003018186803b1580156108c857600080fd5b505afa1580156108dc573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906109009190610f91565b61ffff1690529050600061091382610a05565b6000818152606a60209081526040918290208551815590850151600182015581850151600280830191909155606086015160038301556080860151600483015560a086015160c08701516fffffffffffffffffffffffffffffffff90811670010000000000000000000000000000000002911617600583015560e086015160068301556101008601516007909201805461ffff90931661ffff199093169290921790915543908801556069829055519091507fddc860800a99149017c480ec51523bf4143b7215e78956ae5c31e5c568f5383a906109f49083815260200190565b60405180910390a195945050505050565b60008160000151826020015183608001518460a001518560c001518660e00151876101000151604051602001610ab9979695949392919096875260208701959095526040860193909352608091821b7fffffffffffffffffffffffffffffffff00000000000000000000000000000000908116606087015290821b16607085015283015260f01b7fffff0000000000000000000000000000000000000000000000000000000000001660a082015260a20190565b604051602081830303815290604052805190602001209050919050565b6033546001600160a01b03163314610b305760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016103bd565b6001600160a01b038116610bac5760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201527f646472657373000000000000000000000000000000000000000000000000000060648201526084016103bd565b610bb581610c7a565b50565b600054610100900460ff1680610bd1575060005460ff16155b610c345760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103bd565b600054610100900460ff16158015610c56576000805461ffff19166101011790555b610c5e610ce4565b610c66610d95565b8015610bb5576000805461ff001916905550565b603380546001600160a01b038381167fffffffffffffffffffffffff0000000000000000000000000000000000000000831681179093556040519116919082907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e090600090a35050565b600054610100900460ff1680610cfd575060005460ff16155b610d605760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103bd565b600054610100900460ff16158015610c66576000805461ffff19166101011790558015610bb5576000805461ff001916905550565b600054610100900460ff1680610dae575060005460ff16155b610e115760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103bd565b600054610100900460ff16158015610e33576000805461ffff19166101011790555b610c6633610c7a565b8035610e47816110a7565b919050565b8035610e47816110c5565b600060208284031215610e68578081fd5b8135610e7381611092565b9392505050565b600060208284031215610e8b578081fd5b5035919050565b600060208284031215610ea3578081fd5b5051919050565b600080600060608486031215610ebe578182fd5b8335610ec981611092565b92506020840135610ed981611092565b929592945050506040919091013590565b60006101208284031215610efc578081fd5b610f04611036565b8235815260208301356020820152604083013560408201526060830135606082015260808301356080820152610f3c60a08401610e3c565b60a0820152610f4d60c08401610e3c565b60c082015260e083013560e0820152610100610f6a818501610e4c565b908201529392505050565b600060208284031215610f86578081fd5b8151610e73816110a7565b600060208284031215610fa2578081fd5b8151610e73816110c5565b600061012082019050825182526020830151602083015260408301516040830152606083015160608301526080830151608083015260a08301516fffffffffffffffffffffffffffffffff80821660a08501528060c08601511660c0850152505060e083015160e08301526101008084015161102e8285018261ffff169052565b505092915050565b604051610120810167ffffffffffffffff8111828210171561106857634e487b7160e01b600052604160045260246000fd5b60405290565b6000821982111561108d57634e487b7160e01b81526011600452602481fd5b500190565b6001600160a01b0381168114610bb557600080fd5b6fffffffffffffffffffffffffffffffff81168114610bb557600080fd5b61ffff81168114610bb557600080fdfea2646970667358221220847763ee74b53ecf7aa8ed99cd04a09927135571a5b90c2a20ff5e61b7bd347d64736f6c63430008040033"
 
 // DeployEpochsManager deploys a new Ethereum contract, binding an instance of EpochsManager to it.
 func DeployEpochsManager(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *EpochsManager, error) {
@@ -202,76 +203,32 @@ func (_EpochsManager *EpochsManagerTransactorRaw) Transact(opts *bind.TransactOp
 
 // CurrentActiveEpoch is a free data retrieval call binding the contract method 0xae4a4d57.
 //
-// Solidity: function currentActiveEpoch() view returns(uint256 startBlock, uint256 duration, bytes32 directoryId, uint256 faceValue, uint128 baseLiveWinProb, uint128 expiredWinProb, uint256 ticketDuration, uint16 decayRate)
-func (_EpochsManager *EpochsManagerCaller) CurrentActiveEpoch(opts *bind.CallOpts) (struct {
-	StartBlock      *big.Int
-	Duration        *big.Int
-	DirectoryId     [32]byte
-	FaceValue       *big.Int
-	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	TicketDuration  *big.Int
-	DecayRate       uint16
-}, error) {
+// Solidity: function currentActiveEpoch() view returns(bytes32)
+func (_EpochsManager *EpochsManagerCaller) CurrentActiveEpoch(opts *bind.CallOpts) ([32]byte, error) {
 	var out []interface{}
 	err := _EpochsManager.contract.Call(opts, &out, "currentActiveEpoch")
 
-	outstruct := new(struct {
-		StartBlock      *big.Int
-		Duration        *big.Int
-		DirectoryId     [32]byte
-		FaceValue       *big.Int
-		BaseLiveWinProb *big.Int
-		ExpiredWinProb  *big.Int
-		TicketDuration  *big.Int
-		DecayRate       uint16
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new([32]byte), err
 	}
 
-	outstruct.StartBlock = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.Duration = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.DirectoryId = *abi.ConvertType(out[2], new([32]byte)).(*[32]byte)
-	outstruct.FaceValue = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
-	outstruct.BaseLiveWinProb = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
-	outstruct.ExpiredWinProb = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
-	outstruct.TicketDuration = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
-	outstruct.DecayRate = *abi.ConvertType(out[7], new(uint16)).(*uint16)
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
 // CurrentActiveEpoch is a free data retrieval call binding the contract method 0xae4a4d57.
 //
-// Solidity: function currentActiveEpoch() view returns(uint256 startBlock, uint256 duration, bytes32 directoryId, uint256 faceValue, uint128 baseLiveWinProb, uint128 expiredWinProb, uint256 ticketDuration, uint16 decayRate)
-func (_EpochsManager *EpochsManagerSession) CurrentActiveEpoch() (struct {
-	StartBlock      *big.Int
-	Duration        *big.Int
-	DirectoryId     [32]byte
-	FaceValue       *big.Int
-	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	TicketDuration  *big.Int
-	DecayRate       uint16
-}, error) {
+// Solidity: function currentActiveEpoch() view returns(bytes32)
+func (_EpochsManager *EpochsManagerSession) CurrentActiveEpoch() ([32]byte, error) {
 	return _EpochsManager.Contract.CurrentActiveEpoch(&_EpochsManager.CallOpts)
 }
 
 // CurrentActiveEpoch is a free data retrieval call binding the contract method 0xae4a4d57.
 //
-// Solidity: function currentActiveEpoch() view returns(uint256 startBlock, uint256 duration, bytes32 directoryId, uint256 faceValue, uint128 baseLiveWinProb, uint128 expiredWinProb, uint256 ticketDuration, uint16 decayRate)
-func (_EpochsManager *EpochsManagerCallerSession) CurrentActiveEpoch() (struct {
-	StartBlock      *big.Int
-	Duration        *big.Int
-	DirectoryId     [32]byte
-	FaceValue       *big.Int
-	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	TicketDuration  *big.Int
-	DecayRate       uint16
-}, error) {
+// Solidity: function currentActiveEpoch() view returns(bytes32)
+func (_EpochsManager *EpochsManagerCallerSession) CurrentActiveEpoch() ([32]byte, error) {
 	return _EpochsManager.Contract.CurrentActiveEpoch(&_EpochsManager.CallOpts)
 }
 
@@ -308,7 +265,7 @@ func (_EpochsManager *EpochsManagerCallerSession) EpochDuration() (*big.Int, err
 
 // GetCurrentActiveEpoch is a free data retrieval call binding the contract method 0xe34bf013.
 //
-// Solidity: function getCurrentActiveEpoch() view returns((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch)
+// Solidity: function getCurrentActiveEpoch() view returns((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch)
 func (_EpochsManager *EpochsManagerCaller) GetCurrentActiveEpoch(opts *bind.CallOpts) (EpochsManagerEpoch, error) {
 	var out []interface{}
 	err := _EpochsManager.contract.Call(opts, &out, "getCurrentActiveEpoch")
@@ -325,21 +282,21 @@ func (_EpochsManager *EpochsManagerCaller) GetCurrentActiveEpoch(opts *bind.Call
 
 // GetCurrentActiveEpoch is a free data retrieval call binding the contract method 0xe34bf013.
 //
-// Solidity: function getCurrentActiveEpoch() view returns((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch)
+// Solidity: function getCurrentActiveEpoch() view returns((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch)
 func (_EpochsManager *EpochsManagerSession) GetCurrentActiveEpoch() (EpochsManagerEpoch, error) {
 	return _EpochsManager.Contract.GetCurrentActiveEpoch(&_EpochsManager.CallOpts)
 }
 
 // GetCurrentActiveEpoch is a free data retrieval call binding the contract method 0xe34bf013.
 //
-// Solidity: function getCurrentActiveEpoch() view returns((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch)
+// Solidity: function getCurrentActiveEpoch() view returns((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch)
 func (_EpochsManager *EpochsManagerCallerSession) GetCurrentActiveEpoch() (EpochsManagerEpoch, error) {
 	return _EpochsManager.Contract.GetCurrentActiveEpoch(&_EpochsManager.CallOpts)
 }
 
 // GetEpoch is a free data retrieval call binding the contract method 0x7e6d64a5.
 //
-// Solidity: function getEpoch(bytes32 epochId) view returns((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16))
+// Solidity: function getEpoch(bytes32 epochId) view returns((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16))
 func (_EpochsManager *EpochsManagerCaller) GetEpoch(opts *bind.CallOpts, epochId [32]byte) (EpochsManagerEpoch, error) {
 	var out []interface{}
 	err := _EpochsManager.contract.Call(opts, &out, "getEpoch", epochId)
@@ -356,21 +313,21 @@ func (_EpochsManager *EpochsManagerCaller) GetEpoch(opts *bind.CallOpts, epochId
 
 // GetEpoch is a free data retrieval call binding the contract method 0x7e6d64a5.
 //
-// Solidity: function getEpoch(bytes32 epochId) view returns((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16))
+// Solidity: function getEpoch(bytes32 epochId) view returns((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16))
 func (_EpochsManager *EpochsManagerSession) GetEpoch(epochId [32]byte) (EpochsManagerEpoch, error) {
 	return _EpochsManager.Contract.GetEpoch(&_EpochsManager.CallOpts, epochId)
 }
 
 // GetEpoch is a free data retrieval call binding the contract method 0x7e6d64a5.
 //
-// Solidity: function getEpoch(bytes32 epochId) view returns((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16))
+// Solidity: function getEpoch(bytes32 epochId) view returns((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16))
 func (_EpochsManager *EpochsManagerCallerSession) GetEpoch(epochId [32]byte) (EpochsManagerEpoch, error) {
 	return _EpochsManager.Contract.GetEpoch(&_EpochsManager.CallOpts, epochId)
 }
 
-// GetEpochId is a free data retrieval call binding the contract method 0x73f99a5d.
+// GetEpochId is a free data retrieval call binding the contract method 0xedcbc4e6.
 //
-// Solidity: function getEpochId((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch) pure returns(bytes32)
+// Solidity: function getEpochId((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch) pure returns(bytes32)
 func (_EpochsManager *EpochsManagerCaller) GetEpochId(opts *bind.CallOpts, epoch EpochsManagerEpoch) ([32]byte, error) {
 	var out []interface{}
 	err := _EpochsManager.contract.Call(opts, &out, "getEpochId", epoch)
@@ -385,16 +342,16 @@ func (_EpochsManager *EpochsManagerCaller) GetEpochId(opts *bind.CallOpts, epoch
 
 }
 
-// GetEpochId is a free data retrieval call binding the contract method 0x73f99a5d.
+// GetEpochId is a free data retrieval call binding the contract method 0xedcbc4e6.
 //
-// Solidity: function getEpochId((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch) pure returns(bytes32)
+// Solidity: function getEpochId((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch) pure returns(bytes32)
 func (_EpochsManager *EpochsManagerSession) GetEpochId(epoch EpochsManagerEpoch) ([32]byte, error) {
 	return _EpochsManager.Contract.GetEpochId(&_EpochsManager.CallOpts, epoch)
 }
 
-// GetEpochId is a free data retrieval call binding the contract method 0x73f99a5d.
+// GetEpochId is a free data retrieval call binding the contract method 0xedcbc4e6.
 //
-// Solidity: function getEpochId((uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch) pure returns(bytes32)
+// Solidity: function getEpochId((uint256,uint256,uint256,bytes32,uint256,uint128,uint128,uint256,uint16) epoch) pure returns(bytes32)
 func (_EpochsManager *EpochsManagerCallerSession) GetEpochId(epoch EpochsManagerEpoch) ([32]byte, error) {
 	return _EpochsManager.Contract.GetEpochId(&_EpochsManager.CallOpts, epoch)
 }
@@ -428,81 +385,6 @@ func (_EpochsManager *EpochsManagerSession) Owner() (common.Address, error) {
 // Solidity: function owner() view returns(address)
 func (_EpochsManager *EpochsManagerCallerSession) Owner() (common.Address, error) {
 	return _EpochsManager.Contract.Owner(&_EpochsManager.CallOpts)
-}
-
-// PreviousActiveEpoch is a free data retrieval call binding the contract method 0x923e6724.
-//
-// Solidity: function previousActiveEpoch() view returns(uint256 startBlock, uint256 duration, bytes32 directoryId, uint256 faceValue, uint128 baseLiveWinProb, uint128 expiredWinProb, uint256 ticketDuration, uint16 decayRate)
-func (_EpochsManager *EpochsManagerCaller) PreviousActiveEpoch(opts *bind.CallOpts) (struct {
-	StartBlock      *big.Int
-	Duration        *big.Int
-	DirectoryId     [32]byte
-	FaceValue       *big.Int
-	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	TicketDuration  *big.Int
-	DecayRate       uint16
-}, error) {
-	var out []interface{}
-	err := _EpochsManager.contract.Call(opts, &out, "previousActiveEpoch")
-
-	outstruct := new(struct {
-		StartBlock      *big.Int
-		Duration        *big.Int
-		DirectoryId     [32]byte
-		FaceValue       *big.Int
-		BaseLiveWinProb *big.Int
-		ExpiredWinProb  *big.Int
-		TicketDuration  *big.Int
-		DecayRate       uint16
-	})
-	if err != nil {
-		return *outstruct, err
-	}
-
-	outstruct.StartBlock = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.Duration = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.DirectoryId = *abi.ConvertType(out[2], new([32]byte)).(*[32]byte)
-	outstruct.FaceValue = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
-	outstruct.BaseLiveWinProb = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
-	outstruct.ExpiredWinProb = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
-	outstruct.TicketDuration = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
-	outstruct.DecayRate = *abi.ConvertType(out[7], new(uint16)).(*uint16)
-
-	return *outstruct, err
-
-}
-
-// PreviousActiveEpoch is a free data retrieval call binding the contract method 0x923e6724.
-//
-// Solidity: function previousActiveEpoch() view returns(uint256 startBlock, uint256 duration, bytes32 directoryId, uint256 faceValue, uint128 baseLiveWinProb, uint128 expiredWinProb, uint256 ticketDuration, uint16 decayRate)
-func (_EpochsManager *EpochsManagerSession) PreviousActiveEpoch() (struct {
-	StartBlock      *big.Int
-	Duration        *big.Int
-	DirectoryId     [32]byte
-	FaceValue       *big.Int
-	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	TicketDuration  *big.Int
-	DecayRate       uint16
-}, error) {
-	return _EpochsManager.Contract.PreviousActiveEpoch(&_EpochsManager.CallOpts)
-}
-
-// PreviousActiveEpoch is a free data retrieval call binding the contract method 0x923e6724.
-//
-// Solidity: function previousActiveEpoch() view returns(uint256 startBlock, uint256 duration, bytes32 directoryId, uint256 faceValue, uint128 baseLiveWinProb, uint128 expiredWinProb, uint256 ticketDuration, uint16 decayRate)
-func (_EpochsManager *EpochsManagerCallerSession) PreviousActiveEpoch() (struct {
-	StartBlock      *big.Int
-	Duration        *big.Int
-	DirectoryId     [32]byte
-	FaceValue       *big.Int
-	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	TicketDuration  *big.Int
-	DecayRate       uint16
-}, error) {
-	return _EpochsManager.Contract.PreviousActiveEpoch(&_EpochsManager.CallOpts)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0x1794bb3c.

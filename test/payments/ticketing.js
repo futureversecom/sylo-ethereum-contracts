@@ -246,6 +246,38 @@ contract('Ticketing', accounts => {
       });
   });
 
+  it('can not redeem ticket if associated epoch does not exist', async () => {
+    const alice = web3.eth.accounts.create();
+    const { ticket, senderRand, redeemerRand, signature } = 
+      await createWinningTicket(alice, 1);
+
+    ticket.epochId = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
+      .then(() => {
+        assert.fail('Should fail to redeem ticket with invalid epoch id');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Ticket\'s associated epoch does not exist', 'Expected redeeming to fail due to invalid epoch id');
+      });
+  });
+
+  it('can not redeem ticket if not generated during associated epoch', async () => {
+    const alice = web3.eth.accounts.create();
+    const { ticket, senderRand, redeemerRand, signature } = 
+      await createWinningTicket(alice, 1);
+
+    ticket.generationBlock = 1;
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] })
+      .then(() => {
+        assert.fail('Should fail to redeem ticket with invalid generation block');
+      })
+      .catch(e => {
+        assert.include(e.message, 'This ticket was not generated during it\'s associated epoch', 'Expected redeeming to fail due to invalid epoch');
+      });
+  });
+
   it('can redeem winning ticket', async () => {
     // simulate having account[1] as a node with a listing and a
     // stakingManager entry
@@ -257,7 +289,7 @@ contract('Ticketing', accounts => {
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } = 
-    await createWinningTicket(alice, 1);
+      await createWinningTicket(alice, 1);
     
     const initialReceiverBalance = await token.balanceOf(accounts[1]);
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
@@ -478,7 +510,7 @@ contract('Ticketing', accounts => {
     );
   });
 
-  it.only('should decay winning probability as ticket approaches expiry', async () => {
+  it('should decay winning probability as ticket approaches expiry', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
