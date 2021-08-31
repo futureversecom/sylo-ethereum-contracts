@@ -47,7 +47,7 @@ func TestPayments(t *testing.T) {
 	// initialize epoch
 	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
 	if err != nil {
-		t.Fatalf("could transfer directory ownership: %v", err)
+		t.Fatalf("could not transfer directory ownership: %v", err)
 	}
 
 	sylopayments.InitializeEpoch(t, ctx, backend, owner)

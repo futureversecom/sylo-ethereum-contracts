@@ -65,8 +65,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     // TODO define events
 
     function initialize(
-        IERC20 token, 
-        Listings listings, 
+        IERC20 token,
+        Listings listings,
         StakingManager stakingManager,
         EpochsManager epochsManager,
         uint256 _unlockDuration
@@ -154,7 +154,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         require(epoch.startBlock > 0, "Ticket's associated epoch does not exist");
         require(
-            ticket.generationBlock >= epoch.startBlock && 
+            ticket.generationBlock >= epoch.startBlock &&
                 (epoch.endBlock > 0 ? ticket.generationBlock < epoch.endBlock : true),
             "This ticket was not generated during it's associated epoch"
         );
@@ -194,7 +194,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             // We can safely cast faceValue to 128 bits as all Sylo Tokens
             // would fit within 94 bits
             uint256 stakersPayout = SyloUtils.percOf(uint128(epoch.faceValue), listing.payoutPercentage);
-            
+
             address[] memory stakers = _stakingManager.getStakers(ticket.redeemer);
 
             // Track any value lost from precision due to rounding down
@@ -225,7 +225,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         require(!usedTickets[ticketHash], "Ticket already redeemed");
 
-        // validate that the sender's random number has been revealed to 
+        // validate that the sender's random number has been revealed to
         // the redeemer
         require(
             keccak256(abi.encodePacked(senderRand)) == ticket.senderCommit,
@@ -268,7 +268,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     function calculateWinningProbability(
         Ticket memory ticket,
-        EpochsManager.Epoch memory epoch 
+        EpochsManager.Epoch memory epoch
     ) public view returns (uint128) {
         uint256 elapsedDuration = block.number - ticket.generationBlock;
 
@@ -280,7 +280,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 maxDecayValue = SyloUtils.percOf(epoch.baseLiveWinProb, epoch.decayRate);
 
         // determine the amount of probability that has actually decayed
-        // by multiplying the maximum decay value against ratio of the tickets elapsed duration 
+        // by multiplying the maximum decay value against ratio of the tickets elapsed duration
         // vs the actual ticket duration. The max decay value is calculated from a fraction of a
         // uint128 value so we cannot phantom overflow here
         uint256 decayedProbability = maxDecayValue * elapsedDuration / epoch.ticketDuration;

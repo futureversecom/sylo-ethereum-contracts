@@ -50,7 +50,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     event NewEpoch(bytes32 epochId);
 
     function initialize(
-        Directory directory, 
+        Directory directory,
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) public initializer {
@@ -69,7 +69,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         bytes32 directoryId = _directory.constructDirectory();
 
         Epoch memory nextEpoch = Epoch(
-            block.number, 
+            block.number,
             epochDuration,
             0,
             directoryId,
@@ -79,7 +79,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             _ticketingParameters.ticketDuration(),
             _ticketingParameters.decayRate()
         );
-        
+
         bytes32 epochId = getEpochId(nextEpoch);
 
         epochs[epochId] = nextEpoch;
@@ -94,7 +94,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     function getCurrentActiveEpoch() public view returns (Epoch memory epoch) {
         return epochs[currentActiveEpoch];
-    } 
+    }
 
     function getEpochId(Epoch memory epoch) public pure returns (bytes32) {
         return keccak256(
