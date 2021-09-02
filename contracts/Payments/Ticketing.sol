@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "../Listings.sol";
-import "../Staking/Manager.sol";
+import "../Staking/Directory.sol";
 import "../ECDSA.sol";
 import "../Utils.sol";
 import "../Epochs/Manager.sol";
@@ -43,7 +43,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     Listings _listings;
 
     /* Sylo Directory contract */
-    StakingManager _stakingManager;
+    Directory _directory;
 
     /* Sylo Epochs Manager.
      * This contract holds various ticketing parameters
@@ -62,19 +62,26 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* Mapping of ticket hashes, used to check if ticket has been redeemed */
     mapping (bytes32 => bool) public usedTickets;
 
+    struct RewardPool {
+        uint256 balance;
+        address[] hasClaimed;
+    }
+
+    mapping (bytes32 => RewardPool) public rewardPools;
+
     // TODO define events
 
     function initialize(
         IERC20 token,
         Listings listings,
-        StakingManager stakingManager,
+        Directory directory,
         EpochsManager epochsManager,
         uint256 _unlockDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _listings = listings;
-        _stakingManager = stakingManager;
+        _directory = directory;
         _epochsManager = epochsManager;
         unlockDuration = _unlockDuration;
     }
@@ -168,47 +175,45 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         usedTickets[ticketHash] = true;
 
-        uint256 totalStake = _stakingManager.totalStakes(ticket.redeemer);
-        require(totalStake != 0, "Ticket redeemer must have stake");
+        // Directory.Stake[] memory stakes = _directory.getStakes(epoch.directoryId, ticket.redeemer);
+        // require(stakes.length > 0, "Ticket redeemer must have stake for this epoch");
 
-        rewardRedeemer(epoch, ticket, listing, totalStake);
+        rewardRedeemer(epoch, ticket);
     }
 
     function rewardRedeemer(
         EpochsManager.Epoch memory epoch,
-        Ticket memory ticket,
-        Listings.Listing memory listing,
-        uint256 totalStake
+        Ticket memory ticket
     ) internal {
         Deposit storage deposit = getDeposit(ticket.sender);
 
         if (epoch.faceValue > deposit.escrow) {
-            _token.transfer(ticket.redeemer, deposit.escrow);
+            transferReward(ticket.epochId, ticket.redeemer, deposit, deposit.escrow);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            deposit.escrow = deposit.escrow - epoch.faceValue;
+            transferReward(ticket.epochId, ticket.redeemer, deposit, epoch.faceValue);
 
             // We can safely cast faceValue to 128 bits as all Sylo Tokens
             // would fit within 94 bits
-            uint256 stakersPayout = SyloUtils.percOf(uint128(epoch.faceValue), listing.payoutPercentage);
+            // uint256 stakersPayout = SyloUtils.percOf(uint128(epoch.faceValue), listing.payoutPercentage);
 
-            address[] memory stakers = _stakingManager.getStakers(ticket.redeemer);
+            // address[] memory stakers = _stakingManager.getStakers(ticket.redeemer);
 
-            // Track any value lost from precision due to rounding down
-            uint256 stakersPayoutRemainder = stakersPayout;
-            for (uint32 i = 0; i < stakers.length; i++) {
-                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], ticket.redeemer);
-                uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
-                stakersPayoutRemainder -= stakerPayout;
-                _token.transfer(stakers[i], stakerPayout);
-            }
+            // // Track any value lost from precision due to rounding down
+            // uint256 stakersPayoutRemainder = stakersPayout;
+            // for (uint32 i = 0; i < stakers.length; i++) {
+            //     StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], ticket.redeemer);
+            //     uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
+            //     stakersPayoutRemainder -= stakerPayout;
+            //     _token.transfer(stakers[i], stakerPayout);
+            // }
 
-            // payout any remainder to the stakee
-            uint256 stakeePayout = epoch.faceValue - stakersPayout + stakersPayoutRemainder;
-            _token.transfer(ticket.redeemer, stakeePayout);
+            // // payout any remainder to the stakee
+            // uint256 stakeePayout = epoch.faceValue - stakersPayout + stakersPayoutRemainder;
+            // _token.transfer(ticket.redeemer, stakeePayout);
         }
     }
 
@@ -301,5 +306,23 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
                 ticket.redeemerCommit
             )
         );
+    }
+
+    function getRewardPoolKey(bytes32 epochId, address stakee) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(epochId, stakee));
+    }
+
+    function getRewardPool(bytes32 epochId, address stakee) public view returns (RewardPool memory) {
+        return rewardPools[getRewardPoolKey(epochId, stakee)];
+    }
+
+    function transferReward(bytes32 epochId, address stakee, Deposit storage deposit, uint256 amount) internal {
+        require(deposit.escrow >= amount, "Spender does not have enough to transfer to reward");
+
+        deposit.escrow = deposit.escrow - amount;
+
+        bytes32 rewardPoolKey = getRewardPoolKey(epochId, stakee);
+
+        rewardPools[rewardPoolKey].balance += amount;
     }
 }
