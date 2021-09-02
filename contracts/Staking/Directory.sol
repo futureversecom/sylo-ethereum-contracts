@@ -27,9 +27,25 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 boundary;
     }
 
+    struct Stake {
+        address staker;
+        uint256 amount;
+    }
+
+    struct Directory {
+        DirectoryEntry[] entries;
+
+        // We also persist all of the stakes associated to a particular stakee for
+        // this directory iteration. This record is used to appropriately divy out rewards
+        // based on stake proportion at the end of an epoch.
+        mapping (address => Stake[]) stakes;
+
+        uint256 totalStake;
+    }
+
     bytes32 public currentDirectory;
 
-    mapping (bytes32 => DirectoryEntry[]) directories;
+    mapping (bytes32 => Directory) directories;
 
     function initialize(
         StakingManager stakingManager
@@ -39,7 +55,7 @@ contract Directory is Initializable, OwnableUpgradeable {
     }
 
     /*
-     * We construct the directory by iterating through each valid stakee, and
+     * We construct the directory entries by iterating through each valid stakee, and
      * creating a boundary value which is a sum of the previously iterated stakee's
      * boundary value, and the current stakee's total stake. The previous boundary and
      * the current boundary essentially create a range, where if a random point were to
@@ -73,10 +89,23 @@ contract Directory is Initializable, OwnableUpgradeable {
                 continue;
             }
 
-            directories[directoryId].push(DirectoryEntry(stakee, lowerBoundary + totalStake));
+            directories[directoryId].entries.push(DirectoryEntry(stakee, lowerBoundary + totalStake));
+
+            address[] memory stakers = _stakingManager.getStakers(stakee);
+            for (uint j = 0; j < stakers.length; j++) {
+                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], stakee);
+                directories[directoryId].stakes[stakee].push(
+                    Stake(
+                        stakee,
+                        stake.amount
+                    )
+                );
+            }
 
             lowerBoundary += totalStake;
         }
+
+        directories[directoryId].totalStake = _stakingManager.getTotalStake();
 
         currentDirectory = directoryId;
 
@@ -84,28 +113,26 @@ contract Directory is Initializable, OwnableUpgradeable {
     }
 
     function scan(uint128 point) public view returns (address) {
-        if (directories[currentDirectory].length == 0) {
+        if (directories[currentDirectory].entries.length == 0) {
             return address(0);
         }
 
-        uint256 totalStake = _stakingManager.getTotalStake();
-
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
-        uint256 expectedVal = totalStake * uint256(point) >> 128;
+        uint256 expectedVal = directories[currentDirectory].totalStake * uint256(point) >> 128;
 
         uint256 l = 0;
-        uint256 r = directories[currentDirectory].length - 1;
+        uint256 r = directories[currentDirectory].entries.length - 1;
 
         // perform a binary search through the directory
         while (l <= r) {
             uint index = (l + r) / 2;
 
-            uint lower = index == 0 ? 0 : directories[currentDirectory][index - 1].boundary;
-            uint upper = directories[currentDirectory][index].boundary;
+            uint lower = index == 0 ? 0 : directories[currentDirectory].entries[index - 1].boundary;
+            uint upper = directories[currentDirectory].entries[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
-                return directories[currentDirectory][index].stakee;
+                return directories[currentDirectory].entries[index].stakee;
             } else if (expectedVal < lower) {
                 r = index - 1;
             } else if (expectedVal >= upper) {
@@ -114,5 +141,9 @@ contract Directory is Initializable, OwnableUpgradeable {
         }
 
         return address(0);
+    }
+
+    function getStakes(bytes32 directoryId, address stakee) public view returns (Stake[] memory) {
+        return directories[directoryId].stakes[stakee];
     }
 }
