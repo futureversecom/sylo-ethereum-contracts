@@ -64,7 +64,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     struct RewardPool {
         uint256 balance;
-        address[] hasClaimed;
+        address[] claims;
     }
 
     mapping (bytes32 => RewardPool) public rewardPools;
@@ -175,8 +175,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         usedTickets[ticketHash] = true;
 
-        // Directory.Stake[] memory stakes = _directory.getStakes(epoch.directoryId, ticket.redeemer);
-        // require(stakes.length > 0, "Ticket redeemer must have stake for this epoch");
+        Directory.Stake[] memory stakes = _directory.getStakes(epoch.directoryId, ticket.redeemer);
+        require(stakes.length > 0, "Ticket redeemer must have stake for this epoch");
 
         rewardRedeemer(epoch, ticket);
     }
@@ -195,25 +195,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             deposit.penalty = 0;
         } else {
             transferReward(ticket.epochId, ticket.redeemer, deposit, epoch.faceValue);
-
-            // We can safely cast faceValue to 128 bits as all Sylo Tokens
-            // would fit within 94 bits
-            // uint256 stakersPayout = SyloUtils.percOf(uint128(epoch.faceValue), listing.payoutPercentage);
-
-            // address[] memory stakers = _stakingManager.getStakers(ticket.redeemer);
-
-            // // Track any value lost from precision due to rounding down
-            // uint256 stakersPayoutRemainder = stakersPayout;
-            // for (uint32 i = 0; i < stakers.length; i++) {
-            //     StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], ticket.redeemer);
-            //     uint256 stakerPayout = stake.amount * stakersPayout / totalStake;
-            //     stakersPayoutRemainder -= stakerPayout;
-            //     _token.transfer(stakers[i], stakerPayout);
-            // }
-
-            // // payout any remainder to the stakee
-            // uint256 stakeePayout = epoch.faceValue - stakersPayout + stakersPayoutRemainder;
-            // _token.transfer(ticket.redeemer, stakeePayout);
         }
     }
 
@@ -324,5 +305,68 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes32 rewardPoolKey = getRewardPoolKey(epochId, stakee);
 
         rewardPools[rewardPoolKey].balance += amount;
+    }
+
+    function claimReward(bytes32 epochId, address stakee) public {
+        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
+        require(epoch.startBlock > 0, "Epoch does not exist");
+        require(epoch.endBlock > 0, "Epoch has not yet ended");
+
+        RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
+        require(rewardPool.balance > 0, "Reward pool has a balance of 0");
+
+        Directory.Stake[] memory stakes = _directory.getStakes(epoch.directoryId, stakee);
+
+        uint256 totalStake = 0;
+        // check if we are a delagated staker here and
+        // also tally up the total delegated stake
+        bool delegatedStaker = false;
+        for (uint i = 0; i < stakes.length; i++) {
+            if (stakes[i].staker == msg.sender) {
+                delegatedStaker = true;
+            }
+            totalStake += stakes[i].amount;
+        }
+        require(delegatedStaker || msg.sender == stakee, "Must be a delegated staker or the stakee to claim rewards");
+
+        require(totalStake > 0, "Ticket redeemer must have stake for this epoch");
+
+        for (uint i = 0; i < rewardPool.claims.length; i++) {
+            require(
+                rewardPool.claims[i] != msg.sender,
+                "Reward has already been claimed for this epoch"
+            );
+        }
+
+        uint256 delegatedStakersPayout = SyloUtils.percOf(
+            uint128(rewardPool.balance), // we can safely cast the balance to uint128 as all sylos would only be 94 bits
+            epoch.defaultPayoutPercentage
+        );
+
+        uint256 totalPayout = 0;
+
+        // Calculate the payout for the delegated staker but also track any value lost from
+        // rounding down
+        uint256 stakersPayoutRemainder = delegatedStakersPayout;
+        for (uint i = 0; i < stakes.length; i++) {
+            // we calculate the payout for this staker by taking their
+            // proporiton of stake against the total stake, and multiplying
+            // that against the total reward for the stakers
+            uint256 payout = stakes[i].amount * delegatedStakersPayout / totalStake;
+            stakersPayoutRemainder -= payout;
+            if (stakes[i].staker == msg.sender) {
+                totalPayout += payout;
+            }
+        }
+
+        // if the caller is the stakee, then payout the remainder
+        if (msg.sender == stakee) {
+            totalPayout += rewardPool.balance - delegatedStakersPayout;
+            totalPayout += stakersPayoutRemainder;
+        }
+
+        _token.transfer(msg.sender, totalPayout);
+
+        rewardPool.claims.push(msg.sender);
     }
 }

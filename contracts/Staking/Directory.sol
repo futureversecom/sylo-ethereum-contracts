@@ -93,10 +93,10 @@ contract Directory is Initializable, OwnableUpgradeable {
 
             address[] memory stakers = _stakingManager.getStakers(stakee);
             for (uint j = 0; j < stakers.length; j++) {
-                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[i], stakee);
+                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[j], stakee);
                 directories[directoryId].stakes[stakee].push(
                     Stake(
-                        stakee,
+                        stakers[j],
                         stake.amount
                     )
                 );
