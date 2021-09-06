@@ -637,40 +637,6 @@ contract('Ticketing', accounts => {
 
   });
 
-  it('gas cast should not be excessive at maximum delegators [ @skip-on-coverage ]', async () => {
-    // reach 10 delegator limit
-    for (let i = 0; i < accounts.length; i++) {
-      if (i == 1) {
-        await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
-      } else {
-        await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-        await token.approve(stakingManager.address, 10000, { from: accounts[i] });
-        await stakingManager.addStake(1, accounts[1], { from: accounts[i] });
-      }
-    }
-
-    await epochsManager.initializeEpoch({ from: accounts[1] });
-
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
-
-    const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
-
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, 1);
-
-    await ticketing.redeem.estimateGas(
-      ticket,
-      senderRand,
-      redeemerRand,
-      signature,
-      { from: accounts[1],
-        gas: 350000,
-      }
-    );
-  });
-
   it('should decay winning probability as ticket approaches expiry', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });

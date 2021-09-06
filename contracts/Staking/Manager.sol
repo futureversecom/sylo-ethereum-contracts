@@ -10,8 +10,6 @@ import "../Token.sol";
  * Manages stakes and delegated stakes for accounts that wish to be listed
 */
 contract StakingManager is Initializable, OwnableUpgradeable {
-    uint32 constant DELEGATED_STAKER_CAP = 10;
-
     struct Stake {
         uint256 amount; // Amount of the stake;
         address stakee; // Address of peer that offers services;
@@ -80,10 +78,6 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         // New stake
         if (stake.amount == 0) {
-            require(
-                stakers[stakee].length < DELEGATED_STAKER_CAP,
-                "This node has reached its delegated staker cap"
-            );
             stakers[stakee].push(staker);
 
             stake.amount = amount;
