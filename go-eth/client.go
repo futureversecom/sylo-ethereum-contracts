@@ -45,6 +45,7 @@ type Client interface {
 	Redeem(ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) (*types.Transaction, error)
 	Withdraw() (*types.Transaction, error)
 	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
+	GetRewardPool(epochId [32]byte, stakee ethcommon.Address) (contracts.SyloTicketingRewardPool, error)
 
 	// Token methods
 

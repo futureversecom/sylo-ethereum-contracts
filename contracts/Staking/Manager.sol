@@ -88,10 +88,13 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
             stake.amount = amount;
             stake.stakee = stakee;
-
-            stakees.push(stakee);
         } else {
             stake.amount += amount;
+        }
+
+        // New stakee
+        if (totalStakes[stakee] == 0) {
+            stakees.push(stakee);
         }
 
         totalStakes[stakee] += amount;
@@ -123,6 +126,16 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         totalStakes[stakee] -= amount;
         totalStake -= amount;
+
+        if (totalStake == 0) {
+            for (uint32 i = 0; i < stakees.length; i++) {
+                if (stakees[i] == stakee) {
+                    stakees[i] = stakees[stakees.length - 1];
+                    stakees.pop();
+                    break;
+                }
+            }
+        }
 
         // Keep track of when the stake can be withdrawn
         Unlock storage unlock = unlockings[key];

@@ -479,7 +479,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy epochsManager: %v", err)
 	}
 
-	_, err = epochsManager.Initialize(transactor, addresses.Directory, addresses.TicketingParameters, big.NewInt(80000))
+	_, err = epochsManager.Initialize(transactor, addresses.Directory, addresses.Listings, addresses.TicketingParameters, big.NewInt(1))
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}
@@ -497,7 +497,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
 
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.EpochsManager, unlockDuration)
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.Directory, addresses.EpochsManager, unlockDuration)
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}

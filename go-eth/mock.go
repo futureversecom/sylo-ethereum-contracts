@@ -151,14 +151,14 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 
 	var epochsManager *contracts.EpochsManager
 	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
-	_, err = epochsManager.Initialize(&opts[0], addresses.Directory, addresses.TicketingParameters, epochsDuration)
+	_, err = epochsManager.Initialize(&opts[0], addresses.Directory, addresses.Listings, addresses.TicketingParameters, epochsDuration)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise epochsManager: %w", err)
 	}
 
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, addresses.EpochsManager, big.NewInt(1))
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.Directory, addresses.EpochsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

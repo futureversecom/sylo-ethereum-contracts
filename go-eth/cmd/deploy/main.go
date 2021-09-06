@@ -482,7 +482,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy epochsManager: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = epochsManager.Initialize(opts, addresses.Directory, addresses.TicketingParameters, epochsDuration)
+	_, err = epochsManager.Initialize(opts, addresses.Directory, addresses.Listings, addresses.TicketingParameters, epochsDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise epochsManager: %w", err)
 	}
@@ -496,7 +496,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.EpochsManager, unlockDuration)
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.Directory, addresses.EpochsManager, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

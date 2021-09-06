@@ -197,11 +197,6 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get deposits for alice: %v", err)
 		}
 
-		bobBalanceBefore, err := bobClient.BalanceOf(bobClient.Address())
-		if err != nil {
-			t.Fatalf("could not get balance for bob: %v", err)
-		}
-
 		tx, err := bobClient.Redeem(ticket, aliceRand, bobRand, sig)
 		if err != nil {
 			t.Fatalf("could not redeem ticket: %v", err)
@@ -218,16 +213,16 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get deposits for alice: %v", err)
 		}
 
-		bobBalanceAfter, err := bobClient.BalanceOf(bobClient.Address())
+		rewardPool, err := bobClient.GetRewardPool(epochId, bobClient.Address())
 		if err != nil {
-			t.Fatalf("could not get balance for bob: %v", err)
+			t.Fatalf("could not get reward pool for bob: %v", err)
 		}
 
 		if !sylopayments.BigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue))) {
 			t.Fatalf("alice's escrow is %v: expected %v", aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue)))
 		}
-		if !sylopayments.BigIntsEqual(bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, faceValue)) {
-			t.Fatalf("bob's balance is %v: expected %v", bobBalanceAfter, new(big.Int).Add(bobBalanceBefore, faceValue))
+		if !sylopayments.BigIntsEqual(rewardPool.Balance, faceValue) {
+			t.Fatalf("bob's reward pool is %v: expected %v", rewardPool.Balance, faceValue)
 		}
 	})
 
@@ -242,6 +237,8 @@ func TestClient(t *testing.T) {
 		sylopayments.List(t, ctx, backend, bobClient, "0.0.0.0/0", big.NewInt(1))
 
 		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
+
+		sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
 		aliceRand := big.NewInt(1)
 		var aliceRandHash [32]byte

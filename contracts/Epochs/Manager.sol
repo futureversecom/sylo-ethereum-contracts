@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "../Payments/Pricing/Manager.sol";
 import "../Payments/Ticketing/Parameters.sol";
+import "../Listings.sol";
 import "../Staking/Directory.sol";
 
 contract EpochsManager is Initializable, OwnableUpgradeable {
@@ -21,6 +22,9 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         // pointer to directory constructed for this epoch
         bytes32 directoryId;
 
+        // listing variables
+        uint16 defaultPayoutPercentage;
+
         // ticketing variables
         uint256 faceValue;
         uint128 baseLiveWinProb;
@@ -32,6 +36,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     PriceManager _priceManager;
 
     Directory _directory;
+
+    Listings _listings;
 
     TicketingParameters _ticketingParameters;
 
@@ -51,11 +57,13 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     function initialize(
         Directory directory,
+        Listings listings,
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _directory = directory;
+        _listings = listings;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
     }
@@ -73,6 +81,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             epochDuration,
             0,
             directoryId,
+            _listings.defaultPayoutPercentage(),
             _ticketingParameters.faceValue(),
             _ticketingParameters.baseLiveWinProb(),
             _ticketingParameters.expiredWinProb(),
@@ -101,6 +110,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             abi.encodePacked(
                 epoch.startBlock,
                 epoch.duration,
+                epoch.directoryId,
+                epoch.defaultPayoutPercentage,
                 epoch.faceValue,
                 epoch.baseLiveWinProb,
                 epoch.expiredWinProb,
