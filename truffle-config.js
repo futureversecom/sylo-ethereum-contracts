@@ -1,18 +1,12 @@
 module.exports = {
-  // Uncommenting the defaults below 
-  // provides for an easier quick-start with Ganache.
-  // You can also follow this format for other networks;
-  // see <http://truffleframework.com/docs/advanced/configuration>
-  // for more details on how to specify configuration options!
-  //
   networks: {
-   testNetwork: {
-     host: "127.0.0.1",
-     port: 8555,
-     network_id: "*",
-     websockets: true,
-     disableConfirmationListener: true
-   },
+   test: {
+    host: "127.0.0.1",
+    port: 8545,
+    network_id: "*",
+    websockets: true,
+    disableConfirmationListener: true
+  },
   },
   compilers: {
     solc: {
