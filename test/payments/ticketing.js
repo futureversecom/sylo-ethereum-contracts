@@ -381,7 +381,7 @@ contract('Ticketing', accounts => {
         assert.fail("Claiming should fail with no reward balance");
       })
       .catch(e => {
-        assert.include(e.message, "Reward pool has a balance of 0")
+        assert.include(e.message, "Accumalated reward is 0")
       });
   });
 
