@@ -175,8 +175,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         usedTickets[ticketHash] = true;
 
-        Directory.Stake[] memory stakes = _directory.getStakes(epoch.directoryId, ticket.redeemer);
-        require(stakes.length > 0, "Ticket redeemer must have stake for this epoch");
+        uint256 totalStake = _directory.getTotalStakeForStakee(epoch.directoryId, ticket.redeemer);
+        require(totalStake > 0, "Ticket redeemer must have stake for this epoch");
 
         rewardRedeemer(epoch, ticket);
     }
@@ -311,42 +311,25 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             return 0;
         }
 
-        Directory.Stake[] memory stakes = _directory.getStakes(epoch.directoryId, stakee);
+        uint256 delegatedStake = _directory.getStake(epoch.directoryId, stakee, msg.sender);
+        require(
+            delegatedStake > 0 || msg.sender == stakee,
+            "Must be a delegated staker or the stakee to claim rewards"
+        );
 
-        uint256 totalStake = 0;
-        // check if we are a delagated staker here and
-        // also tally up the total delegated stake
-        bool delegatedStaker = false;
-        for (uint i = 0; i < stakes.length; i++) {
-            if (stakes[i].staker == msg.sender) {
-                delegatedStaker = true;
-            }
-            totalStake += stakes[i].amount;
-        }
-        require(delegatedStaker || msg.sender == stakee, "Must be a delegated staker or the stakee to claim rewards");
-
+        uint256 totalStake = _directory.getTotalStakeForStakee(epoch.directoryId, stakee);
         require(totalStake > 0, "Ticket redeemer must have stake for this epoch");
+
+        uint256 totalPayout = 0;
 
         uint256 delegatedStakersPayout = SyloUtils.percOf(
             uint128(accumalatedReward), // we can safely cast the balance to uint128 as all sylos would only be 94 bits
             epoch.defaultPayoutPercentage
         );
 
-        uint256 totalPayout = 0;
+        uint256 delegatedStakePayout = delegatedStake * delegatedStakersPayout / totalStake;
 
-        for (uint i = 0; i < stakes.length; i++) {
-            if (stakes[i].staker == msg.sender) {
-                // we calculate the payout for this staker by taking their
-                // proporiton of stake against the total stake, and multiplying
-                // that against the total reward for the stakers
-                uint256 payout = stakes[i].amount * delegatedStakersPayout / totalStake;
-                totalPayout += payout;
-
-                if (msg.sender != stakee) {
-                    break;
-                }
-            }
-        }
+        totalPayout += delegatedStakePayout;
 
         // if the caller is the stakee, then also payout the proportion given to the node itself
         if (msg.sender == stakee) {

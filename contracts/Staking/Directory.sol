@@ -27,9 +27,9 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 boundary;
     }
 
-    struct Stake {
-        address staker;
-        uint256 amount;
+    struct StakeState {
+        mapping (address => uint256) stakers;
+        uint256 totalStake;
     }
 
     struct Directory {
@@ -38,7 +38,7 @@ contract Directory is Initializable, OwnableUpgradeable {
         // We also persist all of the stakes associated to a particular stakee for
         // this directory iteration. This record is used to appropriately divy out rewards
         // based on stake proportion at the end of an epoch.
-        mapping (address => Stake[]) stakes;
+        mapping (address => StakeState) stakes;
 
         uint256 totalStake;
     }
@@ -94,13 +94,10 @@ contract Directory is Initializable, OwnableUpgradeable {
             address[] memory stakers = _stakingManager.getStakers(stakee);
             for (uint j = 0; j < stakers.length; j++) {
                 StakingManager.Stake memory stake = _stakingManager.getStake(stakers[j], stakee);
-                directories[directoryId].stakes[stakee].push(
-                    Stake(
-                        stakers[j],
-                        stake.amount
-                    )
-                );
+                directories[directoryId].stakes[stakee].stakers[stakers[j]] = stake.amount;
             }
+
+            directories[directoryId].stakes[stakee].totalStake = totalStake;
 
             lowerBoundary += totalStake;
         }
@@ -143,7 +140,15 @@ contract Directory is Initializable, OwnableUpgradeable {
         return address(0);
     }
 
-    function getStakes(bytes32 directoryId, address stakee) public view returns (Stake[] memory) {
-        return directories[directoryId].stakes[stakee];
+    function getStake(bytes32 directoryId, address stakee, address staker) public view returns (uint256) {
+        return directories[directoryId].stakes[stakee].stakers[staker];
+    }
+
+    function getTotalStakeForStakee(bytes32 directoryId, address stakee) public view returns (uint256) {
+        return directories[directoryId].stakes[stakee].totalStake;
+    }
+
+    function getTotalStake(bytes32 directoryId) public view returns (uint256) {
+        return directories[directoryId].totalStake;
     }
 }
