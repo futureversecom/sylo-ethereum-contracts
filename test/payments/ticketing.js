@@ -486,59 +486,6 @@ contract('Ticketing', accounts => {
     );
   });
 
-  it('should pay stakee remainders left from rounding down', async () => {
-    // have account 2 and 3 as delegated stakers
-    for (let i = 2; i < 4; i++) {
-      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
-      await stakingManager.addStake(1, accounts[1], { from: accounts[i] });
-    }
-
-    await epochsManager.initializeEpoch({ from: accounts[1] });
-    const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
-
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
-
-    const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
-
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, 1);
-
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
-
-    // The payout percentage is 50%, so due to rounding, 7 will go to
-    // the delegators, and 8 will go directly to the node. For the value
-    // split amongst the delegators (accounts 2 and 3), it will be split
-    // proportionally but rounded down, so both will receive 3, and the remainder (1)
-    // will be sent to the node
-    const expectedDelegatorsPayout = parseInt(faceValue / 2);
-    const expectedStakeePayout = faceValue - expectedDelegatorsPayout + 1;
-
-    const initialReceiverBalance = await token.balanceOf(accounts[1]);
-    const initialDelegatorBalance = await token.balanceOf(accounts[2]);
-
-    await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
-    await ticketing.claimReward(epochId, accounts[1], { from: accounts[2] });
-
-    const postReceiverBalance = await token.balanceOf(accounts[1]);
-    const postDelegatorBalance = await token.balanceOf(accounts[2]);
-
-    assert.equal(
-      postDelegatorBalance.toString(),
-      initialDelegatorBalance.add(new BN(parseInt(expectedDelegatorsPayout / 2))).toString(),
-      "Expected balance of delegator to have 3 added to their balance"
-    );
-
-    assert.equal(
-      postReceiverBalance.toString(),
-      initialReceiverBalance.add(new BN(expectedStakeePayout)).toString(),
-      "Expected balance of redeemer to have 9 added to their balance"
-    );
-  });
-
   it('can claim reward more than once', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
@@ -558,16 +505,104 @@ contract('Ticketing', accounts => {
         await createWinningTicket(alice, 1);
 
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
-
-      await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
     }
+    await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
+
+    for (let i = 0 ; i < 10; i++) {
+      const { ticket, senderRand, redeemerRand, signature } =
+        await createWinningTicket(alice, 1);
+
+      await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
+    }
+    await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
 
     const postBalance = await token.balanceOf(accounts[1]);
 
     assert.equal(
       postBalance.toString(),
-      initialBalance.add(new BN(10 * faceValue)).toString(),
+      initialBalance.add(new BN(20 * faceValue)).toString(),
       "Expected balance of node to have added all ticket faceValues to their balance"
+    );
+  });
+
+  it('can not be possible for the total reward claimed to be greater than the total reward balance', async () => {
+    // account 4 as the stakee
+    await token.transfer(accounts[4], 1000, { from: accounts[1]} );
+
+    // have account 2 and 3 as delegated stakers
+    for (let i = 2; i < 4; i++) {
+      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
+      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await stakingManager.addStake(1, accounts[4], { from: accounts[i] });
+    }
+
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[4] });
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+    const epoch = await epochsManager.getCurrentActiveEpoch();
+    const epochId = await epochsManager.getEpochId(epoch);
+
+    const alice = web3.eth.accounts.create();
+    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+
+    const initialBalanceOne = await token.balanceOf(accounts[4]);
+    const initialBalanceTwo = await token.balanceOf(accounts[2]);
+    const initialBalanceThree = await token.balanceOf(accounts[3]);
+
+    async function randomClaim(account) {
+      if (Math.random() < 0.4) {
+        await ticketing.claimReward(epochId, accounts[4], { from: account });
+      }
+    }
+
+    for (let i = 0 ; i < 14; i++) {
+      const { ticket, senderRand, redeemerRand, signature } =
+        await createWinningTicket(alice, 4);
+
+      await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[4] });
+
+      // accounts 1 (node), 2 and 3 (stakers) will claim their rewards at
+      // random points throughout the epoch
+      for (let j = 2; j < 5; j++) {
+        await randomClaim(accounts[j]);
+      }
+    }
+
+    // if there are still any outstanding rewards, claim them
+    for (let j = 2; j < 5; j++) {
+      const outstandingReward = await ticketing.getRewardPoolClaimAmount(epochId, accounts[4], { from: accounts[j] });
+      if (outstandingReward.toNumber() > 0) {
+        await ticketing.claimReward(epochId, accounts[4], { from: accounts[j] });
+      }
+    }
+
+    const postBalanceOne = await token.balanceOf(accounts[4]);
+    const postBalanceTwo = await token.balanceOf(accounts[2]);
+    const postBalanceThree = await token.balanceOf(accounts[3]);
+
+    // The total reward pool balance will be 210 after 14 ticket redemptions.
+    // Flooring when doing divisions in the rewards calculation will cause the
+    // total reward redeemed to be less than 210 but it should never be more
+    // than 210.
+    // The split of the reward should be as follows:
+    //    Delegated Stakers: Each should get 50% of the reward pool that is
+    //      divied out to the stakers, which would be 0.5 * 210 * 0.5 = 52 each after rounding
+    //    Node: Remainder of the reward pool after delegated stakers are rewarded which is 106
+    assert.isAtMost(
+      postBalanceOne.toNumber(),
+      initialBalanceOne.add(new BN(106)).toNumber(),
+      "Expected balance of node to have added 106"
+    );
+    assert.isAtMost(
+      postBalanceTwo.toNumber(),
+      initialBalanceTwo.add(new BN(52)).toNumber(),
+      "Expected balance of staker one to have added 52"
+    );
+    assert.isAtMost(
+      postBalanceThree.toNumber(),
+      initialBalanceThree.add(new BN(52)).toNumber(),
+      "Expected balance of staker two to have added 52"
     );
   });
 
