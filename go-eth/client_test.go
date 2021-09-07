@@ -213,7 +213,7 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get deposits for alice: %v", err)
 		}
 
-		rewardPool, err := bobClient.GetRewardPool(epochId, bobClient.Address())
+		rewardPoolBalance, err := bobClient.GetRewardPoolTotalBalance(epochId, bobClient.Address())
 		if err != nil {
 			t.Fatalf("could not get reward pool for bob: %v", err)
 		}
@@ -221,8 +221,8 @@ func TestClient(t *testing.T) {
 		if !sylopayments.BigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue))) {
 			t.Fatalf("alice's escrow is %v: expected %v", aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue)))
 		}
-		if !sylopayments.BigIntsEqual(rewardPool.Balance, faceValue) {
-			t.Fatalf("bob's reward pool is %v: expected %v", rewardPool.Balance, faceValue)
+		if !sylopayments.BigIntsEqual(rewardPoolBalance, faceValue) {
+			t.Fatalf("bob's reward pool is %v: expected %v", rewardPoolBalance, faceValue)
 		}
 	})
 
