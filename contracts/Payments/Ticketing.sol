@@ -303,11 +303,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
 
-        // Calculate the amount of reward that has been accumalted since the last time
+        // Calculate the amount of reward that has been accumulated since the last time
         // this sender claimed their reward
-        uint256 accumalatedReward = rewardPool.balance - rewardPool.claims[msg.sender];
+        uint256 accumulatedReward = rewardPool.balance - rewardPool.claims[msg.sender];
 
-        if (accumalatedReward == 0) {
+        if (accumulatedReward == 0) {
             return 0;
         }
 
@@ -323,10 +323,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 totalPayout = 0;
 
         uint256 delegatedStakersPayout = SyloUtils.percOf(
-            uint128(accumalatedReward), // we can safely cast the balance to uint128 as all sylos would only be 94 bits
+            uint128(accumulatedReward), // we can safely cast the balance to uint128 as all sylos would only be 94 bits
             epoch.defaultPayoutPercentage
         );
 
+        // we calculate the payout for this staker by taking their
+        // proportion of stake against the total stake, and multiplying
+        // that against the total reward for the stakers
         uint256 delegatedStakePayout = delegatedStake * delegatedStakersPayout / totalStake;
 
         totalPayout += delegatedStakePayout;
@@ -334,7 +337,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // if the caller is the stakee, then also payout the proportion given to the node itself
         if (msg.sender == stakee) {
             totalPayout += SyloUtils.percOf(
-                uint128(accumalatedReward),
+                uint128(accumulatedReward),
                 SyloUtils.PERCENTAGE_DENOMINATOR - epoch.defaultPayoutPercentage
             );
         }
