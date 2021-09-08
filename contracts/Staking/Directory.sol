@@ -47,6 +47,10 @@ contract Directory is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
     }
 
+    function setCurrentDirectory(bytes32 epochId) public onlyOwner {
+        currentDirectory = epochId;
+    }
+
     /*
      * This function is called by a node as a prerequiste to participate in the next epoch.
      * This will construt the directory as nodes join. The directory is constructed

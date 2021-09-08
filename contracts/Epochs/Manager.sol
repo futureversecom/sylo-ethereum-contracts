@@ -95,6 +95,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
         bytes32 epochId = getNextEpochId();
 
+        _directory.setCurrentDirectory(epochId);
+
         epochs[epochId] = nextEpoch;
         current.endBlock = block.number;
 
