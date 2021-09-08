@@ -25,5 +25,14 @@ module.exports = {
       }
     }
   },
-  plugins: ["solidity-coverage"]
+  plugins: ["solidity-coverage"],
+  mocha: {
+    reporter: 'eth-gas-reporter',
+    reporterOptions : {
+      coinmarketcap: '3da4e7e8-31fb-477a-85a8-a905ad24fd28',
+      currency: 'USD',
+      outputFile: 'gasReport.txt',
+      noColors: 'true' // Needed for outputfile
+    }
+  }
 };

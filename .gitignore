@@ -112,3 +112,4 @@ go-eth/deploy
 .openzeppelin/unknown*.json
 
 coverage.json
+gasReport.txt

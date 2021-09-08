@@ -43,6 +43,9 @@ jobs:
           name: prepare outputs
           command: node ./scripts/parseArtifacts.js
 
+      - store_artifacts:
+          path: ~/sylo-ethereum-contracts/gasReport.txt
+
   test-coverage:
     docker:
       - image: circleci/node:10
