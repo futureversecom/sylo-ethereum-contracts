@@ -13,6 +13,8 @@ import "../Staking/Directory.sol";
 contract EpochsManager is Initializable, OwnableUpgradeable {
 
     struct Epoch {
+        uint256 iteration;
+
         // time related variables
         uint256 startBlock; // Block the epoch was initialized
         uint256 duration; // Minimum time epoch will be alive measued in number of blocks
@@ -49,6 +51,11 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     uint256 public epochDuration;
 
+    // Increment this value as each epoch is intialized.
+    // This value is also used to deterministically determine the
+    // next epoch identifier.
+    uint256 currentIteration;
+
     bytes32 public currentActiveEpoch;
 
     mapping (bytes32 => Epoch) epochs;
@@ -76,7 +83,10 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
         bytes32 directoryId = _directory.constructDirectory();
 
+        uint256 nextIteration = currentIteration + 1;
+
         Epoch memory nextEpoch = Epoch(
+            nextIteration,
             block.number,
             epochDuration,
             0,
@@ -94,6 +104,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         epochs[epochId] = nextEpoch;
         current.endBlock = block.number;
 
+        currentIteration = nextIteration;
         currentActiveEpoch = epochId;
 
         emit NewEpoch(epochId);
@@ -107,17 +118,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     function getEpochId(Epoch memory epoch) public pure returns (bytes32) {
         return keccak256(
-            abi.encodePacked(
-                epoch.startBlock,
-                epoch.duration,
-                epoch.directoryId,
-                epoch.defaultPayoutPercentage,
-                epoch.faceValue,
-                epoch.baseLiveWinProb,
-                epoch.expiredWinProb,
-                epoch.ticketDuration,
-                epoch.decayRate
-            )
+            abi.encodePacked(epoch.iteration)
         );
     }
 

@@ -27,18 +27,10 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 boundary;
     }
 
-    struct StakeState {
-        mapping (address => uint256) stakers;
-        uint256 totalStake;
-    }
-
     struct Directory {
         DirectoryEntry[] entries;
 
-        // We also persist all of the stakes associated to a particular stakee for
-        // this directory iteration. This record is used to appropriately divy out rewards
-        // based on stake proportion at the end of an epoch.
-        mapping (address => StakeState) stakes;
+        mapping (address => uint256) totalStakes;
 
         uint256 totalStake;
     }
@@ -90,14 +82,7 @@ contract Directory is Initializable, OwnableUpgradeable {
             }
 
             directories[directoryId].entries.push(DirectoryEntry(stakee, lowerBoundary + totalStake));
-
-            address[] memory stakers = _stakingManager.getStakers(stakee);
-            for (uint j = 0; j < stakers.length; j++) {
-                StakingManager.Stake memory stake = _stakingManager.getStake(stakers[j], stakee);
-                directories[directoryId].stakes[stakee].stakers[stakers[j]] = stake.amount;
-            }
-
-            directories[directoryId].stakes[stakee].totalStake = totalStake;
+            directories[directoryId].totalStakes[stakee] = totalStake;
 
             lowerBoundary += totalStake;
         }
@@ -140,12 +125,8 @@ contract Directory is Initializable, OwnableUpgradeable {
         return address(0);
     }
 
-    function getStake(bytes32 directoryId, address stakee, address staker) public view returns (uint256) {
-        return directories[directoryId].stakes[stakee].stakers[staker];
-    }
-
     function getTotalStakeForStakee(bytes32 directoryId, address stakee) public view returns (uint256) {
-        return directories[directoryId].stakes[stakee].totalStake;
+        return directories[directoryId].totalStakes[stakee];
     }
 
     function getTotalStake(bytes32 directoryId) public view returns (uint256) {

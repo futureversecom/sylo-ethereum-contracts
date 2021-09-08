@@ -4,12 +4,13 @@ pragma experimental ABIEncoderV2;
 
 import "../Listings.sol";
 import "../Staking/Directory.sol";
+import "../Staking/Manager.sol";
 import "../ECDSA.sol";
 import "../Utils.sol";
 import "../Epochs/Manager.sol";
+import "./Ticketing/RewardsManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SyloTicketing is Initializable, OwnableUpgradeable {
@@ -42,8 +43,14 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* Sylo Listings contract */
     Listings _listings;
 
+    /* Sylo Staking Manager contract */
+    StakingManager _stakingManager;
+
     /* Sylo Directory contract */
     Directory _directory;
+
+    /* Rewards Manager contract */
+    RewardsManager _rewardsManager;
 
     /* Sylo Epochs Manager.
      * This contract holds various ticketing parameters
@@ -62,27 +69,24 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* Mapping of ticket hashes, used to check if ticket has been redeemed */
     mapping (bytes32 => bool) public usedTickets;
 
-    struct RewardPool {
-        uint256 balance;
-        mapping (address => uint256) claims;
-    }
-
-    mapping (bytes32 => RewardPool) public rewardPools;
-
     // TODO define events
 
     function initialize(
         IERC20 token,
         Listings listings,
+        StakingManager stakingManager,
         Directory directory,
         EpochsManager epochsManager,
+        RewardsManager rewardsManager,
         uint256 _unlockDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _listings = listings;
+        _stakingManager = stakingManager;
         _directory = directory;
         _epochsManager = epochsManager;
+        _rewardsManager = rewardsManager;
         unlockDuration = _unlockDuration;
     }
 
@@ -187,14 +191,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) internal {
         Deposit storage deposit = getDeposit(ticket.sender);
 
+        bytes32 epochId = _epochsManager.getEpochId(epoch);
+
         if (epoch.faceValue > deposit.escrow) {
-            incrementRewardPool(ticket.epochId, ticket.redeemer, deposit, deposit.escrow);
+            incrementRewardPool(epochId, ticket.redeemer, deposit, deposit.escrow);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            incrementRewardPool(ticket.epochId, ticket.redeemer, deposit, epoch.faceValue);
+            incrementRewardPool(epochId, ticket.redeemer, deposit, epoch.faceValue);
         }
     }
 
@@ -289,81 +295,15 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
     }
 
-    function getRewardPoolKey(bytes32 epochId, address stakee) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(epochId, stakee));
-    }
-
-    function getRewardPoolTotalBalance(bytes32 epochId, address stakee) public view returns (uint256) {
-        return rewardPools[getRewardPoolKey(epochId, stakee)].balance;
-    }
-
-    function getRewardPoolClaimAmount(bytes32 epochId, address stakee) public view returns (uint256) {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
-        require(epoch.startBlock > 0, "Epoch does not exist");
-
-        RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
-
-        // Calculate the amount of reward that has been accumulated since the last time
-        // this sender claimed their reward
-        uint256 accumulatedReward = rewardPool.balance - rewardPool.claims[msg.sender];
-
-        if (accumulatedReward == 0) {
-            return 0;
-        }
-
-        uint256 delegatedStake = _directory.getStake(epoch.directoryId, stakee, msg.sender);
-        require(
-            delegatedStake > 0 || msg.sender == stakee,
-            "Must be a delegated staker or the stakee to claim rewards"
-        );
-
-        uint256 totalStake = _directory.getTotalStakeForStakee(epoch.directoryId, stakee);
-        require(totalStake > 0, "Ticket redeemer must have stake for this epoch");
-
-        uint256 totalPayout = 0;
-
-        uint256 delegatedStakersPayout = SyloUtils.percOf(
-            uint128(accumulatedReward), // we can safely cast the balance to uint128 as all sylos would only be 94 bits
-            epoch.defaultPayoutPercentage
-        );
-
-        // we calculate the payout for this staker by taking their
-        // proportion of stake against the total stake, and multiplying
-        // that against the total reward for the stakers
-        uint256 delegatedStakePayout = delegatedStake * delegatedStakersPayout / totalStake;
-
-        totalPayout += delegatedStakePayout;
-
-        // if the caller is the stakee, then also payout the proportion given to the node itself
-        if (msg.sender == stakee) {
-            totalPayout += SyloUtils.percOf(
-                uint128(accumulatedReward),
-                SyloUtils.PERCENTAGE_DENOMINATOR - epoch.defaultPayoutPercentage
-            );
-        }
-
-        return totalPayout;
-    }
-
-    function incrementRewardPool(bytes32 epochId, address stakee, Deposit storage deposit, uint256 amount) internal {
+    function incrementRewardPool(
+        bytes32 epochId,
+        address stakee,
+        Deposit storage deposit,
+        uint256 amount
+    ) internal {
         require(deposit.escrow >= amount, "Spender does not have enough to transfer to reward");
-
         deposit.escrow = deposit.escrow - amount;
 
-        bytes32 rewardPoolKey = getRewardPoolKey(epochId, stakee);
-
-        rewardPools[rewardPoolKey].balance += amount;
-    }
-
-    function claimReward(bytes32 epochId, address stakee) public {
-        RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
-
-        uint256 reward = getRewardPoolClaimAmount(epochId, stakee);
-
-        require(reward > 0, "Accumalated reward is 0");
-
-        rewardPool.claims[msg.sender] = rewardPool.balance;
-
-        _token.transfer(msg.sender, reward);
+        _rewardsManager.incrementRewardPool(epochId, stakee, amount);
     }
 }
