@@ -48,7 +48,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     // Certain functions of this contract should only be called by certain other
     // contracts, namely the Ticketing contract.
     // We use this mapping to restrict access to those functions in a similar
-    // fashion to the onlyOwner construct. The uint256 is the block the
+    // fashion to the onlyOwner construct. The stored value is the block the
     // managing was contract was added in.
     mapping (address => uint256) managers;
 
@@ -68,6 +68,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     function getRewardBalance(bytes32 epochId, address stakee) public view returns (uint256) {
+        return rewardPools[getKey(epochId, stakee)].balance;
+    }
+
+    function getRewardPoolStake(bytes32 epochId, address stakee) public view returns (uint256) {
         return rewardPools[getKey(epochId, stakee)].balance;
     }
 
@@ -112,14 +116,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.startBlock > 0, "Epoch does not exist");
 
-        _token.transferFrom(msg.sender, address(this), amount);
-
         RewardPool storage rewardPool = rewardPools[getKey(epochId, stakee)];
-
         require(
             rewardPool.totalStake > 0,
             "Reward pool has not been constructed for this epoch"
         );
+
+        _token.transferFrom(msg.sender, address(this), amount);
 
         rewardPool.balance += amount;
     }
@@ -171,7 +174,8 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
     /*
      * This function is called by the node to initialize their own reward pool
-     * for the next epoch. Calling this function will be necessary
+     * for the next epoch. Calling this function will be necessary for the node
+     * to participate in the next epoch.
      */
     function initializeRewardPool(bytes32 epochId) public {
         bytes32 key = getKey(epochId, msg.sender);

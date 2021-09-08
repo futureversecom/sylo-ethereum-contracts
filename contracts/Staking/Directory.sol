@@ -16,10 +16,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * random points which will return a staked node's address in proportion to the stake it has.
 */
 contract Directory is Initializable, OwnableUpgradeable {
-
-    // Nodes are excluded if their voted price exceeds service price + 10%
-    uint16 constant PRICE_THRESHOLD = 11000;
-
+    /* Sylo Staking Manager contract */
     StakingManager _stakingManager;
 
     struct DirectoryEntry {
@@ -30,14 +27,18 @@ contract Directory is Initializable, OwnableUpgradeable {
     struct Directory {
         DirectoryEntry[] entries;
 
-        mapping (address => uint256) totalStakes;
+        mapping (address => uint256) stakes;
 
         uint256 totalStake;
     }
 
     bytes32 public currentDirectory;
 
+    // Directories are indexed by the associated epoch's id
     mapping (bytes32 => Directory) directories;
+
+    // Tracks the total stake held within a specific directory
+    mapping (bytes32 => uint256) totalStakes;
 
     function initialize(
         StakingManager stakingManager
@@ -47,13 +48,14 @@ contract Directory is Initializable, OwnableUpgradeable {
     }
 
     /*
-     * We construct the directory entries by iterating through each valid stakee, and
-     * creating a boundary value which is a sum of the previously iterated stakee's
-     * boundary value, and the current stakee's total stake. The previous boundary and
-     * the current boundary essentially create a range, where if a random point were to
-     * fall within that range, it would belong to the current stakee. The boundary value
-     * grows in size as each stakee is iterated, thus the final directory array
-     * is sorted. This allows us to perform a binary search on the directory.
+     * This function is called by a node as a prerequiste to participate in the next epoch.
+     * This will construt the directory as nodes join. The directory is constructed
+     * by creating a boundary value which is a sum of the current directory's total stake, and
+     * the current stakee's total stake, and pushing the new boundary into the entries array.
+     * The previous boundary and the current boundary essentially create a range, where if a
+     * random point were to fall within that range, it would belong to the respective stakee.
+     * The boundary value grows in size as each stakee joins, thus the directory array
+     * always remains sorted. This allows us to perform a binary search on the directory.
      *
      * Example
      *
@@ -65,33 +67,22 @@ contract Directory is Initializable, OwnableUpgradeable {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
-    function constructDirectory() public onlyOwner returns (bytes32 direcrtoryId) {
-        bytes32 directoryId = keccak256(abi.encodePacked(block.number));
+    function joinDirectory(bytes32 epochId) public {
+        address stakee = msg.sender;
 
-        uint lowerBoundary = 0;
+        uint totalStake = _stakingManager.totalStakes(stakee);
+        require(totalStake > 0, "Can not join directory for next epoch without any stake");
 
-        for (uint i = 0; i < _stakingManager.getCountOfStakees(); i++) {
-            address stakee = _stakingManager.stakees(i);
-            uint totalStake = _stakingManager.totalStakes(stakee);
+        require(
+            directories[epochId].stakes[stakee] == 0,
+            "Can only join the directory once per epoch"
+        );
 
-            // Only add stakee to the directory after passing
-            // some validation
+        uint nextBoundary = totalStakes[epochId] + totalStake;
 
-            if (totalStake < 1) {
-                continue;
-            }
-
-            directories[directoryId].entries.push(DirectoryEntry(stakee, lowerBoundary + totalStake));
-            directories[directoryId].totalStakes[stakee] = totalStake;
-
-            lowerBoundary += totalStake;
-        }
-
-        directories[directoryId].totalStake = _stakingManager.getTotalStake();
-
-        currentDirectory = directoryId;
-
-        return directoryId;
+        directories[epochId].entries.push(DirectoryEntry(stakee, nextBoundary));
+        directories[epochId].stakes[stakee] = totalStake;
+        totalStakes[epochId] += totalStake;
     }
 
     function scan(uint128 point) public view returns (address) {
@@ -125,11 +116,11 @@ contract Directory is Initializable, OwnableUpgradeable {
         return address(0);
     }
 
-    function getTotalStakeForStakee(bytes32 directoryId, address stakee) public view returns (uint256) {
-        return directories[directoryId].totalStakes[stakee];
+    function getTotalStakeForStakee(bytes32 epochId, address stakee) public view returns (uint256) {
+        return directories[epochId].stakes[stakee];
     }
 
-    function getTotalStake(bytes32 directoryId) public view returns (uint256) {
-        return directories[directoryId].totalStake;
+    function getTotalStake(bytes32 epochId) public view returns (uint256) {
+        return directories[epochId].totalStake;
     }
 }

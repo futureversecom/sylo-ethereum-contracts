@@ -21,9 +21,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint256 endBlock; // Block the epoch ended (and when the next epoch was initialised)
                           // Zero here represents the epoch has not yet ended.
 
-        // pointer to directory constructed for this epoch
-        bytes32 directoryId;
-
         // listing variables
         uint16 defaultPayoutPercentage;
 
@@ -81,8 +78,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint256 end = current.startBlock + current.duration;
         require(end <= block.number, "Current epoch has not yet ended");
 
-        bytes32 directoryId = _directory.constructDirectory();
-
         uint256 nextIteration = currentIteration + 1;
 
         Epoch memory nextEpoch = Epoch(
@@ -90,7 +85,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             block.number,
             epochDuration,
             0,
-            directoryId,
             _listings.defaultPayoutPercentage(),
             _ticketingParameters.faceValue(),
             _ticketingParameters.baseLiveWinProb(),
@@ -99,7 +93,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             _ticketingParameters.decayRate()
         );
 
-        bytes32 epochId = getEpochId(nextEpoch);
+        bytes32 epochId = getNextEpochId();
 
         epochs[epochId] = nextEpoch;
         current.endBlock = block.number;
@@ -116,10 +110,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         return epochs[currentActiveEpoch];
     }
 
-    function getEpochId(Epoch memory epoch) public pure returns (bytes32) {
+    function getEpochId(uint256 iteration) public pure returns (bytes32) {
         return keccak256(
-            abi.encodePacked(epoch.iteration)
+            abi.encodePacked(iteration)
         );
+    }
+
+    function getNextEpochId() public view returns (bytes32) {
+        return getEpochId(currentIteration + 1);
     }
 
     function getEpoch(bytes32 epochId) public view returns (Epoch memory) {
