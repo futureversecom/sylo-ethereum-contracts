@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../Token.sol";
+import "../Payments/Ticketing/RewardPool.sol";
 
 /*
  * Manages stakes and delegated stakes for accounts that wish to be listed
@@ -23,6 +24,9 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
     /* ERC 20 compatible token we are dealing with */
     IERC20 _token;
+
+    /* Reward Pool contract. Stakes can only be modified if there are no outstanding rewards */
+    RewardPool _rewardPool;
 
     /*
      * The number of blocks a user must wait after calling "unlock"
@@ -52,9 +56,14 @@ contract StakingManager is Initializable, OwnableUpgradeable {
     // Tracks funds that are in the process of being unlocked
     mapping(bytes32 => Unlock) public unlockings;
 
-    function initialize(IERC20 token, uint256 _unlockDuration) public initializer {
+    function initialize(
+        IERC20 token,
+        RewardPool rewardPool,
+        uint256 _unlockDuration
+    ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
+        _rewardPool = rewardPool;
         unlockDuration = _unlockDuration;
     }
 
@@ -83,6 +92,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
             stake.amount = amount;
             stake.stakee = stakee;
         } else {
+            claimOutstandingRewards(stakee);
             stake.amount += amount;
         }
 
@@ -101,6 +111,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         require(stake.amount > 0, "Nothing to unstake");
         require(stake.amount >= amount, "Cannot unlock more than staked");
+
+        claimOutstandingRewards(stakee);
 
         stake.amount -= amount;
 
@@ -196,5 +208,18 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
     function getStakers(address stakee) public view returns (address[] memory) {
         return stakers[stakee];
+    }
+
+    // Modifications to a stake can only occur if there are no outstanding rewards.
+    // This function should be called whenever an existing stake is increased or decreased.
+    function claimOutstandingRewards(address stakee) internal {
+        Stake memory stake = getStake(msg.sender, stakee);
+        uint256 t = totalStakes[stakee];
+
+        uint256 outstandingReward = _rewardPool.getDelegatorClaimAmount(stakee, msg.sender, stake.amount, t);
+
+        if (outstandingReward > 0) {
+            _rewardPool.transferDelegatedStakerReward(stakee, msg.sender, stake.amount, t);
+        }
     }
 }
