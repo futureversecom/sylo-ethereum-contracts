@@ -8,7 +8,7 @@ import "../Staking/Manager.sol";
 import "../ECDSA.sol";
 import "../Utils.sol";
 import "../Epochs/Manager.sol";
-import "./Ticketing/RewardPool.sol";
+import "./Ticketing/RewardsManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -49,8 +49,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /* Sylo Directory contract */
     Directory _directory;
 
-    /* Reward Pool contract */
-    RewardPool _rewardPool;
+    /* Rewards Manager contract */
+    RewardsManager _rewardsManager;
 
     /* Sylo Epochs Manager.
      * This contract holds various ticketing parameters
@@ -77,7 +77,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         StakingManager stakingManager,
         Directory directory,
         EpochsManager epochsManager,
-        RewardPool rewardPool,
+        RewardsManager rewardsManager,
         uint256 _unlockDuration
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
@@ -86,7 +86,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
         _directory = directory;
         _epochsManager = epochsManager;
-        _rewardPool = rewardPool;
+        _rewardsManager = rewardsManager;
         unlockDuration = _unlockDuration;
     }
 
@@ -191,14 +191,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) internal {
         Deposit storage deposit = getDeposit(ticket.sender);
 
+        bytes32 epochId = _epochsManager.getEpochId(epoch);
+
         if (epoch.faceValue > deposit.escrow) {
-            incrementRewardPool(epoch.defaultPayoutPercentage, ticket.redeemer, deposit, deposit.escrow);
+            incrementRewardPool(epochId, ticket.redeemer, deposit, deposit.escrow);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            incrementRewardPool(epoch.defaultPayoutPercentage, ticket.redeemer, deposit, epoch.faceValue);
+            incrementRewardPool(epochId, ticket.redeemer, deposit, epoch.faceValue);
         }
     }
 
@@ -294,7 +296,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     }
 
     function incrementRewardPool(
-        uint16 defaultPayoutPercentage,
+        bytes32 epochId,
         address stakee,
         Deposit storage deposit,
         uint256 amount
@@ -302,13 +304,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         require(deposit.escrow >= amount, "Spender does not have enough to transfer to reward");
         deposit.escrow = deposit.escrow - amount;
 
-        _rewardPool.incrementRewardPool(defaultPayoutPercentage, stakee, amount);
-    }
-
-    function claimReward(address stakee) public {
-        uint256 delegatedStake = _stakingManager.getStake(msg.sender, stakee).amount;
-        uint256 totalStake = _stakingManager.totalStakes(stakee);
-
-        _rewardPool.transferReward(stakee, msg.sender, delegatedStake, totalStake);
+        _rewardsManager.incrementRewardPool(epochId, stakee, amount);
     }
 }

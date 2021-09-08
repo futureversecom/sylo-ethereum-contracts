@@ -13,6 +13,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
  * and also to payout delegated stakers after the epoch ends.
+ * After deployment, the SyloTicketing and NodeManager contracts should be
+ * set as managers to be able to call certain restricted functions.
 */
 
 contract RewardsManager is Initializable, OwnableUpgradeable {
@@ -31,7 +33,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     struct RewardPool {
-        // This balance as tickets are redeemed
+        // Tracks the balance of the reward pool as tickets are incremented
         uint256 balance;
 
         // Tracks the delegated stakers and their proportions of stake
