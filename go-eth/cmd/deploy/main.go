@@ -488,6 +488,20 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
+	// deploy rewards manager
+	var rewardsManagerTx *types.Transaction
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, rewardsManagerTx, rewardsManager, err = contracts.DeployRewardsManager(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy rewardsManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	_, err = rewardsManager.Initialize(opts, addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise rewardsManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	// deploy ticketing
 	var ticketingTx *types.Transaction
 	var ticketing *contracts.SyloTicketing
@@ -496,11 +510,16 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.Directory, addresses.EpochsManager, unlockDuration)
+	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	_, err = rewardsManager.AddManager(opts, addresses.Ticketing)
+	if err != nil {
+		return addresses, fmt.Errorf("could not add ticketing contract as manager: %v", err)
+	}
 
 	// wait for receipts
 	_, err = waitForReceipt(ctx, tokenTx, client)
@@ -538,6 +557,10 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	_, err = waitForReceipt(ctx, listingTx, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not get transaction receipt: %w", err)
+	}
+	_, err = waitForReceipt(ctx, rewardsManagerTx, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not get transaction recept: %w", err)
 	}
 
 	return addresses, nil

@@ -202,8 +202,21 @@ func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, clie
 	return tx
 }
 
-func ConstructDirectory(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
-	tx, err := client.ConstructDirectory()
+func JoinDirectory(epochId [32]byte, t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.JoinDirectory(epochId)
+	if err != nil {
+		t.Fatalf("could not join directory: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
+func InitializeRewardPool(epochId [32]byte, t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.InitializeRewardPool(epochId)
 	if err != nil {
 		t.Fatalf("could not add stake: %v", err)
 	}
@@ -226,6 +239,15 @@ func InitializeEpoch(t *testing.T, ctx context.Context, backend SimBackend, clie
 	if err != nil {
 		t.Fatalf("could not check transaction: %v", err)
 	}
+}
+
+func GetNextEpochId(t *testing.T, ctx context.Context, backend SimBackend, client Client) [32]byte {
+	epochId, err := client.GetNextEpochId()
+	if err != nil {
+		t.Fatalf("could not get next epoch id: %v", err)
+	}
+
+	return epochId
 }
 
 func DelegateStake(t *testing.T, ctx context.Context, backend SimBackend, client Client, stakee ethcommon.Address, stakeAmount *big.Int) {
@@ -461,7 +483,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketingParameters: %v", err)
 	}
 
-	_, err = ticketingParameters.Initialize(transactor, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(100))
+	_, err = ticketingParameters.Initialize(transactor, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(20))
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}
@@ -490,6 +512,24 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not get transaction receipt: %v", err)
 	}
 
+	// deploy rewards manager
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, tx, rewardsManager, err = contracts.DeployRewardsManager(transactor, backend)
+	if err != nil {
+		t.Fatalf("could not deploy rewardsManager: %v", err)
+	}
+
+	_, err = rewardsManager.Initialize(transactor, addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		t.Fatalf("could not initialize rewards manager contract: %v", err)
+	}
+
+	backend.Commit()
+	_, err = backend.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		t.Fatalf("could not get transaction receipt: %v", err)
+	}
+
 	// deploy ticketing
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, tx, ticketing, err = contracts.DeploySyloTicketing(transactor, backend)
@@ -497,7 +537,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketing: %v", err)
 	}
 
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.Directory, addresses.EpochsManager, unlockDuration)
+	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, unlockDuration)
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}
@@ -506,6 +546,11 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 	_, err = backend.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
 		t.Fatalf("could not get transaction receipt: %v", err)
+	}
+
+	_, err = rewardsManager.AddManager(transactor, addresses.Ticketing)
+	if err != nil {
+		t.Fatalf("could not add ticketing contract as manager: %v", err)
 	}
 
 	return addresses
@@ -557,17 +602,71 @@ func BigIntsEqual(x *big.Int, y *big.Int) bool {
 	return x.Cmp(y) == 0
 }
 
-func GetNode(t *testing.T, client Client) (struct {
+func GetNode(t *testing.T, client Client) struct {
 	Amount *big.Int
 	Stakee ethcommon.Address
-}, []byte) {
-	key, err := client.GetKey(client.Address(), client.Address())
-	if err != nil {
-		t.Fatalf("could not get key: %v", err)
-	}
-	node, err := client.Stakes(key)
+} {
+	node, err := client.GetStake(client.Address(), client.Address())
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}
-	return node, key[:]
+	return node
+}
+
+func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey, receiver common.Address) (contracts.SyloTicketingTicket, []byte, *big.Int, *big.Int) {
+	latestBlock, err := sender.LatestBlock()
+	if err != nil {
+		t.Fatalf("could not retrieve the latest block: %v", err)
+	}
+
+	epoch, err := sender.GetCurrentActiveEpoch()
+	if err != nil {
+		t.Fatalf("could not retrieve current epoch %v", err)
+	}
+
+	epochId, err := sender.GetEpochId(epoch.Iteration)
+	if err != nil {
+		t.Fatalf("could not retrieve epoch id %v", err)
+	}
+
+	senderRand := big.NewInt(1)
+	var senderCommit [32]byte
+	copy(senderCommit[:], crypto.Keccak256(senderRand.FillBytes(senderCommit[:])))
+
+	redeemerRand := big.NewInt(1)
+	var redeemerCommit [32]byte
+	copy(redeemerCommit[:], crypto.Keccak256(redeemerRand.FillBytes(redeemerCommit[:])))
+
+	ticket := contracts.SyloTicketingTicket{
+		EpochId:         epochId,
+		Sender:          sender.Address(),
+		Redeemer:        receiver,
+		SenderCommit:    senderCommit,
+		RedeemerCommit:  redeemerCommit,
+		GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
+	}
+
+	ticketHash, err := sender.GetTicketHash(ticket)
+	if err != nil {
+		t.Fatalf("could not get ticket hash: %v", err)
+	}
+
+	sig, err := crypto.Sign(ticketHash[:], senderPK)
+	if err != nil {
+		t.Fatalf("could not sign hash: %v", err)
+	}
+	return ticket, sig, senderRand, redeemerRand
+}
+
+func Redeem(t *testing.T, ctx context.Context, backend SimBackend, client Client, ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
+	tx, err := client.Redeem(ticket, senderRand, redeemerRand, sig)
+	if err != nil {
+		t.Fatalf("could not redeem ticket: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
 }

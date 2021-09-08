@@ -13,8 +13,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
  * and also to payout delegated stakers after the epoch ends.
- * After deployment, the SyloTicketing and NodeManager contracts should be
- * set as managers to be able to call certain restricted functions.
+ * After deployment, the SyloTicketing contract should be
+ * set up as a manager to be able to call certain restricted functions.
 */
 
 contract RewardsManager is Initializable, OwnableUpgradeable {
@@ -48,7 +48,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     // Certain functions of this contract should only be called by certain other
     // contracts, namely the Ticketing contract.
     // We use this mapping to restrict access to those functions in a similar
-    // fashion to the onlyOwner construct. The uint256 is the block the
+    // fashion to the onlyOwner construct. The stored value is the block the
     // managing was contract was added in.
     mapping (address => uint256) managers;
 
@@ -67,8 +67,12 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return keccak256(abi.encodePacked(epochId, stakee));
     }
 
-    function getRewardBalance(bytes32 epochId, address stakee) public view returns (uint256) {
+    function getRewardPoolBalance(bytes32 epochId, address stakee) public view returns (uint256) {
         return rewardPools[getKey(epochId, stakee)].balance;
+    }
+
+    function getRewardPoolStake(bytes32 epochId, address stakee) public view returns (uint256) {
+        return rewardPools[getKey(epochId, stakee)].totalStake;
     }
 
     function getDelegatorOwedAmount(
@@ -80,6 +84,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         require(epoch.startBlock > 0, "Epoch does not exist");
 
         RewardPool memory rewardPool = rewardPools[getKey(epochId, stakee)];
+
+        if (rewardPool.balance == 0) {
+            return 0;
+        }
 
         uint256 stake = 0;
         for (uint i = 0; i < rewardPool.stakes.length; i++) {
@@ -98,10 +106,18 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             epoch.defaultPayoutPercentage
         );
 
+        return calculateDelegatorPayout(stake, rewardPool.totalStake, delegatorReward);
+    }
+
+    function calculateDelegatorPayout(
+        uint256 stake,
+        uint256 totalStake,
+        uint256 delegatorReward
+    ) internal pure returns (uint256) {
         // we calculate the payout for this staker by taking their
         // proportion of stake against the total stake, and multiplying
         // that against the total reward for the stakers
-        return stake * delegatorReward / rewardPool.totalStake;
+        return stake * delegatorReward / totalStake;
     }
 
     function incrementRewardPool(
@@ -112,10 +128,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.startBlock > 0, "Epoch does not exist");
 
-        _token.transferFrom(msg.sender, address(this), amount);
-
         RewardPool storage rewardPool = rewardPools[getKey(epochId, stakee)];
-
         require(
             rewardPool.totalStake > 0,
             "Reward pool has not been constructed for this epoch"
@@ -141,6 +154,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         bytes32 key = getKey(epochId, msg.sender);
 
         RewardPool memory rewardPool = rewardPools[key];
+        require(
+            rewardPool.balance > 0,
+            "Can not distribute reward if balance is zero"
+        );
 
         uint256 delegatorReward = SyloUtils.percOf(
             uint128(rewardPool.balance),
@@ -153,8 +170,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         for (uint i = 0; i < rewardPool.stakes.length; i++) {
             Stake memory stake = rewardPool.stakes[i];
 
-            // calculate payout by multiplying the proprotion of stake against the delegator reward
-            uint256 payout = stake.amount * delegatorReward / rewardPool.totalStake;
+            uint256 payout = calculateDelegatorPayout(stake.amount, rewardPool.totalStake, delegatorReward);
+
+            // Avoid reverting if the payout is zero, which could
+            // occur if the stake is too low relative to the other stakes
+            if (payout == 0) {
+                continue;
+            }
 
             _token.transfer(stake.staker, payout);
             totalDelegatorPayout += payout;
@@ -171,16 +193,17 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
     /*
      * This function is called by the node to initialize their own reward pool
-     * for the next epoch. Calling this function will be necessary
+     * for the next epoch. Calling this function will be necessary for the node
+     * to participate in the next epoch.
      */
     function initializeRewardPool(bytes32 epochId) public {
         bytes32 key = getKey(epochId, msg.sender);
 
         RewardPool storage rewardPool = rewardPools[key];
-        require(rewardPool.totalStake > 0, "Reward pool has already been initialized");
+        require(rewardPool.totalStake == 0, "Reward pool has already been initialized");
 
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
-        require(epoch.startBlock > 0, "Epoch does not exist");
+        require(epoch.endBlock == 0, "Epoch has already ended");
 
         address[] memory stakers = _stakingManager.getStakers(msg.sender);
         require(stakers.length > 0, "Must have stake to intitialize a reward pool");

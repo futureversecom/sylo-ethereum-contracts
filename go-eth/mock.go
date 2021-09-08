@@ -148,6 +148,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketingParameters: %w", err)
 	}
+	backend.Commit()
 
 	var epochsManager *contracts.EpochsManager
 	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
@@ -155,10 +156,19 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise epochsManager: %w", err)
 	}
+	backend.Commit()
+
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, _, rewardsManager, _ = contracts.DeployRewardsManager(&opts[0], backend)
+	_, err = rewardsManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise rewardsManager: %w", err)
+	}
+	backend.Commit()
 
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.Directory, addresses.EpochsManager, big.NewInt(1))
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

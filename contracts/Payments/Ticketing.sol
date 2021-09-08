@@ -179,8 +179,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         usedTickets[ticketHash] = true;
 
-        uint256 totalStake = _directory.getTotalStakeForStakee(epoch.directoryId, ticket.redeemer);
-        require(totalStake > 0, "Ticket redeemer must have stake for this epoch");
+        uint256 directoryStake = _directory.getTotalStakeForStakee(ticket.epochId, ticket.redeemer);
+        require(directoryStake > 0, "Ticket redeemer must have joined the directory for this epoch");
+
+        uint256 rewardPoolStake = _rewardsManager.getRewardPoolStake(ticket.epochId, ticket.redeemer);
+        require(rewardPoolStake > 0, "Ticket redeemer must have initialized their reward pool for this epoch");
 
         rewardRedeemer(epoch, ticket);
     }
@@ -191,16 +194,14 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) internal {
         Deposit storage deposit = getDeposit(ticket.sender);
 
-        bytes32 epochId = _epochsManager.getEpochId(epoch);
-
         if (epoch.faceValue > deposit.escrow) {
-            incrementRewardPool(epochId, ticket.redeemer, deposit, deposit.escrow);
+            incrementRewardPool(ticket.epochId, ticket.redeemer, deposit, deposit.escrow);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            incrementRewardPool(epochId, ticket.redeemer, deposit, epoch.faceValue);
+            incrementRewardPool(ticket.epochId, ticket.redeemer, deposit, epoch.faceValue);
         }
     }
 
@@ -304,6 +305,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         require(deposit.escrow >= amount, "Spender does not have enough to transfer to reward");
         deposit.escrow = deposit.escrow - amount;
 
+        _token.transfer(address(_rewardsManager), amount);
         _rewardsManager.incrementRewardPool(epochId, stakee, amount);
     }
 }
