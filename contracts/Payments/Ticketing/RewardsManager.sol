@@ -106,10 +106,18 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             epoch.defaultPayoutPercentage
         );
 
+        return calculateDelegatorPayout(stake, rewardPool.totalStake, delegatorReward);
+    }
+
+    function calculateDelegatorPayout(
+        uint256 stake,
+        uint256 totalStake,
+        uint256 delegatorReward
+    ) public pure returns (uint256) {
         // we calculate the payout for this staker by taking their
         // proportion of stake against the total stake, and multiplying
         // that against the total reward for the stakers
-        return stake * delegatorReward / rewardPool.totalStake;
+        return stake * delegatorReward / totalStake;
     }
 
     function incrementRewardPool(
@@ -164,9 +172,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         for (uint i = 0; i < rewardPool.stakes.length; i++) {
             Stake memory stake = rewardPool.stakes[i];
 
-            // calculate payout by multiplying the proprotion of stake against the delegator reward
-            uint256 payout = stake.amount * delegatorReward / rewardPool.totalStake;
+            uint256 payout = calculateDelegatorPayout(stake.amount, rewardPool.totalStake, delegatorReward);
 
+            // Avoid reverting if the payout is zero, which could
+            // occur if the stake is too low relative to the other stakes
             if (payout == 0) {
                 continue;
             }
@@ -196,7 +205,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         require(rewardPool.totalStake > 0, "Reward pool has already been initialized");
 
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
-        require(epoch.startBlock > 0, "Epoch does not exist");
+        require(epoch.endBlock == 0, "Epoch has already ended");
 
         address[] memory stakers = _stakingManager.getStakers(msg.sender);
         require(stakers.length > 0, "Must have stake to intitialize a reward pool");
