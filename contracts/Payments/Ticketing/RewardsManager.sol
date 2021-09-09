@@ -13,8 +13,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
  * and also to payout delegated stakers after the epoch ends.
- * After deployment, the SyloTicketing and NodeManager contracts should be
- * set as managers to be able to call certain restricted functions.
+ * After deployment, the SyloTicketing contract should be
+ * set up as a manager to be able to call certain restricted functions.
 */
 
 contract RewardsManager is Initializable, OwnableUpgradeable {
@@ -85,6 +85,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
         RewardPool memory rewardPool = rewardPools[getKey(epochId, stakee)];
 
+        if (rewardPool.balance == 0) {
+            return 0;
+        }
+
         uint256 stake = 0;
         for (uint i = 0; i < rewardPool.stakes.length; i++) {
             if (rewardPool.stakes[i].staker == staker) {
@@ -144,6 +148,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         bytes32 key = getKey(epochId, msg.sender);
 
         RewardPool memory rewardPool = rewardPools[key];
+        require(
+            rewardPool.balance > 0,
+            "Can not distribute reward if balance is zero"
+        );
 
         uint256 delegatorReward = SyloUtils.percOf(
             uint128(rewardPool.balance),
@@ -158,6 +166,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
             // calculate payout by multiplying the proprotion of stake against the delegator reward
             uint256 payout = stake.amount * delegatorReward / rewardPool.totalStake;
+
+            if (payout == 0) {
+                continue;
+            }
 
             _token.transfer(stake.staker, payout);
             totalDelegatorPayout += payout;
