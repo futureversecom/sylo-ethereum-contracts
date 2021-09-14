@@ -305,6 +305,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         require(deposit.escrow >= amount, "Spender does not have enough to transfer to reward");
         deposit.escrow = deposit.escrow - amount;
 
+        _token.transfer(address(_rewardsManager), amount);
         _rewardsManager.incrementRewardPool(epochId, stakee, amount);
     }
 }

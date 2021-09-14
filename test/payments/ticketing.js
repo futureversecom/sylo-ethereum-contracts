@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const sodium = require('libsodium-wrappers-sumo');
 const TicketingParameters = artifacts.require('TicketingParameters');
 const Ticketing = artifacts.require("SyloTicketing");
+const RewardsManager = artifacts.require("RewardsManager");
 const EpochsManager = artifacts.require("EpochsManager");
 const Directory = artifacts.require("Directory");
 const Listings = artifacts.require("Listings");
@@ -20,13 +21,14 @@ contract('Ticketing', accounts => {
   const baseLiveWinProb = (new BN(2)).pow(new BN(128)).sub(new BN(1)).toString();
   const expiredWinProb = 1000;
   const decayRate = 8000;
-  const ticketDuration = 100;
+  const ticketDuration = 20;
 
   const epochDuration = 30;
 
   let token;
 
   let epochsManager;
+  let rewardsManager;
   let ticketingParameters;
   let ticketing;
 
@@ -88,15 +90,28 @@ contract('Ticketing', accounts => {
 
     await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
 
+    rewardsManager = await RewardsManager.new({ from: accounts[1] });
+    await rewardsManager.initialize(
+      token.address,
+      stakingManager.address,
+      epochsManager.address,
+      { from: accounts[1] }
+    );
+
     ticketing = await Ticketing.new({ from: accounts[1] })
     await ticketing.initialize(
       token.address,
       listings.address,
+      stakingManager.address,
       directory.address,
       epochsManager.address,
+      rewardsManager.address,
       0,
       { from: accounts[1] }
     );
+
+    await rewardsManager.addManager(ticketing.address, { from: accounts[1] });
+
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
   });
 
@@ -292,6 +307,8 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    await particpateNextEpoch(accounts[1]);
+
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
@@ -307,7 +324,7 @@ contract('Ticketing', accounts => {
     assert.equal(deposit.escrow.toString(), '35', 'Expected ticket payout to be substracted from escrow');
     assert.equal(deposit.penalty.toString(), '50', 'Expected penalty to not be changed');
 
-    const rewardPoolBalance = await ticketing.getRewardPoolTotalBalance(ticket.epochId, ticket.redeemer);
+    const rewardPoolBalance = await rewardsManager.getRewardPoolBalance(ticket.epochId, ticket.redeemer);
     assert.equal(
       rewardPoolBalance.toString(),
       '15',
@@ -320,6 +337,8 @@ contract('Ticketing', accounts => {
     // stakingManager entry
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    await particpateNextEpoch(accounts[1]);
 
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
@@ -338,7 +357,7 @@ contract('Ticketing', accounts => {
     assert.equal(deposit.escrow.toString(), '0', 'Expected entire escrow to be used');
     assert.equal(deposit.penalty.toString(), '0', 'Expected entire penalty to b burned');
 
-    const rewardPoolBalance = await ticketing.getRewardPoolTotalBalance(ticket.epochId, ticket.redeemer);
+    const rewardPoolBalance = await rewardsManager.getRewardPoolBalance(ticket.epochId, ticket.redeemer);
     assert.equal(
       rewardPoolBalance.toString(),
       '5',
@@ -348,7 +367,7 @@ contract('Ticketing', accounts => {
     const ticketingBalance = await token.balanceOf(ticketing.address);
     assert.equal(
       ticketingBalance.toString(),
-      initialTicketingBalance.sub(new BN(50)).toString(),
+      initialTicketingBalance.sub(new BN(55)).toString(),
       'Expected tokens from ticket contract to be removed'
     );
 
@@ -360,64 +379,87 @@ contract('Ticketing', accounts => {
     );
   });
 
-  it('fails to claim for non existent epoch', async () => {
-    ticketing.claimReward(
+  it('fails to distribute reward for non existent epoch', async () => {
+    rewardsManager.distributeReward(
       '0x0000000000000000000000000000000000000000000000000000000000000000',
-      accounts[0]
+      { from: accounts[0] }
     ).then(() => {
-      assert.fail("Claiming should fail due to invalid epoch")
+      assert.fail("Distribution should fail due to invalid epoch")
     }).catch(e => {
       assert.include(e.message, "Epoch does not exist");
     });
   });
 
-  it('fails to claim non existent reward', async () => {
+  it('fails to distribute reward for epoch that hasn\'t ended', async () => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
     const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
+    const epochId = await epochsManager.getEpochId(epoch.iteration);
 
-    ticketing.claimReward(epochId, accounts[0])
+    rewardsManager.distributeReward(epochId, { from: accounts[0] })
       .then(() => {
-        assert.fail("Claiming should fail with no reward balance");
+        assert.fail("Disitribution should fail as epoch has not ended");
       })
       .catch(e => {
-        assert.include(e.message, "Accumalated reward is 0")
+        assert.include(e.message, "Epoch has not yet ended")
       });
   });
 
-  it('can not claim reward if not staker', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
-
+  it('fails to distribute reward if all tickets not expired', async () => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
     const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
+    const epochId = await epochsManager.getEpochId(epoch.iteration);
 
-    const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    // advance block till epoch has ended
+    for (let i = 0; i < 31; i++) {
+      await utils.advanceBlock();
+    }
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, 1);
+    await epochsManager.initializeEpoch({ from: accounts[1] });
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
-
-    ticketing.claimReward(epochId, accounts[1], { from: accounts[5] })
+    rewardsManager.distributeReward(epochId, { from: accounts[0] })
       .then(() => {
-        assert.fail("Claiming should fail as not valid claimer");
+        assert.fail("Disitribution should fail as not all tickets expired");
       })
       .catch(e => {
-        assert.include(e.message, "Must be a delegated staker or the stakee to claim rewards");
+        assert.include(e.message, "Can only distribute rewards once all possible tickets have been redeemed")
       });
   });
 
-  it('can claim ticketing rewards', async () => {
+  it('fails to distribute non existent reward', async () => {
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+    const epoch = await epochsManager.getCurrentActiveEpoch();
+    const epochId = await epochsManager.getEpochId(epoch.iteration);
+
+    // advance block till epoch has ended
+    for (let i = 0; i < 31; i++) {
+      await utils.advanceBlock();
+    }
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+
+    // advance block till tickets expire
+    for (let i = 0; i < 21; i++) {
+      await utils.advanceBlock();
+    }
+
+    rewardsManager.distributeReward(epochId, { from: accounts[0] })
+      .then(() => {
+        assert.fail("Disitribution should fail with no reward balance");
+      })
+      .catch(e => {
+        assert.include(e.message, "Can not distribute reward if balance is zero")
+      });
+  });
+
+  it('can distribute ticketing rewards', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    await particpateNextEpoch(accounts[1]);
+
     await epochsManager.initializeEpoch({ from: accounts[1] });
     const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
+    const epochId = await epochsManager.getEpochId(epoch.iteration);
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
@@ -430,16 +472,28 @@ contract('Ticketing', accounts => {
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
     }
 
-    const rewardPoolBalance = await ticketing.getRewardPoolTotalBalance(epochId, accounts[1]);
+    const rewardPoolBalance = await rewardsManager.getRewardPoolBalance(epochId, accounts[1]);
     assert.equal(
       rewardPoolBalance.toString(),
       '150',
       "Expected balance of reward pool to have added the ticket face value each time"
     );
 
+    // advance block till epoch has ended
+    for (let i = 0; i < 31; i++) {
+      await utils.advanceBlock();
+    }
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+
+    // advance block till tickets expire
+    for (let i = 0; i < 21; i++) {
+      await utils.advanceBlock();
+    }
+
     const initialRedeemerBalance = await token.balanceOf(accounts[1]);
 
-    await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
+    await rewardsManager.distributeReward(epochId, { from: accounts[1] });
 
     const postRedeemerBalance = await token.balanceOf(accounts[1]);
 
@@ -458,9 +512,11 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    await particpateNextEpoch(accounts[1]);
+
     await epochsManager.initializeEpoch({ from: accounts[1] });
     const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
+    const epochId = await epochsManager.getEpochId(epoch.iteration);
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
@@ -473,32 +529,44 @@ contract('Ticketing', accounts => {
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
     }
 
+    // advance block till epoch has ended
+    for (let i = 0; i < 31; i++) {
+      await utils.advanceBlock();
+    }
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
+
+    // advance block till tickets expire
+    for (let i = 0; i < 21; i++) {
+      await utils.advanceBlock();
+    }
+
     const initialDelegatorBalance = await token.balanceOf(accounts[2]);
 
-    await ticketing.claimReward(epochId, accounts[1], { from: accounts[2] });
+    await rewardsManager.distributeReward(epochId, { from: accounts[1] });
 
     const postDelegatorBalance = await token.balanceOf(accounts[2]);
 
     assert.equal(
       postDelegatorBalance.toString(),
       initialDelegatorBalance.add(new BN(75)).toString(),
-      "Expected node to have entire reward balance added to their own balance"
+      "Expected delegator to have 50% of reward balance added to their own balance"
     );
   });
 
-  it('can claim reward more than once', async () => {
+  it('can not disitrbute reward more than once', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    await particpateNextEpoch(accounts[1]);
+
     await epochsManager.initializeEpoch({ from: accounts[1] });
     const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
+    const epochId = await epochsManager.getEpochId(epoch.iteration);
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
-
-    const initialBalance = await token.balanceOf(accounts[1]);
 
     for (let i = 0 ; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -506,110 +574,31 @@ contract('Ticketing', accounts => {
 
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
     }
-    await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
 
-    for (let i = 0 ; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, 1);
-
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
+    // advance block till epoch has ended
+    for (let i = 0; i < 31; i++) {
+      await utils.advanceBlock();
     }
-    await ticketing.claimReward(epochId, accounts[1], { from: accounts[1] });
-
-    const postBalance = await token.balanceOf(accounts[1]);
-
-    assert.equal(
-      postBalance.toString(),
-      initialBalance.add(new BN(20 * faceValue)).toString(),
-      "Expected balance of node to have added all ticket faceValues to their balance"
-    );
-  });
-
-  it('can not be possible for the total reward claimed to be greater than the total reward balance', async () => {
-    // account 4 as the stakee
-    await token.transfer(accounts[4], 1000, { from: accounts[1]} );
-
-    // have account 2 and 3 as delegated stakers
-    for (let i = 2; i < 4; i++) {
-      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
-      await stakingManager.addStake(1, accounts[4], { from: accounts[i] });
-    }
-
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[4] });
 
     await epochsManager.initializeEpoch({ from: accounts[1] });
-    const epoch = await epochsManager.getCurrentActiveEpoch();
-    const epochId = await epochsManager.getEpochId(epoch);
 
-    const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
-
-    const initialBalanceOne = await token.balanceOf(accounts[4]);
-    const initialBalanceTwo = await token.balanceOf(accounts[2]);
-    const initialBalanceThree = await token.balanceOf(accounts[3]);
-
-    async function randomClaim(account) {
-      if (Math.random() < 0.4) {
-        await ticketing.claimReward(epochId, accounts[4], { from: account });
-      }
+    // advance block till tickets expire
+    for (let i = 0; i < 21; i++) {
+      await utils.advanceBlock();
     }
 
-    for (let i = 0 ; i < 14; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, 4);
-
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[4] });
-
-      // accounts 1 (node), 2 and 3 (stakers) will claim their rewards at
-      // random points throughout the epoch
-      for (let j = 2; j < 5; j++) {
-        await randomClaim(accounts[j]);
-      }
-    }
-
-    // if there are still any outstanding rewards, claim them
-    for (let j = 2; j < 5; j++) {
-      const outstandingReward = await ticketing.getRewardPoolClaimAmount(epochId, accounts[4], { from: accounts[j] });
-      if (outstandingReward.toNumber() > 0) {
-        await ticketing.claimReward(epochId, accounts[4], { from: accounts[j] });
-      }
-    }
-
-    const postBalanceOne = await token.balanceOf(accounts[4]);
-    const postBalanceTwo = await token.balanceOf(accounts[2]);
-    const postBalanceThree = await token.balanceOf(accounts[3]);
-
-    // The total reward pool balance will be 210 after 14 ticket redemptions.
-    // Flooring when doing divisions in the rewards calculation will cause the
-    // total reward redeemed to be less than 210 but it should never be more
-    // than 210.
-    // The split of the reward should be as follows:
-    //    Delegated Stakers: Each should get 50% of the reward pool that is
-    //      divied out to the stakers, which would be 0.5 * 210 * 0.5 = 52 each after rounding
-    //    Node: Remainder of the reward pool after delegated stakers are rewarded which is 106
-    assert.isAtMost(
-      postBalanceOne.toNumber(),
-      initialBalanceOne.add(new BN(106)).toNumber(),
-      "Expected balance of node to have added 106"
-    );
-    assert.isAtMost(
-      postBalanceTwo.toNumber(),
-      initialBalanceTwo.add(new BN(52)).toNumber(),
-      "Expected balance of staker one to have added 52"
-    );
-    assert.isAtMost(
-      postBalanceThree.toNumber(),
-      initialBalanceThree.add(new BN(52)).toNumber(),
-      "Expected balance of staker two to have added 52"
-    );
+    await rewardsManager.distributeReward(epochId, { from: accounts[1] });
+    rewardsManager.distributeReward(epochId, { from: accounts[1] })
+      .then(() => {
+        assert.fail("Disitribution should fail with no reward balance");
+      })
+      .catch(e => {
+        assert.include(e.message, "Can not distribute reward if balance is zero")
+      });
   });
+
 
   it('should decay winning probability as ticket approaches expiry', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
-    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
-
     // deploy another ticketing contract with simpler parameters
     ticketingParameters = await TicketingParameters.new({ from: accounts[1] });
     await ticketingParameters.initialize(
@@ -638,18 +627,34 @@ contract('Ticketing', accounts => {
 
     await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
 
-    await epochsManager.initializeEpoch({ from: accounts[1] });
+    rewardsManager = await RewardsManager.new({ from: accounts[1] });
+    await rewardsManager.initialize(
+      token.address,
+      stakingManager.address,
+      epochsManager.address,
+      { from: accounts[1] }
+    );
 
     ticketing = await Ticketing.new({ from: accounts[1] });
     await ticketing.initialize(
       token.address,
       listings.address,
       stakingManager.address,
+      directory.address,
       epochsManager.address,
+      rewardsManager.address,
       0,
       { from: accounts[1] }
     );
     await token.approve(ticketing.address, 10000, { from: accounts[1] });
+    await rewardsManager.addManager(ticketing.address, { from: accounts[1] });
+
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
+
+    await particpateNextEpoch(accounts[1]);
+
+    await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
@@ -688,7 +693,7 @@ contract('Ticketing', accounts => {
       await createWinningTicket(alice, 1);
 
     // advance the block all the way to ticket expiry
-    for (let i = 0; i < 101; i++) {
+    for (let i = 0; i < 21; i++) {
       await utils.advanceBlock();
     }
 
@@ -712,6 +717,8 @@ contract('Ticketing', accounts => {
     await stakingManager.addStake(1, node, { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
+    await particpateNextEpoch({ from: accounts[1] });
+
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     // set up the sender's escrow
@@ -727,7 +734,7 @@ contract('Ticketing', accounts => {
     const senderCommit = soliditySha3(senderRand);
 
     const epochId = await epochsManager.getCurrentActiveEpoch().then(e =>
-      epochsManager.getEpochId(e)
+      epochsManager.getEpochId(e.iteration)
     );
 
     // create the ticket to be given to the node
@@ -772,6 +779,12 @@ contract('Ticketing', accounts => {
     );
   });
 
+  async function particpateNextEpoch(account) {
+    const epochId = await epochsManager.getNextEpochId();
+    await directory.joinDirectory(epochId, { from: accounts[1] });
+    await rewardsManager.initializeRewardPool(epochId, { from: accounts[1] });
+  }
+
   async function createWinningTicket(sender, redeemer) {
     const senderRand = 1;
     const senderCommit = soliditySha3(senderRand);
@@ -782,7 +795,7 @@ contract('Ticketing', accounts => {
     const generationBlock = await web3.eth.getBlockNumber();
 
     const epochId = await epochsManager.getCurrentActiveEpoch().then(e =>
-      epochsManager.getEpochId(e)
+      epochsManager.getEpochId(e.iteration)
     );
 
     const ticket = {

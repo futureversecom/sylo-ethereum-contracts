@@ -67,12 +67,12 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return keccak256(abi.encodePacked(epochId, stakee));
     }
 
-    function getRewardBalance(bytes32 epochId, address stakee) public view returns (uint256) {
+    function getRewardPoolBalance(bytes32 epochId, address stakee) public view returns (uint256) {
         return rewardPools[getKey(epochId, stakee)].balance;
     }
 
     function getRewardPoolStake(bytes32 epochId, address stakee) public view returns (uint256) {
-        return rewardPools[getKey(epochId, stakee)].balance;
+        return rewardPools[getKey(epochId, stakee)].totalStake;
     }
 
     function getDelegatorOwedAmount(
@@ -113,7 +113,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         uint256 stake,
         uint256 totalStake,
         uint256 delegatorReward
-    ) public pure returns (uint256) {
+    ) internal pure returns (uint256) {
         // we calculate the payout for this staker by taking their
         // proportion of stake against the total stake, and multiplying
         // that against the total reward for the stakers
@@ -133,8 +133,6 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             rewardPool.totalStake > 0,
             "Reward pool has not been constructed for this epoch"
         );
-
-        _token.transferFrom(msg.sender, address(this), amount);
 
         rewardPool.balance += amount;
     }
@@ -202,7 +200,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         bytes32 key = getKey(epochId, msg.sender);
 
         RewardPool storage rewardPool = rewardPools[key];
-        require(rewardPool.totalStake > 0, "Reward pool has already been initialized");
+        require(rewardPool.totalStake == 0, "Reward pool has already been initialized");
 
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.endBlock == 0, "Epoch has already ended");

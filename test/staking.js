@@ -8,10 +8,12 @@ const Token = artifacts.require("SyloToken");
 
 const utils = require('./utils');
 
-contract('Staking', accounts => {
+contract.only('Staking', accounts => {
   let token;
   let stakingManager;
   let directory;
+
+  const epochId = '0x1000000000000000000000000000000000000000000000000000000000000000';
 
   before(async () => {
     token = await Token.new({ from: accounts[1] });
@@ -28,6 +30,8 @@ contract('Staking', accounts => {
         stakingManager.address,
       { from: accounts[1] }
     );
+
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
   });
 
   it('should be able to get unlocking duration', async () => {
@@ -99,9 +103,8 @@ contract('Staking', accounts => {
   });
 
   it('should be able to scan', async () => {
-    await stakingManager.addStake(1, accounts[0], { from: accounts[1] });
-
-    await directory.constructDirectory({ from: accounts[1] });
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await directory.joinDirectory(epochId, { from: accounts[1] });
 
     await directory.scan(new BN(0));
   });
@@ -109,9 +112,10 @@ contract('Staking', accounts => {
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+      await directory.joinDirectory(epochId, { from: accounts[i] });
     }
 
-    await directory.constructDirectory({ from: accounts[1] });
+    console.log(await directory.getEntries(epochId));
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -130,10 +134,9 @@ contract('Staking', accounts => {
     let totalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(i + 1, accounts[i], { from: accounts[1] });
+      await directory.joinDirectory(epochId, { from: accounts[i] });
       totalStake += i + 1;
     }
-
-    await directory.constructDirectory({ from: accounts[1] });
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -162,48 +165,18 @@ contract('Staking', accounts => {
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
 
-  it('scan after some nodes unstake [ @skip-on-coverage ]', async () => {
-    for (let i = 0; i < accounts.length; i++) {
-      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
-    }
-
-    for (let i = 5; i < accounts.length; i++) {
-      await stakingManager.unlockStake(1, accounts[i], { from: accounts[1] });
-    }
-
-    await directory.constructDirectory({ from: accounts[1] });
-
-    let expectedResults = {}
-    for (let i = 1; i < 5; i++) {
-      expectedResults[accounts[i]] = parseInt(1/5 * 1000);
-    }
-
-    const results = await collectScanResults(1000);
-    for (let key of Object.keys(expectedResults)) {
-      const expected = expectedResults[key];
-      const actual = results[key];
-      console.log('For address', key, 'expected=', expected, 'actual=', actual);
-    }
-  }).timeout(0);
-
-  it('excludes nodes from directory without a stake', async () => {
+  it('can not join directory without a stake', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[1] });
 
-    await directory.constructDirectory({ from: accounts[1] });
+    directory.joinDirectory(epochId, { from: accounts[1] })
+      .then(() => {
+        assert.fail("Join directory should fail as no epoch");
+      })
+      .catch(e => {
+        assert.include(e.message, "Can not join directory for next epoch without any stake");
+      })
 
-    let found = false;
-    for (let i = 0; i < accounts.length; i++) {
-      try {
-        const a = await directory.currentDirectory(i);
-        if (a == accounts[i]) {
-          found = true;
-          break;
-        }
-      } catch(e) {}
-    }
-
-    assert.equal(found, false, "The account with no stake should not exist in the directory");
   });
 
   it.skip('excludes nodes from directory without a vote', async () => {

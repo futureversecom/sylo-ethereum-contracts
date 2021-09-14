@@ -37,9 +37,6 @@ contract Directory is Initializable, OwnableUpgradeable {
     // Directories are indexed by the associated epoch's id
     mapping (bytes32 => Directory) directories;
 
-    // Tracks the total stake held within a specific directory
-    mapping (bytes32 => uint256) totalStakes;
-
     function initialize(
         StakingManager stakingManager
     ) public initializer {
@@ -82,11 +79,11 @@ contract Directory is Initializable, OwnableUpgradeable {
             "Can only join the directory once per epoch"
         );
 
-        uint nextBoundary = totalStakes[epochId] + totalStake;
+        uint nextBoundary = directories[epochId].totalStake + totalStake;
 
         directories[epochId].entries.push(DirectoryEntry(stakee, nextBoundary));
         directories[epochId].stakes[stakee] = totalStake;
-        totalStakes[epochId] += totalStake;
+        directories[epochId].totalStake = nextBoundary;
     }
 
     function scan(uint128 point) public view returns (address) {
@@ -126,5 +123,16 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     function getTotalStake(bytes32 epochId) public view returns (uint256) {
         return directories[epochId].totalStake;
+    }
+
+    function getEntries(bytes32 epochId) public view returns (address[] memory, uint256[] memory) {
+        address[] memory stakees = new address[](directories[epochId].entries.length);
+        uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);
+        for (uint i = 0; i < directories[epochId].entries.length; i++) {
+            DirectoryEntry memory entry = directories[epochId].entries[i];
+            stakees[i] = entry.stakee;
+            boundaries[i] = entry.boundary;
+        }
+        return (stakees, boundaries);
     }
 }

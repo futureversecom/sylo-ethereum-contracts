@@ -9,6 +9,7 @@ package eth
 //go:generate abigen --abi ../abi/PriceManager.abi --pkg contracts --type PriceManager --out contracts/price_manager.go --bin ../bin/PriceManager.bin
 //go:generate abigen --abi ../abi/PriceVoting.abi --pkg contracts --type PriceVoting --out contracts/price_voting.go --bin ../bin/PriceVoting.bin
 //go:generate abigen --abi ../abi/StakingManager.abi --pkg contracts --type StakingManager --out contracts/staking_manager.go --bin ../bin/StakingManager.bin
+//go:generate abigen --abi ../abi/RewardsManager.abi --pkg contracts --type RewardsManager --out contracts/rewards_manager.go --bin ../bin/RewardsManager.bin
 
 import (
 	"context"
@@ -45,7 +46,6 @@ type Client interface {
 	Redeem(ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) (*types.Transaction, error)
 	Withdraw() (*types.Transaction, error)
 	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
-	GetRewardPoolTotalBalance(epochId [32]byte, stakee ethcommon.Address) (*big.Int, error)
 
 	// Token methods
 
@@ -73,16 +73,17 @@ type Client interface {
 		Amount *big.Int
 		Stakee ethcommon.Address
 	}, error)
-	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
 	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	UnlockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	CancelUnlocking(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	WithdrawStake(account ethcommon.Address) (*types.Transaction, error)
+	GetStake(staker ethcommon.Address, stakee ethcommon.Address) (contracts.StakingManagerStake, error)
 	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
 
 	// Directory methods
-	ConstructDirectory() (*types.Transaction, error)
+	SetCurrentDirectory(epochId [32]byte) (*types.Transaction, error)
+	JoinDirectory(epochId [32]byte) (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 	TransferDirectoryOwnership(newOwner ethcommon.Address) (*types.Transaction, error)
 
@@ -95,7 +96,16 @@ type Client interface {
 
 	InitializeEpoch() (*types.Transaction, error)
 	GetCurrentActiveEpoch() (contracts.EpochsManagerEpoch, error)
-	GetEpochId(contracts.EpochsManagerEpoch) ([32]byte, error)
+	GetEpochId(*big.Int) ([32]byte, error)
+	GetNextEpochId() ([32]byte, error)
+
+	// RewardsManager methods
+	GetRewardPoolBalance(epochId [32]byte, stakee ethcommon.Address) (*big.Int, error)
+	GetRewardPoolStake(epochId [32]byte, stakee ethcommon.Address) (*big.Int, error)
+	GetDelegatorOwedAmount(epochId [32]byte, stakee ethcommon.Address, staker ethcommon.Address) (*big.Int, error)
+	IncrementRewardPool(epochId [32]byte, stakee ethcommon.Address, amount *big.Int) (*types.Transaction, error)
+	InitializeRewardPool(epochId [32]byte) (*types.Transaction, error)
+	DistributeReward(epochId [32]byte) (*types.Transaction, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 
@@ -120,6 +130,7 @@ type Addresses struct {
 	PriceVoting         ethcommon.Address
 	StakingManager      ethcommon.Address
 	EpochsManager       ethcommon.Address
+	RewardsManager      ethcommon.Address
 }
 
 type client struct {
@@ -137,6 +148,7 @@ type client struct {
 	*contracts.PriceVotingSession
 	*contracts.StakingManagerSession
 	*contracts.EpochsManagerSession
+	*contracts.RewardsManagerSession
 
 	backend Backend
 }
@@ -263,6 +275,13 @@ func NewClientWithBackend(
 		TransactOpts: *opts,
 	}
 
+	rewardsManager, err := contracts.NewRewardsManager(addresses.RewardsManager, backend)
+
+	RewardsManagerSession := &contracts.RewardsManagerSession{
+		Contract:     rewardsManager,
+		TransactOpts: *opts,
+	}
+
 	return &client{
 		addresses:                  addresses,
 		backend:                    backend,
@@ -275,6 +294,7 @@ func NewClientWithBackend(
 		StakingManagerSession:      StakingManagerSession,
 		DirectorySession:           DirectorySession,
 		ListingsSession:            ListingsSession,
+		RewardsManagerSession:      RewardsManagerSession,
 		opts:                       opts,
 	}, nil
 }
@@ -303,8 +323,12 @@ func (c *client) WithdrawVote() (*types.Transaction, error) {
 	return c.PriceVotingSession.Withdraw()
 }
 
+func (c *client) GetStakeKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error) {
+	return c.StakingManagerSession.GetKey(staker, stakee)
+}
+
 func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error) {
-	key, err := c.GetKey(staker, stakee)
+	key, err := c.StakingManagerSession.GetKey(staker, stakee)
 	if err != nil {
 		return Unlocking{}, err
 	}
