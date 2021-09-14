@@ -9,9 +9,7 @@ import (
 	"time"
 
 	sylopayments "github.com/dn3010/sylo-ethereum-contracts/go-eth"
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestClient(t *testing.T) {
@@ -160,52 +158,14 @@ func TestClient(t *testing.T) {
 
 		sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
-		aliceRand := big.NewInt(1)
-		var aliceRandHash [32]byte
-		copy(aliceRandHash[:], crypto.Keccak256(aliceRand.FillBytes(aliceRandHash[:])))
-
-		bobRand := big.NewInt(1)
-		var bobRandHash [32]byte
-		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
-
-		latestBlock, err := aliceClient.LatestBlock()
-		if err != nil {
-			t.Fatalf("could not retrieve latest block %v", err)
-		}
-		ticket := contracts.SyloTicketingTicket{
-			EpochId:         epochId,
-			Sender:          aliceClient.Address(),
-			Redeemer:        bobClient.Address(),
-			SenderCommit:    aliceRandHash,
-			RedeemerCommit:  bobRandHash,
-			GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
-		}
-
-		ticketHash, err := aliceClient.GetTicketHash(ticket)
-		if err != nil {
-			t.Fatalf("could not get ticket hash: %v", err)
-		}
-
-		sig, err := crypto.Sign(ticketHash[:], alicePK)
-		if err != nil {
-			t.Fatalf("could not sign hash: %v", err)
-		}
+		ticket, sig, aliceRand, bobRand := sylopayments.CreateWinningTicket(t, aliceClient, alicePK, bobClient.Address())
 
 		aliceDepositsBefore, err := aliceClient.Deposits(aliceClient.Address())
 		if err != nil {
 			t.Fatalf("could not get deposits for alice: %v", err)
 		}
 
-		tx, err := bobClient.Redeem(ticket, aliceRand, bobRand, sig)
-		if err != nil {
-			t.Fatalf("could not redeem ticket: %v", err)
-		}
-		backend.Commit()
-
-		_, err = bobClient.CheckTx(ctx, tx)
-		if err != nil {
-			t.Fatalf("could not check transaction: %v", err)
-		}
+		sylopayments.Redeem(t, ctx, backend, bobClient, ticket, aliceRand, bobRand, sig)
 
 		aliceDepositsAfter, err := aliceClient.Deposits(aliceClient.Address())
 		if err != nil {
@@ -247,48 +207,10 @@ func TestClient(t *testing.T) {
 
 		sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
-		aliceRand := big.NewInt(1)
-		var aliceRandHash [32]byte
-		copy(aliceRandHash[:], crypto.Keccak256(aliceRand.FillBytes(aliceRandHash[:])))
-
-		bobRand := big.NewInt(1)
-		var bobRandHash [32]byte
-		copy(bobRandHash[:], crypto.Keccak256(bobRand.FillBytes(bobRandHash[:])))
-
-		latestBlock, err := aliceClient.LatestBlock()
-		if err != nil {
-			t.Fatalf("could not retrieve latest block %v", err)
-		}
-		ticket := contracts.SyloTicketingTicket{
-			EpochId:         epochId,
-			Sender:          aliceClient.Address(),
-			Redeemer:        bobClient.Address(),
-			SenderCommit:    aliceRandHash,
-			RedeemerCommit:  bobRandHash,
-			GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
-		}
-
-		ticketHash, err := aliceClient.GetTicketHash(ticket)
-		if err != nil {
-			t.Fatalf("could not get ticket hash: %v", err)
-		}
-
-		sig, err := crypto.Sign(ticketHash[:], alicePK)
-		if err != nil {
-			t.Fatalf("could not sign hash: %v", err)
-		}
+		ticket, sig, aliceRand, bobRand := sylopayments.CreateWinningTicket(t, aliceClient, alicePK, bobClient.Address())
 
 		// good redemption
-		tx, err := bobClient.Redeem(ticket, aliceRand, bobRand, sig)
-		if err != nil {
-			t.Fatalf("could not redeem ticket: %v", err)
-		}
-		backend.Commit()
-
-		_, err = bobClient.CheckTx(ctx, tx)
-		if err != nil {
-			t.Fatalf("could not confirm transaction: %v", err)
-		}
+		sylopayments.Redeem(t, ctx, backend, bobClient, ticket, aliceRand, bobRand, sig)
 
 		// replay redemption
 		_, err = bobClient.Redeem(ticket, aliceRand, bobRand, sig)

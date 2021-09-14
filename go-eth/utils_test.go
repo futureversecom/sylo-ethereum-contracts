@@ -241,6 +241,15 @@ func InitializeEpoch(t *testing.T, ctx context.Context, backend SimBackend, clie
 	}
 }
 
+func GetNextEpochId(t *testing.T, ctx context.Context, backend SimBackend, client Client) [32]byte {
+	epochId, err := client.GetNextEpochId()
+	if err != nil {
+		t.Fatalf("could not get next epoch id: %v", err)
+	}
+
+	return epochId
+}
+
 func DelegateStake(t *testing.T, ctx context.Context, backend SimBackend, client Client, stakee ethcommon.Address, stakeAmount *big.Int) {
 	_, err := client.ApproveStakingManager(stakeAmount)
 	if err != nil {
@@ -474,7 +483,7 @@ func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.Transac
 		t.Fatalf("could not deploy ticketingParameters: %v", err)
 	}
 
-	_, err = ticketingParameters.Initialize(transactor, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(100))
+	_, err = ticketingParameters.Initialize(transactor, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(20))
 	if err != nil {
 		t.Fatalf("could not initialize ticket contract: %v", err)
 	}
@@ -602,4 +611,62 @@ func GetNode(t *testing.T, client Client) struct {
 		t.Fatalf("could not get node info: %v", err)
 	}
 	return node
+}
+
+func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey, receiver common.Address) (contracts.SyloTicketingTicket, []byte, *big.Int, *big.Int) {
+	latestBlock, err := sender.LatestBlock()
+	if err != nil {
+		t.Fatalf("could not retrieve the latest block: %v", err)
+	}
+
+	epoch, err := sender.GetCurrentActiveEpoch()
+	if err != nil {
+		t.Fatalf("could not retrieve current epoch %v", err)
+	}
+
+	epochId, err := sender.GetEpochId(epoch.Iteration)
+	if err != nil {
+		t.Fatalf("could not retrieve epoch id %v", err)
+	}
+
+	senderRand := big.NewInt(1)
+	var senderCommit [32]byte
+	copy(senderCommit[:], crypto.Keccak256(senderRand.FillBytes(senderCommit[:])))
+
+	redeemerRand := big.NewInt(1)
+	var redeemerCommit [32]byte
+	copy(redeemerCommit[:], crypto.Keccak256(redeemerRand.FillBytes(redeemerCommit[:])))
+
+	ticket := contracts.SyloTicketingTicket{
+		EpochId:         epochId,
+		Sender:          sender.Address(),
+		Redeemer:        receiver,
+		SenderCommit:    senderCommit,
+		RedeemerCommit:  redeemerCommit,
+		GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
+	}
+
+	ticketHash, err := sender.GetTicketHash(ticket)
+	if err != nil {
+		t.Fatalf("could not get ticket hash: %v", err)
+	}
+
+	sig, err := crypto.Sign(ticketHash[:], senderPK)
+	if err != nil {
+		t.Fatalf("could not sign hash: %v", err)
+	}
+	return ticket, sig, senderRand, redeemerRand
+}
+
+func Redeem(t *testing.T, ctx context.Context, backend SimBackend, client Client, ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
+	tx, err := client.Redeem(ticket, senderRand, redeemerRand, sig)
+	if err != nil {
+		t.Fatalf("could not redeem ticket: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
 }

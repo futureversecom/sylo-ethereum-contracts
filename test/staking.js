@@ -6,9 +6,7 @@ const Directory = artifacts.require("Directory");
 const StakingManager = artifacts.require("StakingManager");
 const Token = artifacts.require("SyloToken");
 
-const utils = require('./utils');
-
-contract.only('Staking', accounts => {
+contract('Staking', accounts => {
   let token;
   let stakingManager;
   let directory;
