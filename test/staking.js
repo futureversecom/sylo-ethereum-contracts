@@ -86,6 +86,25 @@ contract('Staking', accounts => {
     );
   });
 
+  it('should be able to join directory', async () => {
+    for (let i = 0; i < accounts.length; i++) {
+      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+    }
+
+    for (let i = 0; i < accounts.length; i++) {
+      await directory.joinDirectory(epochId, { from: accounts[i] });
+    }
+
+    const entries = await directory.getEntries(epochId);
+    for (let i = 0; i < accounts.length; i++) {
+      const addr = entries[0][i];
+      const boun = entries[1][i];
+
+      assert.equal(addr, accounts[i], "Expected account to have been added to directory");
+      assert.equal(boun, i + 1, "Expected boumdary value to be correct incremented");
+    }
+  });
+
   it('should be able to cancel withdraw', async () => {
     await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
     await stakingManager.unlockStake(100, accounts[1], { from: accounts[1] });
@@ -163,18 +182,17 @@ contract('Staking', accounts => {
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
 
-  it('can not join directory without a stake', async () => {
+  it('can not join directory without a stake [ @skip-on-coverage ]', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[1] });
 
     directory.joinDirectory(epochId, { from: accounts[1] })
       .then(() => {
-        assert.fail("Join directory should fail as no epoch");
+        assert.fail("Join directory should fail as no stake for this epoch");
       })
       .catch(e => {
         assert.include(e.message, "Can not join directory for next epoch without any stake");
       })
-
   });
 
   it.skip('excludes nodes from directory without a vote', async () => {
