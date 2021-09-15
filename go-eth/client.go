@@ -276,6 +276,9 @@ func NewClientWithBackend(
 	}
 
 	rewardsManager, err := contracts.NewRewardsManager(addresses.RewardsManager, backend)
+	if err != nil {
+		return nil, err
+	}
 
 	RewardsManagerSession := &contracts.RewardsManagerSession{
 		Contract:     rewardsManager,
