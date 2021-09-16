@@ -380,8 +380,8 @@ contract('Ticketing', accounts => {
   });
 
   it('fails to calim reward for non existent epoch', async () => {
-    rewardsManager.claimReward(
-      '0x0000000000000000000000000000000000000000000000000000000000000000',
+    rewardsManager.claimRewards(
+      ['0x0000000000000000000000000000000000000000000000000000000000000000'],
       accounts[0],
       { from: accounts[0] }
     ).then(() => {
