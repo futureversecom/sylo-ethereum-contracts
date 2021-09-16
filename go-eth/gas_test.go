@@ -127,14 +127,6 @@ func addStakeGas(t *testing.T, ctx context.Context, c *client, amount *big.Int, 
 	return tx.Gas()
 }
 
-func voteGas(t *testing.T, ctx context.Context, c *client, price *big.Int) uint64 {
-	tx, err := c.Vote(price)
-	if err != nil {
-		t.Fatalf("could not vote: %v", err)
-	}
-	return tx.Gas()
-}
-
 func runGasInitializeRewardPool(t *testing.T, tc *gasInitializeRewardPool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
