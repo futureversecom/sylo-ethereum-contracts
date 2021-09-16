@@ -86,6 +86,34 @@ contract('Staking', accounts => {
     );
   });
 
+  it('should be able to correctly determine final stake after multiple operations', async () => {
+    // add 100
+    await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
+    // remove 20
+    await stakingManager.unlockStake(20, accounts[1], { from: accounts[1] });
+    // remove 30
+    await stakingManager.unlockStake(30, accounts[1], { from: accounts[1] });
+    // add 40
+    await stakingManager.cancelUnlocking(40, accounts[1], { from: accounts[1] });
+    // add 35
+    await stakingManager.addStake(35, accounts[1], { from: accounts[1] });
+
+    const operations = await stakingManager.getStakeOperations(accounts[1], accounts[1]);
+    assert.equal(
+      operations.length,
+      5,
+      "Staking manager should track 5 total operations"
+    );
+
+    // final total should be 125
+    const stake = await stakingManager.getCurrentStakerAmount(accounts[1], accounts[1]);
+    assert.equal(
+      stake.toNumber(),
+      125,
+      "Staking manager should correctly fold over stake operations"
+    );
+  })
+
   it('should be able to join directory', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });

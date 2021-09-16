@@ -200,4 +200,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         return stake;
     }
+
+    function getCurrentStakerAmount(address staker, address stakee) public view returns (uint256) {
+        return getStakerAmount(staker, stakee, block.number);
+    }
 }
