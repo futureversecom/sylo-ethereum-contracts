@@ -606,11 +606,16 @@ func GetNode(t *testing.T, client Client) struct {
 	Amount *big.Int
 	Stakee ethcommon.Address
 } {
-	node, err := client.GetStake(client.Address(), client.Address())
+	stake, err := client.GetStakeeTotalStake(client.Address())
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}
-	return node
+	return struct {
+		Amount *big.Int
+		Stakee ethcommon.Address
+	}{
+		stake, client.Address(),
+	}
 }
 
 func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey, receiver common.Address) (contracts.SyloTicketingTicket, []byte, *big.Int, *big.Int) {

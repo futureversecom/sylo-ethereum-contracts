@@ -686,11 +686,11 @@ func TestScan(t *testing.T) {
 }
 
 func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client sylopayments.Client, desc string) {
-	node, err := client.GetStake(client.Address(), client.Address())
+	stake, err := client.GetStakeeTotalStake(client.Address())
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}
-	t.Logf("%s (%v): Stake amount=%v", desc, node.Stakee, node.Amount)
+	t.Logf("%s (%v): Stake amount=%v", desc, client.Address(), stake)
 }
 
 var _ = prettyPrintNodeInfo
