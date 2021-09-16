@@ -33,11 +33,17 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     struct RewardPool {
-        // Tracks the balance of the reward pool as tickets are incremented
-        uint256 balance;
+        // Tracks the balance of the reward pool owed to the stakee
+        uint256 stakeeRewardBalance;
 
-        // Tracks the delegated stakers and their proportions of stake
-        Stake[] stakes;
+        // Tracks the balance of the reward pool owed to the stakers
+        uint256 stakersRewardBalance;
+
+        // Tracks the block number this reward pool was initialized
+        uint256 initializedAt;
+
+        // Tracks any users that have claimed from this pool
+        mapping (address => bool) claimed;
 
         uint256 totalStake;
     }
@@ -67,8 +73,18 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return keccak256(abi.encodePacked(epochId, stakee));
     }
 
+    function getRewardPoolStakeeBalance(bytes32 epochId, address stakee) public view returns (uint256) {
+        return rewardPools[getKey(epochId, stakee)].stakeeRewardBalance;
+    }
+
+    function getRewardPoolStakersBalance(bytes32 epochId, address stakee) public view returns (uint256) {
+        return rewardPools[getKey(epochId, stakee)].stakersRewardBalance;
+    }
+
     function getRewardPoolBalance(bytes32 epochId, address stakee) public view returns (uint256) {
-        return rewardPools[getKey(epochId, stakee)].balance;
+        return
+            getRewardPoolStakeeBalance(epochId, stakee) +
+            getRewardPoolStakersBalance(epochId, stakee);
     }
 
     function getRewardPoolStake(bytes32 epochId, address stakee) public view returns (uint256) {
@@ -83,30 +99,18 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.startBlock > 0, "Epoch does not exist");
 
-        RewardPool memory rewardPool = rewardPools[getKey(epochId, stakee)];
+        RewardPool storage rewardPool = rewardPools[getKey(epochId, stakee)];
 
-        if (rewardPool.balance == 0) {
+        if (rewardPool.stakersRewardBalance == 0) {
             return 0;
         }
 
-        uint256 stake = 0;
-        for (uint i = 0; i < rewardPool.stakes.length; i++) {
-            if (rewardPool.stakes[i].staker == staker) {
-                stake = rewardPool.stakes[i].amount;
-                break;
-            }
-        }
-
+        uint256 stake = _stakingManager.getStakerAmount(staker, stakee, rewardPool.initializedAt);
         if (stake == 0) {
             return 0;
         }
 
-        uint256 delegatorReward = SyloUtils.percOf(
-            uint128(rewardPool.balance),
-            epoch.defaultPayoutPercentage
-        );
-
-        return calculateDelegatorPayout(stake, rewardPool.totalStake, delegatorReward);
+        return calculateDelegatorPayout(stake, rewardPool.totalStake, rewardPool.stakersRewardBalance);
     }
 
     function calculateDelegatorPayout(
@@ -134,61 +138,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             "Reward pool has not been constructed for this epoch"
         );
 
-        rewardPool.balance += amount;
-    }
-
-    /*
-     * This function should be called by the node in order to distribute
-     * the reward accumulated over the epoch.
-     */
-    function distributeReward(bytes32 epochId) public {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
-        require(epoch.startBlock > 0, "Epoch does not exist");
-        require(epoch.endBlock > 0, "Epoch has not yet ended");
-        require(
-            block.number > epoch.endBlock + epoch.ticketDuration,
-            "Can only distribute rewards once all possible tickets have been redeemed"
-            " (epoch.endBlock + epoch.ticketDuration)"
-        );
-
-        bytes32 key = getKey(epochId, msg.sender);
-
-        RewardPool memory rewardPool = rewardPools[key];
-        require(
-            rewardPool.balance > 0,
-            "Can not distribute reward if balance is zero"
-        );
-
-        uint256 delegatorReward = SyloUtils.percOf(
-            uint128(rewardPool.balance),
+        uint256 stakersReward = SyloUtils.percOf(
+            uint128(amount),
             epoch.defaultPayoutPercentage
         );
 
-        uint256 totalDelegatorPayout = 0;
-
-        // Iterate through each delegator and pay them accordingly
-        for (uint i = 0; i < rewardPool.stakes.length; i++) {
-            Stake memory stake = rewardPool.stakes[i];
-
-            uint256 payout = calculateDelegatorPayout(stake.amount, rewardPool.totalStake, delegatorReward);
-
-            // Avoid reverting if the payout is zero, which could
-            // occur if the stake is too low relative to the other stakes
-            if (payout == 0) {
-                continue;
-            }
-
-            _token.transfer(stake.staker, payout);
-            totalDelegatorPayout += payout;
-        }
-
-        // The node is paid out the remaining after paying out the delegated stakers
-        uint256 stakeePayout = rewardPool.balance - totalDelegatorPayout;
-
-        _token.transfer(msg.sender, stakeePayout);
-
-        // The rewards have been reconciled, we can clear the storage for this pool
-        delete rewardPools[key];
+        rewardPool.stakeeRewardBalance += (amount - stakersReward);
+        rewardPool.stakersRewardBalance += stakersReward;
     }
 
     /*
@@ -205,20 +161,54 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.endBlock == 0, "Epoch has already ended");
 
-        address[] memory stakers = _stakingManager.getStakers(msg.sender);
-        require(stakers.length > 0, "Must have stake to intitialize a reward pool");
+        uint256 totalStake = _stakingManager.getStakeeTotalStake(msg.sender);
+        require(totalStake > 0, "Must have stake to intitialize a reward pool");
 
-        // record all stakers for this stakee at the time this reward pool
-        // is initialized
-        for (uint i = 0; i < stakers.length; i++) {
-            uint256 amount = _stakingManager.getStake(stakers[i], msg.sender).amount;
-            rewardPool.stakes.push(Stake(
-                stakers[i],
-                amount
-            ));
+        rewardPool.initializedAt = block.number;
+        rewardPool.totalStake = totalStake;
+    }
+
+    /*
+     * This function should be called by the node in order to distribute
+     * the reward accumulated over the epoch.
+     */
+    function claimReward(bytes32 epochId, address stakee) public {
+        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
+        require(epoch.startBlock > 0, "Epoch does not exist");
+        require(epoch.endBlock > 0, "Epoch has not yet ended");
+        require(
+            block.number > epoch.endBlock + epoch.ticketDuration,
+            "Can only claim rewards once all possible tickets have been redeemed"
+            " (epoch.endBlock + epoch.ticketDuration)"
+        );
+
+        bytes32 key = getKey(epochId, stakee);
+
+        RewardPool storage rewardPool = rewardPools[key];
+        require(
+            rewardPool.stakeeRewardBalance + rewardPool.stakersRewardBalance > 0,
+            "Can not claim reward if balance is zero"
+        );
+        require(
+            rewardPool.claimed[msg.sender] == false,
+            "Can not claim balance more than once"
+        );
+
+        uint256 stake = _stakingManager.getStakerAmount(msg.sender, stakee, rewardPool.initializedAt);
+        require(
+            stake > 0 || msg.sender == stakee,
+            "Must have had stake for this epoch or be the stakee in order to claim reward"
+        );
+
+        uint256 payout = calculateDelegatorPayout(stake, rewardPool.totalStake, rewardPool.stakersRewardBalance);
+
+        if (msg.sender == stakee) {
+            payout += rewardPool.stakeeRewardBalance;
         }
 
-        rewardPool.totalStake = _stakingManager.totalStakes(msg.sender);
+        rewardPool.claimed[msg.sender] = true;
+
+        _token.transfer(msg.sender, payout);
     }
 
     function addManager(address manager) public onlyOwner {

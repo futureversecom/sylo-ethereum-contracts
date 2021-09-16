@@ -10,19 +10,45 @@ import "../Token.sol";
  * Manages stakes and delegated stakes for accounts that wish to be listed
 */
 contract StakingManager is Initializable, OwnableUpgradeable {
+    /* ERC 20 compatible token we are dealing with */
+    IERC20 _token;
+
+    enum StakeOperationType{ ADDSTAKE, UNLOCKSTAKE }
+
+    struct StakeOperation {
+        StakeOperationType _type;
+        uint256 amount;
+
+        // Block number this operation was created at
+        uint256 _block;
+    }
+
+    /*
+     * Every Node must have stake in order to participate in the Epoch.
+     * Stake can be provided by the Node itself or by other accounts in
+     * the network.
+     */
     struct Stake {
-        uint256 amount; // Amount of the stake;
-        address stakee; // Address of peer that offers services;
+        // For each staker associated to a node, we track the historical
+        // changes in their given stake instead of just tracking a
+        // single stake value. This is because other contracts will need
+        // to know the state of a Node's stake at certain points in time.
+        // The stake can be calculated by folding over all of the operations
+        // for a particular stakee up until a specified block number
+        // (refer to `getStakerAmount` for implementation)
+        mapping (address => StakeOperation[]) stakerOperations;
+        uint256 totalStake;
     }
 
     struct Unlock {
         uint256 amount; // Amount of stake unlocking
-
         uint256 unlockAt; // Block number the stake becomes withdrawable
     }
 
-    /* ERC 20 compatible token we are dealing with */
-    IERC20 _token;
+    mapping (address => Stake) stakes;
+
+    /* Tracks overall total stake */
+    uint256 public totalStake;
 
     /*
      * The number of blocks a user must wait after calling "unlock"
@@ -30,26 +56,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      */
     uint256 public unlockDuration;
 
-
-    // Tracks all keys
-    bytes32[] keys;
-
-    // Tracks all stakes
-    mapping(bytes32 => Stake) public stakes;
-
-    // Tracks all addresses staked to a stakee
-    mapping(address => address[]) public stakers;
-
-    // Tracks total stake for each stakee
-    mapping(address => uint256) public totalStakes;
-
-    // Tracks overall total stake
-    uint256 public totalStake;
-
-    // Tracks all stakees
-    address[] public stakees;
-
-    // Tracks funds that are in the process of being unlocked
+    /* Tracks funds that are in the process of being unlocked */
     mapping(bytes32 => Unlock) public unlockings;
 
     function initialize(IERC20 token, uint256 _unlockDuration) public initializer {
@@ -71,65 +78,38 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         require(stakee != address(0), "Address is null");
         require(amount != 0, "Cannot stake nothing");
 
-        address staker = msg.sender;
-        bytes32 key = getKey(staker, stakee);
+        Stake storage stake = stakes[stakee];
 
-        Stake storage stake = stakes[key];
+        stake.stakerOperations[msg.sender].push(
+            StakeOperation(
+                StakeOperationType.ADDSTAKE,
+                amount,
+                block.number
+            )
+        );
 
-        // New stake
-        if (stake.amount == 0) {
-            stakers[stakee].push(staker);
-
-            stake.amount = amount;
-            stake.stakee = stakee;
-        } else {
-            stake.amount += amount;
-        }
-
-        // New stakee
-        if (totalStakes[stakee] == 0) {
-            stakees.push(stakee);
-        }
-
-        totalStakes[stakee] += amount;
-        totalStake += amount;
+        stake.totalStake += amount;
     }
 
     function unlockStake(uint256 amount, address stakee) public returns (uint256) {
+        Stake storage stake = stakes[stakee];
+
+        uint256 currentStake = getStakerAmount(msg.sender, stakee, block.number);
+
+        require(currentStake > 0, "Nothing to unstake");
+        require(currentStake >= amount, "Cannot unlock more than staked");
+
+        stake.stakerOperations[msg.sender].push(
+            StakeOperation(
+                StakeOperationType.UNLOCKSTAKE,
+                amount,
+                block.number
+            )
+        );
+
+        stake.totalStake -= amount;
+
         bytes32 key = getKey(msg.sender, stakee);
-        Stake storage stake = stakes[key];
-
-        require(stake.amount > 0, "Nothing to unstake");
-        require(stake.amount >= amount, "Cannot unlock more than staked");
-
-        stake.amount -= amount;
-
-        if (stake.amount == 0) {
-            delete stakes[key];
-
-            // Also delete the reference to the staker
-            address[] storage _stakers = stakers[stakee];
-            for (uint32 i = 0; i < _stakers.length; i++) {
-                if (_stakers[i] == msg.sender) {
-                    _stakers[i] = _stakers[_stakers.length - 1];
-                    _stakers.pop();
-                    break;
-                }
-            }
-        }
-
-        totalStakes[stakee] -= amount;
-        totalStake -= amount;
-
-        if (totalStake == 0) {
-            for (uint32 i = 0; i < stakees.length; i++) {
-                if (stakees[i] == stakee) {
-                    stakees[i] = stakees[stakees.length - 1];
-                    stakees.pop();
-                    break;
-                }
-            }
-        }
 
         // Keep track of when the stake can be withdrawn
         Unlock storage unlock = unlockings[key];
@@ -182,19 +162,42 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         return keccak256(abi.encodePacked(staker, stakee));
     }
 
-    function getCountOfStakees() public view returns (uint count) {
-        return stakees.length;
-    }
-
     function getTotalStake() public view returns (uint256) {
         return totalStake;
     }
 
-    function getStake(address staker, address stakee) public view returns (Stake memory) {
-        return stakes[getKey(staker, stakee)];
+    function getStakeOperations(address staker, address stakee) public view returns (StakeOperation[] memory) {
+        return stakes[stakee].stakerOperations[staker];
     }
 
-    function getStakers(address stakee) public view returns (address[] memory) {
-        return stakers[stakee];
+    function getStakeeTotalStake(address stakee) public view returns (uint256) {
+        return stakes[stakee].totalStake;
+    }
+
+    /*
+     * Helper function that returns the total stake for a staker at a given block.
+     * It will fold over all historical operations up to the specified block,
+     * and return the final value.
+     */
+    function getStakerAmount(address staker, address stakee, uint blockNumber) public view returns (uint256) {
+        StakingManager.StakeOperation[] memory operations = getStakeOperations(staker, stakee);
+        uint256 stake = 0;
+
+        for (uint i = 0; i < operations.length; i++) {
+            StakingManager.StakeOperation memory op = operations[i];
+
+            // We have folded over all operations prior to the specified block
+            if (op._block > blockNumber) {
+                break;
+            }
+
+            if (op._type == StakeOperationType.ADDSTAKE) {
+                stake += op.amount;
+            } else if (op._type == StakeOperationType.UNLOCKSTAKE) {
+                stake -= op.amount;
+            }
+        }
+
+        return stake;
     }
 }
