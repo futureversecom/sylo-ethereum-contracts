@@ -65,13 +65,13 @@ func TestGasIniitializeRewardPool(t *testing.T) {
 	writeJsonOutput(t, b, "testdata/gasInitializeRewardPool.json")
 }
 
-type gasDistributeReward struct {
+type gasClaimReward struct {
 	DelegatedStakers uint64 `json:"delegated_stakers"`
 	GasUsed          uint64 `json:"gas_used"`
 }
 
-func TestGasDistributeReward(t *testing.T) {
-	tcs := []*gasDistributeReward{
+func TestGasClaimReward(t *testing.T) {
+	tcs := []*gasClaimReward{
 		{DelegatedStakers: 1},
 		{DelegatedStakers: 10},
 		{DelegatedStakers: 50},
@@ -79,7 +79,7 @@ func TestGasDistributeReward(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		runGasDistributeReward(t, tc)
+		runGasClaimReward(t, tc)
 	}
 
 	b, err := json.Marshal(tcs)
@@ -87,32 +87,7 @@ func TestGasDistributeReward(t *testing.T) {
 		t.Fatalf("could not marshal test results: %v", err)
 	}
 
-	writeJsonOutput(t, b, "testdata/gasDistributeRewards.json")
-}
-
-type gasCalculatePricesTest struct {
-	Nodes   uint64 `json:"voters"`
-	GasUsed uint64 `json:"gas_used"`
-}
-
-func TestGasCalculatePrices(t *testing.T) {
-	tcs := []*gasCalculatePricesTest{
-		{Nodes: 1},
-		{Nodes: 100},
-		{Nodes: 200},
-		{Nodes: 300},
-	}
-
-	for _, tc := range tcs {
-		runGasCalculatePrices(t, tc)
-	}
-
-	b, err := json.Marshal(tcs)
-	if err != nil {
-		t.Fatalf("could not marshal test results: %v", err)
-	}
-
-	writeJsonOutput(t, b, "testdata/gasCalculatePricesOut.json")
+	writeJsonOutput(t, b, "testdata/gasClaimRewards.json")
 }
 
 func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
@@ -160,27 +135,6 @@ func voteGas(t *testing.T, ctx context.Context, c *client, price *big.Int) uint6
 	return tx.Gas()
 }
 
-func runGasCalculatePrices(t *testing.T, tc *gasCalculatePricesTest) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	backend, addresses, faucet, owner := StartupEthereum(t, ctx)
-
-	// populate stakes and votes
-	for i := uint64(0); i < tc.Nodes; i++ {
-		c, _ := CreateRandomClient(t, ctx, backend, addresses)
-		faucet(t, c.Address(), OneEth, big.NewInt(1000000))
-		approveStakingManager(t, ctx, c, big.NewInt(100))
-		addStakeGas(t, ctx, c, big.NewInt(100), c.Address())
-		voteGas(t, ctx, c, big.NewInt(1))
-		backend.Commit()
-	}
-
-	tx := CalculatePrices(t, ctx, backend, owner)
-
-	tc.GasUsed = tx.Gas()
-}
-
 func runGasInitializeRewardPool(t *testing.T, tc *gasInitializeRewardPool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -211,7 +165,7 @@ func runGasInitializeRewardPool(t *testing.T, tc *gasInitializeRewardPool) {
 	tc.GasUsed = tx.Gas()
 }
 
-func runGasDistributeReward(t *testing.T, tc *gasDistributeReward) {
+func runGasClaimReward(t *testing.T, tc *gasClaimReward) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -265,7 +219,7 @@ func runGasDistributeReward(t *testing.T, tc *gasDistributeReward) {
 	}
 
 	// distribute rewards
-	tx, err := node.DistributeReward(epochId)
+	tx, err := node.ClaimReward(epochId, node.Address())
 	if err != nil {
 		t.Fatalf("failed to distribute rewards: %v", err)
 	}

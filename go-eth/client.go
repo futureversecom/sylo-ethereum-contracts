@@ -69,17 +69,14 @@ type Client interface {
 
 	// StakingManager methods
 
-	Stakes(key [32]byte) (struct {
-		Amount *big.Int
-		Stakee ethcommon.Address
-	}, error)
 	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	UnlockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	CancelUnlocking(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	WithdrawStake(account ethcommon.Address) (*types.Transaction, error)
-	GetStake(staker ethcommon.Address, stakee ethcommon.Address) (contracts.StakingManagerStake, error)
 	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
+	GetStakeeTotalStake(stakee ethcommon.Address) (*big.Int, error)
+	GetStakerAmount(staker ethcommon.Address, stakee ethcommon.Address, blockNumber *big.Int) (*big.Int, error)
 
 	// Directory methods
 	SetCurrentDirectory(epochId [32]byte) (*types.Transaction, error)
@@ -105,7 +102,7 @@ type Client interface {
 	GetDelegatorOwedAmount(epochId [32]byte, stakee ethcommon.Address, staker ethcommon.Address) (*big.Int, error)
 	IncrementRewardPool(epochId [32]byte, stakee ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	InitializeRewardPool(epochId [32]byte) (*types.Transaction, error)
-	DistributeReward(epochId [32]byte) (*types.Transaction, error)
+	ClaimReward(epochId [32]byte, stakee ethcommon.Address) (*types.Transaction, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 
@@ -315,7 +312,7 @@ func (c *client) ApproveStakingManager(amount *big.Int) (*types.Transaction, err
 }
 
 func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
-	return c.TotalStakes(stakee)
+	return c.GetStakeeTotalStake(stakee)
 }
 
 func (c *client) Withdraw() (*types.Transaction, error) {
