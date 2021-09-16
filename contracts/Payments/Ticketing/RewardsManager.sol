@@ -169,10 +169,24 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     /*
-     * This function should be called by the node in order to distribute
-     * the reward accumulated over the epoch.
+     * This function should be called by the node or staker in order to claim
+     * their rewards accumalted over the specified epochs.
      */
-    function claimReward(bytes32 epochId, address stakee) public {
+    function claimRewards(bytes32[] memory epochIds, address stakee) public {
+        uint256 totalPayout = 0;
+        for (uint i = 0; i < epochIds.length; i++) {
+            uint256 payout = calculateClaim(epochIds[i], stakee);
+            if (payout > 0) {
+                bytes32 key = getKey(epochIds[i], stakee);
+                rewardPools[key].claimed[msg.sender] = true;
+            }
+            totalPayout += payout;
+        }
+
+        _token.transfer(msg.sender, totalPayout);
+    }
+
+    function calculateClaim(bytes32 epochId, address stakee) public view returns (uint256) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.startBlock > 0, "Epoch does not exist");
         require(epoch.endBlock > 0, "Epoch has not yet ended");
@@ -206,9 +220,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             payout += rewardPool.stakeeRewardBalance;
         }
 
-        rewardPool.claimed[msg.sender] = true;
-
-        _token.transfer(msg.sender, payout);
+        return payout;
     }
 
     function addManager(address manager) public onlyOwner {

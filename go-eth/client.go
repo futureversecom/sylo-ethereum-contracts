@@ -102,7 +102,7 @@ type Client interface {
 	GetDelegatorOwedAmount(epochId [32]byte, stakee ethcommon.Address, staker ethcommon.Address) (*big.Int, error)
 	IncrementRewardPool(epochId [32]byte, stakee ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	InitializeRewardPool(epochId [32]byte) (*types.Transaction, error)
-	ClaimReward(epochId [32]byte, stakee ethcommon.Address) (*types.Transaction, error)
+	ClaimRewards(epochId [][32]byte, stakee ethcommon.Address) (*types.Transaction, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 

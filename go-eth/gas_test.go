@@ -219,7 +219,7 @@ func runGasClaimReward(t *testing.T, tc *gasClaimReward) {
 	}
 
 	// distribute rewards
-	tx, err := node.ClaimReward(epochId, node.Address())
+	tx, err := node.ClaimRewards([][32]byte{epochId}, node.Address())
 	if err != nil {
 		t.Fatalf("failed to distribute rewards: %v", err)
 	}

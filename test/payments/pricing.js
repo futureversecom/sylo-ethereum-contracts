@@ -6,7 +6,7 @@ const Token = artifacts.require("SyloToken");
 
 const utils = require('../utils');
 
-contract('Pricing', accounts => {
+contract.skip('Pricing', accounts => {
   let priceManager;
   let priceVoting;
   let token;
