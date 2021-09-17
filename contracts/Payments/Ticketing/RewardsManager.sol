@@ -162,7 +162,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         require(epoch.endBlock == 0, "Epoch has already ended");
 
         uint256 totalStake = _stakingManager.getStakeeTotalStake(msg.sender);
-        require(totalStake > 0, "Must have stake to intitialize a reward pool");
+        require(totalStake > 0, "Must have stake to initialize a reward pool");
 
         rewardPool.initializedAt = block.number;
         rewardPool.totalStake = totalStake;
