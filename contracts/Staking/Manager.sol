@@ -13,13 +13,9 @@ contract StakingManager is Initializable, OwnableUpgradeable {
     /* ERC 20 compatible token we are dealing with */
     IERC20 _token;
 
-    enum StakeOperationType{ ADDSTAKE, UNLOCKSTAKE }
-
-    struct StakeOperation {
-        StakeOperationType _type;
+    struct StakeEntry {
         uint256 amount;
-
-        // Block number this operation was created at
+        // Block number this entry was created at
         uint256 _block;
     }
 
@@ -33,10 +29,11 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         // changes in their given stake instead of just tracking a
         // single stake value. This is because other contracts will need
         // to know the state of a Node's stake at certain points in time.
-        // The stake can be calculated by folding over all of the operations
-        // for a particular stakee up until a specified block number
+        // The amount of stake a staker held at a specific block number can be
+        // found by finding the most recent entry prior to the specified block.
         // (refer to `getStakerAmount` for implementation)
-        mapping (address => StakeOperation[]) stakerOperations;
+        mapping (address => StakeEntry[]) stakeEntries;
+
         uint256 totalStake;
     }
 
@@ -80,10 +77,11 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         Stake storage stake = stakes[stakee];
 
-        stake.stakerOperations[msg.sender].push(
-            StakeOperation(
-                StakeOperationType.ADDSTAKE,
-                amount,
+        uint256 currentStake = getCurrentStakerAmount(msg.sender, stakee);
+
+        stake.stakeEntries[msg.sender].push(
+            StakeEntry(
+                currentStake + amount,
                 block.number
             )
         );
@@ -94,15 +92,14 @@ contract StakingManager is Initializable, OwnableUpgradeable {
     function unlockStake(uint256 amount, address stakee) public returns (uint256) {
         Stake storage stake = stakes[stakee];
 
-        uint256 currentStake = getStakerAmount(msg.sender, stakee, block.number);
+        uint256 currentStake = getCurrentStakerAmount(msg.sender, stakee);
 
         require(currentStake > 0, "Nothing to unstake");
         require(currentStake >= amount, "Cannot unlock more than staked");
 
-        stake.stakerOperations[msg.sender].push(
-            StakeOperation(
-                StakeOperationType.UNLOCKSTAKE,
-                amount,
+        stake.stakeEntries[msg.sender].push(
+            StakeEntry(
+                currentStake - amount,
                 block.number
             )
         );
@@ -166,8 +163,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         return totalStake;
     }
 
-    function getStakeOperations(address staker, address stakee) public view returns (StakeOperation[] memory) {
-        return stakes[stakee].stakerOperations[staker];
+    function getStakeEntries(address staker, address stakee) public view returns (StakeEntry[] memory) {
+        return stakes[stakee].stakeEntries[staker];
     }
 
     function getStakeeTotalStake(address stakee) public view returns (uint256) {
@@ -175,30 +172,42 @@ contract StakingManager is Initializable, OwnableUpgradeable {
     }
 
     /*
-     * Helper function that returns the total stake for a staker at a given block.
-     * It will fold over all historical operations up to the specified block,
-     * and return the final value.
+     * Helper function that finds the stake amount for a staker at a given block.
+     * It will search through the historical entries up to the specified block,
+     * and return the previous value.
      */
     function getStakerAmount(address staker, address stakee, uint blockNumber) public view returns (uint256) {
-        StakingManager.StakeOperation[] memory operations = getStakeOperations(staker, stakee);
-        uint256 stake = 0;
+        uint256 length = stakes[stakee].stakeEntries[staker].length;
+        if (length == 0) {
+            return 0;
+        }
 
-        for (uint i = 0; i < operations.length; i++) {
-            StakingManager.StakeOperation memory op = operations[i];
+        uint256 l = 0;
+        uint256 r = stakes[stakee].stakeEntries[staker].length - 1;
 
-            // We have folded over all operations prior to the specified block
-            if (op._block > blockNumber) {
-                break;
-            }
+        StakeEntry memory end = stakes[stakee].stakeEntries[staker][r];
+        if (end._block <= blockNumber) {
+            return end.amount;
+        }
 
-            if (op._type == StakeOperationType.ADDSTAKE) {
-                stake += op.amount;
-            } else if (op._type == StakeOperationType.UNLOCKSTAKE) {
-                stake -= op.amount;
+        // since the entries are sorted by block number, we can perform
+        // a binary search to optimize the gas cost
+        while (l <= r) {
+            uint index = (l + r) / 2;
+
+            uint lower = index == 0 ? 0 : stakes[stakee].stakeEntries[staker][index - 1]._block;
+            uint upper = stakes[stakee].stakeEntries[staker][index]._block;
+
+            if (blockNumber >= lower && blockNumber < upper) {
+                return stakes[stakee].stakeEntries[staker][index - 1].amount;
+            } else if (blockNumber < lower) {
+                r = index - 1;
+            } else if (blockNumber >= upper) {
+                l = index + 1;
             }
         }
 
-        return stake;
+        return 0;
     }
 
     function getCurrentStakerAmount(address staker, address stakee) public view returns (uint256) {

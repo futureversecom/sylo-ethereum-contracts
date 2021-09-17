@@ -86,7 +86,7 @@ contract('Staking', accounts => {
     );
   });
 
-  it('should be able to correctly determine final stake after multiple operations', async () => {
+  it('should be able to correctly determine final stake after multiple changes', async () => {
     // add 100
     await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
     // remove 20
@@ -98,11 +98,11 @@ contract('Staking', accounts => {
     // add 35
     await stakingManager.addStake(35, accounts[1], { from: accounts[1] });
 
-    const operations = await stakingManager.getStakeOperations(accounts[1], accounts[1]);
+    const entries = await stakingManager.getStakeEntries(accounts[1], accounts[1]);
     assert.equal(
-      operations.length,
+      entries.length,
       5,
-      "Staking manager should track 5 total operations"
+      "Staking manager should track 5 total entries"
     );
 
     // final total should be 125
@@ -110,41 +110,28 @@ contract('Staking', accounts => {
     assert.equal(
       stake.toNumber(),
       125,
-      "Staking manager should correctly fold over stake operations"
+      "Staking manager should correctly determine final stake amount"
     );
-  })
-
-  it('should be able to join directory', async () => {
-    for (let i = 0; i < accounts.length; i++) {
-      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
-    }
-
-    for (let i = 0; i < accounts.length; i++) {
-      await directory.joinDirectory(epochId, { from: accounts[i] });
-    }
-
-    const entries = await directory.getEntries(epochId);
-    for (let i = 0; i < accounts.length; i++) {
-      const addr = entries[0][i];
-      const boun = entries[1][i];
-
-      assert.equal(addr, accounts[i], "Expected account to have been added to directory");
-      assert.equal(boun, i + 1, "Expected boumdary value to be correct incremented");
-    }
   });
 
-  it('should be able to cancel withdraw', async () => {
-    await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
-    await stakingManager.unlockStake(100, accounts[1], { from: accounts[1] });
-    await stakingManager.cancelUnlocking(50, accounts[1], { from: accounts[1] });
+  it('should be able to correctly find the stake at a specified block number', async () => {
+    // let's create 100 entries
+    for (let i = 0; i < 100; i++) {
+      await stakingManager.addStake(10, accounts[1], { from: accounts[1] });
+    }
 
-    const key = await stakingManager.getKey(accounts[1], accounts[1]);
-    let unlocking = await stakingManager.unlockings(key);
-    assert.equal(unlocking.amount.toNumber(), 50, 'Expected 50 of the unlocking amount to be cancelled');
+    const entries = await stakingManager.getStakeEntries(accounts[1], accounts[1]);
 
-    await stakingManager.cancelUnlocking(50, accounts[1], { from: accounts[1] });
-    unlocking = await stakingManager.unlockings(key);
-    assert.equal(unlocking.amount.toNumber(), 0, 'Expected entire unlocking amount to be cancelled');
+    for (let i = 0; i < 100; i++) {
+      // the contract will perform a binary search
+      // let's check the search will always correctly land on the right entry
+      const stake = await stakingManager.getStakerAmount(accounts[1], accounts[1], entries[i]._block);
+      assert.equal(
+        stake,
+        entries[i].amount,
+        "Staking manager should correctly find stake"
+      );
+    }
   });
 
   it('should be able to scan', async () => {

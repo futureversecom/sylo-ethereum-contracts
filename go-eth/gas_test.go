@@ -65,13 +65,13 @@ func TestGasIniitializeRewardPool(t *testing.T) {
 	writeJsonOutput(t, b, "testdata/gasInitializeRewardPool.json")
 }
 
-type gasClaimReward struct {
+type gasClaimRewardMultipleStakers struct {
 	DelegatedStakers uint64 `json:"delegated_stakers"`
 	GasUsed          uint64 `json:"gas_used"`
 }
 
 func TestGasClaimReward(t *testing.T) {
-	tcs := []*gasClaimReward{
+	tcs := []*gasClaimRewardMultipleStakers{
 		{DelegatedStakers: 1},
 		{DelegatedStakers: 10},
 		{DelegatedStakers: 50},
@@ -87,7 +87,57 @@ func TestGasClaimReward(t *testing.T) {
 		t.Fatalf("could not marshal test results: %v", err)
 	}
 
-	writeJsonOutput(t, b, "testdata/gasClaimRewards.json")
+	writeJsonOutput(t, b, "testdata/gasClaimRewardMultipleStakers.json")
+}
+
+type gasClaimRewardMultipleEntries struct {
+	Entries uint64 `json:"operations"`
+	GasUsed uint64 `json:"gas_used"`
+}
+
+func TestGasClaimRewardMultipleEntries(t *testing.T) {
+	tcs := []*gasClaimRewardMultipleEntries{
+		{Entries: 1},
+		{Entries: 10},
+		{Entries: 50},
+		{Entries: 100},
+	}
+
+	for _, tc := range tcs {
+		runGasClaimRewardMultipleEntries(t, tc)
+	}
+
+	b, err := json.Marshal(tcs)
+	if err != nil {
+		t.Fatalf("could not marshal test results: %v", err)
+	}
+
+	writeJsonOutput(t, b, "testdata/gasClaimRewardsMultipleEntries.json")
+}
+
+type gasClaimRewardMultipleEpochs struct {
+	Epochs  uint64 `json:"epochs"`
+	GasUsed uint64 `json:"gas_used"`
+}
+
+func TestGasClaimRewardMultipleEpochs(t *testing.T) {
+	tcs := []*gasClaimRewardMultipleEpochs{
+		{Epochs: 1},
+		{Epochs: 10},
+		{Epochs: 50},
+		{Epochs: 100},
+	}
+
+	for _, tc := range tcs {
+		runGasClaimRewardMultipleEpochs(t, tc)
+	}
+
+	b, err := json.Marshal(tcs)
+	if err != nil {
+		t.Fatalf("could not marshal test results: %v", err)
+	}
+
+	writeJsonOutput(t, b, "testdata/gasClaimRewardsMultipleEpochs.json")
 }
 
 func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
@@ -157,7 +207,7 @@ func runGasInitializeRewardPool(t *testing.T, tc *gasInitializeRewardPool) {
 	tc.GasUsed = tx.Gas()
 }
 
-func runGasClaimReward(t *testing.T, tc *gasClaimReward) {
+func runGasClaimReward(t *testing.T, tc *gasClaimRewardMultipleStakers) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -212,6 +262,122 @@ func runGasClaimReward(t *testing.T, tc *gasClaimReward) {
 
 	// distribute rewards
 	tx, err := node.ClaimRewards([][32]byte{epochId}, node.Address())
+	if err != nil {
+		t.Fatalf("failed to distribute rewards: %v", err)
+	}
+	tc.GasUsed = tx.Gas()
+}
+
+func runGasClaimRewardMultipleEntries(t *testing.T, tc *gasClaimRewardMultipleEntries) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	backend, addresses, faucet, owner := StartupEthereum(t, ctx)
+
+	node, _ := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, node.Address(), OneEth, big.NewInt(1000000))
+
+	List(t, ctx, backend, node, "0", big.NewInt(1))
+
+	for i := uint64(0); i < tc.Entries; i++ {
+		Stake(t, ctx, backend, node, big.NewInt(100))
+	}
+
+	epochId := GetNextEpochId(t, ctx, backend, node)
+
+	// join directory and initialize reward pool
+	JoinDirectory(epochId, t, ctx, backend, node)
+	InitializeRewardPool(epochId, t, ctx, backend, node)
+
+	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	if err != nil {
+		t.Fatalf("could not transfer directory ownership: %v", err)
+	}
+	InitializeEpoch(t, ctx, backend, owner)
+
+	// set up sender
+	sender, senderPK := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, sender.Address(), OneEth, big.NewInt(100000))
+	AddEscrow(t, ctx, backend, sender, big.NewInt(1000))
+	AddPenalty(t, ctx, backend, sender, big.NewInt(1000))
+
+	backend.Commit()
+
+	// increment reward pool
+	for i := 0; i < 10; i++ {
+		ticket, sig, senderRand, nodeRand := CreateWinningTicket(t, sender, senderPK, node.Address())
+		Redeem(t, ctx, backend, node, ticket, senderRand, nodeRand, sig)
+	}
+
+	// end current epoch
+	InitializeEpoch(t, ctx, backend, owner)
+	// advance until tickets expire
+	for i := 0; i < 20; i++ {
+		backend.Commit()
+	}
+
+	// claim rewards
+	tx, err := node.ClaimRewards([][32]byte{epochId}, node.Address())
+	if err != nil {
+		t.Fatalf("failed to distribute rewards: %v", err)
+	}
+	tc.GasUsed = tx.Gas()
+}
+
+func runGasClaimRewardMultipleEpochs(t *testing.T, tc *gasClaimRewardMultipleEpochs) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	backend, addresses, faucet, owner := StartupEthereum(t, ctx)
+
+	node, _ := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, node.Address(), OneEth, big.NewInt(1000000))
+
+	List(t, ctx, backend, node, "0", big.NewInt(1))
+
+	Stake(t, ctx, backend, node, big.NewInt(100))
+
+	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	if err != nil {
+		t.Fatalf("could not transfer directory ownership: %v", err)
+	}
+
+	// set up sender
+	sender, senderPK := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, sender.Address(), OneEth, big.NewInt(100000))
+	AddEscrow(t, ctx, backend, sender, big.NewInt(10000))
+	AddPenalty(t, ctx, backend, sender, big.NewInt(10000))
+
+	epochIds := [][32]byte{}
+
+	for i := uint64(0); i < tc.Epochs; i++ {
+		epochId := GetNextEpochId(t, ctx, backend, node)
+		epochIds = append(epochIds, epochId)
+
+		// join directory and initialize reward pool
+		JoinDirectory(epochId, t, ctx, backend, node)
+		InitializeRewardPool(epochId, t, ctx, backend, node)
+
+		InitializeEpoch(t, ctx, backend, owner)
+
+		backend.Commit()
+
+		// increment reward pool
+		for i := 0; i < 10; i++ {
+			ticket, sig, senderRand, nodeRand := CreateWinningTicket(t, sender, senderPK, node.Address())
+			Redeem(t, ctx, backend, node, ticket, senderRand, nodeRand, sig)
+		}
+
+		// end current epoch
+		InitializeEpoch(t, ctx, backend, owner)
+		// advance until tickets expire
+		for i := 0; i < 20; i++ {
+			backend.Commit()
+		}
+	}
+
+	// claim rewards
+	tx, err := node.ClaimRewards(epochIds, node.Address())
 	if err != nil {
 		t.Fatalf("failed to distribute rewards: %v", err)
 	}

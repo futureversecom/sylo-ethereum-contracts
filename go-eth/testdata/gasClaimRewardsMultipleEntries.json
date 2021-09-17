@@ -1,0 +1,18 @@
+[
+  {
+    "operations": 1,
+    "gas_used": 112818
+  },
+  {
+    "operations": 10,
+    "gas_used": 112818
+  },
+  {
+    "operations": 50,
+    "gas_used": 112818
+  },
+  {
+    "operations": 100,
+    "gas_used": 112818
+  }
+]
