@@ -49,15 +49,12 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     uint256 public epochDuration;
 
     // Increment this value as each epoch is intialized.
-    // This value is also used to deterministically determine the
-    // next epoch identifier.
-    uint256 currentIteration;
+    // The iteration is also used as the epoch's identifier.
+    uint256 public currentIteration;
 
-    bytes32 public currentActiveEpoch;
+    mapping (uint256 => Epoch) epochs;
 
-    mapping (bytes32 => Epoch) epochs;
-
-    event NewEpoch(bytes32 epochId);
+    event NewEpoch(uint256 epochId);
 
     function initialize(
         Directory directory,
@@ -72,8 +69,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         epochDuration = _epochDuration;
     }
 
-    function initializeEpoch() public returns (bytes32) {
-        Epoch storage current = epochs[currentActiveEpoch];
+    function initializeEpoch() public returns (uint256) {
+        Epoch storage current = epochs[currentIteration];
 
         uint256 end = current.startBlock + current.duration;
         require(end <= block.number, "Current epoch has not yet ended");
@@ -93,7 +90,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             _ticketingParameters.decayRate()
         );
 
-        bytes32 epochId = getNextEpochId();
+        uint256 epochId = getNextEpochId();
 
         _directory.setCurrentDirectory(epochId);
 
@@ -101,7 +98,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         current.endBlock = block.number;
 
         currentIteration = nextIteration;
-        currentActiveEpoch = epochId;
 
         emit NewEpoch(epochId);
 
@@ -109,20 +105,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     function getCurrentActiveEpoch() public view returns (Epoch memory epoch) {
-        return epochs[currentActiveEpoch];
+        return epochs[currentIteration];
     }
 
-    function getEpochId(uint256 iteration) public pure returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(iteration)
-        );
+    function getNextEpochId() public view returns (uint256) {
+        return currentIteration + 1;
     }
 
-    function getNextEpochId() public view returns (bytes32) {
-        return getEpochId(currentIteration + 1);
-    }
-
-    function getEpoch(bytes32 epochId) public view returns (Epoch memory) {
+    function getEpoch(uint256 epochId) public view returns (Epoch memory) {
         return epochs[epochId];
     }
 }

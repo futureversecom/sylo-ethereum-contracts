@@ -32,10 +32,10 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 totalStake;
     }
 
-    bytes32 public currentDirectory;
+    uint256 public currentDirectory;
 
     // Directories are indexed by the associated epoch's id
-    mapping (bytes32 => Directory) directories;
+    mapping (uint256 => Directory) directories;
 
     function initialize(
         StakingManager stakingManager
@@ -44,7 +44,7 @@ contract Directory is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
     }
 
-    function setCurrentDirectory(bytes32 epochId) public onlyOwner {
+    function setCurrentDirectory(uint256 epochId) public onlyOwner {
         currentDirectory = epochId;
     }
 
@@ -68,7 +68,7 @@ contract Directory is Initializable, OwnableUpgradeable {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
-    function joinDirectory(bytes32 epochId) public {
+    function joinDirectory(uint256 epochId) public {
         address stakee = msg.sender;
 
         uint totalStake = _stakingManager.getStakeeTotalStake(stakee);
@@ -117,15 +117,15 @@ contract Directory is Initializable, OwnableUpgradeable {
         return address(0);
     }
 
-    function getTotalStakeForStakee(bytes32 epochId, address stakee) public view returns (uint256) {
+    function getTotalStakeForStakee(uint256 epochId, address stakee) public view returns (uint256) {
         return directories[epochId].stakes[stakee];
     }
 
-    function getTotalStake(bytes32 epochId) public view returns (uint256) {
+    function getTotalStake(uint256 epochId) public view returns (uint256) {
         return directories[epochId].totalStake;
     }
 
-    function getEntries(bytes32 epochId) public view returns (address[] memory, uint256[] memory) {
+    function getEntries(uint256 epochId) public view returns (address[] memory, uint256[] memory) {
         address[] memory stakees = new address[](directories[epochId].entries.length);
         uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);
         for (uint i = 0; i < directories[epochId].entries.length; i++) {

@@ -29,7 +29,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     }
 
     struct Ticket {
-        bytes32 epochId; // The epoch this ticket is associated with
+        uint256 epochId; // The epoch this ticket is associated with
         address sender; // Address of the ticket sender
         address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
@@ -297,7 +297,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     }
 
     function incrementRewardPool(
-        bytes32 epochId,
+        uint256 epochId,
         address stakee,
         Deposit storage deposit,
         uint256 amount
