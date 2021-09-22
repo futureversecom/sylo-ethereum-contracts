@@ -43,7 +43,7 @@ contract PriceManager is Initializable, OwnableUpgradeable {
     ) internal onlyOwner returns (uint256 servicePrice, uint256 upperPrice) {
         // We can safely cast total stake to 128 bits here as all Sylo Tokens
         // would fit within 94 bits
-        uint128 totalStake = uint128(_stakingManager.totalStake());
+        uint128 totalStake = uint128(_stakingManager.totalManagedStake());
 
         uint256 lowerBoundary = SyloUtils.percOf(totalStake, LOWER_QUARTILE_PERC);
         uint256 upperBoundary = SyloUtils.percOf(totalStake, UPPER_BOUNDARY_PERC);
@@ -53,7 +53,7 @@ contract PriceManager is Initializable, OwnableUpgradeable {
         // Iterate through the votes, and accumalate each voter's stake
         // until we have crossed 25% of the total stake
         for (uint i = 0; i < sortedVotes.length; i++) {
-            uint256 stake = _stakingManager.getStakeeTotalStake(sortedVotes[i].voter);
+            uint256 stake = _stakingManager.getStakeeTotalManagedStake(sortedVotes[i].voter);
 
             // Only consider nodes with a valid stake
             if (stake == 0) {
@@ -78,7 +78,7 @@ contract PriceManager is Initializable, OwnableUpgradeable {
         // Iterate through the votes starting from the end, and
         // substract each stake until we cross the upper boundary
         for (uint i = sortedVotes.length; i > 0; i--) {
-            uint256 stake = _stakingManager.getStakeeTotalStake(sortedVotes[i - 1].voter);
+            uint256 stake = _stakingManager.getStakeeTotalManagedStake(sortedVotes[i - 1].voter);
 
             // Only consider nodes with a valid stake
             if (stake == 0) {

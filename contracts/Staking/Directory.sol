@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "./Manager.sol";
 import "../Payments/Pricing/Manager.sol";
 import "../Payments/Pricing/Voting.sol";
+import "../Payments/Ticketing/RewardsManager.sol";
 import "../Utils.sol";
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -18,6 +19,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 contract Directory is Initializable, OwnableUpgradeable {
     /* Sylo Staking Manager contract */
     StakingManager _stakingManager;
+
+    /* Sylo Rewards Manager contract */
+    RewardsManager _rewardsManager;
 
     struct DirectoryEntry {
         address stakee;
@@ -38,10 +42,12 @@ contract Directory is Initializable, OwnableUpgradeable {
     mapping (uint256 => Directory) directories;
 
     function initialize(
-        StakingManager stakingManager
+        StakingManager stakingManager,
+        RewardsManager rewardsManager
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _stakingManager = stakingManager;
+        _rewardsManager = rewardsManager;
     }
 
     function setCurrentDirectory(uint256 epochId) public onlyOwner {
@@ -71,7 +77,9 @@ contract Directory is Initializable, OwnableUpgradeable {
     function joinDirectory(uint256 epochId) public {
         address stakee = msg.sender;
 
-        uint totalStake = _stakingManager.getStakeeTotalStake(stakee);
+        uint256 managedStake = _stakingManager.getStakeeTotalManagedStake(stakee);
+        uint256 stakeReward = _rewardsManager.unclaimedStakeRewards(stakee);
+        uint256 totalStake = managedStake + stakeReward;
         require(totalStake > 0, "Can not join directory for next epoch without any stake");
 
         require(
@@ -79,7 +87,7 @@ contract Directory is Initializable, OwnableUpgradeable {
             "Can only join the directory once per epoch"
         );
 
-        uint nextBoundary = directories[epochId].totalStake + totalStake;
+        uint256 nextBoundary = directories[epochId].totalStake + totalStake;
 
         directories[epochId].entries.push(DirectoryEntry(stakee, nextBoundary));
         directories[epochId].stakes[stakee] = totalStake;
