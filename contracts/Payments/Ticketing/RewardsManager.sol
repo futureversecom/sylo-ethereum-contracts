@@ -35,6 +35,9 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     /* For every node, track their most recently initialized reward pool */
     mapping (address => uint256) public latestActiveRewardPools;
 
+    /* For every delegated staker a node has, track the last epoch they made a claim in */
+    mapping (bytes32 => uint256) public lastClaims;
+
     struct RewardPool {
         // Tracks the balance of the reward pool owed to the stakers
         uint256 stakersRewardTotal;
@@ -42,20 +45,16 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // Tracks the block number this reward pool was initialized
         uint256 initializedAt;
 
-        // stake at the time this reward pool was initialized
-        uint256 totalStake;
-
         // The total active stake for the node for will be the sum of the
         // stakes owned by its delegators plus the value of the unclaimed
         // staker rewards at the time this pool was initialized
         uint256 totalActiveStake;
 
-        // track the cumulative reward factor as a quadruple precision value
-        bytes16 cumulativeRewardFactor;
+        // track the cumulative reward factor as of the time the pool was initialized
+        bytes16 initialCumulativeRewardFactor;
 
-        // track the preceeding reward pool in order to be able query the previous
-        // cumulative reward factor
-        uint256 previousIteration;
+        // track the cumulative reward factor as a quadruple precision floating point value
+        bytes16 cumulativeRewardFactor;
     }
 
     // Reward Pools are indexed by a key that is derived from the epochId and the stakee's address
@@ -83,7 +82,15 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return keccak256(abi.encodePacked(epochId, stakee));
     }
 
-    function getRewardPool(uint256 epochId, address stakee) internal view returns (RewardPool storage) {
+    function getStakerKey(address stakee, address staker) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(stakee, staker));
+    }
+
+    function getLastClaim(address stakee, address staker) public view returns(uint256) {
+        return lastClaims[getStakerKey(stakee, staker)];
+    }
+
+    function getRewardPool(uint256 epochId, address stakee) public view returns (RewardPool memory) {
         return rewardPools[getKey(epochId, stakee)];
     }
 
@@ -91,15 +98,22 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return rewardPools[getKey(epochId, stakee)].stakersRewardTotal;
     }
 
-    function getRewardPoolStake(uint256 epochId, address stakee) public view returns (uint256) {
-        return rewardPools[getKey(epochId, stakee)].totalStake;
+    function getRewardPoolActiveStake(uint256 epochId, address stakee) public view returns (uint256) {
+        return rewardPools[getKey(epochId, stakee)].totalActiveStake;
+    }
+
+    function getUnclaimedNodeReward(address stakee) public view returns (uint256) {
+        return unclaimedNodeRewards[stakee];
+    }
+
+    function getUnclaimedStakeReward(address stakee) public view returns (uint256) {
+        return unclaimedStakeRewards[stakee];
     }
 
     function initializeNextRewardPool() public {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
-        bytes32 key = getKey(nextEpochId, msg.sender);
 
-        RewardPool storage nextRewardPool = rewardPools[key];
+        RewardPool storage nextRewardPool = rewardPools[getKey(nextEpochId, msg.sender)];
         require(
             nextRewardPool.initializedAt == 0,
             "The next reward pool has already been initialized"
@@ -114,7 +128,11 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // active stake total
         nextRewardPool.totalActiveStake = totalStake + unclaimedStakeRewards[msg.sender];
 
-        nextRewardPool.previousIteration = latestActiveRewardPools[msg.sender];
+        nextRewardPool.initialCumulativeRewardFactor = rewardPools[getKey(
+            latestActiveRewardPools[msg.sender],
+            msg.sender
+        )].cumulativeRewardFactor;
+
         latestActiveRewardPools[msg.sender] = nextEpochId;
     }
 
@@ -133,13 +151,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         uint256 epochId,
         address stakee,
         uint256 amount
-    ) public {
+    ) public onlyManager {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
         require(epoch.startBlock > 0, "Epoch does not exist");
 
         RewardPool storage rewardPool = rewardPools[getKey(epochId, stakee)];
         require(
-            rewardPool.totalStake > 0,
+            rewardPool.totalActiveStake > 0,
             "Reward pool has not been initialized for this epoch"
         );
 
@@ -149,20 +167,16 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         );
 
         // update the value of the reward owed to the node
-        unclaimedNodeRewards[msg.sender] += (amount - stakersReward);
+        unclaimedNodeRewards[stakee] += (amount - stakersReward);
 
         // update the value of the reward owed to the delegated stakers
-        unclaimedStakeRewards[msg.sender] += stakersReward;
+        unclaimedStakeRewards[stakee] += stakersReward;
 
         rewardPool.stakersRewardTotal += stakersReward;
 
-        // update the cumulative reward factor
-        bytes16 previousCumulativeRewardFactor = rewardPools[
-            getKey(rewardPool.previousIteration, msg.sender)
-        ].cumulativeRewardFactor;
-
-        // first epoch node is ever active
-        if (previousCumulativeRewardFactor == 0) {
+        // if this is the first epoch the node is ever active
+        // then we can't rely on the previous crf to calculate the current crf
+        if (rewardPool.initialCumulativeRewardFactor == 0) {
             rewardPool.cumulativeRewardFactor =
                 ABDKMathQuad.div(
                     ABDKMathQuad.fromUInt(rewardPool.stakersRewardTotal),
@@ -170,7 +184,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
                 );
         } else {
             rewardPool.cumulativeRewardFactor = calculatateUpdatedCumulativeRewardFactor(
-                previousCumulativeRewardFactor,
+                rewardPool.initialCumulativeRewardFactor,
                 rewardPool.stakersRewardTotal,
                 rewardPool.totalActiveStake
             );
@@ -178,17 +192,18 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
         // in the case that the ticket was redeemed for a historical epoch,
         // we must update all proceeding cumulative reward factors
-        uint256 latestIteration = latestActiveRewardPools[msg.sender];
+        uint256 latestIteration = latestActiveRewardPools[stakee];
         if (epochId < latestIteration) {
-            previousCumulativeRewardFactor = rewardPool.cumulativeRewardFactor;
+            bytes16 previousCumulativeRewardFactor = rewardPool.cumulativeRewardFactor;
             for (uint i = epochId + 1; i <= latestIteration; i++) {
-                RewardPool storage next = rewardPools[getKey(i, msg.sender)];
+                RewardPool storage next = rewardPools[getKey(i, stakee)];
                 if (next.initializedAt > 0) {
                     bytes16 nextCumulativeRewardFactor = calculatateUpdatedCumulativeRewardFactor(
                         previousCumulativeRewardFactor,
                         next.stakersRewardTotal,
                         next.totalActiveStake
                     );
+                    next.initialCumulativeRewardFactor = previousCumulativeRewardFactor;
                     next.cumulativeRewardFactor = nextCumulativeRewardFactor;
                     previousCumulativeRewardFactor = nextCumulativeRewardFactor;
                 }
@@ -213,7 +228,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         );
     }
 
-    function calculateStakerClaim(address stakee, address staker) public returns (uint256) {
+    function calculateStakerClaim(address stakee, address staker) public view returns (uint256) {
         // The staking manager will track the initial stake that was available prior
         // to becoming active
         StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(stakee, staker);
@@ -222,10 +237,9 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         }
 
         // find the reward pool when their stake became active,
-        // which will be the first reward pool that was initialized after
-        // the epoch their stake was set in
+        // which will be the first reward pool after their last claim
         uint256 activeAt = 0;
-        for (uint i = stakeEntry.epochId + 1; i < _epochsManager.getNextEpochId(); i++) {
+        for (uint i = lastClaims[getStakerKey(stakee, staker)] + 1; i < _epochsManager.getNextEpochId(); i++) {
             RewardPool storage rewardPool = rewardPools[getKey(i, stakee)];
             // check if node initialized a reward pool for this epoch
             if (rewardPool.initializedAt > 0) {
@@ -234,23 +248,43 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             }
         }
 
-        if (activeAt > 0) {
+        if (activeAt == 0) {
             return 0;
         }
 
-        RewardPool storage initialActivePool = getRewardPool(activeAt, stakee);
-        RewardPool storage latestRewardPool = getRewardPool(
-            latestActiveRewardPools[msg.sender], stakee
-        );
+        RewardPool storage initialActivePool = rewardPools[getKey(activeAt, stakee)];
 
-        // calculate their reward using the latest cumulative reward factor
-        // and the initial cumulative reward factor
+        bytes16 initialStake = ABDKMathQuad.fromUInt(stakeEntry.amount);
+        bytes16 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
+
+        // if the staker started staking prior to the node generating any
+        // rewards (initial crf == 0), then we have to manually calculate the proprotion of reward
+        // for the first epoch, and use that value as the initial stake instead
+        if (initialCumulativeRewardFactor == bytes16(0)) {
+            initialStake = ABDKMathQuad.add(
+                initialStake,
+                ABDKMathQuad.mul(
+                    ABDKMathQuad.fromUInt(initialActivePool.stakersRewardTotal),
+                    ABDKMathQuad.div(
+                        initialStake,
+                        ABDKMathQuad.fromUInt(initialActivePool.totalActiveStake)
+                    )
+                )
+            );
+            initialCumulativeRewardFactor = initialActivePool.cumulativeRewardFactor;
+        }
+
+        RewardPool storage latestRewardPool = rewardPools[getKey(
+            latestActiveRewardPools[stakee], stakee
+        )];
+
+        // utilize the cumulative reward factor to calculate their updated stake amount
         uint256 updatedStake = ABDKMathQuad.toUInt(
             ABDKMathQuad.mul(
-                ABDKMathQuad.fromUInt(stakeEntry.amount),
+                initialStake,
                 ABDKMathQuad.div(
                     latestRewardPool.cumulativeRewardFactor,
-                    initialActivePool.cumulativeRewardFactor
+                    initialCumulativeRewardFactor
                 )
             )
         );
@@ -264,6 +298,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         uint256 rewardClaim = calculateStakerClaim(stakee, msg.sender);
         require(rewardClaim > 0, "Nothing to claim");
         unclaimedStakeRewards[stakee] -= rewardClaim;
+        lastClaims[getStakerKey(stakee, msg.sender)] = latestActiveRewardPools[stakee];
         _token.transfer(msg.sender, rewardClaim);
     }
 
@@ -273,7 +308,8 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * update their stake amount.
      */
     function claimStakingRewardsAsManager(address stakee, address staker) public onlyManager {
-        uint256 rewardClaim = calculateStakerClaim(stakee, msg.sender);
+        uint256 rewardClaim = calculateStakerClaim(stakee, staker);
+        lastClaims[getStakerKey(stakee, staker)] = latestActiveRewardPools[stakee];
         if (rewardClaim == 0) {
             return;
         }

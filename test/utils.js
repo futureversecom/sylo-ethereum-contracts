@@ -1,4 +1,98 @@
+const BN = require("bn.js");
 const Token = artifacts.require("SyloToken");
+const TicketingParameters = artifacts.require('TicketingParameters');
+const Ticketing = artifacts.require("SyloTicketing");
+const RewardsManager = artifacts.require("RewardsManager");
+const EpochsManager = artifacts.require("EpochsManager");
+const Directory = artifacts.require("Directory");
+const Listings = artifacts.require("Listings");
+const StakingManager = artifacts.require("StakingManager");
+
+exports.initializeContracts = async function(deployer, tokenAddress, opts = {}) {
+  const payoutPercentage =
+    opts.payoutPercentage ?
+      opts.payoutPercentage :
+      5000;
+
+  const faceValue = opts.faceValue ? opts.faceValue : 15;
+  const baseLiveWinProb =
+    opts.baseLiveWinProb ?
+      opts.baseLiveWinProb :
+      (new BN(2)).pow(new BN(128)).sub(new BN(1)).toString();
+  const expiredWinProb = opts.expiredWinProb ? opts.expiredWinProb : 1000;
+  const decayRate = opts.decayRate ? opts.decayRate : 8000;
+  const ticketDuration = opts.ticketDuration ? opts.ticketDuration : 20;
+
+  const epochDuration = opts.epochDuration ? opts.epochDuration : 30;
+
+  const listings = await Listings.new({ from: deployer });
+  await listings.initialize(payoutPercentage), { from: deployer };
+
+  const ticketingParameters = await TicketingParameters.new({ from: deployer });
+  await ticketingParameters.initialize(
+    faceValue,
+    baseLiveWinProb,
+    expiredWinProb,
+    decayRate,
+    ticketDuration,
+    { from: deployer }
+  );
+
+  const epochsManager = await EpochsManager.new({ from: deployer });
+  const stakingManager = await StakingManager.new({ from: deployer });
+  const rewardsManager = await RewardsManager.new({ from: deployer });
+  const directory = await Directory.new({ from: deployer });
+
+  await stakingManager.initialize(
+    tokenAddress,
+    rewardsManager.address,
+    epochsManager.address,
+    0, { from: deployer }
+  );
+  await rewardsManager.initialize(
+    tokenAddress,
+    stakingManager.address,
+    epochsManager.address,
+    { from: deployer }
+  );
+  await directory.initialize(
+      stakingManager.address,
+      rewardsManager.address,
+    { from: deployer }
+  );
+  await epochsManager.initialize(
+    directory.address,
+    listings.address,
+    ticketingParameters.address,
+    epochDuration,
+    { from: deployer }
+  );
+
+  const ticketing = await Ticketing.new({ from: deployer })
+  await ticketing.initialize(
+    tokenAddress,
+    listings.address,
+    stakingManager.address,
+    directory.address,
+    epochsManager.address,
+    rewardsManager.address,
+    0,
+    { from: deployer }
+  );
+
+  await rewardsManager.addManager(ticketing.address, { from: deployer });
+  await rewardsManager.addManager(stakingManager.address, { from: deployer });
+
+  return {
+    listings,
+    ticketing,
+    ticketingParameters,
+    directory,
+    rewardsManager,
+    epochsManager,
+    stakingManager
+  }
+}
 
 exports.fundRandomAccount = async function(funder, tokenAddress) {
   const acc = web3.eth.accounts.create();
@@ -46,17 +140,20 @@ exports.calculatePrices = async function(priceManager, priceVoting, owner) {
   await priceManager.calculatePrices(sortedIndexes, { from: owner });
 }
 
-exports.advanceBlock = async function() {
-  return await new Promise((resolve, reject) => {
-    web3.currentProvider.send({
-      jsonrpc: '2.0',
-      method: 'evm_mine',
-      id: new Date().getTime()
-    }, (err, result) => {
-      if (err) { return reject(err) }
-      const newBlockHash = web3.eth.getBlock('latest').hash
+exports.advanceBlock = async function(i) {
+  i = i ? i : 1;
+  for (let j = 0; j < i; j++) {
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+        jsonrpc: '2.0',
+        method: 'evm_mine',
+        id: new Date().getTime()
+      }, (err, result) => {
+        if (err) { return reject(err) }
+        const newBlockHash = web3.eth.getBlock('latest').hash
 
-      return resolve(newBlockHash)
-    })
-  })
+        return resolve(newBlockHash)
+      })
+    });
+  }
 }

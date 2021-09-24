@@ -74,13 +74,15 @@ contract Directory is Initializable, OwnableUpgradeable {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
-    function joinDirectory(uint256 epochId) public {
+    function joinNextDirectory() public {
         address stakee = msg.sender;
 
         uint256 managedStake = _stakingManager.getStakeeTotalManagedStake(stakee);
         uint256 stakeReward = _rewardsManager.unclaimedStakeRewards(stakee);
         uint256 totalStake = managedStake + stakeReward;
         require(totalStake > 0, "Can not join directory for next epoch without any stake");
+
+        uint256 epochId = currentDirectory + 1;
 
         require(
             directories[epochId].stakes[stakee] == 0,

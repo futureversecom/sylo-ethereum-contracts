@@ -182,7 +182,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 directoryStake = _directory.getTotalStakeForStakee(ticket.epochId, ticket.redeemer);
         require(directoryStake > 0, "Ticket redeemer must have joined the directory for this epoch");
 
-        uint256 rewardPoolStake = _rewardsManager.getRewardPoolStake(ticket.epochId, ticket.redeemer);
+        uint256 rewardPoolStake = _rewardsManager.getRewardPoolActiveStake(ticket.epochId, ticket.redeemer);
         require(rewardPoolStake > 0, "Ticket redeemer must have initialized their reward pool for this epoch");
 
         rewardRedeemer(epoch, ticket);

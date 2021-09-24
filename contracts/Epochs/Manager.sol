@@ -67,6 +67,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         _listings = listings;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
+        currentIteration = 0;
     }
 
     function initializeEpoch() public returns (uint256) {
