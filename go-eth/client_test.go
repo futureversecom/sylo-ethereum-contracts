@@ -22,7 +22,7 @@ func TestClient(t *testing.T) {
 
 	backend, addresses, faucet, owner := sylopayments.StartupEthereum(t, ctx)
 
-	faceValue := big.NewInt(1)
+	faceValue := big.NewInt(10)
 
 	t.Run("client can be created", func(t *testing.T) {
 		sylopayments.CreateRandomClient(t, ctx, backend, addresses)
@@ -148,13 +148,8 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not transfer directory ownership: %v", err)
 		}
 
-		epochId, err := owner.GetNextEpochId()
-		if err != nil {
-			t.Fatalf("could not get next epoch id: %v", err)
-		}
-
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, bobClient)
-		sylopayments.InitializeRewardPool(epochId, t, ctx, backend, bobClient)
+		sylopayments.JoinNextDirectory(t, ctx, backend, bobClient)
+		sylopayments.InitializeNextRewardPool(t, ctx, backend, bobClient)
 
 		sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
@@ -172,7 +167,12 @@ func TestClient(t *testing.T) {
 			t.Fatalf("could not get deposits for alice: %v", err)
 		}
 
-		rewardPoolBalance, err := bobClient.GetRewardPoolBalance(epochId, bobClient.Address())
+		unclaimedNodeReward, err := bobClient.GetUnclaimedNodeReward(bobClient.Address())
+		if err != nil {
+			t.Fatalf("could not get reward pool for bob: %v", err)
+		}
+
+		unclaimedStakeReward, err := bobClient.GetUnclaimedStakeReward(bobClient.Address())
 		if err != nil {
 			t.Fatalf("could not get reward pool for bob: %v", err)
 		}
@@ -180,8 +180,8 @@ func TestClient(t *testing.T) {
 		if !sylopayments.BigIntsEqual(aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue))) {
 			t.Fatalf("alice's escrow is %v: expected %v", aliceDepositsAfter.Escrow, new(big.Int).Add(aliceDepositsBefore.Escrow, new(big.Int).Neg(faceValue)))
 		}
-		if !sylopayments.BigIntsEqual(rewardPoolBalance, faceValue) {
-			t.Fatalf("bob's reward pool is %v: expected %v", rewardPoolBalance, faceValue)
+		if !sylopayments.BigIntsEqual(unclaimedNodeReward.Add(unclaimedStakeReward, unclaimedStakeReward), faceValue) {
+			t.Fatalf("bob's reward pool is %v: expected %v", unclaimedNodeReward.Add(unclaimedStakeReward, unclaimedStakeReward), faceValue)
 		}
 	})
 
@@ -197,13 +197,8 @@ func TestClient(t *testing.T) {
 
 		sylopayments.DelegateStake(t, ctx, backend, aliceClient, bobClient.Address(), big.NewInt(600))
 
-		epochId, err := owner.GetNextEpochId()
-		if err != nil {
-			t.Fatalf("could not get next epoch id: %v", err)
-		}
-
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, bobClient)
-		sylopayments.InitializeRewardPool(epochId, t, ctx, backend, bobClient)
+		sylopayments.JoinNextDirectory(t, ctx, backend, bobClient)
+		sylopayments.InitializeNextRewardPool(t, ctx, backend, bobClient)
 
 		sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
@@ -213,7 +208,7 @@ func TestClient(t *testing.T) {
 		sylopayments.Redeem(t, ctx, backend, bobClient, ticket, aliceRand, bobRand, sig)
 
 		// replay redemption
-		_, err = bobClient.Redeem(ticket, aliceRand, bobRand, sig)
+		_, err := bobClient.Redeem(ticket, aliceRand, bobRand, sig)
 		if err == nil {
 			t.Fatalf("expected error because ticket has already been used")
 		}
@@ -447,14 +442,12 @@ func TestScan(t *testing.T) {
 			t.Fatalf("stake amount is not correct")
 		}
 
-		epochId, err := aliceClient.GetEpochId(big.NewInt(1))
+		_, err := aliceClient.JoinNextDirectory()
 		if err != nil {
-			t.Fatalf("could not get next epoch id: %v", err)
+			t.Fatalf("could not join next directory: %v", err)
 		}
 
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, aliceClient)
-
-		_, err = ownerClient.SetCurrentDirectory(epochId)
+		_, err = ownerClient.SetCurrentDirectory(big.NewInt(1))
 		if err != nil {
 			t.Fatalf("could not set current directory: %v", err)
 		}
@@ -504,15 +497,10 @@ func TestScan(t *testing.T) {
 			t.Fatalf("bob stake amount is not correct")
 		}
 
-		epochId, err := aliceClient.GetEpochId(big.NewInt(2))
-		if err != nil {
-			t.Fatalf("could not get next epoch id: %v", err)
-		}
+		sylopayments.JoinNextDirectory(t, ctx, backend, aliceClient)
+		sylopayments.JoinNextDirectory(t, ctx, backend, bobClient)
 
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, aliceClient)
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, bobClient)
-
-		_, err = ownerClient.SetCurrentDirectory(epochId)
+		_, err := ownerClient.SetCurrentDirectory(big.NewInt(2))
 		if err != nil {
 			t.Fatalf("could not set current directory: %v", err)
 		}
@@ -589,16 +577,11 @@ func TestScan(t *testing.T) {
 			t.Fatalf("charlie stake amount is not correct")
 		}
 
-		epochId, err := aliceClient.GetEpochId(big.NewInt(3))
-		if err != nil {
-			t.Fatalf("could not get next epoch id: %v", err)
-		}
+		sylopayments.JoinNextDirectory(t, ctx, backend, aliceClient)
+		sylopayments.JoinNextDirectory(t, ctx, backend, bobClient)
+		sylopayments.JoinNextDirectory(t, ctx, backend, charlieClient)
 
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, aliceClient)
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, bobClient)
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, charlieClient)
-
-		_, err = ownerClient.SetCurrentDirectory(epochId)
+		_, err = ownerClient.SetCurrentDirectory(big.NewInt(3))
 		if err != nil {
 			t.Fatalf("could not set current directory: %v", err)
 		}
@@ -643,16 +626,10 @@ func TestScan(t *testing.T) {
 			t.Fatalf("could not check transaction: %v", err)
 		}
 
-		// reconstruct directory
-		epochId, err = aliceClient.GetEpochId(big.NewInt(4))
-		if err != nil {
-			t.Fatalf("could not get next epoch id: %v", err)
-		}
+		sylopayments.JoinNextDirectory(t, ctx, backend, bobClient)
+		sylopayments.JoinNextDirectory(t, ctx, backend, charlieClient)
 
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, bobClient)
-		sylopayments.JoinDirectory(epochId, t, ctx, backend, charlieClient)
-
-		_, err = ownerClient.SetCurrentDirectory(epochId)
+		_, err = ownerClient.SetCurrentDirectory(big.NewInt(4))
 		if err != nil {
 			t.Fatalf("could not set current directory: %v", err)
 		}
@@ -686,7 +663,7 @@ func TestScan(t *testing.T) {
 }
 
 func prettyPrintNodeInfo(t *testing.T, ctx context.Context, client sylopayments.Client, desc string) {
-	stake, err := client.GetStakeeTotalStake(client.Address())
+	stake, err := client.GetAmountStaked(client.Address())
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}

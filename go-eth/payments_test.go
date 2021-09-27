@@ -38,17 +38,12 @@ func TestPayments(t *testing.T) {
 	sylopayments.Stake(t, ctx, backend, node, big.NewInt(600))
 	t.Log("node A stake 600 sylo")
 
-	epochId, err := node.GetNextEpochId()
-	if err != nil {
-		t.Fatalf("failed to get next epoch id: %v", err)
-	}
-
 	// participate in next epoch
-	sylopayments.JoinDirectory(epochId, t, ctx, backend, node)
-	sylopayments.InitializeRewardPool(epochId, t, ctx, backend, node)
+	sylopayments.JoinNextDirectory(t, ctx, backend, node)
+	sylopayments.InitializeNextRewardPool(t, ctx, backend, node)
 
 	// initialize epoch
-	_, err = owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
 	if err != nil {
 		t.Fatalf("could not transfer directory ownership: %v", err)
 	}
@@ -138,13 +133,8 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 		t.Fatalf("could not retrieve current epoch %v", err)
 	}
 
-	epochId, err := sender.GetEpochId(epoch.Iteration)
-	if err != nil {
-		t.Fatalf("could not retrieve epoch id %v", err)
-	}
-
 	ticket := contracts.SyloTicketingTicket{
-		EpochId:         epochId,
+		EpochId:         epoch.Iteration,
 		Sender:          sender.Address(),
 		Redeemer:        receiver,
 		SenderCommit:    senderCommit,

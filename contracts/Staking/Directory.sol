@@ -56,7 +56,7 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     /*
      * This function is called by a node as a prerequiste to participate in the next epoch.
-     * This will construt the directory as nodes join. The directory is constructed
+     * This will construct the directory as nodes join. The directory is constructed
      * by creating a boundary value which is a sum of the current directory's total stake, and
      * the current stakee's total stake, and pushing the new boundary into the entries array.
      * The previous boundary and the current boundary essentially create a range, where if a

@@ -33,8 +33,6 @@ contract('Staking', accounts => {
     stakingManager = contracts.stakingManager;
 
     await token.approve(stakingManager.address, 10000, { from: accounts[1] });
-
-    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
   });
 
   it('should be able to get unlocking duration', async () => {
@@ -122,30 +120,6 @@ contract('Staking', accounts => {
     );
   });
 
-  it('should store the block number the stake entry was updated at', async () => {
-    let latestBlock = await web3.eth.getBlockNumber();
-    await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
-
-    const stakeEntryOne = await stakingManager.getStakeEntry(accounts[1], accounts[1]);
-
-    assert.isAbove(
-      parseInt(stakeEntryOne.updatedAt),
-      currentBlock,
-      "Stake entry should track the block it was updated at"
-    );
-
-    latestBlock = await web3.eth.getBlockNumber();
-    await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
-
-    const stakeEntryTwo = await stakingManager.getStakeEntry(accounts[1], accounts[1]);
-
-    assert.isAbove(
-      parseInt(stakeEntryTwo.updatedAt),
-      latestBlock,
-      "Stake entry should track the block it was updated at"
-    );
-  });
-
   it('should store the epochId the stake entry was updated at', async () => {
     await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
     await epochsManager.initializeEpoch({ from: accounts[1] });
@@ -164,6 +138,7 @@ contract('Staking', accounts => {
   it('should be able to scan', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await directory.joinNextDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     await directory.scan(new BN(0));
   });
@@ -173,6 +148,8 @@ contract('Staking', accounts => {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
       await directory.joinNextDirectory({ from: accounts[i] });
     }
+
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -195,6 +172,8 @@ contract('Staking', accounts => {
       totalStake += i + 1;
     }
 
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
+
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
       expectedResults[accounts[i]] = parseInt((i+1)/totalStake * 1000);
@@ -216,6 +195,8 @@ contract('Staking', accounts => {
     await stakingManager.unlockStake(1, accounts[0], { from: accounts[1] });
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[1] });
     await stakingManager.unlockStake(1, accounts[2], { from: accounts[1] });
+
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     const address = await directory.scan(0);
 

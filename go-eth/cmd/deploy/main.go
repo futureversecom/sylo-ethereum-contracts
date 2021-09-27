@@ -397,9 +397,52 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 		return addresses, fmt.Errorf("could not deploy stakingManager: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = stakingManager.Initialize(opts, addresses.Token, unlockDuration)
+
+	// deploy directory
+	var directoryTx *types.Transaction
+	var directory *contracts.Directory
+	addresses.Directory, directoryTx, directory, err = contracts.DeployDirectory(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy directory: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy epochs manager
+	var epochsManagerTx *types.Transaction
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, epochsManagerTx, epochsManager, err = contracts.DeployEpochsManager(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy epochsManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy rewards manager
+	var rewardsManagerTx *types.Transaction
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, rewardsManagerTx, rewardsManager, err = contracts.DeployRewardsManager(opts, client)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy rewardsManager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// initialize staking manager
+	_, err = stakingManager.Initialize(opts, addresses.Token, addresses.RewardsManager, addresses.EpochsManager, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not staking manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// initialize directory
+	_, err = directory.Initialize(opts, addresses.StakingManager, addresses.RewardsManager)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise directory: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// initialize rewards manager
+	_, err = rewardsManager.Initialize(opts, addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialise rewardsManager: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
@@ -421,28 +464,13 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	var priceManagerTx *types.Transaction
 	var priceManager *contracts.PriceManager
 	addresses.Directory, priceManagerTx, priceManager, err = contracts.DeployPriceManager(opts, client)
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy priceManager: %w", err)
 	}
-
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	_, err = priceManager.Initialize(opts, addresses.StakingManager, addresses.PriceVoting)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise price manager: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
-	// deploy directory
-	var directoryTx *types.Transaction
-	var directory *contracts.Directory
-	addresses.Directory, directoryTx, directory, err = contracts.DeployDirectory(opts, client)
-	if err != nil {
-		return addresses, fmt.Errorf("could not deploy directory: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = directory.Initialize(opts, addresses.StakingManager)
-	if err != nil {
-		return addresses, fmt.Errorf("could not initialise directory: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
@@ -474,31 +502,9 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
-	// deploy epochs manager
-	var epochsManagerTx *types.Transaction
-	var epochsManager *contracts.EpochsManager
-	addresses.EpochsManager, epochsManagerTx, epochsManager, err = contracts.DeployEpochsManager(opts, client)
-	if err != nil {
-		return addresses, fmt.Errorf("could not deploy epochsManager: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	_, err = epochsManager.Initialize(opts, addresses.Directory, addresses.Listings, addresses.TicketingParameters, epochsDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise epochsManager: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
-	// deploy rewards manager
-	var rewardsManagerTx *types.Transaction
-	var rewardsManager *contracts.RewardsManager
-	addresses.RewardsManager, rewardsManagerTx, rewardsManager, err = contracts.DeployRewardsManager(opts, client)
-	if err != nil {
-		return addresses, fmt.Errorf("could not deploy rewardsManager: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = rewardsManager.Initialize(opts, addresses.Token, addresses.StakingManager, addresses.EpochsManager)
-	if err != nil {
-		return addresses, fmt.Errorf("could not initialise rewardsManager: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 

@@ -75,12 +75,11 @@ type Client interface {
 	WithdrawStake(account ethcommon.Address) (*types.Transaction, error)
 	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
-	GetStakeeTotalStake(stakee ethcommon.Address) (*big.Int, error)
-	GetStakerAmount(staker ethcommon.Address, stakee ethcommon.Address, blockNumber *big.Int) (*big.Int, error)
+	GetCurrentStakerAmount(staker ethcommon.Address, stakee ethcommon.Address) (*big.Int, error)
 
 	// Directory methods
-	SetCurrentDirectory(epochId [32]byte) (*types.Transaction, error)
-	JoinDirectory(epochId [32]byte) (*types.Transaction, error)
+	SetCurrentDirectory(epochId *big.Int) (*types.Transaction, error)
+	JoinNextDirectory() (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
 	TransferDirectoryOwnership(newOwner ethcommon.Address) (*types.Transaction, error)
 
@@ -93,16 +92,15 @@ type Client interface {
 
 	InitializeEpoch() (*types.Transaction, error)
 	GetCurrentActiveEpoch() (contracts.EpochsManagerEpoch, error)
-	GetEpochId(*big.Int) ([32]byte, error)
-	GetNextEpochId() ([32]byte, error)
+	GetNextEpochId() (*big.Int, error)
 
 	// RewardsManager methods
-	GetRewardPoolBalance(epochId [32]byte, stakee ethcommon.Address) (*big.Int, error)
-	GetRewardPoolStake(epochId [32]byte, stakee ethcommon.Address) (*big.Int, error)
-	GetDelegatorOwedAmount(epochId [32]byte, stakee ethcommon.Address, staker ethcommon.Address) (*big.Int, error)
-	IncrementRewardPool(epochId [32]byte, stakee ethcommon.Address, amount *big.Int) (*types.Transaction, error)
-	InitializeRewardPool(epochId [32]byte) (*types.Transaction, error)
-	ClaimRewards(epochId [][32]byte, stakee ethcommon.Address) (*types.Transaction, error)
+	GetUnclaimedNodeReward(stakee ethcommon.Address) (*big.Int, error)
+	GetUnclaimedStakeReward(stakee ethcommon.Address) (*big.Int, error)
+	GetRewardPoolActiveStake(epochId *big.Int, stakee ethcommon.Address) (*big.Int, error)
+	IncrementRewardPool(epochId *big.Int, stakee ethcommon.Address, amount *big.Int) (*types.Transaction, error)
+	InitializeNextRewardPool() (*types.Transaction, error)
+	ClaimStakingRewards(stakee ethcommon.Address) (*types.Transaction, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 
@@ -312,7 +310,7 @@ func (c *client) ApproveStakingManager(amount *big.Int) (*types.Transaction, err
 }
 
 func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
-	return c.GetStakeeTotalStake(stakee)
+	return c.GetStakeeTotalManagedStake(stakee)
 }
 
 func (c *client) Withdraw() (*types.Transaction, error) {

@@ -104,9 +104,37 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 
 	var stakingManager *contracts.StakingManager
 	addresses.StakingManager, _, stakingManager, _ = contracts.DeployStakingManager(&opts[0], backend)
-	_, err := stakingManager.Initialize(&opts[0], addresses.Token, big.NewInt(1))
+
+	var directory *contracts.Directory
+	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
+
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
+
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, _, rewardsManager, _ = contracts.DeployRewardsManager(&opts[0], backend)
+
+	_, err := stakingManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
+	}
+	backend.Commit()
+
+	_, err = directory.Initialize(&opts[0], addresses.StakingManager, addresses.RewardsManager)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
+	}
+	backend.Commit()
+
+	_, err = epochsManager.Initialize(&opts[0], addresses.Directory, addresses.Listings, addresses.TicketingParameters, epochsDuration)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise epochsManager: %w", err)
+	}
+	backend.Commit()
+
+	_, err = rewardsManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise rewardsManager: %w", err)
 	}
 	backend.Commit()
 
@@ -126,14 +154,6 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 	backend.Commit()
 
-	var directory *contracts.Directory
-	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
-	_, err = directory.Initialize(&opts[0], addresses.StakingManager)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
-	}
-	backend.Commit()
-
 	var listings *contracts.Listings
 	addresses.Listings, _, listings, _ = contracts.DeployListings(&opts[0], backend)
 	_, err = listings.Initialize(&opts[0], 50)
@@ -147,22 +167,6 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	_, err = ticketingParameters.Initialize(&opts[0], big.NewInt(1), winProb, expiredWinProb, decayRate, ticketDuration)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketingParameters: %w", err)
-	}
-	backend.Commit()
-
-	var epochsManager *contracts.EpochsManager
-	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
-	_, err = epochsManager.Initialize(&opts[0], addresses.Directory, addresses.Listings, addresses.TicketingParameters, epochsDuration)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not initialise epochsManager: %w", err)
-	}
-	backend.Commit()
-
-	var rewardsManager *contracts.RewardsManager
-	addresses.RewardsManager, _, rewardsManager, _ = contracts.DeployRewardsManager(&opts[0], backend)
-	_, err = rewardsManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not initialise rewardsManager: %w", err)
 	}
 	backend.Commit()
 
