@@ -8,7 +8,7 @@ import "../../Utils.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../../node_modules/abdk-libraries-solidity/ABDKMathQuad.sol";
+import "../../../node_modules/abdk-libraries-solidity/ABDKMath64x64.sol";
 
 /*
  * Handles epoch based reward pools that are incremented from redeeming tickets.
@@ -51,10 +51,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         uint256 totalActiveStake;
 
         // track the cumulative reward factor as of the time the pool was initialized
-        bytes16 initialCumulativeRewardFactor;
+        int128 initialCumulativeRewardFactor;
 
         // track the cumulative reward factor as a quadruple precision floating point value
-        bytes16 cumulativeRewardFactor;
+        int128 cumulativeRewardFactor;
     }
 
     // Reward Pools are indexed by a key that is derived from the epochId and the stakee's address
@@ -178,9 +178,9 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // then we can't rely on the previous crf to calculate the current crf
         if (rewardPool.initialCumulativeRewardFactor == 0) {
             rewardPool.cumulativeRewardFactor =
-                ABDKMathQuad.div(
-                    ABDKMathQuad.fromUInt(rewardPool.stakersRewardTotal),
-                    ABDKMathQuad.fromUInt(rewardPool.totalActiveStake)
+                ABDKMath64x64.div(
+                    ABDKMath64x64.fromUInt(rewardPool.stakersRewardTotal),
+                    ABDKMath64x64.fromUInt(rewardPool.totalActiveStake)
                 );
         } else {
             rewardPool.cumulativeRewardFactor = calculatateUpdatedCumulativeRewardFactor(
@@ -194,11 +194,11 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // we must update all proceeding cumulative reward factors
         uint256 latestIteration = latestActiveRewardPools[stakee];
         if (epochId < latestIteration) {
-            bytes16 previousCumulativeRewardFactor = rewardPool.cumulativeRewardFactor;
+            int128 previousCumulativeRewardFactor = rewardPool.cumulativeRewardFactor;
             for (uint i = epochId + 1; i <= latestIteration; i++) {
                 RewardPool storage next = rewardPools[getKey(i, stakee)];
                 if (next.initializedAt > 0) {
-                    bytes16 nextCumulativeRewardFactor = calculatateUpdatedCumulativeRewardFactor(
+                    int128 nextCumulativeRewardFactor = calculatateUpdatedCumulativeRewardFactor(
                         previousCumulativeRewardFactor,
                         next.stakersRewardTotal,
                         next.totalActiveStake
@@ -212,17 +212,17 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     function calculatateUpdatedCumulativeRewardFactor(
-        bytes16 previousCumulativeRewardFactor,
+        int128 previousCumulativeRewardFactor,
         uint256 rewardTotal,
         uint256 stakeTotal
-    ) internal pure returns (bytes16) {
-        return ABDKMathQuad.add(
+    ) internal pure returns (int128) {
+        return ABDKMath64x64.add(
             previousCumulativeRewardFactor,
-            ABDKMathQuad.mul(
+            ABDKMath64x64.mul(
                 previousCumulativeRewardFactor,
-                ABDKMathQuad.div(
-                    ABDKMathQuad.fromUInt(rewardTotal),
-                    ABDKMathQuad.fromUInt(stakeTotal)
+                ABDKMath64x64.div(
+                    ABDKMath64x64.fromUInt(rewardTotal),
+                    ABDKMath64x64.fromUInt(stakeTotal)
                 )
             )
         );
@@ -254,20 +254,20 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
         RewardPool storage initialActivePool = rewardPools[getKey(activeAt, stakee)];
 
-        bytes16 initialStake = ABDKMathQuad.fromUInt(stakeEntry.amount);
-        bytes16 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
+        int128 initialStake = ABDKMath64x64.fromUInt(stakeEntry.amount);
+        int128 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
 
         // if the staker started staking prior to the node generating any
         // rewards (initial crf == 0), then we have to manually calculate the proprotion of reward
         // for the first epoch, and use that value as the initial stake instead
-        if (initialCumulativeRewardFactor == bytes16(0)) {
-            initialStake = ABDKMathQuad.add(
+        if (initialCumulativeRewardFactor == int128(0)) {
+            initialStake = ABDKMath64x64.add(
                 initialStake,
-                ABDKMathQuad.mul(
-                    ABDKMathQuad.fromUInt(initialActivePool.stakersRewardTotal),
-                    ABDKMathQuad.div(
+                ABDKMath64x64.mul(
+                    ABDKMath64x64.fromUInt(initialActivePool.stakersRewardTotal),
+                    ABDKMath64x64.div(
                         initialStake,
-                        ABDKMathQuad.fromUInt(initialActivePool.totalActiveStake)
+                        ABDKMath64x64.fromUInt(initialActivePool.totalActiveStake)
                     )
                 )
             );
@@ -279,10 +279,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         )];
 
         // utilize the cumulative reward factor to calculate their updated stake amount
-        uint256 updatedStake = ABDKMathQuad.toUInt(
-            ABDKMathQuad.mul(
+        uint256 updatedStake = ABDKMath64x64.toUInt(
+            ABDKMath64x64.mul(
                 initialStake,
-                ABDKMathQuad.div(
+                ABDKMath64x64.div(
                     latestRewardPool.cumulativeRewardFactor,
                     initialCumulativeRewardFactor
                 )

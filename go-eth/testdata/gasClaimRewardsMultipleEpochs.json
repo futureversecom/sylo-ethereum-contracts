@@ -1,18 +1,18 @@
 [
   {
     "epochs": 1,
-    "gas_used": 105515
+    "gas_used": 101465
   },
   {
     "epochs": 10,
-    "gas_used": 107479
+    "gas_used": 103465
   },
   {
     "epochs": 50,
-    "gas_used": 107515
+    "gas_used": 103465
   },
   {
     "epochs": 100,
-    "gas_used": 107515
+    "gas_used": 103465
   }
 ]
