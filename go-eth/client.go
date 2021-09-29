@@ -98,7 +98,6 @@ type Client interface {
 	GetUnclaimedNodeReward(stakee ethcommon.Address) (*big.Int, error)
 	GetUnclaimedStakeReward(stakee ethcommon.Address) (*big.Int, error)
 	GetRewardPoolActiveStake(epochId *big.Int, stakee ethcommon.Address) (*big.Int, error)
-	IncrementRewardPool(epochId *big.Int, stakee ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	InitializeNextRewardPool() (*types.Transaction, error)
 	ClaimStakingRewards(stakee ethcommon.Address) (*types.Transaction, error)
 

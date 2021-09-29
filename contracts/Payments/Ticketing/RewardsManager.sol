@@ -297,6 +297,18 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
     function claimNodeRewards() public {
         uint256 claim = unclaimedNodeRewards[msg.sender];
+
+        // Also add any unclaimed staker rewards that can no longer be claimed
+        // by the node's delegated stakers.
+        // This situation can arise if the node redeemed tickets in the
+        // after a staker claimed their reward but in the same epoch.
+        uint256 stake = _stakingManager.getStakeeTotalManagedStake(msg.sender);
+        // All stakers unstaked, we can safely claim any remaining staker rewards
+        if (stake == 0) {
+            claim += unclaimedStakeRewards[msg.sender];
+            unclaimedStakeRewards[msg.sender] = 0;
+        }
+
         require(claim > 0, "Nothing to claim");
 
         unclaimedNodeRewards[msg.sender] = 0;
