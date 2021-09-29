@@ -195,13 +195,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Deposit storage deposit = getDeposit(ticket.sender);
 
         if (epoch.faceValue > deposit.escrow) {
-            incrementRewardPool(ticket.epochId, ticket.redeemer, deposit, deposit.escrow);
+            incrementRewardPool(ticket.redeemer, deposit, deposit.escrow);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
             deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            incrementRewardPool(ticket.epochId, ticket.redeemer, deposit, epoch.faceValue);
+            incrementRewardPool(ticket.redeemer, deposit, epoch.faceValue);
         }
     }
 
@@ -297,7 +297,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     }
 
     function incrementRewardPool(
-        uint256 epochId,
         address stakee,
         Deposit storage deposit,
         uint256 amount
@@ -306,6 +305,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         deposit.escrow = deposit.escrow - amount;
 
         _token.transfer(address(_rewardsManager), amount);
-        _rewardsManager.incrementRewardPool(epochId, stakee, amount);
+        _rewardsManager.incrementRewardPool(stakee, amount);
     }
 }

@@ -148,22 +148,20 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * it was generated in.
      */
     function incrementRewardPool(
-        uint256 epochId,
         address stakee,
         uint256 amount
     ) public onlyManager {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
-        require(epoch.startBlock > 0, "Epoch does not exist");
+        EpochsManager.Epoch memory currentEpoch = _epochsManager.getCurrentActiveEpoch();
 
-        RewardPool storage rewardPool = rewardPools[getKey(epochId, stakee)];
+        RewardPool storage rewardPool = rewardPools[getKey(currentEpoch.iteration, stakee)];
         require(
             rewardPool.totalActiveStake > 0,
-            "Reward pool has not been initialized for this epoch"
+            "Reward pool has not been initialized for the current epoch"
         );
 
         uint256 stakersReward = SyloUtils.percOf(
             uint128(amount),
-            epoch.defaultPayoutPercentage
+            currentEpoch.defaultPayoutPercentage
         );
 
         // update the value of the reward owed to the node
@@ -188,26 +186,6 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
                 rewardPool.stakersRewardTotal,
                 rewardPool.totalActiveStake
             );
-        }
-
-        // in the case that the ticket was redeemed for a historical epoch,
-        // we must update all proceeding cumulative reward factors
-        uint256 latestIteration = latestActiveRewardPools[stakee];
-        if (epochId < latestIteration) {
-            int128 previousCumulativeRewardFactor = rewardPool.cumulativeRewardFactor;
-            for (uint i = epochId + 1; i <= latestIteration; i++) {
-                RewardPool storage next = rewardPools[getKey(i, stakee)];
-                if (next.initializedAt > 0) {
-                    int128 nextCumulativeRewardFactor = calculatateUpdatedCumulativeRewardFactor(
-                        previousCumulativeRewardFactor,
-                        next.stakersRewardTotal,
-                        next.totalActiveStake
-                    );
-                    next.initialCumulativeRewardFactor = previousCumulativeRewardFactor;
-                    next.cumulativeRewardFactor = nextCumulativeRewardFactor;
-                    previousCumulativeRewardFactor = nextCumulativeRewardFactor;
-                }
-            }
         }
     }
 
