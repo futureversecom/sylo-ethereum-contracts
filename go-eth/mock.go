@@ -15,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+var errNotImplemented = errors.New("not implemented")
+
 type SimBackend interface {
 	Backend
 	Commit()
@@ -30,7 +32,7 @@ func NewSimBackend(sim *backends.SimulatedBackend) SimBackend {
 }
 
 func (b *simBackend) PendingBalanceAt(ctx context.Context, account ethcommon.Address) (*big.Int, error) {
-	return nil, errors.New("Not implemented")
+	return nil, errNotImplemented
 }
 
 func (b *simBackend) PendingStorageAt(ctx context.Context, account ethcommon.Address, key ethcommon.Hash) ([]byte, error) {
@@ -39,7 +41,7 @@ func (b *simBackend) PendingStorageAt(ctx context.Context, account ethcommon.Add
 }
 
 func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) {
-	return 0, errors.New("Not implemented")
+	return 0, errNotImplemented
 }
 
 func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey, amount *big.Int) (err error) {
@@ -86,7 +88,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var epochsDuration = big.NewInt(80000)
 
 	if len(opts) < 1 {
-		return nil, nil, errors.New("Please provide at least one option")
+		return nil, nil, errors.New("must provide at least one option")
 	}
 
 	genisis := make(core.GenesisAlloc)
@@ -180,7 +182,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var clients []Client
 
 	for i := 0; i < len(opts); i++ {
-		client, err := NewClientWithBackend(
+		client, err := NewSyloPaymentsClient(
 			addresses,
 			backend,
 			&opts[0],
