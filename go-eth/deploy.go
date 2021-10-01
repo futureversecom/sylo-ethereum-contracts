@@ -10,7 +10,22 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backend, unlockDuration *big.Int, baseLiveWinProb *big.Int) (addresses Addresses, err error) {
+type ContractParameters struct {
+	// Listing parameters
+	DefaultPayoutPercentage uint16
+
+	// Deposit parameters
+	UnlockDuration *big.Int
+
+	// Ticketing parameters
+	FaceValue       *big.Int
+	BaseLiveWinProb *big.Int
+	ExpiredWinProb  *big.Int
+	DecayRate       uint16
+	TicketDuration  *big.Int
+}
+
+func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backend, contractParams *ContractParameters) (addresses Addresses, err error) {
 	// Deploying contracts can apparently panic if the transaction fails, so
 	// we need to check for that.
 	defer func() {
@@ -78,6 +93,33 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
+	// deploy epochs manager
+	var deployEpochsManagerTx *types.Transaction
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, deployEpochsManagerTx, epochsManager, err = contracts.DeployEpochsManager(opts, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy epochs manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy rewards manager
+	var deployRewardsManagerTx *types.Transaction
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, deployRewardsManagerTx, rewardsManager, err = contracts.DeployRewardsManager(opts, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy rewards manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// deploy ticketing parameters
+	var deployTicketingParametersTx *types.Transaction
+	var ticketingParameters *contracts.TicketingParameters
+	addresses.TicketingParameters, deployTicketingParametersTx, ticketingParameters, err = contracts.DeployTicketingParameters(opts, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not deploy ticketing parameters: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
 	// deploy ticketing
 	var deployTicketingTx *types.Transaction
 	var ticketing *contracts.SyloTicketing
@@ -94,11 +136,14 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	WaitForReceipt(ctx, deployPriceManagerTx, backend)
 	WaitForReceipt(ctx, deployDirectoryTx, backend)
 	WaitForReceipt(ctx, deployListingsTx, backend)
+	WaitForReceipt(ctx, deployEpochsManagerTx, backend)
+	WaitForReceipt(ctx, deployRewardsManagerTx, backend)
 	WaitForReceipt(ctx, deployTicketingTx, backend)
+	WaitForReceipt(ctx, deployTicketingParametersTx, backend)
 
 	// initialise staking manager
 	var initStakingManagerTx *types.Transaction
-	initStakingManagerTx, err = stakingManager.Initialize(opts, addresses.Token, addresses.RewardsManager, addresses.EpochsManager, unlockDuration)
+	initStakingManagerTx, err = stakingManager.Initialize(opts, addresses.Token, addresses.RewardsManager, addresses.EpochsManager, contractParams.UnlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialize staking: %w", err)
 	}
@@ -130,9 +175,40 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// initialise listings
 	var initListingsTx *types.Transaction
-	initListingsTx, err = listings.Initialize(opts, 50)
+	initListingsTx, err = listings.Initialize(opts, contractParams.DefaultPayoutPercentage)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialize listings: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// initialise epochs manager
+	var initEpochsManagerTx *types.Transaction
+	initEpochsManagerTx, err = epochsManager.Initialize(opts, addresses.Directory, addresses.Listings, addresses.TicketingParameters, big.NewInt(1))
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialize epochs manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// initialise rewards manager
+	var initRewardsManagerTx *types.Transaction
+	initRewardsManagerTx, err = rewardsManager.Initialize(opts, addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialize epochs manager: %w", err)
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	// initialise ticketing parameters
+	var initTicketingParamtersTx *types.Transaction
+	initTicketingParamtersTx, err = ticketingParameters.Initialize(
+		opts,
+		contractParams.FaceValue,
+		contractParams.BaseLiveWinProb,
+		contractParams.ExpiredWinProb,
+		contractParams.DecayRate,
+		contractParams.TicketDuration,
+	)
+	if err != nil {
+		return addresses, fmt.Errorf("could not initialize ticketing parameters")
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
@@ -146,11 +222,12 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 		addresses.Directory,
 		addresses.EpochsManager,
 		addresses.RewardsManager,
-		unlockDuration,
+		contractParams.UnlockDuration,
 	)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialize ticketing: %w", err)
 	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// wait for initializations
 	WaitForReceipt(ctx, initPriceManagerTx, backend)
@@ -158,7 +235,26 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	WaitForReceipt(ctx, initPriceVotingTx, backend)
 	WaitForReceipt(ctx, initDirectoryTx, backend)
 	WaitForReceipt(ctx, initListingsTx, backend)
+	WaitForReceipt(ctx, initEpochsManagerTx, backend)
+	WaitForReceipt(ctx, initRewardsManagerTx, backend)
+	WaitForReceipt(ctx, initTicketingParamtersTx, backend)
 	WaitForReceipt(ctx, initTicketingTx, backend)
+
+	// add manager to rewards contract
+	addTicketingManagerTx, err := rewardsManager.AddManager(opts, addresses.Ticketing)
+	if err != nil {
+		return addresses, fmt.Errorf("could not add ticketing as manager")
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	addStakingManagerTx, err := rewardsManager.AddManager(opts, addresses.StakingManager)
+	if err != nil {
+		return addresses, fmt.Errorf("could not add staking as manager")
+	}
+	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+
+	WaitForReceipt(ctx, addTicketingManagerTx, backend)
+	WaitForReceipt(ctx, addStakingManagerTx, backend)
 
 	opts.Nonce = nil
 	return addresses, nil

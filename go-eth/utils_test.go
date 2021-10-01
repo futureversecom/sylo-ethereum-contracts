@@ -42,7 +42,16 @@ func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, 
 	ownerTransactor.Context = ctx
 
 	backend := CreateBackend(t, ctx, ownerTransactor.From)
-	addresses, err := DeployContracts(ctx, ownerTransactor, backend, unlockDuration, Uint128max)
+	contractParams := ContractParameters{
+		DefaultPayoutPercentage: 5000,
+		UnlockDuration:          unlockDuration,
+		FaceValue:               big.NewInt(10),
+		BaseLiveWinProb:         Uint128max,
+		ExpiredWinProb:          big.NewInt(10000),
+		DecayRate:               uint16(8000),
+		TicketDuration:          big.NewInt(20),
+	}
+	addresses, err := DeployContracts(ctx, ownerTransactor, backend, &contractParams)
 	if err != nil {
 		t.Fatalf("could not deploy contracts: %v", err)
 	}

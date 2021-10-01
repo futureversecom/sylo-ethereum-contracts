@@ -5,11 +5,11 @@
   },
   {
     "epochs": 10,
-    "gas_used": 103460
+    "gas_used": 103436
   },
   {
     "epochs": 50,
-    "gas_used": 103460
+    "gas_used": 103448
   },
   {
     "epochs": 100,
