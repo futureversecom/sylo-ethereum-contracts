@@ -130,16 +130,55 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// wait for deployments
-	WaitForReceipt(ctx, deployTokenTx, backend)
-	WaitForReceipt(ctx, deployStakingManagerTx, backend)
-	WaitForReceipt(ctx, deployPriceVotingTx, backend)
-	WaitForReceipt(ctx, deployPriceManagerTx, backend)
-	WaitForReceipt(ctx, deployDirectoryTx, backend)
-	WaitForReceipt(ctx, deployListingsTx, backend)
-	WaitForReceipt(ctx, deployEpochsManagerTx, backend)
-	WaitForReceipt(ctx, deployRewardsManagerTx, backend)
-	WaitForReceipt(ctx, deployTicketingTx, backend)
-	WaitForReceipt(ctx, deployTicketingParametersTx, backend)
+	_, err = WaitForReceipt(ctx, deployTokenTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployStakingManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployPriceVotingTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployPriceManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployDirectoryTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployListingsTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployEpochsManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployRewardsManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployTicketingTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, deployTicketingParametersTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
 
 	// initialise staking manager
 	var initStakingManagerTx *types.Transaction
@@ -230,15 +269,49 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// wait for initializations
-	WaitForReceipt(ctx, initPriceManagerTx, backend)
-	WaitForReceipt(ctx, initStakingManagerTx, backend)
-	WaitForReceipt(ctx, initPriceVotingTx, backend)
-	WaitForReceipt(ctx, initDirectoryTx, backend)
-	WaitForReceipt(ctx, initListingsTx, backend)
-	WaitForReceipt(ctx, initEpochsManagerTx, backend)
-	WaitForReceipt(ctx, initRewardsManagerTx, backend)
-	WaitForReceipt(ctx, initTicketingParamtersTx, backend)
-	WaitForReceipt(ctx, initTicketingTx, backend)
+	_, err = WaitForReceipt(ctx, initPriceManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initStakingManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initPriceVotingTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+	_, err = WaitForReceipt(ctx, initDirectoryTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initListingsTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initEpochsManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initRewardsManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initTicketingParamtersTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, initTicketingTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
 
 	// add manager to rewards contract
 	addTicketingManagerTx, err := rewardsManager.AddManager(opts, addresses.Ticketing)
@@ -253,8 +326,15 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
-	WaitForReceipt(ctx, addTicketingManagerTx, backend)
-	WaitForReceipt(ctx, addStakingManagerTx, backend)
+	_, err = WaitForReceipt(ctx, addTicketingManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
+
+	_, err = WaitForReceipt(ctx, addStakingManagerTx, backend)
+	if err != nil {
+		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
+	}
 
 	opts.Nonce = nil
 	return addresses, nil
