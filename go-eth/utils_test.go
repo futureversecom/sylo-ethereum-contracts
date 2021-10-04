@@ -24,10 +24,9 @@ var (
 	FaucetEthBalance = new(big.Int).Mul(OneEth, big.NewInt(10000))
 	Uint128max       = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)) // 2^128-1
 
-	chainID        = big.NewInt(1337)
-	unlockDuration = big.NewInt(10)
-	escrowAmount   = big.NewInt(100000)
-	penaltyAmount  = big.NewInt(1000)
+	chainID       = big.NewInt(1337)
+	escrowAmount  = big.NewInt(100000)
+	penaltyAmount = big.NewInt(1000)
 )
 
 func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, FaucetF, Client) {
@@ -42,15 +41,7 @@ func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, 
 	ownerTransactor.Context = ctx
 
 	backend := CreateBackend(t, ctx, ownerTransactor.From)
-	contractParams := ContractParameters{
-		DefaultPayoutPercentage: 5000,
-		UnlockDuration:          unlockDuration,
-		FaceValue:               big.NewInt(10),
-		BaseLiveWinProb:         Uint128max,
-		ExpiredWinProb:          big.NewInt(10000),
-		DecayRate:               uint16(8000),
-		TicketDuration:          big.NewInt(20),
-	}
+	contractParams := DefaultContractParameters()
 	addresses, err := DeployContracts(ctx, ownerTransactor, backend, &contractParams)
 	if err != nil {
 		t.Fatalf("could not deploy contracts: %v", err)

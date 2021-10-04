@@ -12,17 +12,67 @@ import (
 
 type ContractParameters struct {
 	// Listing parameters
+
+	// DefaultPayoutPercentage is the percentage of a ticket's winning that
+	// will be divvied out to a Node's delegated stakers.
+	//
+	// It is expressed as a fraction of 10000. For example, to specify a 50%
+	// payout percentage, set the value to:
+	//     uint16(5000)
 	DefaultPayoutPercentage uint16
 
 	// Deposit parameters
+
+	// UnlockDuration is the length in blocks that a user's delegated stake or
+	// ticketing deposit must be held in an "unlocking" state before being able to be withdrawn.
 	UnlockDuration *big.Int
 
 	// Ticketing parameters
-	FaceValue       *big.Int
+
+	// FaceValue is the full value of a winning ticket.
+	//
+	// It expects a *big.Int indicating the value in $SOLO. For
+	// example, to specify 1,000 $SYLO, you would set this value
+	// to:
+	//     FaceValue = new(big.Int).Mul(big.NewInt(1000), new(big.Int).Exp(big.NewInt(2), big.NewInt(18), nil))
+	FaceValue *big.Int
+
+	// BaseLiveWinProb is the probability of a ticket winning.
+	//
+	// It expects a *big.Int indicating a value between 0 to 2^128 - 1, where
+	// a 100% chance to win could be set as:
+	//    BaseLiveWinProb = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))
 	BaseLiveWinProb *big.Int
-	ExpiredWinProb  *big.Int
-	DecayRate       uint16
-	TicketDuration  *big.Int
+
+	// ExpiredWinProb is the probability of ticket winning after it has expired.
+	//
+	// It expects a *big.Int indicating a value between 0 to 2^128 - 1
+	ExpiredWinProb *big.Int
+
+	// DecayRate is the percentage of a ticket's probability that will decay over
+	// it's lifetime
+	//
+	// It is expressed as a fraction of 10000. For example, to specify an 80% decay rate,
+	// set FaceValue to:
+	//     uint16(8000)
+	DecayRate uint16
+
+	// The duration of a ticket before it expires in blocks.
+	TicketDuration *big.Int
+}
+
+// Returns a set of default contract parameters that are suitable for most
+// testing scenarios
+func DefaultContractParameters() ContractParameters {
+	return ContractParameters{
+		DefaultPayoutPercentage: 5000,
+		UnlockDuration:          big.NewInt(10),
+		FaceValue:               big.NewInt(10),
+		BaseLiveWinProb:         new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)),
+		ExpiredWinProb:          big.NewInt(1000000),
+		DecayRate:               uint16(8000),
+		TicketDuration:          big.NewInt(20),
+	}
 }
 
 func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backend, contractParams *ContractParameters) (addresses Addresses, err error) {
