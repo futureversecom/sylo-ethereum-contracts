@@ -1,33 +1,38 @@
 const BN = require("bn.js");
 const crypto = require("crypto");
 const sodium = require('libsodium-wrappers-sumo');
+const utils = require('./utils.js');
 
-const Directory = artifacts.require("Directory");
-const StakingManager = artifacts.require("StakingManager");
 const Token = artifacts.require("SyloToken");
 
-const utils = require('./utils');
 
 contract('Staking', accounts => {
   let token;
-  let stakingManager;
+  let epochsManager;
+  let rewardsManager;
+  let ticketingParameters;
+  let ticketing;
   let directory;
+  let listings;
+  let stakingManager;
+
+  const epochId = 1;
 
   before(async () => {
     token = await Token.new({ from: accounts[1] });
   });
 
   beforeEach(async () => {
-    stakingManager = await StakingManager.new({ from: accounts[1] });
-    await stakingManager.initialize(token.address, 0, { from: accounts[1] });
+    const contracts = await utils.initializeContracts(accounts[1], token.address);
+    epochsManager = contracts.epochsManager;
+    rewardsManager = contracts.rewardsManager;
+    ticketingParameters = contracts.ticketingParameters;
+    ticketing = contracts.ticketing;
+    directory = contracts.directory;
+    listings = contracts.listings;
+    stakingManager = contracts.stakingManager;
 
     await token.approve(stakingManager.address, 10000, { from: accounts[1] });
-
-    directory = await Directory.new({ from: accounts[1] });
-    await directory.initialize(
-        stakingManager.address,
-      { from: accounts[1] }
-    );
   });
 
   it('should be able to get unlocking duration', async () => {
@@ -47,6 +52,14 @@ contract('Staking', accounts => {
       initialBalance.sub(new BN(100)).toString(),
       postStakeBalance.toString(),
       "100 tokens should be subtracted from initial balance after staking"
+    );
+
+    const stakeEntry = await stakingManager.getStakeEntry(accounts[1], accounts[1]);
+
+    assert.equal(
+      stakeEntry.amount.toString(),
+      '100',
+      "A stake entry with 100 tokens should be managed by the contract"
     );
   });
 
@@ -84,24 +97,48 @@ contract('Staking', accounts => {
     );
   });
 
-  it('should be able to cancel withdraw', async () => {
-    await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
-    await stakingManager.unlockStake(100, accounts[1], { from: accounts[1] });
-    await stakingManager.cancelUnlocking(50, accounts[1], { from: accounts[1] });
+  it('should be able to get total stake for a stakee', async () => {
+    for (let i = 2; i < 10; i++) {
+      await token.transfer(accounts[i], 1000, { from: accounts[1] });
+      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await stakingManager.addStake(10, accounts[1], { from: accounts[i] });
 
-    const key = await stakingManager.getKey(accounts[1], accounts[1]);
-    let unlocking = await stakingManager.unlockings(key);
-    assert.equal(unlocking.amount.toNumber(), 50, 'Expected 50 of the unlocking amount to be cancelled');
+      const stakeAmount = await stakingManager.getCurrentStakerAmount(accounts[1], accounts[i]);
+      assert.equal(
+        stakeAmount.toString(),
+        '10',
+        "Expected contract to hold staker's stake"
+      );
+    }
 
-    await stakingManager.cancelUnlocking(50, accounts[1], { from: accounts[1] });
-    unlocking = await stakingManager.unlockings(key);
-    assert.equal(unlocking.amount.toNumber(), 0, 'Expected entire unlocking amount to be cancelled');
+    const totalStake = await stakingManager.getStakeeTotalManagedStake(accounts[1]);
+
+    assert.equal(
+      totalStake.toString(),
+      '80',
+      "Expected contract to track all stake entries"
+    );
   });
 
-  it('should be able to scan', async () => {
-    await stakingManager.addStake(1, accounts[0], { from: accounts[1] });
+  it('should store the epochId the stake entry was updated at', async () => {
+    await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
+    await epochsManager.initializeEpoch({ from: accounts[1] });
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await stakingManager.addStake(100, accounts[1], { from: accounts[1] });
+
+    const stakeEntry = await stakingManager.getStakeEntry(accounts[1], accounts[1]);
+
+    assert.equal(
+      parseInt(stakeEntry.epochId),
+      1,
+      "Stake entry should track the epoch id it was updated at"
+    );
+  })
+
+  it('should be able to scan', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await directory.joinNextDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     await directory.scan(new BN(0));
   });
@@ -109,9 +146,10 @@ contract('Staking', accounts => {
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+      await directory.joinNextDirectory({ from: accounts[i] });
     }
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -130,10 +168,11 @@ contract('Staking', accounts => {
     let totalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(i + 1, accounts[i], { from: accounts[1] });
+      await directory.joinNextDirectory({ from: accounts[i] });
       totalStake += i + 1;
     }
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let expectedResults = {}
     for (let i = 0; i < accounts.length; i++) {
@@ -157,53 +196,24 @@ contract('Staking', accounts => {
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[1] });
     await stakingManager.unlockStake(1, accounts[2], { from: accounts[1] });
 
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
+
     const address = await directory.scan(0);
 
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
 
-  it('scan after some nodes unstake [ @skip-on-coverage ]', async () => {
-    for (let i = 0; i < accounts.length; i++) {
-      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
-    }
-
-    for (let i = 5; i < accounts.length; i++) {
-      await stakingManager.unlockStake(1, accounts[i], { from: accounts[1] });
-    }
-
-    await directory.constructDirectory({ from: accounts[1] });
-
-    let expectedResults = {}
-    for (let i = 1; i < 5; i++) {
-      expectedResults[accounts[i]] = parseInt(1/5 * 1000);
-    }
-
-    const results = await collectScanResults(1000);
-    for (let key of Object.keys(expectedResults)) {
-      const expected = expectedResults[key];
-      const actual = results[key];
-      console.log('For address', key, 'expected=', expected, 'actual=', actual);
-    }
-  }).timeout(0);
-
-  it('excludes nodes from directory without a stake', async () => {
+  it('can not join directory without a stake [ @skip-on-coverage ]', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await stakingManager.unlockStake(1, accounts[1], { from: accounts[1] });
 
-    await directory.constructDirectory({ from: accounts[1] });
-
-    let found = false;
-    for (let i = 0; i < accounts.length; i++) {
-      try {
-        const a = await directory.currentDirectory(i);
-        if (a == accounts[i]) {
-          found = true;
-          break;
-        }
-      } catch(e) {}
-    }
-
-    assert.equal(found, false, "The account with no stake should not exist in the directory");
+    directory.joinNextDirectory({ from: accounts[1] })
+      .then(() => {
+        assert.fail("Join directory should fail as no stake for this epoch");
+      })
+      .catch(e => {
+        assert.include(e.message, "Can not join directory for next epoch without any stake");
+      })
   });
 
   it.skip('excludes nodes from directory without a vote', async () => {

@@ -13,14 +13,13 @@ import "../Staking/Directory.sol";
 contract EpochsManager is Initializable, OwnableUpgradeable {
 
     struct Epoch {
+        uint256 iteration;
+
         // time related variables
         uint256 startBlock; // Block the epoch was initialized
         uint256 duration; // Minimum time epoch will be alive measued in number of blocks
         uint256 endBlock; // Block the epoch ended (and when the next epoch was initialised)
                           // Zero here represents the epoch has not yet ended.
-
-        // pointer to directory constructed for this epoch
-        bytes32 directoryId;
 
         // listing variables
         uint16 defaultPayoutPercentage;
@@ -49,11 +48,13 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     uint256 public epochDuration;
 
-    bytes32 public currentActiveEpoch;
+    // Increment this value as each epoch is intialized.
+    // The iteration is also used as the epoch's identifier.
+    uint256 public currentIteration;
 
-    mapping (bytes32 => Epoch) epochs;
+    mapping (uint256 => Epoch) epochs;
 
-    event NewEpoch(bytes32 epochId);
+    event NewEpoch(uint256 epochId);
 
     function initialize(
         Directory directory,
@@ -66,21 +67,22 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         _listings = listings;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
+        currentIteration = 0;
     }
 
-    function initializeEpoch() public returns (bytes32) {
-        Epoch storage current = epochs[currentActiveEpoch];
+    function initializeEpoch() public returns (uint256) {
+        Epoch storage current = epochs[currentIteration];
 
         uint256 end = current.startBlock + current.duration;
         require(end <= block.number, "Current epoch has not yet ended");
 
-        bytes32 directoryId = _directory.constructDirectory();
+        uint256 nextIteration = currentIteration + 1;
 
         Epoch memory nextEpoch = Epoch(
+            nextIteration,
             block.number,
             epochDuration,
             0,
-            directoryId,
             _listings.defaultPayoutPercentage(),
             _ticketingParameters.faceValue(),
             _ticketingParameters.baseLiveWinProb(),
@@ -89,12 +91,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             _ticketingParameters.decayRate()
         );
 
-        bytes32 epochId = getEpochId(nextEpoch);
+        uint256 epochId = getNextEpochId();
+
+        _directory.setCurrentDirectory(epochId);
 
         epochs[epochId] = nextEpoch;
         current.endBlock = block.number;
 
-        currentActiveEpoch = epochId;
+        currentIteration = nextIteration;
 
         emit NewEpoch(epochId);
 
@@ -102,26 +106,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     function getCurrentActiveEpoch() public view returns (Epoch memory epoch) {
-        return epochs[currentActiveEpoch];
+        return epochs[currentIteration];
     }
 
-    function getEpochId(Epoch memory epoch) public pure returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                epoch.startBlock,
-                epoch.duration,
-                epoch.directoryId,
-                epoch.defaultPayoutPercentage,
-                epoch.faceValue,
-                epoch.baseLiveWinProb,
-                epoch.expiredWinProb,
-                epoch.ticketDuration,
-                epoch.decayRate
-            )
-        );
+    function getNextEpochId() public view returns (uint256) {
+        return currentIteration + 1;
     }
 
-    function getEpoch(bytes32 epochId) public view returns (Epoch memory) {
+    function getEpoch(uint256 epochId) public view returns (Epoch memory) {
         return epochs[epochId];
     }
 }

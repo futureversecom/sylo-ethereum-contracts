@@ -40,21 +40,21 @@ func TestGasAddStake(t *testing.T) {
 	writeJsonOutput(t, b, "testdata/gasAddStakeOut.json")
 }
 
-type gasCalculatePricesTest struct {
-	Nodes   uint64 `json:"voters"`
-	GasUsed uint64 `json:"gas_used"`
+type gasInitializeRewardPool struct {
+	DelegatedStakers uint64 `json:"delegated_stakers"`
+	GasUsed          uint64 `json:"gas_used"`
 }
 
-func TestGasCalculatePrices(t *testing.T) {
-	tcs := []*gasCalculatePricesTest{
-		{Nodes: 1},
-		{Nodes: 100},
-		{Nodes: 200},
-		{Nodes: 300},
+func TestGasIniitializeRewardPool(t *testing.T) {
+	tcs := []*gasInitializeRewardPool{
+		{DelegatedStakers: 1},
+		{DelegatedStakers: 10},
+		{DelegatedStakers: 50},
+		{DelegatedStakers: 100},
 	}
 
 	for _, tc := range tcs {
-		runGasCalculatePrices(t, tc)
+		runGasInitializeRewardPool(t, tc)
 	}
 
 	b, err := json.Marshal(tcs)
@@ -62,7 +62,32 @@ func TestGasCalculatePrices(t *testing.T) {
 		t.Fatalf("could not marshal test results: %v", err)
 	}
 
-	writeJsonOutput(t, b, "testdata/gasCalculatePricesOut.json")
+	writeJsonOutput(t, b, "testdata/gasInitializeRewardPool.json")
+}
+
+type gasClaimRewardMultipleEpochs struct {
+	Epochs  uint64 `json:"epochs"`
+	GasUsed uint64 `json:"gas_used"`
+}
+
+func TestGasClaimRewardMultipleEpochs(t *testing.T) {
+	tcs := []*gasClaimRewardMultipleEpochs{
+		{Epochs: 1},
+		{Epochs: 10},
+		{Epochs: 50},
+		{Epochs: 100},
+	}
+
+	for _, tc := range tcs {
+		runGasClaimRewardMultipleEpochs(t, tc)
+	}
+
+	b, err := json.Marshal(tcs)
+	if err != nil {
+		t.Fatalf("could not marshal test results: %v", err)
+	}
+
+	writeJsonOutput(t, b, "testdata/gasClaimRewardsMultipleEpochs.json")
 }
 
 func runGasAddStake(t *testing.T, tc *gasAddStakeTest) {
@@ -102,32 +127,86 @@ func addStakeGas(t *testing.T, ctx context.Context, c *client, amount *big.Int, 
 	return tx.Gas()
 }
 
-func voteGas(t *testing.T, ctx context.Context, c *client, price *big.Int) uint64 {
-	tx, err := c.Vote(price)
-	if err != nil {
-		t.Fatalf("could not vote: %v", err)
+func runGasInitializeRewardPool(t *testing.T, tc *gasInitializeRewardPool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	backend, addresses, faucet, _ := StartupEthereum(t, ctx)
+
+	node, _ := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, node.Address(), OneEth, big.NewInt(1000000))
+
+	List(t, ctx, backend, node, "0", big.NewInt(1))
+
+	// populate stakes
+	for i := uint64(0); i < tc.DelegatedStakers; i++ {
+		c, _ := CreateRandomClient(t, ctx, backend, addresses)
+		faucet(t, c.Address(), OneEth, big.NewInt(1000000))
+		approveStakingManager(t, ctx, c, big.NewInt(100))
+		addStakeGas(t, ctx, c, big.NewInt(100), node.Address())
+		backend.Commit()
 	}
-	return tx.Gas()
+
+	// initialize reward pool
+	tx, err := node.InitializeNextRewardPool()
+	if err != nil {
+		t.Fatalf("failed to distribute rewards: %v", err)
+	}
+	tc.GasUsed = tx.Gas()
 }
 
-func runGasCalculatePrices(t *testing.T, tc *gasCalculatePricesTest) {
+func runGasClaimRewardMultipleEpochs(t *testing.T, tc *gasClaimRewardMultipleEpochs) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	backend, addresses, faucet, owner := StartupEthereum(t, ctx)
 
-	// populate stakes and votes
-	for i := uint64(0); i < tc.Nodes; i++ {
-		c, _ := CreateRandomClient(t, ctx, backend, addresses)
-		faucet(t, c.Address(), OneEth, big.NewInt(1000000))
-		approveStakingManager(t, ctx, c, big.NewInt(100))
-		addStakeGas(t, ctx, c, big.NewInt(100), c.Address())
-		voteGas(t, ctx, c, big.NewInt(1))
-		backend.Commit()
+	node, _ := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, node.Address(), OneEth, big.NewInt(1000000))
+
+	List(t, ctx, backend, node, "0", big.NewInt(1))
+
+	Stake(t, ctx, backend, node, big.NewInt(100))
+
+	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	if err != nil {
+		t.Fatalf("could not transfer directory ownership: %v", err)
 	}
 
-	tx := CalculatePrices(t, ctx, backend, owner)
+	// set up sender
+	sender, senderPK := CreateRandomClient(t, ctx, backend, addresses)
+	faucet(t, sender.Address(), OneEth, big.NewInt(100000))
+	AddEscrow(t, ctx, backend, sender, big.NewInt(10000))
+	AddPenalty(t, ctx, backend, sender, big.NewInt(10000))
 
+	for i := uint64(0); i < tc.Epochs; i++ {
+		// join directory and initialize reward pool
+		JoinNextDirectory(t, ctx, backend, node)
+		InitializeNextRewardPool(t, ctx, backend, node)
+
+		InitializeEpoch(t, ctx, backend, owner)
+
+		backend.Commit()
+
+		// increment reward pool
+		for i := 0; i < 10; i++ {
+			ticket, sig, senderRand, nodeRand := CreateWinningTicket(t, sender, senderPK, node.Address())
+			Redeem(t, ctx, backend, node, ticket, senderRand, nodeRand, sig)
+		}
+
+		// end current epoch
+		InitializeEpoch(t, ctx, backend, owner)
+		// advance until tickets expire
+		for i := 0; i < 20; i++ {
+			backend.Commit()
+		}
+	}
+
+	// claim rewards
+	tx, err := node.ClaimStakingRewards(node.Address())
+	if err != nil {
+		t.Fatalf("failed to distribute rewards: %v", err)
+	}
 	tc.GasUsed = tx.Gas()
 }
 
