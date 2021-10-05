@@ -2,12 +2,12 @@
 pragma solidity ^0.8.0;
 
 library SyloUtils {
-    /* 
+    /*
      * Percentages are expressed as a ratio where 10000 is the denominator.
      * A large denominator allows for more precision, e.g representing 12.5%
      * can be done as 1250 / 10000
      */
-    uint256 constant PERCENTAGE_DENOMINATOR = 10000;
+    uint16 constant public PERCENTAGE_DENOMINATOR = 10000;
 
     /*
      * Multiply a value by a given percentage.

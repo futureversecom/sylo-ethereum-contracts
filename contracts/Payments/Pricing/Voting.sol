@@ -61,7 +61,7 @@ contract PriceVoting is Initializable, OwnableUpgradeable {
     // sorted from lowest to highest, and each voter is included in the list,
     // and that all voters in the given list have actually voted
     function validateSortedVotes(uint256[] memory sortedIndexes) public view returns (Vote[] memory) {
-        // If we validate there are no duplicates, and the length of the sorted 
+        // If we validate there are no duplicates, and the length of the sorted
         // array is equal to the voter array, then all voters are accounted for
         require(sortedIndexes.length == voters.length, "Not all voters were present in sorted voter array");
 
@@ -88,14 +88,5 @@ contract PriceVoting is Initializable, OwnableUpgradeable {
         }
 
         return sortedVotes;
-    }
-
-    function seek(address[] memory hmap, address e, uint idx) internal pure returns (uint256) {
-        if (hmap[idx] == address(0) || hmap[idx] == e) {
-            return idx;
-        } else {
-            idx++;
-            return seek(hmap, e, idx % hmap.length);
-        }
     }
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+var errNotImplemented = errors.New("not implemented")
+
 type SimBackend interface {
 	Backend
 	Commit()
@@ -30,7 +32,7 @@ func NewSimBackend(sim *backends.SimulatedBackend) SimBackend {
 }
 
 func (b *simBackend) PendingBalanceAt(ctx context.Context, account ethcommon.Address) (*big.Int, error) {
-	return nil, errors.New("Not implemented")
+	return nil, errNotImplemented
 }
 
 func (b *simBackend) PendingStorageAt(ctx context.Context, account ethcommon.Address, key ethcommon.Hash) ([]byte, error) {
@@ -39,7 +41,7 @@ func (b *simBackend) PendingStorageAt(ctx context.Context, account ethcommon.Add
 }
 
 func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) {
-	return 0, errors.New("Not implemented")
+	return 0, errNotImplemented
 }
 
 func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey, amount *big.Int) (err error) {
@@ -83,9 +85,10 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var expiredWinProb = big.NewInt(10000)
 	var decayRate = uint16(8000)
 	var ticketDuration = big.NewInt(100)
+	var epochsDuration = big.NewInt(80000)
 
 	if len(opts) < 1 {
-		return nil, nil, errors.New("Please provide at least one option")
+		return nil, nil, errors.New("must provide at least one option")
 	}
 
 	genisis := make(core.GenesisAlloc)
@@ -99,51 +102,79 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	backend := NewSimBackend(sim)
 
 	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
-
 	backend.Commit()
+
 	var stakingManager *contracts.StakingManager
 	addresses.StakingManager, _, stakingManager, _ = contracts.DeployStakingManager(&opts[0], backend)
-	_, err := stakingManager.Initialize(&opts[0], addresses.Token, big.NewInt(1))
+
+	var directory *contracts.Directory
+	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
+
+	var epochsManager *contracts.EpochsManager
+	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
+
+	var rewardsManager *contracts.RewardsManager
+	addresses.RewardsManager, _, rewardsManager, _ = contracts.DeployRewardsManager(&opts[0], backend)
+
+	_, err := stakingManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
-
 	backend.Commit()
+
+	_, err = directory.Initialize(&opts[0], addresses.StakingManager, addresses.RewardsManager)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
+	}
+	backend.Commit()
+
+	_, err = epochsManager.Initialize(&opts[0], addresses.Directory, addresses.Listings, addresses.TicketingParameters, epochsDuration)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise epochsManager: %w", err)
+	}
+	backend.Commit()
+
+	_, err = rewardsManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise rewardsManager: %w", err)
+	}
+	backend.Commit()
+
 	var priceVoting *contracts.PriceVoting
 	addresses.PriceVoting, _, priceVoting, _ = contracts.DeployPriceVoting(&opts[0], backend)
 	_, err = priceVoting.Initialize(&opts[0], addresses.StakingManager)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
-
 	backend.Commit()
+
 	var priceManager *contracts.PriceManager
 	addresses.PriceManager, _, priceManager, _ = contracts.DeployPriceManager(&opts[0], backend)
 	_, err = priceManager.Initialize(&opts[0], addresses.StakingManager, addresses.PriceVoting)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise price manager: %w", err)
 	}
-
 	backend.Commit()
-	var directory *contracts.Directory
-	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
-	_, err = directory.Initialize(&opts[0], addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
-	}
 
-	backend.Commit()
 	var listings *contracts.Listings
 	addresses.Listings, _, listings, _ = contracts.DeployListings(&opts[0], backend)
 	_, err = listings.Initialize(&opts[0], 50)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
-
 	backend.Commit()
+
+	var ticketingParameters *contracts.TicketingParameters
+	addresses.TicketingParameters, _, ticketingParameters, _ = contracts.DeployTicketingParameters(&opts[0], backend)
+	_, err = ticketingParameters.Initialize(&opts[0], big.NewInt(1), winProb, expiredWinProb, decayRate, ticketDuration)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not initialise ticketingParameters: %w", err)
+	}
+	backend.Commit()
+
 	var ticketing *contracts.SyloTicketing
 	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, big.NewInt(1), big.NewInt(1), winProb, expiredWinProb, decayRate, ticketDuration)
+	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}
@@ -151,7 +182,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	var clients []Client
 
 	for i := 0; i < len(opts); i++ {
-		client, err := NewClientWithBackend(
+		client, err := NewSyloPaymentsClient(
 			addresses,
 			backend,
 			&opts[0],

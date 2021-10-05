@@ -38,14 +38,17 @@ func TestPayments(t *testing.T) {
 	sylopayments.Stake(t, ctx, backend, node, big.NewInt(600))
 	t.Log("node A stake 600 sylo")
 
-	// vote
-	sylopayments.Vote(t, ctx, backend, node, big.NewInt(1))
+	// participate in next epoch
+	sylopayments.JoinNextDirectory(t, ctx, backend, node)
+	sylopayments.InitializeNextRewardPool(t, ctx, backend, node)
 
-	// calculate prices
-	sylopayments.CalculatePrices(t, ctx, backend, owner)
+	// initialize epoch
+	_, err := owner.TransferDirectoryOwnership(addresses.EpochsManager)
+	if err != nil {
+		t.Fatalf("could not transfer directory ownership: %v", err)
+	}
 
-	// construct directory
-	sylopayments.ConstructDirectory(t, ctx, backend, owner)
+	sylopayments.InitializeEpoch(t, ctx, backend, owner)
 
 	// create alice
 	alice, aliceSK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
@@ -125,7 +128,13 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 		t.Fatalf("could not retrieve the latest block: %v", err)
 	}
 
+	epoch, err := sender.GetCurrentActiveEpoch()
+	if err != nil {
+		t.Fatalf("could not retrieve current epoch %v", err)
+	}
+
 	ticket := contracts.SyloTicketingTicket{
+		EpochId:         epoch.Iteration,
 		Sender:          sender.Address(),
 		Redeemer:        receiver,
 		SenderCommit:    senderCommit,

@@ -6,7 +6,7 @@ const Token = artifacts.require("SyloToken");
 
 const utils = require('../utils');
 
-contract('Pricing', accounts => {
+contract.skip('Pricing', accounts => {
   let priceManager;
   let priceVoting;
   let token;
@@ -71,7 +71,7 @@ contract('Pricing', accounts => {
     }
 
     const prices = [20, 10, 5, 30, 45, 12, 17, 9, 24, 10];
-    
+
     for (let i = 0; i < accounts.length; i++) {
       await priceVoting.vote(prices[i], { from: accounts[i] });
     }
@@ -91,7 +91,7 @@ contract('Pricing', accounts => {
     }
 
     const prices = [2, 3, 4, 1];
-    
+
     for (let i = 0; i < 4; i++) {
       await priceVoting.vote(prices[i], { from: accounts[i] });
     }

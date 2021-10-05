@@ -27,10 +27,10 @@ var (
 )
 
 // DirectoryABI is the input ABI used to generate the binding from.
-const DirectoryABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"currentDirectory\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"stakee\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"boundary\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"contractPriceVoting\",\"name\":\"priceVoting\",\"type\":\"address\"},{\"internalType\":\"contractPriceManager\",\"name\":\"priceManager\",\"type\":\"address\"},{\"internalType\":\"contractStakingManager\",\"name\":\"stakingManager\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"constructDirectory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint128\",\"name\":\"point\",\"type\":\"uint128\"}],\"name\":\"scan\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const DirectoryABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"currentDirectory\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"contractStakingManager\",\"name\":\"stakingManager\",\"type\":\"address\"},{\"internalType\":\"contractRewardsManager\",\"name\":\"rewardsManager\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"epochId\",\"type\":\"uint256\"}],\"name\":\"setCurrentDirectory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"joinNextDirectory\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint128\",\"name\":\"point\",\"type\":\"uint128\"}],\"name\":\"scan\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"epochId\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"stakee\",\"type\":\"address\"}],\"name\":\"getTotalStakeForStakee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"epochId\",\"type\":\"uint256\"}],\"name\":\"getTotalStake\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"epochId\",\"type\":\"uint256\"}],\"name\":\"getEntries\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"\",\"type\":\"uint256[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // DirectoryBin is the compiled bytecode used for deploying new contracts.
-var DirectoryBin = "0x608060405234801561001057600080fd5b50610f70806100206000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c80638da5cb5b1161005b5780638da5cb5b146100c4578063c0c53b8b146100d5578063f04260e8146100e8578063f2fde38b1461011a57600080fd5b80634e68066114610082578063715018a6146100b2578063859ea347146100bc575b600080fd5b610095610090366004610e26565b61012d565b6040516001600160a01b0390911681526020015b60405180910390f35b6100ba610358565b005b6100ba6103c3565b6033546001600160a01b0316610095565b6100ba6100e3366004610ddc565b610880565b6100fb6100f6366004610e56565b610988565b604080516001600160a01b0390931683526020830191909152016100a9565b6100ba610128366004610da4565b6109c0565b60685460009061013f57506000919050565b606554604080517f7bc7422500000000000000000000000000000000000000000000000000000000815290516000926001600160a01b031691637bc74225916004808301926020929190829003018186803b15801561019d57600080fd5b505afa1580156101b1573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d59190610e6e565b9050600060806101f76fffffffffffffffffffffffffffffffff861684610ebe565b606854911c9150600090819061020f90600190610edd565b90505b80821161034c57600060026102278385610e86565b6102319190610e9e565b90506000811561027d576068610248600184610edd565b8154811061026657634e487b7160e01b600052603260045260246000fd5b906000526020600020906002020160010154610280565b60005b90506000606883815481106102a557634e487b7160e01b600052603260045260246000fd5b90600052602060002090600202016001015490508186101580156102c857508086105b1561031557606883815481106102ee57634e487b7160e01b600052603260045260246000fd5b60009182526020909120600290910201546001600160a01b03169998505050505050505050565b8186101561032f57610328600184610edd565b9350610344565b80861061034457610341836001610e86565b94505b505050610212565b50600095945050505050565b6033546001600160a01b031633146103b75760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064015b60405180910390fd5b6103c16000610aa2565b565b6033546001600160a01b0316331461041d5760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016103ae565b61042960686000610d51565b6000805b606560009054906101000a90046001600160a01b03166001600160a01b03166338b9437d6040518163ffffffff1660e01b815260040160206040518083038186803b15801561047b57600080fd5b505afa15801561048f573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906104b39190610e6e565b81101561087c576065546040517fd2d6c0da000000000000000000000000000000000000000000000000000000008152600481018390526000916001600160a01b03169063d2d6c0da9060240160206040518083038186803b15801561051857600080fd5b505afa15801561052c573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906105509190610dc0565b6065546040517fdf349ed50000000000000000000000000000000000000000000000000000000081526001600160a01b0380841660048301529293506000929091169063df349ed59060240160206040518083038186803b1580156105b457600080fd5b505afa1580156105c8573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906105ec9190610e6e565b905060018110156105fe57505061086a565b6067546040517fd8bff5a50000000000000000000000000000000000000000000000000000000081526001600160a01b038481166004830152600092169063d8bff5a59060240160206040518083038186803b15801561065d57600080fd5b505afa158015610671573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106959190610e6e565b9050806106a45750505061086a565b606660009054906101000a90046001600160a01b03166001600160a01b031663985371a36040518163ffffffff1660e01b815260040160206040518083038186803b1580156106f257600080fd5b505afa158015610706573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061072a9190610e6e565b811180156107d55750606654604080517f0b5b820700000000000000000000000000000000000000000000000000000000815290516107d2926001600160a01b031691630b5b8207916004808301926020929190829003018186803b15801561079257600080fd5b505afa1580156107a6573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906107ca9190610e6e565b612af8610b01565b81115b156107e25750505061086a565b60686040518060400160405280856001600160a01b03168152602001848861080a9190610e86565b905281546001808201845560009384526020938490208351600290930201805473ffffffffffffffffffffffffffffffffffffffff19166001600160a01b0390931692909217825591909201519101556108648286610e86565b94505050505b8061087481610ef4565b91505061042d565b5050565b600054610100900460ff1680610899575060005460ff16155b6108fc5760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103ae565b600054610100900460ff1615801561091e576000805461ffff19166101011790555b610926610b37565b606780546001600160a01b0380871673ffffffffffffffffffffffffffffffffffffffff19928316179092556066805486841690831617905560658054928516929091169190911790558015610982576000805461ff00191690555b50505050565b6068818154811061099857600080fd5b6000918252602090912060029091020180546001909101546001600160a01b03909116915082565b6033546001600160a01b03163314610a1a5760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201526064016103ae565b6001600160a01b038116610a965760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201527f646472657373000000000000000000000000000000000000000000000000000060648201526084016103ae565b610a9f81610aa2565b50565b603380546001600160a01b0383811673ffffffffffffffffffffffffffffffffffffffff19831681179093556040519116919082907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e090600090a35050565b6000612710610b2661ffff84166fffffffffffffffffffffffffffffffff8616610ebe565b610b309190610e9e565b9392505050565b600054610100900460ff1680610b50575060005460ff16155b610bb35760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103ae565b600054610100900460ff16158015610bd5576000805461ffff19166101011790555b610bdd610bf9565b610be5610caa565b8015610a9f576000805461ff001916905550565b600054610100900460ff1680610c12575060005460ff16155b610c755760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103ae565b600054610100900460ff16158015610be5576000805461ffff19166101011790558015610a9f576000805461ff001916905550565b600054610100900460ff1680610cc3575060005460ff16155b610d265760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084016103ae565b600054610100900460ff16158015610d48576000805461ffff19166101011790555b610be533610aa2565b5080546000825560020290600052602060002090810190610a9f91905b80821115610da057805473ffffffffffffffffffffffffffffffffffffffff1916815560006001820155600201610d6e565b5090565b600060208284031215610db5578081fd5b8135610b3081610f25565b600060208284031215610dd1578081fd5b8151610b3081610f25565b600080600060608486031215610df0578182fd5b8335610dfb81610f25565b92506020840135610e0b81610f25565b91506040840135610e1b81610f25565b809150509250925092565b600060208284031215610e37578081fd5b81356fffffffffffffffffffffffffffffffff81168114610b30578182fd5b600060208284031215610e67578081fd5b5035919050565b600060208284031215610e7f578081fd5b5051919050565b60008219821115610e9957610e99610f0f565b500190565b600082610eb957634e487b7160e01b81526012600452602481fd5b500490565b6000816000190483118215151615610ed857610ed8610f0f565b500290565b600082821015610eef57610eef610f0f565b500390565b6000600019821415610f0857610f08610f0f565b5060010190565b634e487b7160e01b600052601160045260246000fd5b6001600160a01b0381168114610a9f57600080fdfea26469706673582212202c20c653bd403c7f5c09283f0c0dffa0ee207d0c4bcb1588109fe2393a91779064736f6c63430008040033"
+var DirectoryBin = "0x608060405234801561001057600080fd5b506110b8806100206000396000f3fe608060405234801561001057600080fd5b50600436106100c95760003560e01c80638ce5749611610081578063dc12c9b81161005b578063dc12c9b8146101cb578063f2fde38b146101d3578063fa42e7ea146101e657600080fd5b80638ce57496146101865780638da5cb5b14610199578063d3549ebd146101aa57600080fd5b8063485cc955116100b2578063485cc9551461013e5780634e68066114610153578063715018a61461017e57600080fd5b80631bdcc9ad146100ce57806345367f231461011b575b600080fd5b6101086100dc366004610f27565b60008281526068602090815260408083206001600160a01b038516845260010190915290205492915050565b6040519081526020015b60405180910390f35b610108610129366004610ef7565b60009081526068602052604090206002015490565b61015161014c366004610e8f565b6101ef565b005b610166610161366004610ec7565b6102f9565b6040516001600160a01b039091168152602001610112565b6101516104e9565b610151610194366004610ef7565b61054f565b6033546001600160a01b0316610166565b6101bd6101b8366004610ef7565b6105ae565b604051610112929190610f4b565b610151610787565b6101516101e1366004610e6c565b610b06565b61010860675481565b600054610100900460ff1680610208575060005460ff16155b6102705760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b60648201526084015b60405180910390fd5b600054610100900460ff16158015610292576000805461ffff19166101011790555b61029a610be8565b606580546001600160a01b038086167fffffffffffffffffffffffff000000000000000000000000000000000000000092831617909255606680549285169290911691909117905580156102f4576000805461ff00191690555b505050565b60675460009081526068602052604081205461031757506000919050565b60675460009081526068602052604081206002015460809061034c906fffffffffffffffffffffffffffffffff861690611006565b6067546000908152606860205260408120549190921c9250819061037290600190611025565b90505b8082116104de576000600261038a8385610fce565b6103949190610fe6565b9050600081156103ef5760675460009081526068602052604090206103ba600184611025565b815481106103d857634e487b7160e01b600052603260045260246000fd5b9060005260206000209060020201600101546103f2565b60005b6067546000908152606860205260408120805492935090918490811061042857634e487b7160e01b600052603260045260246000fd5b906000526020600020906002020160010154905081861015801561044b57508086105b156104a757606754600090815260686020526040902080548490811061048157634e487b7160e01b600052603260045260246000fd5b60009182526020909120600290910201546001600160a01b031698975050505050505050565b818610156104c1576104ba600184611025565b93506104d6565b8086106104d6576104d3836001610fce565b94505b505050610375565b506000949350505050565b6033546001600160a01b031633146105435760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152606401610267565b61054d6000610caa565b565b6033546001600160a01b031633146105a95760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152606401610267565b606755565b600081815260686020526040812054606091829167ffffffffffffffff8111156105e857634e487b7160e01b600052604160045260246000fd5b604051908082528060200260200182016040528015610611578160200160208202803683370190505b506000858152606860205260408120549192509067ffffffffffffffff81111561064b57634e487b7160e01b600052604160045260246000fd5b604051908082528060200260200182016040528015610674578160200160208202803683370190505b50905060005b60008681526068602052604090205481101561077c5760008681526068602052604081208054839081106106be57634e487b7160e01b600052603260045260246000fd5b60009182526020918290206040805180820190915260029092020180546001600160a01b031680835260019091015492820192909252855190925085908490811061071957634e487b7160e01b600052603260045260246000fd5b60200260200101906001600160a01b031690816001600160a01b031681525050806020015183838151811061075e57634e487b7160e01b600052603260045260246000fd5b602090810291909101015250806107748161103c565b91505061067a565b509094909350915050565b6065546040517f13cdd31b0000000000000000000000000000000000000000000000000000000081523360048201819052916000916001600160a01b03909116906313cdd31b9060240160206040518083038186803b1580156107e957600080fd5b505afa1580156107fd573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108219190610f0f565b6066546040517ff1fd0d1c0000000000000000000000000000000000000000000000000000000081526001600160a01b0385811660048301529293506000929091169063f1fd0d1c9060240160206040518083038186803b15801561088557600080fd5b505afa158015610899573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108bd9190610f0f565b905060006108cb8284610fce565b9050600081116109435760405162461bcd60e51b815260206004820152603760248201527f43616e206e6f74206a6f696e206469726563746f727920666f72206e6578742060448201527f65706f636820776974686f757420616e79207374616b650000000000000000006064820152608401610267565b600060675460016109549190610fce565b60008181526068602090815260408083206001600160a01b038a168452600101909152902054909150156109f05760405162461bcd60e51b815260206004820152602a60248201527f43616e206f6e6c79206a6f696e20746865206469726563746f7279206f6e636560448201527f207065722065706f6368000000000000000000000000000000000000000000006064820152608401610267565b600081815260686020526040812060020154610a0d908490610fce565b9050606860008381526020019081526020016000206000016040518060400160405280886001600160a01b0316815260200183815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000160006101000a8154816001600160a01b0302191690836001600160a01b0316021790555060208201518160010155505082606860008481526020019081526020016000206001016000886001600160a01b03166001600160a01b0316815260200190815260200160002081905550806068600084815260200190815260200160002060020181905550505050505050565b6033546001600160a01b03163314610b605760405162461bcd60e51b815260206004820181905260248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152606401610267565b6001600160a01b038116610bdc5760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201527f64647265737300000000000000000000000000000000000000000000000000006064820152608401610267565b610be581610caa565b50565b600054610100900460ff1680610c01575060005460ff16155b610c645760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b6064820152608401610267565b600054610100900460ff16158015610c86576000805461ffff19166101011790555b610c8e610d14565b610c96610dc5565b8015610be5576000805461ff001916905550565b603380546001600160a01b038381167fffffffffffffffffffffffff0000000000000000000000000000000000000000831681179093556040519116919082907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e090600090a35050565b600054610100900460ff1680610d2d575060005460ff16155b610d905760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b6064820152608401610267565b600054610100900460ff16158015610c96576000805461ffff19166101011790558015610be5576000805461ff001916905550565b600054610100900460ff1680610dde575060005460ff16155b610e415760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201526d191e481a5b9a5d1a585b1a5e995960921b6064820152608401610267565b600054610100900460ff16158015610e63576000805461ffff19166101011790555b610c9633610caa565b600060208284031215610e7d578081fd5b8135610e888161106d565b9392505050565b60008060408385031215610ea1578081fd5b8235610eac8161106d565b91506020830135610ebc8161106d565b809150509250929050565b600060208284031215610ed8578081fd5b81356fffffffffffffffffffffffffffffffff81168114610e88578182fd5b600060208284031215610f08578081fd5b5035919050565b600060208284031215610f20578081fd5b5051919050565b60008060408385031215610f39578182fd5b823591506020830135610ebc8161106d565b604080825283519082018190526000906020906060840190828701845b82811015610f8d5781516001600160a01b031684529284019290840190600101610f68565b50505083810382850152845180825285830191830190845b81811015610fc157835183529284019291840191600101610fa5565b5090979650505050505050565b60008219821115610fe157610fe1611057565b500190565b60008261100157634e487b7160e01b81526012600452602481fd5b500490565b600081600019048311821515161561102057611020611057565b500290565b60008282101561103757611037611057565b500390565b600060001982141561105057611050611057565b5060010190565b634e487b7160e01b600052601160045260246000fd5b6001600160a01b0381168114610be557600080fdfea2646970667358221220fcc0c4fd0efcc977a79542f1a37406e15259bf0bc12efae086bc39c030e17c3664736f6c63430008040033"
 
 // DeployDirectory deploys a new Ethereum contract, binding an instance of Directory to it.
 func DeployDirectory(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Directory, error) {
@@ -188,49 +188,129 @@ func (_Directory *DirectoryTransactorRaw) Transact(opts *bind.TransactOpts, meth
 	return _Directory.Contract.contract.Transact(opts, method, params...)
 }
 
-// CurrentDirectory is a free data retrieval call binding the contract method 0xf04260e8.
+// CurrentDirectory is a free data retrieval call binding the contract method 0xfa42e7ea.
 //
-// Solidity: function currentDirectory(uint256 ) view returns(address stakee, uint256 boundary)
-func (_Directory *DirectoryCaller) CurrentDirectory(opts *bind.CallOpts, arg0 *big.Int) (struct {
-	Stakee   common.Address
-	Boundary *big.Int
-}, error) {
+// Solidity: function currentDirectory() view returns(uint256)
+func (_Directory *DirectoryCaller) CurrentDirectory(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _Directory.contract.Call(opts, &out, "currentDirectory", arg0)
+	err := _Directory.contract.Call(opts, &out, "currentDirectory")
 
-	outstruct := new(struct {
-		Stakee   common.Address
-		Boundary *big.Int
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(*big.Int), err
 	}
 
-	outstruct.Stakee = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-	outstruct.Boundary = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
-// CurrentDirectory is a free data retrieval call binding the contract method 0xf04260e8.
+// CurrentDirectory is a free data retrieval call binding the contract method 0xfa42e7ea.
 //
-// Solidity: function currentDirectory(uint256 ) view returns(address stakee, uint256 boundary)
-func (_Directory *DirectorySession) CurrentDirectory(arg0 *big.Int) (struct {
-	Stakee   common.Address
-	Boundary *big.Int
-}, error) {
-	return _Directory.Contract.CurrentDirectory(&_Directory.CallOpts, arg0)
+// Solidity: function currentDirectory() view returns(uint256)
+func (_Directory *DirectorySession) CurrentDirectory() (*big.Int, error) {
+	return _Directory.Contract.CurrentDirectory(&_Directory.CallOpts)
 }
 
-// CurrentDirectory is a free data retrieval call binding the contract method 0xf04260e8.
+// CurrentDirectory is a free data retrieval call binding the contract method 0xfa42e7ea.
 //
-// Solidity: function currentDirectory(uint256 ) view returns(address stakee, uint256 boundary)
-func (_Directory *DirectoryCallerSession) CurrentDirectory(arg0 *big.Int) (struct {
-	Stakee   common.Address
-	Boundary *big.Int
-}, error) {
-	return _Directory.Contract.CurrentDirectory(&_Directory.CallOpts, arg0)
+// Solidity: function currentDirectory() view returns(uint256)
+func (_Directory *DirectoryCallerSession) CurrentDirectory() (*big.Int, error) {
+	return _Directory.Contract.CurrentDirectory(&_Directory.CallOpts)
+}
+
+// GetEntries is a free data retrieval call binding the contract method 0xd3549ebd.
+//
+// Solidity: function getEntries(uint256 epochId) view returns(address[], uint256[])
+func (_Directory *DirectoryCaller) GetEntries(opts *bind.CallOpts, epochId *big.Int) ([]common.Address, []*big.Int, error) {
+	var out []interface{}
+	err := _Directory.contract.Call(opts, &out, "getEntries", epochId)
+
+	if err != nil {
+		return *new([]common.Address), *new([]*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([]common.Address)).(*[]common.Address)
+	out1 := *abi.ConvertType(out[1], new([]*big.Int)).(*[]*big.Int)
+
+	return out0, out1, err
+
+}
+
+// GetEntries is a free data retrieval call binding the contract method 0xd3549ebd.
+//
+// Solidity: function getEntries(uint256 epochId) view returns(address[], uint256[])
+func (_Directory *DirectorySession) GetEntries(epochId *big.Int) ([]common.Address, []*big.Int, error) {
+	return _Directory.Contract.GetEntries(&_Directory.CallOpts, epochId)
+}
+
+// GetEntries is a free data retrieval call binding the contract method 0xd3549ebd.
+//
+// Solidity: function getEntries(uint256 epochId) view returns(address[], uint256[])
+func (_Directory *DirectoryCallerSession) GetEntries(epochId *big.Int) ([]common.Address, []*big.Int, error) {
+	return _Directory.Contract.GetEntries(&_Directory.CallOpts, epochId)
+}
+
+// GetTotalStake is a free data retrieval call binding the contract method 0x45367f23.
+//
+// Solidity: function getTotalStake(uint256 epochId) view returns(uint256)
+func (_Directory *DirectoryCaller) GetTotalStake(opts *bind.CallOpts, epochId *big.Int) (*big.Int, error) {
+	var out []interface{}
+	err := _Directory.contract.Call(opts, &out, "getTotalStake", epochId)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetTotalStake is a free data retrieval call binding the contract method 0x45367f23.
+//
+// Solidity: function getTotalStake(uint256 epochId) view returns(uint256)
+func (_Directory *DirectorySession) GetTotalStake(epochId *big.Int) (*big.Int, error) {
+	return _Directory.Contract.GetTotalStake(&_Directory.CallOpts, epochId)
+}
+
+// GetTotalStake is a free data retrieval call binding the contract method 0x45367f23.
+//
+// Solidity: function getTotalStake(uint256 epochId) view returns(uint256)
+func (_Directory *DirectoryCallerSession) GetTotalStake(epochId *big.Int) (*big.Int, error) {
+	return _Directory.Contract.GetTotalStake(&_Directory.CallOpts, epochId)
+}
+
+// GetTotalStakeForStakee is a free data retrieval call binding the contract method 0x1bdcc9ad.
+//
+// Solidity: function getTotalStakeForStakee(uint256 epochId, address stakee) view returns(uint256)
+func (_Directory *DirectoryCaller) GetTotalStakeForStakee(opts *bind.CallOpts, epochId *big.Int, stakee common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _Directory.contract.Call(opts, &out, "getTotalStakeForStakee", epochId, stakee)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetTotalStakeForStakee is a free data retrieval call binding the contract method 0x1bdcc9ad.
+//
+// Solidity: function getTotalStakeForStakee(uint256 epochId, address stakee) view returns(uint256)
+func (_Directory *DirectorySession) GetTotalStakeForStakee(epochId *big.Int, stakee common.Address) (*big.Int, error) {
+	return _Directory.Contract.GetTotalStakeForStakee(&_Directory.CallOpts, epochId, stakee)
+}
+
+// GetTotalStakeForStakee is a free data retrieval call binding the contract method 0x1bdcc9ad.
+//
+// Solidity: function getTotalStakeForStakee(uint256 epochId, address stakee) view returns(uint256)
+func (_Directory *DirectoryCallerSession) GetTotalStakeForStakee(epochId *big.Int, stakee common.Address) (*big.Int, error) {
+	return _Directory.Contract.GetTotalStakeForStakee(&_Directory.CallOpts, epochId, stakee)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
@@ -295,46 +375,46 @@ func (_Directory *DirectoryCallerSession) Scan(point *big.Int) (common.Address, 
 	return _Directory.Contract.Scan(&_Directory.CallOpts, point)
 }
 
-// ConstructDirectory is a paid mutator transaction binding the contract method 0x859ea347.
+// Initialize is a paid mutator transaction binding the contract method 0x485cc955.
 //
-// Solidity: function constructDirectory() returns()
-func (_Directory *DirectoryTransactor) ConstructDirectory(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _Directory.contract.Transact(opts, "constructDirectory")
+// Solidity: function initialize(address stakingManager, address rewardsManager) returns()
+func (_Directory *DirectoryTransactor) Initialize(opts *bind.TransactOpts, stakingManager common.Address, rewardsManager common.Address) (*types.Transaction, error) {
+	return _Directory.contract.Transact(opts, "initialize", stakingManager, rewardsManager)
 }
 
-// ConstructDirectory is a paid mutator transaction binding the contract method 0x859ea347.
+// Initialize is a paid mutator transaction binding the contract method 0x485cc955.
 //
-// Solidity: function constructDirectory() returns()
-func (_Directory *DirectorySession) ConstructDirectory() (*types.Transaction, error) {
-	return _Directory.Contract.ConstructDirectory(&_Directory.TransactOpts)
+// Solidity: function initialize(address stakingManager, address rewardsManager) returns()
+func (_Directory *DirectorySession) Initialize(stakingManager common.Address, rewardsManager common.Address) (*types.Transaction, error) {
+	return _Directory.Contract.Initialize(&_Directory.TransactOpts, stakingManager, rewardsManager)
 }
 
-// ConstructDirectory is a paid mutator transaction binding the contract method 0x859ea347.
+// Initialize is a paid mutator transaction binding the contract method 0x485cc955.
 //
-// Solidity: function constructDirectory() returns()
-func (_Directory *DirectoryTransactorSession) ConstructDirectory() (*types.Transaction, error) {
-	return _Directory.Contract.ConstructDirectory(&_Directory.TransactOpts)
+// Solidity: function initialize(address stakingManager, address rewardsManager) returns()
+func (_Directory *DirectoryTransactorSession) Initialize(stakingManager common.Address, rewardsManager common.Address) (*types.Transaction, error) {
+	return _Directory.Contract.Initialize(&_Directory.TransactOpts, stakingManager, rewardsManager)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xc0c53b8b.
+// JoinNextDirectory is a paid mutator transaction binding the contract method 0xdc12c9b8.
 //
-// Solidity: function initialize(address priceVoting, address priceManager, address stakingManager) returns()
-func (_Directory *DirectoryTransactor) Initialize(opts *bind.TransactOpts, priceVoting common.Address, priceManager common.Address, stakingManager common.Address) (*types.Transaction, error) {
-	return _Directory.contract.Transact(opts, "initialize", priceVoting, priceManager, stakingManager)
+// Solidity: function joinNextDirectory() returns()
+func (_Directory *DirectoryTransactor) JoinNextDirectory(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Directory.contract.Transact(opts, "joinNextDirectory")
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xc0c53b8b.
+// JoinNextDirectory is a paid mutator transaction binding the contract method 0xdc12c9b8.
 //
-// Solidity: function initialize(address priceVoting, address priceManager, address stakingManager) returns()
-func (_Directory *DirectorySession) Initialize(priceVoting common.Address, priceManager common.Address, stakingManager common.Address) (*types.Transaction, error) {
-	return _Directory.Contract.Initialize(&_Directory.TransactOpts, priceVoting, priceManager, stakingManager)
+// Solidity: function joinNextDirectory() returns()
+func (_Directory *DirectorySession) JoinNextDirectory() (*types.Transaction, error) {
+	return _Directory.Contract.JoinNextDirectory(&_Directory.TransactOpts)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xc0c53b8b.
+// JoinNextDirectory is a paid mutator transaction binding the contract method 0xdc12c9b8.
 //
-// Solidity: function initialize(address priceVoting, address priceManager, address stakingManager) returns()
-func (_Directory *DirectoryTransactorSession) Initialize(priceVoting common.Address, priceManager common.Address, stakingManager common.Address) (*types.Transaction, error) {
-	return _Directory.Contract.Initialize(&_Directory.TransactOpts, priceVoting, priceManager, stakingManager)
+// Solidity: function joinNextDirectory() returns()
+func (_Directory *DirectoryTransactorSession) JoinNextDirectory() (*types.Transaction, error) {
+	return _Directory.Contract.JoinNextDirectory(&_Directory.TransactOpts)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
@@ -356,6 +436,27 @@ func (_Directory *DirectorySession) RenounceOwnership() (*types.Transaction, err
 // Solidity: function renounceOwnership() returns()
 func (_Directory *DirectoryTransactorSession) RenounceOwnership() (*types.Transaction, error) {
 	return _Directory.Contract.RenounceOwnership(&_Directory.TransactOpts)
+}
+
+// SetCurrentDirectory is a paid mutator transaction binding the contract method 0x8ce57496.
+//
+// Solidity: function setCurrentDirectory(uint256 epochId) returns()
+func (_Directory *DirectoryTransactor) SetCurrentDirectory(opts *bind.TransactOpts, epochId *big.Int) (*types.Transaction, error) {
+	return _Directory.contract.Transact(opts, "setCurrentDirectory", epochId)
+}
+
+// SetCurrentDirectory is a paid mutator transaction binding the contract method 0x8ce57496.
+//
+// Solidity: function setCurrentDirectory(uint256 epochId) returns()
+func (_Directory *DirectorySession) SetCurrentDirectory(epochId *big.Int) (*types.Transaction, error) {
+	return _Directory.Contract.SetCurrentDirectory(&_Directory.TransactOpts, epochId)
+}
+
+// SetCurrentDirectory is a paid mutator transaction binding the contract method 0x8ce57496.
+//
+// Solidity: function setCurrentDirectory(uint256 epochId) returns()
+func (_Directory *DirectoryTransactorSession) SetCurrentDirectory(epochId *big.Int) (*types.Transaction, error) {
+	return _Directory.Contract.SetCurrentDirectory(&_Directory.TransactOpts, epochId)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.

@@ -13,7 +13,6 @@ import (
 	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
-	"github.com/ethereum/go-ethereum/common"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -25,10 +24,9 @@ var (
 	FaucetEthBalance = new(big.Int).Mul(OneEth, big.NewInt(10000))
 	Uint128max       = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)) // 2^128-1
 
-	chainID        = big.NewInt(1337)
-	unlockDuration = big.NewInt(10)
-	escrowAmount   = big.NewInt(100000)
-	penaltyAmount  = big.NewInt(1000)
+	chainID       = big.NewInt(1337)
+	escrowAmount  = big.NewInt(100000)
+	penaltyAmount = big.NewInt(1000)
 )
 
 func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, FaucetF, Client) {
@@ -43,9 +41,13 @@ func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, 
 	ownerTransactor.Context = ctx
 
 	backend := CreateBackend(t, ctx, ownerTransactor.From)
-	addresses := DeployContracts(t, ctx, ownerTransactor, backend)
+	contractParams := DefaultContractParameters()
+	addresses, err := DeployContracts(ctx, ownerTransactor, backend, &contractParams)
+	if err != nil {
+		t.Fatalf("could not deploy contracts: %v", err)
+	}
 
-	ownerClient, err := NewClientWithBackend(addresses, backend, ownerTransactor)
+	ownerClient, err := NewSyloPaymentsClient(addresses, backend, ownerTransactor)
 	if err != nil {
 		t.Fatalf("could not create client: %v", err)
 	}
@@ -55,7 +57,7 @@ func StartupEthereum(t *testing.T, ctx context.Context) (SimBackend, Addresses, 
 	return backend, addresses, faucet, ownerClient
 }
 
-func CreateBackend(t *testing.T, ctx context.Context, owner common.Address) SimBackend {
+func CreateBackend(t *testing.T, ctx context.Context, owner ethcommon.Address) SimBackend {
 	gasLimit := uint64(100000000000000)
 	genesis := make(core.GenesisAlloc)
 	genesis[owner] = core.GenesisAccount{Balance: FaucetEthBalance}
@@ -73,7 +75,7 @@ func CreateRandomClient(t *testing.T, ctx context.Context, backend SimBackend, a
 	}
 	opts.Context = ctx
 
-	i, err := NewClientWithBackend(addresses, backend, opts)
+	i, err := NewSyloPaymentsClient(addresses, backend, opts)
 	if err != nil {
 		t.Fatalf("could not create client: %v", err)
 	}
@@ -202,8 +204,21 @@ func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, clie
 	return tx
 }
 
-func ConstructDirectory(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
-	tx, err := client.ConstructDirectory()
+func JoinNextDirectory(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.JoinNextDirectory()
+	if err != nil {
+		t.Fatalf("could not join directory: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
+func InitializeNextRewardPool(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.InitializeNextRewardPool()
 	if err != nil {
 		t.Fatalf("could not add stake: %v", err)
 	}
@@ -213,6 +228,28 @@ func ConstructDirectory(t *testing.T, ctx context.Context, backend SimBackend, c
 	if err != nil {
 		t.Fatalf("could not check transaction: %v", err)
 	}
+}
+
+func InitializeEpoch(t *testing.T, ctx context.Context, backend SimBackend, client Client) {
+	tx, err := client.InitializeEpoch()
+	if err != nil {
+		t.Fatalf("could not initialize epoch: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
+}
+
+func GetNextEpochId(t *testing.T, ctx context.Context, backend SimBackend, client Client) *big.Int {
+	epochId, err := client.GetNextEpochId()
+	if err != nil {
+		t.Fatalf("could not get next epoch id: %v", err)
+	}
+
+	return epochId
 }
 
 func DelegateStake(t *testing.T, ctx context.Context, backend SimBackend, client Client, stakee ethcommon.Address, stakeAmount *big.Int) {
@@ -255,7 +292,7 @@ func WaitForUnlockAt(t *testing.T, ctx context.Context, backend SimBackend, clie
 	for {
 		select {
 		case <-ctx.Done():
-			break
+			return false
 		default:
 		}
 		n, err := client.LatestBlock()
@@ -342,126 +379,6 @@ func UnstakeAll(t *testing.T, ctx context.Context, backend SimBackend, client Cl
 	}
 }
 
-func DeployContracts(t *testing.T, ctx context.Context, transactor *bind.TransactOpts, backend SimBackend) Addresses {
-	var addresses Addresses
-	var err error
-	var tx *types.Transaction
-
-	// Deploying contracts can apparently panic if the transaction fails, so
-	// we need to check for that.
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("panic during deployment of contracts: %v", r)
-		}
-	}()
-
-	// deploy Sylo token
-	addresses.Token, tx, _, err = contracts.DeploySyloToken(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy sylo token: %v", err)
-	}
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	// deploy staking manager
-	var stakingManager *contracts.StakingManager
-	addresses.StakingManager, _, stakingManager, err = contracts.DeployStakingManager(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy staking manager")
-	}
-
-	_, err = stakingManager.Initialize(transactor, addresses.Token, unlockDuration)
-	if err != nil {
-		t.Fatalf("could not initialize directory contract: %v", err)
-	}
-	backend.Commit()
-
-	// deploy price voting
-	var priceVoting *contracts.PriceVoting
-	addresses.PriceVoting, _, priceVoting, err = contracts.DeployPriceVoting(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy price voting")
-	}
-
-	_, err = priceVoting.Initialize(transactor, addresses.StakingManager)
-	if err != nil {
-		t.Fatalf("could not initialize price voting contract: %v", err)
-	}
-	backend.Commit()
-
-	// deploy price maanger
-	var priceManager *contracts.PriceManager
-	addresses.PriceManager, _, priceManager, err = contracts.DeployPriceManager(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy price manager")
-	}
-
-	_, err = priceManager.Initialize(transactor, addresses.StakingManager, addresses.PriceVoting)
-	if err != nil {
-		t.Fatalf("could not initialize price manager contract: %v", err)
-	}
-	backend.Commit()
-
-	// deploy directory
-	var directory *contracts.Directory
-	addresses.Directory, tx, directory, err = contracts.DeployDirectory(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy directory: %v", err)
-	}
-
-	_, err = directory.Initialize(transactor, addresses.PriceVoting, addresses.PriceManager, addresses.StakingManager)
-	if err != nil {
-		t.Fatalf("could not initialize directory contract: %v", err)
-	}
-
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	// deploy listing
-	var listings *contracts.Listings
-	addresses.Listings, tx, listings, err = contracts.DeployListings(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy listing: %v", err)
-	}
-
-	_, err = listings.Initialize(transactor, 50)
-	if err != nil {
-		t.Fatalf("could not get listings receipt: %v", err)
-	}
-
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	// deploy ticketing
-	var ticketing *contracts.SyloTicketing
-	addresses.Ticketing, tx, ticketing, err = contracts.DeploySyloTicketing(transactor, backend)
-	if err != nil {
-		t.Fatalf("could not deploy ticketing: %v", err)
-	}
-
-	_, err = ticketing.Initialize(transactor, addresses.Token, addresses.Listings, addresses.StakingManager, unlockDuration, big.NewInt(1), Uint128max, big.NewInt(10000), uint16(8000), big.NewInt(100))
-	if err != nil {
-		t.Fatalf("could not initialize ticket contract: %v", err)
-	}
-
-	backend.Commit()
-	_, err = backend.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		t.Fatalf("could not get transaction receipt: %v", err)
-	}
-
-	return addresses
-}
-
 func AddEscrow(t *testing.T, ctx context.Context, backend SimBackend, client Client, escrowAmount *big.Int) {
 	err := addDeposit(ctx, backend, client, escrowAmount, client.DepositEscrow)
 	if err != nil {
@@ -508,17 +425,73 @@ func BigIntsEqual(x *big.Int, y *big.Int) bool {
 	return x.Cmp(y) == 0
 }
 
-func GetNode(t *testing.T, client Client) (struct {
+func GetNode(t *testing.T, client Client) struct {
 	Amount *big.Int
 	Stakee ethcommon.Address
-}, []byte) {
-	key, err := client.GetKey(client.Address(), client.Address())
-	if err != nil {
-		t.Fatalf("could not get key: %v", err)
-	}
-	node, err := client.Stakes(key)
+} {
+	stake, err := client.GetAmountStaked(client.Address())
 	if err != nil {
 		t.Fatalf("could not get node info: %v", err)
 	}
-	return node, key[:]
+	return struct {
+		Amount *big.Int
+		Stakee ethcommon.Address
+	}{
+		stake, client.Address(),
+	}
+}
+
+func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey, receiver ethcommon.Address) (contracts.SyloTicketingTicket, []byte, *big.Int, *big.Int) {
+	latestBlock, err := sender.LatestBlock()
+	if err != nil {
+		t.Fatalf("could not retrieve the latest block: %v", err)
+	}
+
+	epoch, err := sender.GetCurrentActiveEpoch()
+	if err != nil {
+		t.Fatalf("could not retrieve current epoch %v", err)
+	}
+
+	epochId := epoch.Iteration
+
+	senderRand := big.NewInt(1)
+	var senderCommit [32]byte
+	copy(senderCommit[:], crypto.Keccak256(senderRand.FillBytes(senderCommit[:])))
+
+	redeemerRand := big.NewInt(1)
+	var redeemerCommit [32]byte
+	copy(redeemerCommit[:], crypto.Keccak256(redeemerRand.FillBytes(redeemerCommit[:])))
+
+	ticket := contracts.SyloTicketingTicket{
+		EpochId:         epochId,
+		Sender:          sender.Address(),
+		Redeemer:        receiver,
+		SenderCommit:    senderCommit,
+		RedeemerCommit:  redeemerCommit,
+		GenerationBlock: latestBlock.Add(latestBlock, big.NewInt(1)),
+	}
+
+	ticketHash, err := sender.GetTicketHash(ticket)
+	if err != nil {
+		t.Fatalf("could not get ticket hash: %v", err)
+	}
+
+	sig, err := crypto.Sign(ticketHash[:], senderPK)
+	if err != nil {
+		t.Fatalf("could not sign hash: %v", err)
+	}
+	return ticket, sig, senderRand, redeemerRand
+}
+
+func Redeem(t *testing.T, ctx context.Context, backend SimBackend, client Client, ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
+	tx, err := client.Redeem(ticket, senderRand, redeemerRand, sig)
+	if err != nil {
+		t.Fatalf("could not redeem ticket: %v", err)
+	}
+	backend.Commit()
+
+	_, err = client.CheckTx(ctx, tx)
+	if err != nil {
+		t.Fatalf("could not check transaction: %v", err)
+	}
 }

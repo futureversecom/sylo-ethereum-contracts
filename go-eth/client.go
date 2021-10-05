@@ -1,12 +1,15 @@
 package eth
 
 //go:generate abigen --abi ../abi/SyloTicketing.abi --pkg contracts --type SyloTicketing --out contracts/ticketing.go --bin ../bin/SyloTicketing.bin
+//go:generate abigen --abi ../abi/TicketingParameters.abi --pkg contracts --type TicketingParameters --out contracts/ticketing_parameters.go --bin ../bin/TicketingParameters.bin
+//go:generate abigen --abi ../abi/EpochsManager.abi --pkg contracts --type EpochsManager --out contracts/epochs_manager.go --bin ../bin/EpochsManager.bin
 //go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/token.go --bin ../bin/SyloToken.bin
 //go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
 //go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
 //go:generate abigen --abi ../abi/PriceManager.abi --pkg contracts --type PriceManager --out contracts/price_manager.go --bin ../bin/PriceManager.bin
 //go:generate abigen --abi ../abi/PriceVoting.abi --pkg contracts --type PriceVoting --out contracts/price_voting.go --bin ../bin/PriceVoting.bin
 //go:generate abigen --abi ../abi/StakingManager.abi --pkg contracts --type StakingManager --out contracts/staking_manager.go --bin ../bin/StakingManager.bin
+//go:generate abigen --abi ../abi/RewardsManager.abi --pkg contracts --type RewardsManager --out contracts/rewards_manager.go --bin ../bin/RewardsManager.bin
 
 import (
 	"context"
@@ -17,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Unlocking struct {
@@ -66,26 +68,37 @@ type Client interface {
 
 	// StakingManager methods
 
-	Stakes(key [32]byte) (struct {
-		Amount *big.Int
-		Stakee ethcommon.Address
-	}, error)
-	GetKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error)
 	AddStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	UnlockStake(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	CancelUnlocking(amount *big.Int, stakee ethcommon.Address) (*types.Transaction, error)
 	WithdrawStake(account ethcommon.Address) (*types.Transaction, error)
 	GetAmountStaked(stakee ethcommon.Address) (*big.Int, error)
 	GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error)
+	GetCurrentStakerAmount(staker ethcommon.Address, stakee ethcommon.Address) (*big.Int, error)
 
 	// Directory methods
-	ConstructDirectory() (*types.Transaction, error)
+	SetCurrentDirectory(epochId *big.Int) (*types.Transaction, error)
+	JoinNextDirectory() (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
+	TransferDirectoryOwnership(newOwner ethcommon.Address) (*types.Transaction, error)
 
 	// Listings methods
 
 	SetListing(multiaddr string, minimumStakeAmount *big.Int) (*types.Transaction, error)
 	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
+
+	// EpochsManager methods
+
+	InitializeEpoch() (*types.Transaction, error)
+	GetCurrentActiveEpoch() (contracts.EpochsManagerEpoch, error)
+	GetNextEpochId() (*big.Int, error)
+
+	// RewardsManager methods
+	GetUnclaimedNodeReward(stakee ethcommon.Address) (*big.Int, error)
+	GetUnclaimedStakeReward(stakee ethcommon.Address) (*big.Int, error)
+	GetRewardPoolActiveStake(epochId *big.Int, stakee ethcommon.Address) (*big.Int, error)
+	InitializeNextRewardPool() (*types.Transaction, error)
+	ClaimStakingRewards(stakee ethcommon.Address) (*types.Transaction, error)
 
 	// Alias for Approve but uses the ticketingAddress or directoryAddress as the spender
 
@@ -101,21 +114,25 @@ type Client interface {
 }
 
 type Addresses struct {
-	Token          ethcommon.Address
-	Ticketing      ethcommon.Address
-	Directory      ethcommon.Address
-	Listings       ethcommon.Address
-	PriceManager   ethcommon.Address
-	PriceVoting    ethcommon.Address
-	StakingManager ethcommon.Address
+	Token               ethcommon.Address
+	Ticketing           ethcommon.Address
+	TicketingParameters ethcommon.Address
+	Directory           ethcommon.Address
+	Listings            ethcommon.Address
+	PriceManager        ethcommon.Address
+	PriceVoting         ethcommon.Address
+	StakingManager      ethcommon.Address
+	EpochsManager       ethcommon.Address
+	RewardsManager      ethcommon.Address
 }
 
 type client struct {
-	addresses Addresses
-
-	opts *bind.TransactOpts
+	address   ethcommon.Address
+	contracts Addresses
+	backend   Backend
 
 	// Embedded contracts
+	*contracts.TicketingParametersSession
 	*contracts.SyloTicketingSession
 	*contracts.SyloTokenSession
 	*contracts.DirectorySession
@@ -123,140 +140,137 @@ type client struct {
 	*contracts.PriceManagerSession
 	*contracts.PriceVotingSession
 	*contracts.StakingManagerSession
-
-	backend Backend
+	*contracts.EpochsManagerSession
+	*contracts.RewardsManagerSession
 }
 
-func NewClient(
-	ctx context.Context,
-	addresses Addresses,
-	eth *ethclient.Client,
-	opts *bind.TransactOpts,
-) (Client, error) {
-
-	chainID, err := eth.ChainID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("could not get chain id: %w", err)
-	}
-
-	signer := types.NewEIP155Signer(chainID)
-
-	backend, err := NewBackend(eth, signer)
-	if err != nil {
-		return nil, fmt.Errorf("could not get backend: %w", err)
-	}
-
-	return NewClientWithBackend(
-		addresses,
-		backend,
-		opts,
-	)
-}
-
-func NewClientWithBackend(
-	addresses Addresses,
+func NewSyloPaymentsClient(
+	contractAddrs Addresses,
 	backend Backend,
 	opts *bind.TransactOpts,
 ) (Client, error) {
+	c := new(client)
+	c.address = opts.From
+	c.contracts = contractAddrs
+	c.backend = backend
 
-	syloToken, err := contracts.NewSyloToken(addresses.Token, backend)
+	// sylo token
+	syloToken, err := contracts.NewSyloToken(c.contracts.Token, backend)
 	if err != nil {
 		return nil, err
 	}
-
-	TokenSession := &contracts.SyloTokenSession{
+	c.SyloTokenSession = &contracts.SyloTokenSession{
 		Contract:     syloToken,
 		TransactOpts: *opts,
 	}
 
-	syloTicketing, err := contracts.NewSyloTicketing(addresses.Ticketing, backend)
+	// ticketing parameters
+	ticketingParamters, err := contracts.NewTicketingParameters(c.contracts.TicketingParameters, backend)
 	if err != nil {
 		return nil, err
 	}
+	c.TicketingParametersSession = &contracts.TicketingParametersSession{
+		Contract:     ticketingParamters,
+		TransactOpts: *opts,
+	}
 
-	TicketingSession := &contracts.SyloTicketingSession{
+	// sylo ticketing
+	syloTicketing, err := contracts.NewSyloTicketing(c.contracts.Ticketing, backend)
+	if err != nil {
+		return nil, err
+	}
+	c.SyloTicketingSession = &contracts.SyloTicketingSession{
 		Contract:     syloTicketing,
 		TransactOpts: *opts,
 	}
 
-	directory, err := contracts.NewDirectory(addresses.Directory, backend)
+	// staking directory
+	directory, err := contracts.NewDirectory(c.contracts.Directory, backend)
 	if err != nil {
 		return nil, err
 	}
-
-	DirectorySession := &contracts.DirectorySession{
+	c.DirectorySession = &contracts.DirectorySession{
 		Contract:     directory,
 		TransactOpts: *opts,
 	}
 
-	listings, err := contracts.NewListings(addresses.Listings, backend)
+	// multiaddr listings
+	listings, err := contracts.NewListings(c.contracts.Listings, backend)
 	if err != nil {
 		return nil, err
 	}
-
-	ListingsSession := &contracts.ListingsSession{
+	c.ListingsSession = &contracts.ListingsSession{
 		Contract:     listings,
 		TransactOpts: *opts,
 	}
 
-	priceManager, err := contracts.NewPriceManager(addresses.PriceManager, backend)
+	// epochs manager
+	epochsManager, err := contracts.NewEpochsManager(c.contracts.EpochsManager, backend)
 	if err != nil {
 		return nil, err
 	}
+	c.EpochsManagerSession = &contracts.EpochsManagerSession{
+		Contract:     epochsManager,
+		TransactOpts: *opts,
+	}
 
-	PriceManagerSession := &contracts.PriceManagerSession{
+	// price manager
+	priceManager, err := contracts.NewPriceManager(c.contracts.PriceManager, backend)
+	if err != nil {
+		return nil, err
+	}
+	c.PriceManagerSession = &contracts.PriceManagerSession{
 		Contract:     priceManager,
 		TransactOpts: *opts,
 	}
 
-	priceVoting, err := contracts.NewPriceVoting(addresses.PriceVoting, backend)
+	// service price voting
+	priceVoting, err := contracts.NewPriceVoting(c.contracts.PriceVoting, backend)
 	if err != nil {
 		return nil, err
 	}
-
-	PriceVotingSession := &contracts.PriceVotingSession{
+	c.PriceVotingSession = &contracts.PriceVotingSession{
 		Contract:     priceVoting,
 		TransactOpts: *opts,
 	}
 
-	stakingManager, err := contracts.NewStakingManager(addresses.StakingManager, backend)
+	// staking manager
+	stakingManager, err := contracts.NewStakingManager(contractAddrs.StakingManager, backend)
 	if err != nil {
 		return nil, err
 	}
-
-	StakingManagerSession := &contracts.StakingManagerSession{
+	c.StakingManagerSession = &contracts.StakingManagerSession{
 		Contract:     stakingManager,
 		TransactOpts: *opts,
 	}
 
-	return &client{
-		addresses:             addresses,
-		backend:               backend,
-		SyloTicketingSession:  TicketingSession,
-		SyloTokenSession:      TokenSession,
-		PriceManagerSession:   PriceManagerSession,
-		PriceVotingSession:    PriceVotingSession,
-		StakingManagerSession: StakingManagerSession,
-		DirectorySession:      DirectorySession,
-		ListingsSession:       ListingsSession,
-		opts:                  opts,
-	}, nil
+	// rewards manager
+	rewardsManager, err := contracts.NewRewardsManager(c.contracts.RewardsManager, backend)
+	if err != nil {
+		return nil, err
+	}
+	c.RewardsManagerSession = &contracts.RewardsManagerSession{
+		Contract:     rewardsManager,
+		TransactOpts: *opts,
+	}
+
+	return c, nil
 }
 
 func (c *client) Address() ethcommon.Address {
-	return c.opts.From
+	return c.address
 }
 
 func (c *client) ApproveTicketing(amount *big.Int) (*types.Transaction, error) {
-	return c.Approve(c.addresses.Ticketing, amount)
+	return c.Approve(c.contracts.Ticketing, amount)
 }
 
 func (c *client) ApproveStakingManager(amount *big.Int) (*types.Transaction, error) {
-	return c.Approve(c.addresses.StakingManager, amount)
+	return c.Approve(c.contracts.StakingManager, amount)
 }
 
 func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
-	return c.TotalStakes(stakee)
+	return c.GetStakeeTotalManagedStake(stakee)
 }
 
 func (c *client) Withdraw() (*types.Transaction, error) {
@@ -267,12 +281,20 @@ func (c *client) WithdrawVote() (*types.Transaction, error) {
 	return c.PriceVotingSession.Withdraw()
 }
 
+func (c *client) GetStakeKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error) {
+	return c.StakingManagerSession.GetKey(staker, stakee)
+}
+
 func (c *client) GetUnlockingStake(staker ethcommon.Address, stakee ethcommon.Address) (Unlocking, error) {
-	key, err := c.GetKey(staker, stakee)
+	key, err := c.StakingManagerSession.GetKey(staker, stakee)
 	if err != nil {
 		return Unlocking{}, err
 	}
 	return c.Unlockings(key)
+}
+
+func (c *client) TransferDirectoryOwnership(newOwner ethcommon.Address) (*types.Transaction, error) {
+	return c.DirectorySession.TransferOwnership(newOwner)
 }
 
 func (c *client) LatestBlock() (*big.Int, error) {
@@ -310,7 +332,7 @@ func (c *client) CheckTx(ctx context.Context, tx *types.Transaction) (*big.Int, 
 	}
 
 	if receipt.Status == uint64(0) {
-		return receipt.BlockNumber, fmt.Errorf("Tx %v failed with status %v, %v", tx.Hash().Hex(), receipt.Status, receipt.PostState)
+		return receipt.BlockNumber, fmt.Errorf("tx %v failed with status %v, %v", tx.Hash().Hex(), receipt.Status, receipt.PostState)
 	}
 
 	return receipt.BlockNumber, nil
