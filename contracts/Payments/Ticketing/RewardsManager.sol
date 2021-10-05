@@ -53,7 +53,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // track the cumulative reward factor as of the time the pool was initialized
         int128 initialCumulativeRewardFactor;
 
-        // track the cumulative reward factor as a quadruple precision floating point value
+        // track the cumulative reward factor as a 64x64 fixed-point value
         int128 cumulativeRewardFactor;
     }
 
