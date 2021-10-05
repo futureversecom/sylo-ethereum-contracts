@@ -147,6 +147,18 @@ contract('Staking', accounts => {
     await directory.scan(new BN(0));
   });
 
+  it.only('should be able to scan empty directory', async () => {
+    await directory.constructDirectory({ from: accounts[1] });
+
+    const address = await directory.scan(new BN(0));
+
+    assert.equal(
+      address.toString(),
+      '0x0000000000000000000000000000000000000000',
+      "Expected empty directory to scan to zero address"
+    );
+  });
+
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     for (let i = 0; i < accounts.length; i++) {
       await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
