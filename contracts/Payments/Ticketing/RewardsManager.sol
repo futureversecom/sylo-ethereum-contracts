@@ -140,12 +140,8 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * This function should be called by the Ticketing contract when a
      * ticket is successfully redeemed. The face value of the ticket
      * should be split between incrementing the node's reward balance,
-     * and the reward balance for the node's delegated stakers.
-     * Additionally, the cumulative reward factor will be updated, and in the
-     * case the ticket was redeemed for an epoch that has already ended, any proceeding
-     * cumulative reward factors will also be updated. This has the consequence of
-     * the gas cost for redeeming to increase if it is redeemed much later than the epoch
-     * it was generated in.
+     * and the reward balance for the node's delegated stakers. The face value
+     * will be added to the current reward pool's balance.
      */
     function incrementRewardPool(
         address stakee,
