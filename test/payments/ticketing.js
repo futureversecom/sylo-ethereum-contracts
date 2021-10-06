@@ -12,13 +12,12 @@ const { soliditySha3 } = require("web3-utils");
 const utils = require('../utils');
 
 contract('Ticketing', accounts => {
-  const faceValue = 15;
+  const faceValue = toSOLOs(15);
   const epochDuration = 1;
 
   let token;
   let epochsManager;
   let rewardsManager;
-  let ticketingParameters;
   let ticketing;
   let directory;
   let listings;
@@ -41,8 +40,8 @@ contract('Ticketing', accounts => {
     await rewardsManager.addManager(ticketing.address, { from: accounts[1] });
     await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
 
-    await token.approve(stakingManager.address, 10000, { from: accounts[1] });
-    await token.approve(ticketing.address, 10000, { from: accounts[1] });
+    await token.approve(stakingManager.address, toSOLOs(10000), { from: accounts[1] });
+    await token.approve(ticketing.address, toSOLOs(10000), { from: accounts[1] });
   });
 
   it('should be able to deposit escrow', async () => {
@@ -70,7 +69,7 @@ contract('Ticketing', accounts => {
     assert.equal(deposit.escrow.toString(), '100', 'Expected 100 in escrow');
   });
 
-  it('should be able to depost to penalty multiple times', async () => {
+  it('should be able to deposit to penalty multiple times', async () => {
     const alice = web3.eth.accounts.create();
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
     await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
@@ -257,7 +256,7 @@ contract('Ticketing', accounts => {
   });
 
   it('can redeem winning ticket', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await particpateNextEpoch(accounts[1]);
@@ -265,8 +264,8 @@ contract('Ticketing', accounts => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(50), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
@@ -274,21 +273,21 @@ contract('Ticketing', accounts => {
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature, { from: accounts[1] });
 
     const deposit = await ticketing.deposits.call(alice.address);
-    assert.equal(deposit.escrow.toString(), '35', 'Expected ticket payout to be substracted from escrow');
-    assert.equal(deposit.penalty.toString(), '50', 'Expected penalty to not be changed');
+    assert.equal(deposit.escrow.toString(), '35000000000000000000', 'Expected ticket payout to be substracted from escrow');
+    assert.equal(deposit.penalty.toString(), '50000000000000000000', 'Expected penalty to not be changed');
 
     const unclaimedNodeReward = await rewardsManager.getUnclaimedNodeReward(accounts[1]);
     const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(accounts[1]);
 
     assert.equal(
       unclaimedNodeReward.add(unclaimedStakeReward).toString(),
-      '15',
+      '15000000000000000000',
       "Expected balance of unclaimed rewards to have added the ticket face value"
     );
   });
 
   it('burns penalty on insufficient escrow', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await particpateNextEpoch(accounts[1]);
@@ -296,8 +295,8 @@ contract('Ticketing', accounts => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
@@ -308,28 +307,28 @@ contract('Ticketing', accounts => {
 
     const deposit = await ticketing.deposits.call(alice.address);
     assert.equal(deposit.escrow.toString(), '0', 'Expected entire escrow to be used');
-    assert.equal(deposit.penalty.toString(), '0', 'Expected entire penalty to b burned');
+    assert.equal(deposit.penalty.toString(), '0', 'Expected entire penalty to be burned');
 
     const unclaimedNodeReward = await rewardsManager.getUnclaimedNodeReward(accounts[1]);
     const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(accounts[1]);
 
     assert.equal(
       unclaimedNodeReward.add(unclaimedStakeReward).toString(),
-      '5',
+      '5000000000000000000',
       "Expected unclaimed balance to have added the remaining available escrow"
     );
 
     const ticketingBalance = await token.balanceOf(ticketing.address);
     assert.equal(
       ticketingBalance.toString(),
-      initialTicketingBalance.sub(new BN(55)).toString(),
+      initialTicketingBalance.sub(new BN(toSOLOs(55))).toString(),
       'Expected tokens from ticket contract to be removed'
     );
 
     const deadBalance = await token.balanceOf('0x000000000000000000000000000000000000dEaD');
     assert.equal(
       deadBalance.toString(),
-      '50',
+      '50000000000000000000',
       'Expected dead address to receive burned tokens'
     );
   });
@@ -344,7 +343,7 @@ contract('Ticketing', accounts => {
 
     const alice = web3.eth.accounts.create();
     await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -390,7 +389,7 @@ contract('Ticketing', accounts => {
   });
 
   it('can claim ticketing rewards', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(web3.utils.toWei('1'), accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await particpateNextEpoch(accounts[1]);
@@ -398,8 +397,8 @@ contract('Ticketing', accounts => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -414,32 +413,29 @@ contract('Ticketing', accounts => {
     await rewardsManager.claimStakingRewards(accounts[1], { from: accounts[1] });
 
     const postBalance = await token.balanceOf(accounts[1]);
+    // Expect the node have the entire reward balance added to their account
+    const expectedPostBalance = initialBalance.add(new BN(toSOLOs(150)));
 
-    assert.equal(
-      postBalance.toString(),
-      initialBalance.add(new BN(150)).toString(),
-      "Expected node to have entire reward balance added to their own balance"
-    );
+    compareExpectedBalance(expectedPostBalance, postBalance);
 
     const unclaimedNodeReward = await rewardsManager.getUnclaimedNodeReward(accounts[1]);
     const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(accounts[1]);
 
-    assert.equal(
-      unclaimedNodeReward.add(unclaimedStakeReward).toString(),
-      '0',
-      "Expected unclaimed balance be 0"
+    compareExpectedBalance(
+      unclaimedNodeReward.add(unclaimedStakeReward),
+      new BN(0)
     );
   });
 
   it('delegated stakers should be able to claim rewards', async () => {
     for (let i = 2; i < 4; i++) {
-      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await token.transfer(accounts[i], toSOLOs(1000), { from: accounts[1]} );
+      await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[i] });
     }
 
     // have account 2 and 3 as delegated stakers
-    await stakingManager.addStake(2, accounts[1], { from: accounts[2] });
-    await stakingManager.addStake(1, accounts[1], { from: accounts[3] });
+    await stakingManager.addStake(toSOLOs(2), accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[3] });
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
@@ -447,8 +443,8 @@ contract('Ticketing', accounts => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -463,30 +459,25 @@ contract('Ticketing', accounts => {
     await rewardsManager.claimStakingRewards(accounts[1], { from: accounts[2] });
     await rewardsManager.claimStakingRewards(accounts[1], { from: accounts[3] });
 
+    // The stakers reward total is 75. Account 2 owns 66% of the stake, and account 1 owns
+    // 33% of the stake, the splits should be 2/3 * 75 (50) and 1/3 * 75 (25)
+
     const postDelegatorTwoBalance = await token.balanceOf(accounts[2]);
+    const expectedPostDelegatorTwoBalance = initialDelegatorTwoBalance.add(new BN(toSOLOs(50)));
+    compareExpectedBalance(expectedPostDelegatorTwoBalance, postDelegatorTwoBalance);
+
     const postDelegatorThreeBalance = await token.balanceOf(accounts[3]);
+    const expectedPostDelegatorThreeBalance = initialDelegatorThreeBalance.add(new BN(toSOLOs(25)));
+    compareExpectedBalance(expectedPostDelegatorThreeBalance, postDelegatorThreeBalance);
 
-    // The stakers reward total is 70. Account 2 owns 66% of the stake, and account 1 owns
-    // 33% of the stake, the splits should be 2/3 * 70 (46) and 1/3 * 70 (23)
-    assert.equal(
-      postDelegatorTwoBalance.toString(),
-      initialDelegatorTwoBalance.add(new BN(46)).toString(),
-      "Expected delegator to stakee reward balance added to their own balance"
-    );
-
-    assert.equal(
-      postDelegatorThreeBalance.toString(),
-      initialDelegatorThreeBalance.add(new BN(23)).toString(),
-      "Expected delegator to stakee reward balance added to their own balance"
-    );
   });
 
   it('should have rewards be automatically claimed when stake is updated', async () => {
     await token.transfer(accounts[2], 1000, { from: accounts[1]} );
-    await token.approve(stakingManager.address, 1000, { from: accounts[2] });
+    await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[2] });
 
     // have account 2 as a delegated staker
-    await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[2] });
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
@@ -494,8 +485,8 @@ contract('Ticketing', accounts => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -505,7 +496,7 @@ contract('Ticketing', accounts => {
     }
 
     // add more stake
-    await stakingManager.addStake(1, accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[2] });
 
     const claimAfterAddingStake = await rewardsManager.calculateStakerClaim(accounts[1], accounts[2]);
 
@@ -535,15 +526,15 @@ contract('Ticketing', accounts => {
   });
 
   it('can not claim reward more than once', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await particpateNextEpoch(accounts[1]);
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, 1);
@@ -570,26 +561,26 @@ contract('Ticketing', accounts => {
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake is the same', async () => {
     for (let i = 2; i < 5; i++) {
-      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await token.transfer(accounts[i], toSOLOs(1000), { from: accounts[1]} );
+      await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[i] });
     }
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
-    await stakingManager.addStake(250, accounts[1], { from: accounts[2] });
-    await stakingManager.addStake(400, accounts[1], { from: accounts[3] });
-    await stakingManager.addStake(350, accounts[1], { from: accounts[4] });
+    await stakingManager.addStake(toSOLOs(250), accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(toSOLOs(400), accounts[1], { from: accounts[3] });
+    await stakingManager.addStake(toSOLOs(350), accounts[1], { from: accounts[4] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     for (let j = 0; j < 3; j++) {
       await particpateNextEpoch(accounts[1]);
       await epochsManager.initializeEpoch({ from: accounts[1] });
 
-      // 7 is added to the stakers reward total on each redemption (50% of 15)
+      // 7.5 is added to the stakers reward total on each redemption (50% of 15)
       for (let i = 0 ; i < 6; i++) {
         const { ticket, senderRand, redeemerRand, signature } =
           await createWinningTicket(alice, 1);
@@ -600,34 +591,25 @@ contract('Ticketing', accounts => {
 
     const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(accounts[1]);
 
-    // the total unclaimed stake reward should 3 * 6 * 7 = 126
+    // the total unclaimed stake reward should 3 * 6 * 75 = 135
     assert.equal(
       unclaimedStakeReward,
-      '126',
+      toSOLOs(135),
       "Expected unclaimed stake reward to correctly accumulate over multiple epochs"
     );
 
     // verify each staker will receive the correct amount of reward if they were to claim now
     const stakerClaimTwo = await rewardsManager.calculateStakerClaim(accounts[1], accounts[2]);
-    assert.equal(
-      stakerClaimTwo.toString(),
-      '31', // account 2 owns 25% of the stake, so should get 25% of the unclaimed reward
-      "Expected staker claim for account 2 to be correctly calculated"
-    );
+    const expectedStakerClaimTwo = new BN('33750000000000000000');
+    compareExpectedBalance(expectedStakerClaimTwo, stakerClaimTwo);
 
     const stakerClaimThree = await rewardsManager.calculateStakerClaim(accounts[1], accounts[3]);
-    assert.equal(
-      stakerClaimThree.toString(),
-      '50', // account 3 owns 40% of the stake, so should get 40% of the unclaimed reward
-      "Expected staker claim for account 3 to be correctly calculated"
-    );
+    const expectedStakerClaimThree = new BN(toSOLOs(135 * 0.4));
+    compareExpectedBalance(expectedStakerClaimThree, stakerClaimThree);
 
     const stakerClaimFour = await rewardsManager.calculateStakerClaim(accounts[1], accounts[4]);
-    assert.equal(
-      stakerClaimFour.toString(),
-      '44', // account 4 owns 35% of the stake, so should get 35% of the unclaimed reward
-      "Expected staker claim for account 4 to be correctly calculated"
-    );
+    const expectedStakerClaimFour = new BN(toSOLOs(135 * 0.35));
+    compareExpectedBalance(expectedStakerClaimFour, stakerClaimFour);
 
     // ensure each staker is actually able to claim
     for (let i = 2; i < 5; i++) {
@@ -637,33 +619,33 @@ contract('Ticketing', accounts => {
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake increases', async () => {
     for (let i = 2; i < 5; i++) {
-      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await token.transfer(accounts[i], toSOLOs(1000), { from: accounts[1]} );
+      await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[i] });
     }
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
-    await stakingManager.addStake(250, accounts[1], { from: accounts[2] });
-    await stakingManager.addStake(400, accounts[1], { from: accounts[3] });
-    await stakingManager.addStake(350, accounts[1], { from: accounts[4] });
+    await stakingManager.addStake(toSOLOs(250), accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(toSOLOs(400), accounts[1], { from: accounts[3] });
+    await stakingManager.addStake(toSOLOs(350), accounts[1], { from: accounts[4] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     // have account 5 add stake midway through
     for (let j = 0; j < 3; j++) {
       if (j == 1) {
-        await token.transfer(accounts[5], 1000, { from: accounts[1]} );
-        await token.approve(stakingManager.address, 1000, { from: accounts[5] });
+        await token.transfer(accounts[5], toSOLOs(1000), { from: accounts[1]} );
+        await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[5] });
         // their stake will be active in the next round
-        await stakingManager.addStake(500, accounts[1], { from: accounts[5] });
+        await stakingManager.addStake(toSOLOs(500), accounts[1], { from: accounts[5] });
       }
       await particpateNextEpoch(accounts[1]);
       await epochsManager.initializeEpoch({ from: accounts[1] });
 
-      // 7 is added to the stakers reward total on each redemption (50% of 15)
+      // 7.5 is added to the stakers reward total on each redemption (50% of 15)
       for (let i = 0 ; i < 6; i++) {
         const { ticket, senderRand, redeemerRand, signature } =
           await createWinningTicket(alice, 1);
@@ -672,36 +654,32 @@ contract('Ticketing', accounts => {
       }
     }
 
-    const epochTwoActiveStake = await rewardsManager.getRewardPoolActiveStake(2, accounts[1]).then(x => parseInt(x.toString()));
+    const epochTwoActiveStake = await rewardsManager.getRewardPoolActiveStake(2, accounts[1]);
 
-    // account 4's reward should be the sum of the rewards gained in both epoch 2 and 3
+    // account 5's reward should be the sum of the rewards gained in both epoch 2 and 3
     // multiplied by the proportion of the stake held when their stake became active
-    const expectedRewardFive = parseInt(500 * (2 * 6 * 7) / epochTwoActiveStake);
     const stakeClaimFive = await rewardsManager.calculateStakerClaim(accounts[1], accounts[5]);
-    assert.equal(
-      expectedRewardFive,
-      parseInt(stakeClaimFive),
-      "Expected account 5 to have their claim properly calculated"
-    );
+    const s = new BN(toSOLOs(500)); // initial stake
+    const r = new BN(toSOLOs(2 * 6 * 7.5)); // accumulated reward
+    const expectedStakeClaimFive = s.mul(r).div(epochTwoActiveStake);
+    compareExpectedBalance(expectedStakeClaimFive, stakeClaimFive);
 
     // for accounts 2, 3, and 4, the total managed stake that becomes active
     // changes from epoch 2, thus to calculate the expected reward, we need
-    // to caluclate the expected reward for epoch 1 using different stake proportions
+    // to caluculate the expected reward for epoch 1 using different stake proportions
     // than for epochs 2 and 3
     for (let i = 2; i < 5; i++) {
-      const initialStake = await stakingManager.getCurrentStakerAmount(accounts[1], accounts[i]).then(x => parseInt(x.toString()));
-      const epochOneActiveStake = await rewardsManager.getRewardPoolActiveStake(1, accounts[1]).then(x => parseInt(x.toString()));
-      const epochOneReward = parseInt(initialStake * (6 * 7) / epochOneActiveStake);
+      const initialStake = await stakingManager.getCurrentStakerAmount(accounts[1], accounts[i]);
+      const epochOneActiveStake = await rewardsManager.getRewardPoolActiveStake(1, accounts[1]);
+      const epochOneReward = (new BN(toSOLOs(6 * 7.5))).mul(initialStake).div(epochOneActiveStake);
 
-      const stakeAtEpochTwo = initialStake + epochOneReward;
-      const remainingReward = parseInt(stakeAtEpochTwo * (2 * 6 * 7) / epochTwoActiveStake);
+      const stakeAtEpochTwo = initialStake.add(epochOneReward);
+      const remainingReward = stakeAtEpochTwo.mul(new BN(toSOLOs(2 * 6 * 7.5))).div(epochTwoActiveStake);
 
-      const totalExpectedReward = epochOneReward + remainingReward;
+      const totalExpectedReward = epochOneReward.add(remainingReward);
       const stakerClaim = await rewardsManager.calculateStakerClaim(accounts[1], accounts[i]);
 
-      // due to rounding the staker claim may be 1 or 2 tokens different than the expected amount
-      // but ensure it is close
-      expect(parseInt(stakerClaim.toString())).to.be.within(totalExpectedReward - 2, totalExpectedReward + 2);
+      compareExpectedBalance(totalExpectedReward, stakerClaim);
     }
 
     // ensure each staker is actually able to claim
@@ -712,25 +690,25 @@ contract('Ticketing', accounts => {
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake decreases', async () => {
     for (let i = 2; i < 5; i++) {
-      await token.transfer(accounts[i], 1000, { from: accounts[1]} );
-      await token.approve(stakingManager.address, 1000, { from: accounts[i] });
+      await token.transfer(accounts[i], toSOLOs(1000), { from: accounts[1]} );
+      await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[i] });
     }
 
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
-    await stakingManager.addStake(250, accounts[1], { from: accounts[2] });
-    await stakingManager.addStake(400, accounts[1], { from: accounts[3] });
-    await stakingManager.addStake(350, accounts[1], { from: accounts[4] });
+    await stakingManager.addStake(toSOLOs(250), accounts[1], { from: accounts[2] });
+    await stakingManager.addStake(toSOLOs(400), accounts[1], { from: accounts[3] });
+    await stakingManager.addStake(toSOLOs(350), accounts[1], { from: accounts[4] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(5000, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(5000), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     // have account 2 unlock stake midway through
     for (let j = 0; j < 3; j++) {
       if (j == 1) {
-        await stakingManager.unlockStake(250, accounts[1], { from: accounts[2] });
+        await stakingManager.unlockStake(toSOLOs(250), accounts[1], { from: accounts[2] });
       }
       await particpateNextEpoch(accounts[1]);
       await epochsManager.initializeEpoch({ from: accounts[1] });
@@ -744,26 +722,24 @@ contract('Ticketing', accounts => {
       }
     }
 
-    const epochTwoActiveStake = await rewardsManager.getRewardPoolActiveStake(2, accounts[1]).then(x => parseInt(x.toString()));
+    const epochTwoActiveStake = await rewardsManager.getRewardPoolActiveStake(2, accounts[1]);
 
     // for accounts 3, and 4, the total managed stake that becomes active
     // changes from epoch 2, thus to calculate the expected reward, we need
     // to caluclate the expected reward for epoch 1 using different stake proportions
     // than for epochs 2 and 3
     for (let i = 3; i < 5; i++) {
-      const initialStake = await stakingManager.getCurrentStakerAmount(accounts[1], accounts[i]).then(x => parseInt(x.toString()));
-      const epochOneActiveStake = await rewardsManager.getRewardPoolActiveStake(1, accounts[1]).then(x => parseInt(x.toString()));
-      const epochOneReward = parseInt(initialStake * (6 * 7) / epochOneActiveStake);
+      const initialStake = await stakingManager.getCurrentStakerAmount(accounts[1], accounts[i]);
+      const epochOneActiveStake = await rewardsManager.getRewardPoolActiveStake(1, accounts[1]);
+      const epochOneReward = (new BN(toSOLOs(6 * 7.5))).mul(initialStake).div(epochOneActiveStake);
 
-      const stakeAtEpochTwo = initialStake + epochOneReward;
-      const remainingReward = parseInt(stakeAtEpochTwo * (2 * 6 * 7) / epochTwoActiveStake);
+      const stakeAtEpochTwo = initialStake.add(epochOneReward);
+      const remainingReward = stakeAtEpochTwo.mul(new BN(toSOLOs(2 * 6 * 7.5))).div(epochTwoActiveStake);
 
-      const totalExpectedReward = epochOneReward + remainingReward;
+      const totalExpectedReward = epochOneReward.add(remainingReward);
       const stakerClaim = await rewardsManager.calculateStakerClaim(accounts[1], accounts[i]);
 
-      // due to rounding the staker claim may be 1 or 2 tokens different than the expected amount
-      // but ensure it is close
-      expect(parseInt(stakerClaim.toString())).to.be.within(totalExpectedReward - 2, totalExpectedReward + 2);
+      compareExpectedBalance(totalExpectedReward, stakerClaim);
     }
 
     // ensure each staker is actually able to claim
@@ -794,10 +770,10 @@ contract('Ticketing', accounts => {
     await directory.transferOwnership(epochsManager.address, { from: accounts[1] });
     await rewardsManager.addManager(ticketing.address, { from: accounts[1] });
 
-    await token.approve(ticketing.address, 10000, { from: accounts[1] });
-    await token.approve(stakingManager.address, 10000, { from: accounts[1] });
+    await token.approve(ticketing.address, toSOLOs(10000), { from: accounts[1] });
+    await token.approve(stakingManager.address, toSOLOs(10000), { from: accounts[1] });
 
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await particpateNextEpoch(accounts[1]);
@@ -805,8 +781,8 @@ contract('Ticketing', accounts => {
     await epochsManager.initializeEpoch({ from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
-    await ticketing.depositEscrow(50, alice.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, alice.address, { from: accounts[1] });
+    await ticketing.depositEscrow(toSOLOs(50), alice.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), alice.address, { from: accounts[1] });
 
     const { ticket } =
       await createWinningTicket(alice, 1);
@@ -832,7 +808,7 @@ contract('Ticketing', accounts => {
   });
 
   it('returns 0 winning probability if ticket has expired', async () => {
-    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await stakingManager.addStake(toSOLOs(1), accounts[1], { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     const alice = web3.eth.accounts.create();
@@ -853,7 +829,7 @@ contract('Ticketing', accounts => {
     assert.equal(
       '0',
       p.toString(),
-      'Expected probabilit to be 0'
+      'Expected probability to be 0'
     );
   });
 
@@ -862,7 +838,7 @@ contract('Ticketing', accounts => {
     const node = accounts[1];
 
     // set up the node's stake and listing
-    await stakingManager.addStake(1, node, { from: accounts[1] });
+    await stakingManager.addStake(toSOLOs(1), node, { from: accounts[1] });
     await listings.setListing("0.0.0.0/0", 1, { from: accounts[1] });
 
     await particpateNextEpoch(accounts[1]);
@@ -871,7 +847,7 @@ contract('Ticketing', accounts => {
 
     // set up the sender's escrow
     await ticketing.depositEscrow(50, sender.address, { from: accounts[1] });
-    await ticketing.depositPenalty(50, sender.address, { from: accounts[1] });
+    await ticketing.depositPenalty(toSOLOs(50), sender.address, { from: accounts[1] });
 
     // have the node and sender generate random numbers
     const nodeRand = crypto.randomBytes(32);
@@ -924,6 +900,21 @@ contract('Ticketing', accounts => {
       { from: node }
     );
   });
+
+  // This test suite relies on confirming the correct balance is added
+  // to a user's account, however due to minor precision loss, the
+  // actual balance may slightly differ.
+  // This function check the difference falls within a small fraction of a single SYLO.
+  function compareExpectedBalance(a, b) {
+    const diff = a.sub(b);
+    // NOTE: This essentially says that a margin of 10**4 SOLOs is acceptable, or
+    // 0.00000000000001 SYLOs
+    expect(diff.toNumber()).to.be.within(0, 10**4);
+  }
+
+  function toSOLOs(a) {
+    return web3.utils.toWei(a.toString());
+  }
 
   async function particpateNextEpoch(account) {
     await directory.joinNextDirectory({ from: account });

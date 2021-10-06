@@ -14,7 +14,7 @@ exports.initializeContracts = async function(deployer, tokenAddress, opts = {}) 
       opts.payoutPercentage :
       5000;
 
-  const faceValue = opts.faceValue ? opts.faceValue : 15;
+  const faceValue = opts.faceValue ? opts.faceValue : web3.utils.toWei('15');
   const baseLiveWinProb =
     opts.baseLiveWinProb ?
       opts.baseLiveWinProb :
