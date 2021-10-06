@@ -20,6 +20,8 @@ import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
 contract RewardsManager is Initializable, OwnableUpgradeable {
     uint256 constant ONE_SYLO = 1 ether;
+    // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
+    int128 constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
     /* ERC 20 compatible token we are dealing with */
     IERC20 _token;
@@ -275,31 +277,29 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     /*
      * Helper function to convert a uint256 value in SOLOs to a 64.64 fixed point
      * representation in SYLOs while avoiding any possibility of overflow.
-     * Any remainders from converting SOLO to SYLO is explicitly handled to prevent
-     * precision loss.
+     * Any remainders from converting SOLO to SYLO is explicitly handled to mitigate
+     * precision loss. The error when using this function is [-1/2^64, 0].
      */
-    function toFixedPointSYLO(uint256 amount) public pure returns (int128) {
-        int128 a = ABDKMath64x64.fromUInt(amount / ONE_SYLO);
-        int128 b = ABDKMath64x64.fromUInt(amount % ONE_SYLO); // remainder
+    function toFixedPointSYLO(uint256 amount) internal pure returns (int128) {
+        int128 fullSylos = ABDKMath64x64.fromUInt(amount / ONE_SYLO);
+        int128 fracSylos = ABDKMath64x64.fromUInt(amount % ONE_SYLO); // remainder
 
-        int128 oneSyloFixed = ABDKMath64x64.fromUInt(ONE_SYLO);
-        return ABDKMath64x64.add(a, ABDKMath64x64.div(b, oneSyloFixed));
+        return ABDKMath64x64.add(fullSylos, ABDKMath64x64.div(fracSylos, ONE_SYLO_FIXED));
     }
+
     /*
      * Helper function to convert a 64.64 fixed point value in SYLOs to a uint256
      * representation in SOLOs while avoiding any possibility of overflow.
-     * Any loss from converting a fixed point value to uint256 is explicitly handled.
      */
-    function fromFixedPointSYLO(int128 amount) public pure returns (uint256) {
-        uint256 a = ABDKMath64x64.toUInt(amount);
-        uint256 aSolos = a * ONE_SYLO;
+    function fromFixedPointSYLO(int128 amount) internal pure returns (uint256) {
+        uint256 fullSylos = ABDKMath64x64.toUInt(amount);
+        uint256 fullSolos = fullSylos * ONE_SYLO;
 
          // calculate the value lost when converting the fixed point amount to a uint
-        int128 b = ABDKMath64x64.sub(amount, ABDKMath64x64.fromUInt(a));
-        int128 oneSyloFixed = ABDKMath64x64.fromUInt(ONE_SYLO);
-        uint256 bSolos = ABDKMath64x64.toUInt(ABDKMath64x64.mul(b, oneSyloFixed));
+        int128 fracSylos = ABDKMath64x64.sub(amount, ABDKMath64x64.fromUInt(fullSylos));
+        uint256 fracSolos = ABDKMath64x64.toUInt(ABDKMath64x64.mul(fracSylos, ONE_SYLO_FIXED));
 
-        return aSolos + bSolos;
+        return fullSolos + fracSolos;
     }
 
     function claimStakingRewards(address stakee) public {
