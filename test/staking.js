@@ -5,15 +5,13 @@ const utils = require('./utils.js');
 
 const Token = artifacts.require("SyloToken");
 
+// Chi Squared goodness of fit test
+const chi2gof = require('@stdlib/stats/chi2gof');
 
 contract('Staking', accounts => {
   let token;
   let epochsManager;
-  let rewardsManager;
-  let ticketingParameters;
-  let ticketing;
   let directory;
-  let listings;
   let stakingManager;
 
   const epochId = 1;
@@ -25,9 +23,6 @@ contract('Staking', accounts => {
   beforeEach(async () => {
     const contracts = await utils.initializeContracts(accounts[1], token.address);
     epochsManager = contracts.epochsManager;
-    rewardsManager = contracts.rewardsManager;
-    ticketingParameters = contracts.ticketingParameters;
-    ticketing = contracts.ticketing;
     directory = contracts.directory;
     listings = contracts.listings;
     stakingManager = contracts.stakingManager;
@@ -133,14 +128,110 @@ contract('Staking', accounts => {
       1,
       "Stake entry should track the epoch id it was updated at"
     );
-  })
+  });
 
-  it('should be able to scan', async () => {
+  it('should not be able to join directory without stake', async () => {
+    await directory.joinNextDirectory({ from: accounts[1] })
+      .then(() => {
+        assert.fail('Joining directory should fail without stake');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Can not join directory for next epoch without any stake');
+      });
+  });
+
+  it('should be able to scan after joining directory', async () => {
     await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
     await directory.joinNextDirectory({ from: accounts[1] });
     await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     await directory.scan(new BN(0));
+  });
+
+  it('should not be able to join directory more than once per epoch', async () => {
+    await stakingManager.addStake(1, accounts[1], { from: accounts[1] });
+    await directory.joinNextDirectory({ from: accounts[1] });
+    await directory.joinNextDirectory({ from: accounts[1] })
+      .then(() => {
+        assert.fail('Joining directory should fail as already joined for this epoch');
+      })
+      .catch(e => {
+        assert.include(e.message, 'Can only join the directory once per epoch');
+      })
+  });
+
+  it('should be able to scan empty directory', async () => {
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
+
+    const address = await directory.scan(new BN(0));
+
+    assert.equal(
+      address.toString(),
+      '0x0000000000000000000000000000000000000000',
+      "Expected empty directory to scan to zero address"
+    );
+  });
+
+  it('should be able to query properties of directory', async () => {
+    let expectedTotalStake = 0;
+    for (let i = 0; i < accounts.length; i++) {
+      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+      await directory.joinNextDirectory({ from: accounts[i] });
+      expectedTotalStake += 1;
+      const stake = await directory.getTotalStakeForStakee(1, accounts[i]);
+      assert.equal(
+        stake.toNumber(),
+        1,
+        "Expected to be able to query total stake for stakee"
+      );
+    }
+
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
+
+    const totalStake = await directory.getTotalStake(1);
+    assert.equal(
+      totalStake.toNumber(),
+      expectedTotalStake,
+      "Expected to return correct amount for total stake query"
+    );
+
+    const entries = await directory.getEntries(1);
+    for (let i = 0; i < accounts.length; i++) {
+      const address = entries[0][i];
+      const boundary = entries[1][i];
+      assert.equal(
+        address,
+        accounts[i],
+        "Expected entry to hold correct address"
+      );
+      assert.equal(
+        boundary.toNumber(),
+        i + 1,
+        "Expected entry to hold correct boundary value"
+      );
+    }
+  });
+
+  it('should correctly scan accounts based on their stake proportions', async () => {
+    for (let i = 0; i < 4; i++) {
+      await stakingManager.addStake(1, accounts[i], { from: accounts[1] });
+      await directory.joinNextDirectory({ from: accounts[i] });
+    }
+
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
+
+    const quarterPoint = (new BN(2)).pow(new BN(128)).sub(new BN(1)).div(new BN(4));
+    const points = [
+      '0',
+      quarterPoint.add(new BN(1)).toString(),
+      quarterPoint.add(new BN(1)).add(quarterPoint).add(new BN(1)).toString(),
+      quarterPoint.add(new BN(1)).add(quarterPoint).add(new BN(1)).add(quarterPoint).add(new BN(1)).toString()
+    ];
+
+    for (let i = 0; i < 4; i++) {
+      const address = await directory.scan(points[i]);
+      assert.equal(address, accounts[i], "Expected scan to return correct result");
+    }
   });
 
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
@@ -156,12 +247,7 @@ contract('Staking', accounts => {
       expectedResults[accounts[i]] = 1/10 * 1000;
     }
 
-    const results = await collectScanResults(1000);
-    for (let key of Object.keys(expectedResults)) {
-      const expected = expectedResults[key];
-      const actual = results[key];
-      console.log('For address', key, 'expected=', expected, 'actual=', actual);
-    }
+    await testScanResults(1000, expectedResults);
   }).timeout(0);
 
   it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
@@ -179,12 +265,7 @@ contract('Staking', accounts => {
       expectedResults[accounts[i]] = parseInt((i+1)/totalStake * 1000);
     }
 
-    const results = await collectScanResults(1000);
-    for (let key of Object.keys(expectedResults)) {
-      const expected = expectedResults[key];
-      const actual = results[key];
-      console.log('For address', key, 'expected=', expected, 'actual=', actual);
-    }
+    await testScanResults(1000, expectedResults);
   }).timeout(0);
 
   it('should be able to scan after unlocking all stake [ @skip-on-coverage ]', async () => {
@@ -225,7 +306,7 @@ contract('Staking', accounts => {
       await priceVoting.vote(1, { from: accounts[i] });
     }
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let found = false;
     for (let i = 0; i < accounts.length; i++) {
@@ -252,7 +333,7 @@ contract('Staking', accounts => {
 
     await priceVoting.vote(5, { from: accounts[5] });
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let found = false;
     for (let i = 0; i < accounts.length; i++) {
@@ -266,6 +347,22 @@ contract('Staking', accounts => {
     }
     assert.equal(found, false, "The account with no vote should not exist in the directory");
   });
+
+  async function testScanResults(iterations, expectedResults) {
+    const results = await collectScanResults(iterations);
+
+    let x = [];
+    let y = [];
+
+    for (let key of Object.keys(expectedResults)) {
+      x.push(results[key]);
+      y.push(expectedResults[key])
+    }
+
+    const chiResult = chi2gof(x, y).toJSON();
+
+    assert.isNotOk(chiResult.rejected, "Expected scan result to pass goodness-of-fit test");
+  }
 
   async function collectScanResults(iterations) {
     const points = {};

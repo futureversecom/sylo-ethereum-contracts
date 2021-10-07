@@ -96,7 +96,7 @@ contract Directory is Initializable, OwnableUpgradeable {
         directories[epochId].totalStake = nextBoundary;
     }
 
-    function scan(uint128 point) public view returns (address) {
+    function scan(uint128 point) public view returns (address stakee) {
         if (directories[currentDirectory].entries.length == 0) {
             return address(0);
         }
@@ -123,8 +123,6 @@ contract Directory is Initializable, OwnableUpgradeable {
                 l = index + 1;
             }
         }
-
-        return address(0);
     }
 
     function getTotalStakeForStakee(uint256 epochId, address stakee) public view returns (uint256) {
