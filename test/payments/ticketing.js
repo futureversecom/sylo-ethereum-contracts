@@ -739,7 +739,11 @@ contract('Ticketing', accounts => {
     }
   });
 
-  it('should calculate updated stake and rewards over several ticket redemptions without significant precision loss [ @skip-on-coverage ]', async () => {
+  // XXX: Set to skip as it is a very long test and sometimes breaks the local
+  // truffle test network/client. However this should be manually run if any significant changes
+  // to the Rewards contract calculation is made.
+  // TODO: Create script to spin up new test network to run this test locally or for CI automatically.
+  it.skip('should calculate updated stake and rewards over several ticket redemptions without significant precision loss [ @skip-on-coverage ]', async () => {
     for (let i = 2; i < 5; i++) {
       await token.transfer(accounts[i], toSOLOs(1000), { from: accounts[1]} );
       await token.approve(stakingManager.address, toSOLOs(1000), { from: accounts[i] });
