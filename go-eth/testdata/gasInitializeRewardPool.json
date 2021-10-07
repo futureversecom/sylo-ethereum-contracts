@@ -1,18 +1,18 @@
 [
   {
     "delegated_stakers": 1,
-    "gas_used": 110305
+    "gas_used": 110327
   },
   {
     "delegated_stakers": 10,
-    "gas_used": 110305
+    "gas_used": 110327
   },
   {
     "delegated_stakers": 50,
-    "gas_used": 110305
+    "gas_used": 110327
   },
   {
     "delegated_stakers": 100,
-    "gas_used": 110305
+    "gas_used": 110327
   }
 ]
