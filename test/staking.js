@@ -8,8 +8,6 @@ const Token = artifacts.require("SyloToken");
 // Chi Squared goodness of fit test
 const chi2gof = require('@stdlib/stats/chi2gof');
 
-const utils = require('./utils');
-
 contract('Staking', accounts => {
   let token;
   let epochsManager;
@@ -147,8 +145,8 @@ contract('Staking', accounts => {
     await directory.scan(new BN(0));
   });
 
-  it.only('should be able to scan empty directory', async () => {
-    await directory.constructDirectory({ from: accounts[1] });
+  it('should be able to scan empty directory', async () => {
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     const address = await directory.scan(new BN(0));
 
@@ -231,7 +229,7 @@ contract('Staking', accounts => {
       await priceVoting.vote(1, { from: accounts[i] });
     }
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let found = false;
     for (let i = 0; i < accounts.length; i++) {
@@ -258,7 +256,7 @@ contract('Staking', accounts => {
 
     await priceVoting.vote(5, { from: accounts[5] });
 
-    await directory.constructDirectory({ from: accounts[1] });
+    await directory.setCurrentDirectory(epochId, { from: accounts[1] });
 
     let found = false;
     for (let i = 0; i < accounts.length; i++) {

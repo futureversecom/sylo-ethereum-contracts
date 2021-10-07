@@ -24,9 +24,8 @@
     "libsodium-wrappers-sumo": "^0.7.9",
     "solhint": "^2.3.1",
     "solidity-coverage": "^0.7.16",
-    "truffle": "^5.3.14"
-  },
-  "dependencies": {
+    "truffle": "^5.3.14",
     "abdk-libraries-solidity": "^3.0.0"
-  }
+  },
+  "dependencies": {}
 }
