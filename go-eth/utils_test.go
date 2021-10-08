@@ -272,6 +272,12 @@ func DelegateStake(t *testing.T, ctx context.Context, backend SimBackend, client
 }
 
 func List(t *testing.T, ctx context.Context, backend SimBackend, client Client, multiAddr string, minimumStakeAmount *big.Int) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("panic: %v", r)
+		}
+	}()
+
 	tx, err := client.SetListing(multiAddr, minimumStakeAmount)
 	if err != nil {
 		t.Fatalf("could not add stake: %v", err)

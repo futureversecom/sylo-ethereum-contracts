@@ -36,6 +36,8 @@ type Backend interface {
 	ethereum.GasPricer
 	ethereum.LogFilterer
 	ethereum.ChainReader
+	ChainID(ctx context.Context) (*big.Int, error)
+	SuggestGasTipCap(context.Context) (*big.Int, error)
 }
 
 type backend struct {
@@ -70,7 +72,7 @@ func (b *backend) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	sendErr := b.Client.SendTransaction(ctx, tx)
 
 	// update local nonce
-	msg, err := tx.AsMessage(b.validator)
+	msg, err := tx.AsMessage(b.validator, nil)
 	if err != nil {
 		return err
 	}

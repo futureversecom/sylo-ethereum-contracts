@@ -31,6 +31,10 @@ func NewSimBackend(sim *backends.SimulatedBackend) SimBackend {
 	return &simBackend{SimulatedBackend: sim}
 }
 
+func (b *simBackend) ChainID(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1337), nil
+}
+
 func (b *simBackend) PendingBalanceAt(ctx context.Context, account ethcommon.Address) (*big.Int, error) {
 	return nil, errNotImplemented
 }
@@ -47,7 +51,7 @@ func (b *simBackend) PendingTransactionCount(ctx context.Context) (uint, error) 
 func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to ethcommon.Address, signerKey *ecdsa.PrivateKey, amount *big.Int) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+			err = fmt.Errorf("panic: %v", r)
 		}
 	}()
 
@@ -57,10 +61,7 @@ func (b *simBackend) FaucetEth(ctx context.Context, from ethcommon.Address, to e
 	}
 
 	gasLimit := uint64(21000) // in units
-	gasPrice, err := b.SimulatedBackend.SuggestGasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("could not get suggested gas price: %v", err)
-	}
+	gasPrice := big.NewInt(52987961)
 
 	var data []byte
 	tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, data)
