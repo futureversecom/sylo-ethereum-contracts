@@ -107,24 +107,6 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
-	// deploy price voting
-	var deployPriceVotingTx *types.Transaction
-	var priceVoting *contracts.PriceVoting
-	addresses.PriceVoting, deployPriceVotingTx, priceVoting, err = contracts.DeployPriceVoting(opts, backend)
-	if err != nil {
-		return addresses, fmt.Errorf("could not deploy price voting: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
-	// deploy price manager
-	var deployPriceManagerTx *types.Transaction
-	var priceManager *contracts.PriceManager
-	addresses.PriceManager, deployPriceManagerTx, priceManager, err = contracts.DeployPriceManager(opts, backend)
-	if err != nil {
-		return addresses, fmt.Errorf("could not deploy price manager: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
 	// deploy directory
 	var deployDirectoryTx *types.Transaction
 	var directory *contracts.Directory
@@ -190,16 +172,6 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
 	}
 
-	_, err = WaitForReceipt(ctx, deployPriceVotingTx, backend)
-	if err != nil {
-		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
-	}
-
-	_, err = WaitForReceipt(ctx, deployPriceManagerTx, backend)
-	if err != nil {
-		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
-	}
-
 	_, err = WaitForReceipt(ctx, deployDirectoryTx, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
@@ -235,22 +207,6 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	initStakingManagerTx, err = stakingManager.Initialize(opts, addresses.Token, addresses.RewardsManager, addresses.EpochsManager, contractParams.UnlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialize staking: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
-	// initialise price voting
-	var initPriceVotingTx *types.Transaction
-	initPriceVotingTx, err = priceVoting.Initialize(opts, addresses.StakingManager)
-	if err != nil {
-		return addresses, fmt.Errorf("could not initialize price: %w", err)
-	}
-	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-
-	// initialise price manager
-	var initPriceManagerTx *types.Transaction
-	initPriceManagerTx, err = priceManager.Initialize(opts, addresses.StakingManager, addresses.PriceVoting)
-	if err != nil {
-		return addresses, fmt.Errorf("could not initialize price manager contract: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
@@ -318,21 +274,11 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
-	// wait for initializations
-	_, err = WaitForReceipt(ctx, initPriceManagerTx, backend)
-	if err != nil {
-		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
-	}
-
 	_, err = WaitForReceipt(ctx, initStakingManagerTx, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
 	}
 
-	_, err = WaitForReceipt(ctx, initPriceVotingTx, backend)
-	if err != nil {
-		return addresses, fmt.Errorf("could not wait for receipt: %w", err)
-	}
 	_, err = WaitForReceipt(ctx, initDirectoryTx, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not wait for receipt: %w", err)

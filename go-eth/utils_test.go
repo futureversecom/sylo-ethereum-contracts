@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	"sort"
 	"strings"
 	"testing"
 
@@ -148,60 +147,10 @@ func Stake(t *testing.T, ctx context.Context, backend SimBackend, client Client,
 	}
 }
 
-func Vote(t *testing.T, ctx context.Context, backend SimBackend, client Client, vote *big.Int) {
-	tx, err := client.Vote(vote)
-	if err != nil {
-		t.Fatalf("could not add stake: %v", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		t.Fatalf("could not check transaction: %v", err)
-	}
-}
-
 type SortedVote struct {
 	Voter ethcommon.Address
 	Price *big.Int
 	Index *big.Int
-}
-
-func CalculatePrices(t *testing.T, ctx context.Context, backend SimBackend, client Client) *types.Transaction {
-	voters, prices, err := client.GetVotes()
-	if err != nil {
-		t.Fatalf("could not retrieve votes: %v", err)
-	}
-
-	sortedVotes := []SortedVote{}
-
-	for i := 0; i < len(voters); i++ {
-		sortedVotes = append(
-			sortedVotes,
-			SortedVote{voters[i], prices[i], big.NewInt(int64(i))},
-		)
-	}
-	sort.Slice(sortedVotes, func(i, j int) bool {
-		return sortedVotes[i].Price.Cmp(sortedVotes[j].Price) == -1
-	})
-
-	sortedIndexes := []*big.Int{}
-	for i := 0; i < len(voters); i++ {
-		sortedIndexes = append(sortedIndexes, sortedVotes[i].Index)
-	}
-
-	tx, err := client.CalculatePrices(sortedIndexes)
-	if err != nil {
-		t.Fatalf("could not add stake: %v", err)
-	}
-	backend.Commit()
-
-	_, err = client.CheckTx(ctx, tx)
-	if err != nil {
-		t.Fatalf("could not check transaction: %v", err)
-	}
-
-	return tx
 }
 
 func JoinNextDirectory(t *testing.T, ctx context.Context, backend SimBackend, client Client) {

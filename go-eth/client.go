@@ -6,8 +6,6 @@ package eth
 //go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/token.go --bin ../bin/SyloToken.bin
 //go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
 //go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
-//go:generate abigen --abi ../abi/PriceManager.abi --pkg contracts --type PriceManager --out contracts/price_manager.go --bin ../bin/PriceManager.bin
-//go:generate abigen --abi ../abi/PriceVoting.abi --pkg contracts --type PriceVoting --out contracts/price_voting.go --bin ../bin/PriceVoting.bin
 //go:generate abigen --abi ../abi/StakingManager.abi --pkg contracts --type StakingManager --out contracts/staking_manager.go --bin ../bin/StakingManager.bin
 //go:generate abigen --abi ../abi/RewardsManager.abi --pkg contracts --type RewardsManager --out contracts/rewards_manager.go --bin ../bin/RewardsManager.bin
 
@@ -55,16 +53,6 @@ type Client interface {
 	BalanceOf(account ethcommon.Address) (*big.Int, error)
 	Transfer(recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
 	TransferFrom(sender ethcommon.Address, recipient ethcommon.Address, amount *big.Int) (*types.Transaction, error)
-
-	// PriceManager methods
-
-	CalculatePrices(sortedVotes []*big.Int) (*types.Transaction, error)
-
-	// PriceVoting methods
-
-	Vote(price *big.Int) (*types.Transaction, error)
-	GetVotes() ([]ethcommon.Address, []*big.Int, error)
-	WithdrawVote() (*types.Transaction, error)
 
 	// StakingManager methods
 
@@ -119,8 +107,6 @@ type Addresses struct {
 	TicketingParameters ethcommon.Address
 	Directory           ethcommon.Address
 	Listings            ethcommon.Address
-	PriceManager        ethcommon.Address
-	PriceVoting         ethcommon.Address
 	StakingManager      ethcommon.Address
 	EpochsManager       ethcommon.Address
 	RewardsManager      ethcommon.Address
@@ -137,8 +123,6 @@ type client struct {
 	*contracts.SyloTokenSession
 	*contracts.DirectorySession
 	*contracts.ListingsSession
-	*contracts.PriceManagerSession
-	*contracts.PriceVotingSession
 	*contracts.StakingManagerSession
 	*contracts.EpochsManagerSession
 	*contracts.RewardsManagerSession
@@ -214,26 +198,6 @@ func NewSyloPaymentsClient(
 		TransactOpts: *opts,
 	}
 
-	// price manager
-	priceManager, err := contracts.NewPriceManager(c.contracts.PriceManager, backend)
-	if err != nil {
-		return nil, err
-	}
-	c.PriceManagerSession = &contracts.PriceManagerSession{
-		Contract:     priceManager,
-		TransactOpts: *opts,
-	}
-
-	// service price voting
-	priceVoting, err := contracts.NewPriceVoting(c.contracts.PriceVoting, backend)
-	if err != nil {
-		return nil, err
-	}
-	c.PriceVotingSession = &contracts.PriceVotingSession{
-		Contract:     priceVoting,
-		TransactOpts: *opts,
-	}
-
 	// staking manager
 	stakingManager, err := contracts.NewStakingManager(contractAddrs.StakingManager, backend)
 	if err != nil {
@@ -275,10 +239,6 @@ func (c *client) GetAmountStaked(stakee ethcommon.Address) (*big.Int, error) {
 
 func (c *client) Withdraw() (*types.Transaction, error) {
 	return c.SyloTicketingSession.Withdraw()
-}
-
-func (c *client) WithdrawVote() (*types.Transaction, error) {
-	return c.PriceVotingSession.Withdraw()
 }
 
 func (c *client) GetStakeKey(staker ethcommon.Address, stakee ethcommon.Address) ([32]byte, error) {

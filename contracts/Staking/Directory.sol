@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./Manager.sol";
-import "../Payments/Pricing/Manager.sol";
-import "../Payments/Pricing/Voting.sol";
 import "../Payments/Ticketing/RewardsManager.sol";
 import "../Utils.sol";
 

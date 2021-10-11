@@ -5,7 +5,6 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import "../Payments/Pricing/Manager.sol";
 import "../Payments/Ticketing/Parameters.sol";
 import "../Listings.sol";
 import "../Staking/Directory.sol";
@@ -31,8 +30,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint256 ticketDuration;
         uint16 decayRate;
     }
-
-    PriceManager _priceManager;
 
     Directory _directory;
 

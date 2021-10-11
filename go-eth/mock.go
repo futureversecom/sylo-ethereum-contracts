@@ -140,22 +140,6 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 	backend.Commit()
 
-	var priceVoting *contracts.PriceVoting
-	addresses.PriceVoting, _, priceVoting, _ = contracts.DeployPriceVoting(&opts[0], backend)
-	_, err = priceVoting.Initialize(&opts[0], addresses.StakingManager)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
-	}
-	backend.Commit()
-
-	var priceManager *contracts.PriceManager
-	addresses.PriceManager, _, priceManager, _ = contracts.DeployPriceManager(&opts[0], backend)
-	_, err = priceManager.Initialize(&opts[0], addresses.StakingManager, addresses.PriceVoting)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not initialise price manager: %w", err)
-	}
-	backend.Commit()
-
 	var listings *contracts.Listings
 	addresses.Listings, _, listings, _ = contracts.DeployListings(&opts[0], backend)
 	_, err = listings.Initialize(&opts[0], 50)
