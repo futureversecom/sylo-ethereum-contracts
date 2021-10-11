@@ -17,7 +17,6 @@ const parseArtifact = (inFile, outDir, outFile, type = "abi") => {
                 jsonData = JSON.stringify(json.abi)
             }
 
-
             mkdirp(outDir, err => {
                 if (err) {
                     console.error("Failed to ensure directory " + outDir + ": " + err)
@@ -33,21 +32,31 @@ const parseArtifact = (inFile, outDir, outFile, type = "abi") => {
     })
 }
 
-const ARTIFACT_DIR = path.resolve(__dirname, "../build/contracts")
+const ARTIFACT_DIR = path.resolve(__dirname, "../artifacts")
 const ABI_DIR = path.resolve(__dirname, "../abi")
 const BIN_DIR = path.resolve(__dirname, "../bin")
 
-fs.readdir(ARTIFACT_DIR, (err, files) => {
-    if (err) {
-        console.error("Failed to read " + ARTIFACT_DIR + ": " + err)
-    } else {
-        files.forEach(filename => {
-            const artifactFile = path.join(ARTIFACT_DIR, filename)
-            const abiFile = path.join(ABI_DIR, path.basename(filename, ".json") + ".abi")
-            const binFile = path.join(BIN_DIR, path.basename(filename, ".json") + ".bin")
+function readDir(dir) {
+    fs.readdir(dir, (err, files) => {
+        if (err) {
+            console.error("Failed to read " + ARTIFACT_DIR + ": " + err)
+        } else {
+            if (dir.endsWith('build-info')) return;
 
-            parseArtifact(artifactFile, ABI_DIR, abiFile, "abi")
-            parseArtifact(artifactFile, BIN_DIR, binFile, "bin")
-        })
-    }
-})
+            files.forEach(filename => {
+                if (fs.lstatSync(path.join(dir, filename)).isDirectory()) {
+                    readDir(path.join(dir, filename));
+                } else if (!filename.endsWith('dbg.json')) {
+                    const artifactFile = path.join(dir, filename)
+                    const abiFile = path.join(ABI_DIR, path.basename(filename, ".json") + ".abi")
+                    const binFile = path.join(BIN_DIR, path.basename(filename, ".json") + ".bin")
+
+                    parseArtifact(artifactFile, ABI_DIR, abiFile, "abi")
+                    parseArtifact(artifactFile, BIN_DIR, binFile, "bin")
+                }
+            })
+        }
+    })
+}
+
+readDir(ARTIFACT_DIR);

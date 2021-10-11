@@ -3,7 +3,7 @@ Smart Contracts used for Sylo Incentivisation
 
 ## Developing
 
-Development uses [Truffle](https://www.trufflesuite.com/truffle) for development environment.
+This project employs [Hardhat](https://hardhat.org/getting-started/) for development and testing.
 
 ### Setup
 
