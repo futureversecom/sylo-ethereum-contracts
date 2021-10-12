@@ -7,8 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.9
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/ipfs/go-log v1.0.5
-	github.com/mattn/go-isatty v0.0.13 // indirect
+	github.com/ipfs/go-log/v2 v2.3.0
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.13.0 // indirect
 	github.com/stretchr/testify v1.7.0

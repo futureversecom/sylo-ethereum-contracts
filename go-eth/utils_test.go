@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -74,6 +74,7 @@ func CreateRandomClient(t *testing.T, ctx context.Context, backend SimBackend, a
 		t.Fatalf("could not create transaction signer: %v", err)
 	}
 	opts.Context = ctx
+	opts.GasPrice = big.NewInt(40568908)
 
 	i, err := NewSyloPaymentsClient(addresses, backend, opts)
 	if err != nil {
@@ -447,7 +448,7 @@ func GetNode(t *testing.T, client Client) struct {
 	}
 }
 
-func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey, receiver ethcommon.Address) (contracts.SyloTicketingTicket, []byte, *big.Int, *big.Int) {
+func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey, receiver ethcommon.Address) (ticketing.SyloTicketingTicket, []byte, *big.Int, *big.Int) {
 	latestBlock, err := sender.LatestBlock()
 	if err != nil {
 		t.Fatalf("could not retrieve the latest block: %v", err)
@@ -468,7 +469,7 @@ func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey
 	var redeemerCommit [32]byte
 	copy(redeemerCommit[:], crypto.Keccak256(redeemerRand.FillBytes(redeemerCommit[:])))
 
-	ticket := contracts.SyloTicketingTicket{
+	ticket := ticketing.SyloTicketingTicket{
 		EpochId:         epochId,
 		Sender:          sender.Address(),
 		Redeemer:        receiver,
@@ -489,7 +490,7 @@ func CreateWinningTicket(t *testing.T, sender Client, senderPK *ecdsa.PrivateKey
 	return ticket, sig, senderRand, redeemerRand
 }
 
-func Redeem(t *testing.T, ctx context.Context, backend SimBackend, client Client, ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
+func Redeem(t *testing.T, ctx context.Context, backend SimBackend, client Client, ticket ticketing.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
 	tx, err := client.Redeem(ticket, senderRand, redeemerRand, sig)
 	if err != nil {
 		t.Fatalf("could not redeem ticket: %v", err)

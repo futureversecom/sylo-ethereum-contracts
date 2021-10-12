@@ -16,7 +16,9 @@
     "@openzeppelin/contracts": "^4.1.0",
     "@openzeppelin/contracts-upgradeable": "^4.1.0",
     "@openzeppelin/truffle-upgrades": "^1.7.1",
+    "@stdlib/stats-chi2gof": "^0.0.6",
     "@stdlib/stdlib": "0.0.94",
+    "abdk-libraries-solidity": "^3.0.0",
     "bn.js": "^5.2.0",
     "buidler-gas-reporter": "^0.1.4",
     "ganache-cli": "^6.12.2",
@@ -24,8 +26,6 @@
     "libsodium-wrappers-sumo": "^0.7.9",
     "solhint": "^2.3.1",
     "solidity-coverage": "^0.7.16",
-    "truffle": "^5.3.14",
-    "abdk-libraries-solidity": "^3.0.0"
-  },
-  "dependencies": {}
+    "truffle": "^5.3.14"
+  }
 }

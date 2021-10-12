@@ -12,14 +12,24 @@ import (
 	"time"
 
 	sylopayments "github.com/dn3010/sylo-ethereum-contracts/go-eth"
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	log "github.com/ipfs/go-log"
-	cli "github.com/urfave/cli/v2"
+	"github.com/ipfs/go-log/v2"
+	"github.com/urfave/cli/v2"
+
+	epochsmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/epochs/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/listings"
+	pricemanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/voting"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/parameters"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/rewardsmanager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/directory"
+	stakingmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/token"
 )
 
 var logger = log.Logger("sylo-deploy-contracts")
@@ -382,7 +392,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	// deploy Sylo token
 	opts.Nonce = new(big.Int).SetUint64(nonce)
 	var tokenTx *types.Transaction
-	addresses.Token, tokenTx, _, err = contracts.DeploySyloToken(opts, client)
+	addresses.Token, tokenTx, _, err = token.DeploySyloToken(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy sylo token: %w", err)
 	}
@@ -390,8 +400,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy staking manager
 	var stakingManagerTx *types.Transaction
-	var stakingManager *contracts.StakingManager
-	addresses.Directory, stakingManagerTx, stakingManager, err = contracts.DeployStakingManager(opts, client)
+	var stakingManager *stakingmanager.StakingManager
+	addresses.Directory, stakingManagerTx, stakingManager, err = stakingmanager.DeployStakingManager(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy stakingManager: %w", err)
 	}
@@ -399,8 +409,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy directory
 	var directoryTx *types.Transaction
-	var directory *contracts.Directory
-	addresses.Directory, directoryTx, directory, err = contracts.DeployDirectory(opts, client)
+	var stakingDirectory *directory.Directory
+	addresses.Directory, directoryTx, stakingDirectory, err = directory.DeployDirectory(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
@@ -408,8 +418,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy epochs manager
 	var epochsManagerTx *types.Transaction
-	var epochsManager *contracts.EpochsManager
-	addresses.EpochsManager, epochsManagerTx, epochsManager, err = contracts.DeployEpochsManager(opts, client)
+	var epochsManager *epochsmanager.EpochsManager
+	addresses.EpochsManager, epochsManagerTx, epochsManager, err = epochsmanager.DeployEpochsManager(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy epochsManager: %w", err)
 	}
@@ -417,8 +427,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy rewards manager
 	var rewardsManagerTx *types.Transaction
-	var rewardsManager *contracts.RewardsManager
-	addresses.RewardsManager, rewardsManagerTx, rewardsManager, err = contracts.DeployRewardsManager(opts, client)
+	var rewardsManager *rewardsmanager.RewardsManager
+	addresses.RewardsManager, rewardsManagerTx, rewardsManager, err = rewardsmanager.DeployRewardsManager(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy rewardsManager: %w", err)
 	}
@@ -432,7 +442,7 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 
 	// initialize directory
-	_, err = directory.Initialize(opts, addresses.StakingManager, addresses.RewardsManager)
+	_, err = stakingDirectory.Initialize(opts, addresses.StakingManager, addresses.RewardsManager)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise directory: %w", err)
 	}
@@ -447,8 +457,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy price voting
 	var priceVotingTx *types.Transaction
-	var priceVoting *contracts.PriceVoting
-	addresses.PriceVoting, priceVotingTx, priceVoting, err = contracts.DeployPriceVoting(opts, client)
+	var priceVoting *voting.PriceVoting
+	addresses.PriceVoting, priceVotingTx, priceVoting, err = voting.DeployPriceVoting(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy priceVoting: %w", err)
 	}
@@ -461,8 +471,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy price manager
 	var priceManagerTx *types.Transaction
-	var priceManager *contracts.PriceManager
-	addresses.Directory, priceManagerTx, priceManager, err = contracts.DeployPriceManager(opts, client)
+	var priceManager *pricemanager.PriceManager
+	addresses.Directory, priceManagerTx, priceManager, err = pricemanager.DeployPriceManager(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy priceManager: %w", err)
 	}
@@ -475,13 +485,13 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy listing
 	var listingTx *types.Transaction
-	var listings *contracts.Listings
-	addresses.Listings, listingTx, listings, err = contracts.DeployListings(opts, client)
+	var multiaddrListings *listings.Listings
+	addresses.Listings, listingTx, multiaddrListings, err = listings.DeployListings(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy listing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = listings.Initialize(opts, payoutPercentage)
+	_, err = multiaddrListings.Initialize(opts, payoutPercentage)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise listing: %w", err)
 	}
@@ -489,8 +499,8 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy ticketing parameters
 	var ticketingParametersTx *types.Transaction
-	var ticketingParameters *contracts.TicketingParameters
-	addresses.TicketingParameters, ticketingParametersTx, ticketingParameters, err = contracts.DeployTicketingParameters(opts, client)
+	var ticketingParameters *parameters.TicketingParameters
+	addresses.TicketingParameters, ticketingParametersTx, ticketingParameters, err = parameters.DeployTicketingParameters(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketingParameters: %w", err)
 	}
@@ -509,13 +519,13 @@ func deployContracts(ctx context.Context, opts *bind.TransactOpts, client *ethcl
 
 	// deploy ticketing
 	var ticketingTx *types.Transaction
-	var ticketing *contracts.SyloTicketing
-	addresses.Ticketing, ticketingTx, ticketing, err = contracts.DeploySyloTicketing(opts, client)
+	var syloTicketing *ticketing.SyloTicketing
+	addresses.Ticketing, ticketingTx, syloTicketing, err = ticketing.DeploySyloTicketing(opts, client)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
 	opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	_, err = ticketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, unlockDuration)
+	_, err = syloTicketing.Initialize(opts, addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, unlockDuration)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

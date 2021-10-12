@@ -5,9 +5,19 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	epochsmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/epochs/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/listings"
+	pricemanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/voting"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/parameters"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/rewardsmanager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/directory"
+	stakingmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/token"
 )
 
 type ContractParameters struct {
@@ -92,7 +102,7 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy Sylo token
 	var deployTokenTx *types.Transaction
-	addresses.Token, deployTokenTx, _, err = contracts.DeploySyloToken(opts, backend)
+	addresses.Token, deployTokenTx, _, err = token.DeploySyloToken(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy sylo token: %w", err)
 	}
@@ -100,8 +110,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy staking manager
 	var deployStakingManagerTx *types.Transaction
-	var stakingManager *contracts.StakingManager
-	addresses.StakingManager, deployStakingManagerTx, stakingManager, err = contracts.DeployStakingManager(opts, backend)
+	var stakingManager *stakingmanager.StakingManager
+	addresses.StakingManager, deployStakingManagerTx, stakingManager, err = stakingmanager.DeployStakingManager(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy staking manager: %w", err)
 	}
@@ -109,8 +119,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy price voting
 	var deployPriceVotingTx *types.Transaction
-	var priceVoting *contracts.PriceVoting
-	addresses.PriceVoting, deployPriceVotingTx, priceVoting, err = contracts.DeployPriceVoting(opts, backend)
+	var priceVoting *voting.PriceVoting
+	addresses.PriceVoting, deployPriceVotingTx, priceVoting, err = voting.DeployPriceVoting(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy price voting: %w", err)
 	}
@@ -118,8 +128,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy price manager
 	var deployPriceManagerTx *types.Transaction
-	var priceManager *contracts.PriceManager
-	addresses.PriceManager, deployPriceManagerTx, priceManager, err = contracts.DeployPriceManager(opts, backend)
+	var priceManager *pricemanager.PriceManager
+	addresses.PriceManager, deployPriceManagerTx, priceManager, err = pricemanager.DeployPriceManager(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy price manager: %w", err)
 	}
@@ -127,8 +137,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy directory
 	var deployDirectoryTx *types.Transaction
-	var directory *contracts.Directory
-	addresses.Directory, deployDirectoryTx, directory, err = contracts.DeployDirectory(opts, backend)
+	var stakingDirectory *directory.Directory
+	addresses.Directory, deployDirectoryTx, stakingDirectory, err = directory.DeployDirectory(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy directory: %w", err)
 	}
@@ -136,8 +146,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy listings
 	var deployListingsTx *types.Transaction
-	var listings *contracts.Listings
-	addresses.Listings, deployListingsTx, listings, err = contracts.DeployListings(opts, backend)
+	var multiaddrListings *listings.Listings
+	addresses.Listings, deployListingsTx, multiaddrListings, err = listings.DeployListings(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy listings: %w", err)
 	}
@@ -145,8 +155,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy epochs manager
 	var deployEpochsManagerTx *types.Transaction
-	var epochsManager *contracts.EpochsManager
-	addresses.EpochsManager, deployEpochsManagerTx, epochsManager, err = contracts.DeployEpochsManager(opts, backend)
+	var epochsManager *epochsmanager.EpochsManager
+	addresses.EpochsManager, deployEpochsManagerTx, epochsManager, err = epochsmanager.DeployEpochsManager(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy epochs manager: %w", err)
 	}
@@ -154,8 +164,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy rewards manager
 	var deployRewardsManagerTx *types.Transaction
-	var rewardsManager *contracts.RewardsManager
-	addresses.RewardsManager, deployRewardsManagerTx, rewardsManager, err = contracts.DeployRewardsManager(opts, backend)
+	var rewardsManager *rewardsmanager.RewardsManager
+	addresses.RewardsManager, deployRewardsManagerTx, rewardsManager, err = rewardsmanager.DeployRewardsManager(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy rewards manager: %w", err)
 	}
@@ -163,8 +173,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy ticketing parameters
 	var deployTicketingParametersTx *types.Transaction
-	var ticketingParameters *contracts.TicketingParameters
-	addresses.TicketingParameters, deployTicketingParametersTx, ticketingParameters, err = contracts.DeployTicketingParameters(opts, backend)
+	var ticketingParameters *parameters.TicketingParameters
+	addresses.TicketingParameters, deployTicketingParametersTx, ticketingParameters, err = parameters.DeployTicketingParameters(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketing parameters: %w", err)
 	}
@@ -172,8 +182,8 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// deploy ticketing
 	var deployTicketingTx *types.Transaction
-	var ticketing *contracts.SyloTicketing
-	addresses.Ticketing, deployTicketingTx, ticketing, err = contracts.DeploySyloTicketing(opts, backend)
+	var syloTicketing *ticketing.SyloTicketing
+	addresses.Ticketing, deployTicketingTx, syloTicketing, err = ticketing.DeploySyloTicketing(opts, backend)
 	if err != nil {
 		return addresses, fmt.Errorf("could not deploy ticketing: %w", err)
 	}
@@ -256,7 +266,7 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// initialize directory
 	var initDirectoryTx *types.Transaction
-	initDirectoryTx, err = directory.Initialize(opts, addresses.StakingManager, addresses.RewardsManager)
+	initDirectoryTx, err = stakingDirectory.Initialize(opts, addresses.StakingManager, addresses.RewardsManager)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialize directory: %w", err)
 	}
@@ -264,7 +274,7 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// initialise listings
 	var initListingsTx *types.Transaction
-	initListingsTx, err = listings.Initialize(opts, contractParams.DefaultPayoutPercentage)
+	initListingsTx, err = multiaddrListings.Initialize(opts, contractParams.DefaultPayoutPercentage)
 	if err != nil {
 		return addresses, fmt.Errorf("could not initialize listings: %w", err)
 	}
@@ -303,7 +313,7 @@ func DeployContracts(ctx context.Context, opts *bind.TransactOpts, backend Backe
 
 	// initialise ticketing
 	var initTicketingTx *types.Transaction
-	initTicketingTx, err = ticketing.Initialize(
+	initTicketingTx, err = syloTicketing.Initialize(
 		opts,
 		addresses.Token,
 		addresses.Listings,

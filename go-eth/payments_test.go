@@ -11,8 +11,8 @@ import (
 	"time"
 
 	sylopayments "github.com/dn3010/sylo-ethereum-contracts/go-eth"
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -26,7 +26,7 @@ func TestPayments(t *testing.T) {
 	// create a node
 	node, _ := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 	t.Log("created node")
-	depositEth(t, faucet, node, big.NewInt(1000000))
+	depositEth(t, faucet, node, sylopayments.OneEth)
 	t.Log("node deposited 1 eth")
 	depositSylo(t, faucet, node, big.NewInt(1000000))
 	t.Log("node deposited 1000000 sylo")
@@ -53,8 +53,8 @@ func TestPayments(t *testing.T) {
 	// create alice
 	alice, aliceSK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 	t.Log("created alice")
-	depositEth(t, faucet, alice, big.NewInt(1000000))
-	t.Log("bob deposited 1000000 wei")
+	depositEth(t, faucet, alice, sylopayments.OneEth)
+	t.Log("bob deposited 1 eth")
 	depositSylo(t, faucet, alice, big.NewInt(1000000))
 	t.Log("alice deposited 1000000 sylo")
 	sylopayments.TopUpDeposits(t, ctx, backend, alice)
@@ -64,8 +64,8 @@ func TestPayments(t *testing.T) {
 	bob, bobSK := sylopayments.CreateRandomClient(t, ctx, backend, addresses)
 	bobPK := &bobSK.PublicKey
 	t.Log("created bob")
-	depositEth(t, faucet, bob, big.NewInt(1000000))
-	t.Log("bob deposited 1000000 wei")
+	depositEth(t, faucet, bob, sylopayments.OneEth)
+	t.Log("bob deposited 1 eth")
 	depositSylo(t, faucet, bob, big.NewInt(1000000))
 	t.Log("bob deposited 1000000 sylo")
 	sylopayments.TopUpDeposits(t, ctx, backend, bob)
@@ -77,7 +77,7 @@ func TestPayments(t *testing.T) {
 		t.Fatalf("could not scan for bob's node: %v", err)
 	}
 	if !bytes.Equal(scanAddress.Bytes(), node.Address().Bytes()) {
-		t.Fatalf("should get back the node's address")
+		t.Fatalf("should get back the node's address: expected \"%s\": got \"%s\"", node.Address().Hex(), scanAddress.Hex())
 	}
 	t.Log("alice scanned and found the node to be serving bob")
 
@@ -122,7 +122,7 @@ func createRandomNumber(t *testing.T) (n *big.Int, h [32]byte) {
 	return randNum, randNumHash
 }
 
-func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecdsa.PrivateKey, receiver common.Address, senderCommit [32]byte, redeemerCommit [32]byte) (contracts.SyloTicketingTicket, []byte) {
+func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecdsa.PrivateKey, receiver ethcommon.Address, senderCommit [32]byte, redeemerCommit [32]byte) (ticketing.SyloTicketingTicket, []byte) {
 	latestBlock, err := sender.LatestBlock()
 	if err != nil {
 		t.Fatalf("could not retrieve the latest block: %v", err)
@@ -133,7 +133,7 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 		t.Fatalf("could not retrieve current epoch %v", err)
 	}
 
-	ticket := contracts.SyloTicketingTicket{
+	ticket := ticketing.SyloTicketingTicket{
 		EpochId:         epoch.Iteration,
 		Sender:          sender.Address(),
 		Redeemer:        receiver,
@@ -154,7 +154,7 @@ func createSignedTicket(t *testing.T, sender sylopayments.Client, senderPK *ecds
 	return ticket, sig
 }
 
-func redeemTicket(t *testing.T, ctx context.Context, backend sylopayments.SimBackend, client sylopayments.Client, ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
+func redeemTicket(t *testing.T, ctx context.Context, backend sylopayments.SimBackend, client sylopayments.Client, ticket ticketing.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) {
 	tx, err := client.Redeem(ticket, senderRand, redeemerRand, sig)
 	if err != nil {
 		t.Fatalf("could not redeem ticket: %v", err)

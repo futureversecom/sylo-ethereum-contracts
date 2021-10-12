@@ -6,7 +6,7 @@ const utils = require('./utils.js');
 const Token = artifacts.require("SyloToken");
 
 // Chi Squared goodness of fit test
-const chi2gof = require('@stdlib/stats/chi2gof');
+const chi2gof = require('@stdlib/stats-chi2gof');
 
 contract('Staking', accounts => {
   let token;

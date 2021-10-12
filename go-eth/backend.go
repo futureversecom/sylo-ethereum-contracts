@@ -10,7 +10,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/listings"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/directory"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/token"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,10 +22,10 @@ import (
 )
 
 var abis = []string{
-	contracts.SyloTicketingABI,
-	contracts.SyloTokenABI,
-	contracts.DirectoryABI,
-	contracts.ListingsABI,
+	ticketing.SyloTicketingABI,
+	token.SyloTokenABI,
+	directory.DirectoryABI,
+	listings.ListingsABI,
 }
 
 type Backend interface {

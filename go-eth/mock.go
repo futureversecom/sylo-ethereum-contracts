@@ -7,12 +7,22 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	epochsmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/epochs/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/listings"
+	pricemanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/voting"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/parameters"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/rewardsmanager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/directory"
+	stakingmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/token"
 )
 
 var errNotImplemented = errors.New("not implemented")
@@ -102,20 +112,20 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 
 	backend := NewSimBackend(sim)
 
-	addresses.Token, _, _, _ = contracts.DeploySyloToken(&opts[0], backend)
+	addresses.Token, _, _, _ = token.DeploySyloToken(&opts[0], backend)
 	backend.Commit()
 
-	var stakingManager *contracts.StakingManager
-	addresses.StakingManager, _, stakingManager, _ = contracts.DeployStakingManager(&opts[0], backend)
+	var stakingManager *stakingmanager.StakingManager
+	addresses.StakingManager, _, stakingManager, _ = stakingmanager.DeployStakingManager(&opts[0], backend)
 
-	var directory *contracts.Directory
-	addresses.Directory, _, directory, _ = contracts.DeployDirectory(&opts[0], backend)
+	var stakingDirectory *directory.Directory
+	addresses.Directory, _, stakingDirectory, _ = directory.DeployDirectory(&opts[0], backend)
 
-	var epochsManager *contracts.EpochsManager
-	addresses.EpochsManager, _, epochsManager, _ = contracts.DeployEpochsManager(&opts[0], backend)
+	var epochsManager *epochsmanager.EpochsManager
+	addresses.EpochsManager, _, epochsManager, _ = epochsmanager.DeployEpochsManager(&opts[0], backend)
 
-	var rewardsManager *contracts.RewardsManager
-	addresses.RewardsManager, _, rewardsManager, _ = contracts.DeployRewardsManager(&opts[0], backend)
+	var rewardsManager *rewardsmanager.RewardsManager
+	addresses.RewardsManager, _, rewardsManager, _ = rewardsmanager.DeployRewardsManager(&opts[0], backend)
 
 	_, err := stakingManager.Initialize(&opts[0], addresses.Token, addresses.StakingManager, addresses.EpochsManager, big.NewInt(1))
 	if err != nil {
@@ -123,7 +133,7 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 	backend.Commit()
 
-	_, err = directory.Initialize(&opts[0], addresses.StakingManager, addresses.RewardsManager)
+	_, err = stakingDirectory.Initialize(&opts[0], addresses.StakingManager, addresses.RewardsManager)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise directory: %w", err)
 	}
@@ -141,41 +151,41 @@ func NewSimClients(opts []bind.TransactOpts) ([]Client, SimBackend, error) {
 	}
 	backend.Commit()
 
-	var priceVoting *contracts.PriceVoting
-	addresses.PriceVoting, _, priceVoting, _ = contracts.DeployPriceVoting(&opts[0], backend)
+	var priceVoting *voting.PriceVoting
+	addresses.PriceVoting, _, priceVoting, _ = voting.DeployPriceVoting(&opts[0], backend)
 	_, err = priceVoting.Initialize(&opts[0], addresses.StakingManager)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
 	backend.Commit()
 
-	var priceManager *contracts.PriceManager
-	addresses.PriceManager, _, priceManager, _ = contracts.DeployPriceManager(&opts[0], backend)
+	var priceManager *pricemanager.PriceManager
+	addresses.PriceManager, _, priceManager, _ = pricemanager.DeployPriceManager(&opts[0], backend)
 	_, err = priceManager.Initialize(&opts[0], addresses.StakingManager, addresses.PriceVoting)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise price manager: %w", err)
 	}
 	backend.Commit()
 
-	var listings *contracts.Listings
-	addresses.Listings, _, listings, _ = contracts.DeployListings(&opts[0], backend)
-	_, err = listings.Initialize(&opts[0], 50)
+	var multiaddrListings *listings.Listings
+	addresses.Listings, _, multiaddrListings, _ = listings.DeployListings(&opts[0], backend)
+	_, err = multiaddrListings.Initialize(&opts[0], 50)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise listing: %w", err)
 	}
 	backend.Commit()
 
-	var ticketingParameters *contracts.TicketingParameters
-	addresses.TicketingParameters, _, ticketingParameters, _ = contracts.DeployTicketingParameters(&opts[0], backend)
+	var ticketingParameters *parameters.TicketingParameters
+	addresses.TicketingParameters, _, ticketingParameters, _ = parameters.DeployTicketingParameters(&opts[0], backend)
 	_, err = ticketingParameters.Initialize(&opts[0], big.NewInt(1), winProb, expiredWinProb, decayRate, ticketDuration)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketingParameters: %w", err)
 	}
 	backend.Commit()
 
-	var ticketing *contracts.SyloTicketing
-	addresses.Ticketing, _, ticketing, _ = contracts.DeploySyloTicketing(&opts[0], backend)
-	_, err = ticketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, big.NewInt(1))
+	var syloTicketing *ticketing.SyloTicketing
+	addresses.Ticketing, _, syloTicketing, _ = ticketing.DeploySyloTicketing(&opts[0], backend)
+	_, err = syloTicketing.Initialize(&opts[0], addresses.Token, addresses.Listings, addresses.StakingManager, addresses.Directory, addresses.EpochsManager, addresses.RewardsManager, big.NewInt(1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not initialise ticketing: %w", err)
 	}

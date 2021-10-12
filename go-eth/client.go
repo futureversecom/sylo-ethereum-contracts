@@ -1,22 +1,31 @@
 package eth
 
-//go:generate abigen --abi ../abi/SyloTicketing.abi --pkg contracts --type SyloTicketing --out contracts/ticketing.go --bin ../bin/SyloTicketing.bin
-//go:generate abigen --abi ../abi/TicketingParameters.abi --pkg contracts --type TicketingParameters --out contracts/ticketing_parameters.go --bin ../bin/TicketingParameters.bin
-//go:generate abigen --abi ../abi/EpochsManager.abi --pkg contracts --type EpochsManager --out contracts/epochs_manager.go --bin ../bin/EpochsManager.bin
-//go:generate abigen --abi ../abi/SyloToken.abi --pkg contracts --type SyloToken --out contracts/token.go --bin ../bin/SyloToken.bin
-//go:generate abigen --abi ../abi/Directory.abi --pkg contracts --type Directory --out contracts/directory.go --bin ../bin/Directory.bin
-//go:generate abigen --abi ../abi/Listings.abi --pkg contracts --type Listings --out contracts/listings.go --bin ../bin/Listings.bin
-//go:generate abigen --abi ../abi/PriceManager.abi --pkg contracts --type PriceManager --out contracts/price_manager.go --bin ../bin/PriceManager.bin
-//go:generate abigen --abi ../abi/PriceVoting.abi --pkg contracts --type PriceVoting --out contracts/price_voting.go --bin ../bin/PriceVoting.bin
-//go:generate abigen --abi ../abi/StakingManager.abi --pkg contracts --type StakingManager --out contracts/staking_manager.go --bin ../bin/StakingManager.bin
-//go:generate abigen --abi ../abi/RewardsManager.abi --pkg contracts --type RewardsManager --out contracts/rewards_manager.go --bin ../bin/RewardsManager.bin
+//go:generate abigen --abi ../abi/EpochsManager.abi --pkg manager --type EpochsManager --out contracts/epochs/manager/manager.go --bin ../bin/EpochsManager.bin
+//go:generate abigen --abi ../abi/PriceManager.abi --pkg manager --type PriceManager --out contracts/payments/pricing/manager/manager.go --bin ../bin/PriceManager.bin
+//go:generate abigen --abi ../abi/PriceVoting.abi --pkg voting --type PriceVoting --out contracts/payments/pricing/voting/voting.go --bin ../bin/PriceVoting.bin
+//go:generate abigen --abi ../abi/TicketingParameters.abi --pkg parameters --type TicketingParameters --out contracts/payments/ticketing/parameters/parameters.go --bin ../bin/TicketingParameters.bin
+//go:generate abigen --abi ../abi/RewardsManager.abi --pkg rewardsmanager --type RewardsManager --out contracts/payments/ticketing/rewardsmanager/rewardsmanager.go --bin ../bin/RewardsManager.bin
+//go:generate abigen --abi ../abi/SyloTicketing.abi --pkg ticketing --type SyloTicketing --out contracts/payments/ticketing/ticketing.go --bin ../bin/SyloTicketing.bin
+//go:generate abigen --abi ../abi/Directory.abi --pkg directory --type Directory --out contracts/staking/directory/directory.go --bin ../bin/Directory.bin
+//go:generate abigen --abi ../abi/StakingManager.abi --pkg manager --type StakingManager --out contracts/staking/manager/manager.go --bin ../bin/StakingManager.bin
+//go:generate abigen --abi ../abi/Listings.abi --pkg listings --type Listings --out contracts/listings/listings.go --bin ../bin/Listings.bin
+//go:generate abigen --abi ../abi/SyloToken.abi --pkg token --type SyloToken --out contracts/token/token.go --bin ../bin/SyloToken.bin
 
 import (
 	"context"
 	"fmt"
 	"math/big"
 
-	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts"
+	epochsmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/epochs/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/listings"
+	pricemanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/pricing/voting"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/parameters"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/payments/ticketing/rewardsmanager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/directory"
+	stakingmanager "github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/staking/manager"
+	"github.com/dn3010/sylo-ethereum-contracts/go-eth/contracts/token"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -32,7 +41,7 @@ type Client interface {
 
 	// Ticketing methods
 
-	GetTicketHash(ticket contracts.SyloTicketingTicket) ([32]byte, error)
+	GetTicketHash(ticket ticketing.SyloTicketingTicket) ([32]byte, error)
 	Deposits(account ethcommon.Address) (struct {
 		Escrow   *big.Int
 		Penalty  *big.Int
@@ -42,7 +51,7 @@ type Client interface {
 	DepositPenalty(amount *big.Int, account ethcommon.Address) (*types.Transaction, error)
 	UnlockDeposits() (*types.Transaction, error)
 	LockDeposits() (*types.Transaction, error)
-	Redeem(ticket contracts.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) (*types.Transaction, error)
+	Redeem(ticket ticketing.SyloTicketingTicket, senderRand *big.Int, redeemerRand *big.Int, sig []byte) (*types.Transaction, error)
 	Withdraw() (*types.Transaction, error)
 	WithdrawTo(account ethcommon.Address) (*types.Transaction, error)
 
@@ -77,6 +86,7 @@ type Client interface {
 	GetCurrentStakerAmount(staker ethcommon.Address, stakee ethcommon.Address) (*big.Int, error)
 
 	// Directory methods
+
 	SetCurrentDirectory(epochId *big.Int) (*types.Transaction, error)
 	JoinNextDirectory() (*types.Transaction, error)
 	Scan(rand *big.Int) (ethcommon.Address, error)
@@ -85,15 +95,16 @@ type Client interface {
 	// Listings methods
 
 	SetListing(multiaddr string, minimumStakeAmount *big.Int) (*types.Transaction, error)
-	GetListing(account ethcommon.Address) (contracts.ListingsListing, error)
+	GetListing(account ethcommon.Address) (listings.ListingsListing, error)
 
 	// EpochsManager methods
 
 	InitializeEpoch() (*types.Transaction, error)
-	GetCurrentActiveEpoch() (contracts.EpochsManagerEpoch, error)
+	GetCurrentActiveEpoch() (epochsmanager.EpochsManagerEpoch, error)
 	GetNextEpochId() (*big.Int, error)
 
 	// RewardsManager methods
+
 	GetUnclaimedNodeReward(stakee ethcommon.Address) (*big.Int, error)
 	GetUnclaimedStakeReward(stakee ethcommon.Address) (*big.Int, error)
 	GetRewardPoolActiveStake(epochId *big.Int, stakee ethcommon.Address) (*big.Int, error)
@@ -132,16 +143,16 @@ type client struct {
 	backend   Backend
 
 	// Embedded contracts
-	*contracts.TicketingParametersSession
-	*contracts.SyloTicketingSession
-	*contracts.SyloTokenSession
-	*contracts.DirectorySession
-	*contracts.ListingsSession
-	*contracts.PriceManagerSession
-	*contracts.PriceVotingSession
-	*contracts.StakingManagerSession
-	*contracts.EpochsManagerSession
-	*contracts.RewardsManagerSession
+	*parameters.TicketingParametersSession
+	*ticketing.SyloTicketingSession
+	*token.SyloTokenSession
+	*directory.DirectorySession
+	*listings.ListingsSession
+	*pricemanager.PriceManagerSession
+	*voting.PriceVotingSession
+	*stakingmanager.StakingManagerSession
+	*epochsmanager.EpochsManagerSession
+	*rewardsmanager.RewardsManagerSession
 }
 
 func NewSyloPaymentsClient(
@@ -155,101 +166,101 @@ func NewSyloPaymentsClient(
 	c.backend = backend
 
 	// sylo token
-	syloToken, err := contracts.NewSyloToken(c.contracts.Token, backend)
+	syloToken, err := token.NewSyloToken(c.contracts.Token, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.SyloTokenSession = &contracts.SyloTokenSession{
+	c.SyloTokenSession = &token.SyloTokenSession{
 		Contract:     syloToken,
 		TransactOpts: *opts,
 	}
 
 	// ticketing parameters
-	ticketingParamters, err := contracts.NewTicketingParameters(c.contracts.TicketingParameters, backend)
+	ticketingParamters, err := parameters.NewTicketingParameters(c.contracts.TicketingParameters, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.TicketingParametersSession = &contracts.TicketingParametersSession{
+	c.TicketingParametersSession = &parameters.TicketingParametersSession{
 		Contract:     ticketingParamters,
 		TransactOpts: *opts,
 	}
 
 	// sylo ticketing
-	syloTicketing, err := contracts.NewSyloTicketing(c.contracts.Ticketing, backend)
+	syloTicketing, err := ticketing.NewSyloTicketing(c.contracts.Ticketing, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.SyloTicketingSession = &contracts.SyloTicketingSession{
+	c.SyloTicketingSession = &ticketing.SyloTicketingSession{
 		Contract:     syloTicketing,
 		TransactOpts: *opts,
 	}
 
 	// staking directory
-	directory, err := contracts.NewDirectory(c.contracts.Directory, backend)
+	stakingDirectory, err := directory.NewDirectory(c.contracts.Directory, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.DirectorySession = &contracts.DirectorySession{
-		Contract:     directory,
+	c.DirectorySession = &directory.DirectorySession{
+		Contract:     stakingDirectory,
 		TransactOpts: *opts,
 	}
 
 	// multiaddr listings
-	listings, err := contracts.NewListings(c.contracts.Listings, backend)
+	multiaddrListings, err := listings.NewListings(c.contracts.Listings, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.ListingsSession = &contracts.ListingsSession{
-		Contract:     listings,
+	c.ListingsSession = &listings.ListingsSession{
+		Contract:     multiaddrListings,
 		TransactOpts: *opts,
 	}
 
 	// epochs manager
-	epochsManager, err := contracts.NewEpochsManager(c.contracts.EpochsManager, backend)
+	epochsManager, err := epochsmanager.NewEpochsManager(c.contracts.EpochsManager, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.EpochsManagerSession = &contracts.EpochsManagerSession{
+	c.EpochsManagerSession = &epochsmanager.EpochsManagerSession{
 		Contract:     epochsManager,
 		TransactOpts: *opts,
 	}
 
 	// price manager
-	priceManager, err := contracts.NewPriceManager(c.contracts.PriceManager, backend)
+	priceManager, err := pricemanager.NewPriceManager(c.contracts.PriceManager, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.PriceManagerSession = &contracts.PriceManagerSession{
+	c.PriceManagerSession = &pricemanager.PriceManagerSession{
 		Contract:     priceManager,
 		TransactOpts: *opts,
 	}
 
 	// service price voting
-	priceVoting, err := contracts.NewPriceVoting(c.contracts.PriceVoting, backend)
+	priceVoting, err := voting.NewPriceVoting(c.contracts.PriceVoting, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.PriceVotingSession = &contracts.PriceVotingSession{
+	c.PriceVotingSession = &voting.PriceVotingSession{
 		Contract:     priceVoting,
 		TransactOpts: *opts,
 	}
 
 	// staking manager
-	stakingManager, err := contracts.NewStakingManager(contractAddrs.StakingManager, backend)
+	stakingManager, err := stakingmanager.NewStakingManager(contractAddrs.StakingManager, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.StakingManagerSession = &contracts.StakingManagerSession{
+	c.StakingManagerSession = &stakingmanager.StakingManagerSession{
 		Contract:     stakingManager,
 		TransactOpts: *opts,
 	}
 
 	// rewards manager
-	rewardsManager, err := contracts.NewRewardsManager(c.contracts.RewardsManager, backend)
+	rewardsManager, err := rewardsmanager.NewRewardsManager(c.contracts.RewardsManager, backend)
 	if err != nil {
 		return nil, err
 	}
-	c.RewardsManagerSession = &contracts.RewardsManagerSession{
+	c.RewardsManagerSession = &rewardsmanager.RewardsManagerSession{
 		Contract:     rewardsManager,
 		TransactOpts: *opts,
 	}
