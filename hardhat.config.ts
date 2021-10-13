@@ -29,9 +29,9 @@ const config: HardhatUserConfig = {
   },
   networks: {
     ropsten: {
-      url: process.env.ROPSTEN_INFURA_ENDPOINT,
+      url: process.env.ROPSTEN_INFURA_ENDPOINT ?? '',
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? ''
       }
     }
   }
