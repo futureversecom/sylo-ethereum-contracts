@@ -26,6 +26,14 @@ const config: HardhatUserConfig = {
     currency: 'USD',
     outputFile: 'gasReport.txt',
     noColors: true // Needed for outputfile
+  },
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_INFURA_ENDPOINT,
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC
+      }
+    }
   }
 };
 
