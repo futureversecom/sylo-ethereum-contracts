@@ -1,6 +1,5 @@
-import BN from 'bn.js';
 import { ethers } from "hardhat";
-import { BigNumberish } from "ethers";
+import { BigNumber, BigNumberish } from "ethers";
 import { toWei } from 'web3-utils';
 import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
 
@@ -24,7 +23,7 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   const baseLiveWinProb =
     opts.baseLiveWinProb ?
       opts.baseLiveWinProb :
-      (new BN(2)).pow(new BN(128)).sub(new BN(1)).toString();
+      BigNumber.from(2).pow(128).sub(1);
   const expiredWinProb = opts.expiredWinProb ? opts.expiredWinProb : 1000;
   const decayRate = opts.decayRate ? opts.decayRate : 8000;
   const ticketDuration = opts.ticketDuration ? opts.ticketDuration : 20;

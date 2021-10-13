@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { BigNumber, BigNumberish, Signer, Wallet } from "ethers";
+import { BigNumber, Signer } from "ethers";
 import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, SyloToken } from "../typechain";
 const crypto = require("crypto");
 const sodium = require('libsodium-wrappers-sumo');

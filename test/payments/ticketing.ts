@@ -42,6 +42,8 @@ describe.only('Ticketing', () => {
     listings = contracts.listings;
     stakingManager = contracts.stakingManager;
 
+    await directory.transferOwnership(epochsManager.address);
+
     await token.approve(stakingManager.address, toSOLOs(10000000));
     await token.approve(ticketing.address, toSOLOs(10000000));
   });
