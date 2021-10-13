@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:14
     working_directory: ~/sylo-ethereum-contracts
     steps:
       - checkout
@@ -29,7 +29,7 @@ jobs:
 
   test-node:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:14
     working_directory: ~/sylo-ethereum-contracts
     steps:
       - restore_cache:
@@ -48,7 +48,7 @@ jobs:
 
   test-coverage:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:14
     working_directory: ~/sylo-ethereum-contracts
     steps:
       - restore_cache:
@@ -59,7 +59,7 @@ jobs:
           command: npm run coverage
       - store_artifacts:
             path: ~/sylo-ethereum-contracts/coverage
-          
+
   test-go-client:
     docker:
       - image: circleci/golang:1.15
