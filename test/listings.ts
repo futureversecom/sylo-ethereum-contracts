@@ -17,7 +17,7 @@ describe('Listing', () => {
 
   beforeEach(async () => {
     const Listings = await ethers.getContractFactory("Listings");
-    listings = await Listings.deploy();
+    listings = await Listings.deploy() as Listings;
     await listings.initialize(5000);
   });
 

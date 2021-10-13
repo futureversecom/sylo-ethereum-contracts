@@ -2,6 +2,7 @@ import BN from 'bn.js';
 import { ethers } from "hardhat";
 import { BigNumberish } from "ethers";
 import { toWei } from 'web3-utils';
+import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
 
 type Options = {
   faceValue?: BigNumberish;
@@ -31,11 +32,11 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   const epochDuration = opts.epochDuration ? opts.epochDuration : 30;
 
   const Listings = await ethers.getContractFactory("Listings");
-  const listings = await Listings.deploy();
+  const listings = await Listings.deploy() as Listings;
   await listings.initialize(payoutPercentage, { from: deployer });
 
   const TicketingParameters = await ethers.getContractFactory("TicketingParameters");
-  const ticketingParameters = await TicketingParameters.deploy();
+  const ticketingParameters = await TicketingParameters.deploy() as TicketingParameters;
   await ticketingParameters.initialize(
     faceValue,
     baseLiveWinProb,
@@ -46,16 +47,16 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   );
 
   const EpochsManager = await ethers.getContractFactory("EpochsManager");
-  const epochsManager = await EpochsManager.deploy();
+  const epochsManager = await EpochsManager.deploy() as EpochsManager;
 
   const StakingManager = await ethers.getContractFactory("StakingManager");
-  const stakingManager = await StakingManager.deploy();
+  const stakingManager = await StakingManager.deploy() as StakingManager;
 
   const RewardsManager = await ethers.getContractFactory("RewardsManager");
-  const rewardsManager = await RewardsManager.deploy();
+  const rewardsManager = await RewardsManager.deploy() as RewardsManager;
 
   const Directory = await ethers.getContractFactory("Directory");
-  const directory = await Directory.deploy();
+  const directory = await Directory.deploy() as Directory;
 
   await stakingManager.initialize(
     tokenAddress,
@@ -84,7 +85,7 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   );
 
   const Ticketing = await ethers.getContractFactory("SyloTicketing");
-  const ticketing = await Ticketing.deploy()
+  const ticketing = await Ticketing.deploy() as SyloTicketing;
   await ticketing.initialize(
     tokenAddress,
     listings.address,

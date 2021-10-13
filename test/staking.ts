@@ -31,7 +31,7 @@ describe('Staking', () => {
     owner = await accounts[0].getAddress();
 
     const Token = await ethers.getContractFactory("SyloToken");
-    token = await Token.deploy();
+    token = await Token.deploy() as SyloToken;
   });
 
   beforeEach(async () => {

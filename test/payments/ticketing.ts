@@ -9,7 +9,7 @@ import { soliditySha3 } from "web3-utils";
 import utils from '../utils';
 import { assert, expect } from "chai";
 
-describe('Ticketing', () => {
+describe.only('Ticketing', () => {
   let accounts: Signer[];
   let owner: string;
 
@@ -30,7 +30,7 @@ describe('Ticketing', () => {
     owner = await accounts[0].getAddress();
 
     const Token = await ethers.getContractFactory("SyloToken");
-    token = await Token.deploy();
+    token = await Token.deploy() as SyloToken;
   });
 
   beforeEach(async () => {
@@ -41,8 +41,6 @@ describe('Ticketing', () => {
     directory = contracts.directory;
     listings = contracts.listings;
     stakingManager = contracts.stakingManager;
-
-    await directory.transferOwnership(epochsManager.address);
 
     await token.approve(stakingManager.address, toSOLOs(10000000));
     await token.approve(ticketing.address, toSOLOs(10000000));
