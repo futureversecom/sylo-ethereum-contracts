@@ -60,23 +60,6 @@ jobs:
       - store_artifacts:
             path: ~/sylo-ethereum-contracts/coverage
 
-  test-go-client:
-    docker:
-      - image: circleci/golang:1.15
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - go-pkg-cache={{ checksum "go-eth/go.sum" }}
-      - run:
-          name: run tests
-          command: |
-            cd ~/project/go-eth
-            go test ./...
-      - save_cache:
-          key: go-pkg-cache={{ checksum "go-eth/go.sum" }}
-          paths: $GOPATH/pkg
-
 workflows:
   build-and-test:
     jobs:
@@ -87,5 +70,4 @@ workflows:
       - test-coverage:
           requires:
             - test-node
-      - test-go-client
   version: 2
