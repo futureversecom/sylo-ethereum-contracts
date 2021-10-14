@@ -46,6 +46,17 @@ describe('Staking', () => {
     await token.approve(stakingManager.address, 100000);
   });
 
+  it('should be able to set parameters after initialization', async () => {
+    await stakingManager.setUnlockDuration(100);
+    await stakingManager.setMinimumNodeStake(3000);
+
+    const unlockDuration = await stakingManager.unlockDuration();
+    const minimumNodeStake = await stakingManager.minimumNodeStake();
+
+    assert.equal(unlockDuration.toNumber(), 100, "Expected unlock duration to be correctly set");
+    assert.equal(minimumNodeStake, 3000, "Expected minimum node stake to be correctly set");
+  });
+
   it('should be able to get unlocking duration', async () => {
     await stakingManager.setUnlockDuration(100);
     const unlockDuration = await stakingManager.unlockDuration();
@@ -108,7 +119,27 @@ describe('Staking', () => {
     );
   });
 
+  it("should not allow delegated stake to exceed minimum owned stake by the stakee", async () => {
+    await expect(stakingManager.addStake(1, await accounts[1].getAddress()))
+      .to.be.revertedWith("Can not add more stake until stakee adds more stake itself");
+  });
+
+  it("should not allow directory to be joined without stakee owning minimum stake", async () => {
+    await stakingManager.addStake(100, owner);
+
+    await token.transfer(await accounts[1].getAddress(), 1000);
+    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await stakingManager.connect(accounts[1]).addStake(100, owner);
+
+    // after unlocking, Node will own less than 20% of stake
+    await stakingManager.unlockStake(80, owner);
+
+    await expect(directory.joinNextDirectory())
+      .to.be.revertedWith("Can not join directory without owning minimum amount of stake");
+  });
+
   it('should be able to get total stake for a stakee', async () => {
+    await stakingManager.addStake(100, owner);
     for (let i = 2; i < 10; i++) {
       await token.transfer(await accounts[i].getAddress(), 1000);
       await token.connect(accounts[i]).approve(stakingManager.address, 1000);
@@ -126,7 +157,7 @@ describe('Staking', () => {
 
     assert.equal(
       totalStake.toString(),
-      '80',
+      '180',
       "Expected contract to track all stake entries"
     );
   });
@@ -186,8 +217,11 @@ describe('Staking', () => {
   it('should be able to query properties of directory', async () => {
     let expectedTotalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
-      await stakingManager.addStake(1, await accounts[i].getAddress());
+      await token.transfer(await accounts[i].getAddress(), 100);
+      await token.connect(accounts[i]).approve(stakingManager.address, 100);
+      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
       await directory.connect(accounts[i]).joinNextDirectory();
+
       expectedTotalStake += 1;
       const stake = await directory.getTotalStakeForStakee(1, await accounts[i].getAddress());
       assert.equal(
@@ -225,7 +259,9 @@ describe('Staking', () => {
 
   it('should correctly scan accounts based on their stake proportions', async () => {
     for (let i = 0; i < 4; i++) {
-      await stakingManager.addStake(1, await accounts[i].getAddress());
+      await token.transfer(await accounts[i].getAddress(), 100);
+      await token.connect(accounts[i]).approve(stakingManager.address, 100);
+      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
       await directory.connect(accounts[i]).joinNextDirectory();
     }
 
@@ -247,7 +283,9 @@ describe('Staking', () => {
 
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     for (let i = 0; i < accounts.length; i++) {
-      await stakingManager.addStake(1, await accounts[i].getAddress());
+      await token.transfer(await accounts[i].getAddress(), 100);
+      await token.connect(accounts[i]).approve(stakingManager.address, 100);
+      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
       await directory.connect(accounts[i]).joinNextDirectory();
     }
 
@@ -264,7 +302,9 @@ describe('Staking', () => {
   it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
     let totalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
-      await stakingManager.addStake(i + 1, await accounts[i].getAddress());
+      await token.transfer(await accounts[i].getAddress(), 100);
+      await token.connect(accounts[i]).approve(stakingManager.address, 100);
+      await stakingManager.connect(accounts[i]).addStake(i + 1, await accounts[i].getAddress());
       await directory.connect(accounts[i]).joinNextDirectory();
       totalStake += i + 1;
     }
@@ -281,12 +321,18 @@ describe('Staking', () => {
 
   it('should be able to scan after unlocking all stake [ @skip-on-coverage ]', async () => {
     await stakingManager.addStake(1, owner);
-    await stakingManager.addStake(1, await accounts[1].getAddress());
-    await stakingManager.addStake(1, await accounts[2].getAddress());
+
+    await token.transfer(await accounts[1].getAddress(), 100);
+    await token.connect(accounts[1]).approve(stakingManager.address, 100);
+    await stakingManager.connect(accounts[1]).addStake(1, await accounts[1].getAddress());
+
+    await token.transfer(await accounts[2].getAddress(), 100);
+    await token.connect(accounts[2]).approve(stakingManager.address, 100);
+    await stakingManager.connect(accounts[2]).addStake(1, await accounts[2].getAddress());
 
     await stakingManager.unlockStake(1, owner);
-    await stakingManager.unlockStake(1, await accounts[1].getAddress());
-    await stakingManager.unlockStake(1, await accounts[2].getAddress());
+    await stakingManager.connect(accounts[1]).unlockStake(1, await accounts[1].getAddress());
+    await stakingManager.connect(accounts[2]).unlockStake(1, await accounts[2].getAddress());
 
     await directory.setCurrentDirectory(epochId);
 

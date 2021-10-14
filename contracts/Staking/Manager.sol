@@ -7,15 +7,16 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../Token.sol";
 import "../Payments/Ticketing/RewardsManager.sol";
 import "../Epochs/Manager.sol";
+import "../Utils.sol";
 
 /*
  * Manages stakes and delegated stakes for accounts that wish to be listed
 */
 contract StakingManager is Initializable, OwnableUpgradeable {
-    /* ERC 20 compatible token we are dealing with */
+    /** ERC 20 compatible token we are dealing with */
     IERC20 _token;
 
-    /*
+    /**
      * Rewards Manager contract. Any changes to stake will automatically
      * trigger a claim to any outstanding rewards
      */
@@ -34,7 +35,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         uint256 epochId;
     }
 
-    /*
+    /**
      * Every Node must have stake in order to participate in the Epoch.
      * Stake can be provided by the Node itself or by other accounts in
      * the network.
@@ -55,33 +56,45 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
     mapping (address => Stake) stakes;
 
-    /* Tracks overall total stake */
+    /** Tracks overall total stake */
     uint256 public totalManagedStake;
 
-    /*
+    /**
      * The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their stake
      */
     uint256 public unlockDuration;
 
-    /* Tracks funds that are in the process of being unlocked */
+    /** Tracks funds that are in the process of being unlocked */
     mapping(bytes32 => Unlock) public unlockings;
+
+    /**
+     * Minimum amount of stake that a Node needs to own represented
+     * as a percentage of the Node's total stake
+     */
+    uint16 public minimumNodeStake;
 
     function initialize(
         IERC20 token,
         RewardsManager rewardsManager,
         EpochsManager epochsManager,
-        uint256 _unlockDuration
+        uint256 _unlockDuration,
+        uint16 _minimumNodeStake
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _rewardsManager = rewardsManager;
         _epochsManager = epochsManager;
         unlockDuration = _unlockDuration;
+        minimumNodeStake = _minimumNodeStake;
     }
 
-    function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
-        unlockDuration = newUnlockDuration;
+    function setUnlockDuration(uint256 _unlockDuration) public onlyOwner {
+        unlockDuration = _unlockDuration;
+    }
+
+    function setMinimumNodeStake(uint16 _minimumNodeStake) public onlyOwner {
+        minimumNodeStake = _minimumNodeStake;
     }
 
     function addStake(uint256 amount, address stakee) public {
@@ -109,6 +122,14 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         );
 
         stake.totalManagedStake += amount;
+
+        // ensure that the node's own stake is still at the minimum amount
+        if (msg.sender != stakee) {
+            require(
+                checkNodeOwnsMinimumStake(stakee),
+                "Can not add more stake until stakee adds more stake itself"
+            );
+        }
     }
 
     function unlockStake(uint256 amount, address stakee) public returns (uint256) {
@@ -199,5 +220,14 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
     function getStakeeTotalManagedStake(address stakee) public view returns (uint256) {
         return stakes[stakee].totalManagedStake;
+    }
+
+    function checkNodeOwnsMinimumStake(address stakee) public view returns (bool) {
+        Stake storage stake = stakes[stakee];
+
+        uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
+        uint16 ownedStake = SyloUtils.asPerc(uint128(currentlyOwnedStake), stake.totalManagedStake);
+
+        return ownedStake > minimumNodeStake;
     }
 }

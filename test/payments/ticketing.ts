@@ -9,7 +9,7 @@ import { soliditySha3 } from "web3-utils";
 import utils from '../utils';
 import { assert, expect } from "chai";
 
-describe.only('Ticketing', () => {
+describe('Ticketing', () => {
   let accounts: Signer[];
   let owner: string;
 
@@ -401,11 +401,11 @@ describe.only('Ticketing', () => {
       await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
     }
 
-    // have account 2 and 3 as delegated stakers
-    await stakingManager.connect(accounts[2]).addStake(toSOLOs(3), owner);
-    await stakingManager.connect(accounts[3]).addStake(toSOLOs(2), owner);
-
+    await stakingManager.addStake(toSOLOs(3), owner);
     await listings.setListing("0.0.0.0/0", 1);
+
+    // have account 2 as a delegated staker
+    await stakingManager.connect(accounts[2]).addStake(toSOLOs(2), owner);
 
     await particpateNextEpoch(owner);
     await epochsManager.initializeEpoch();
@@ -421,20 +421,20 @@ describe.only('Ticketing', () => {
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
     }
 
-    const initialDelegatorTwoBalance = await token.balanceOf(await accounts[2].getAddress());
-    const initialDelegatorThreeBalance = await token.balanceOf(await accounts[3].getAddress());
+    const initialDelegatorTwoBalance = await token.balanceOf(await accounts[0].getAddress());
+    const initialDelegatorThreeBalance = await token.balanceOf(await accounts[2].getAddress());
 
+    await rewardsManager.claimStakingRewards(owner);
     await rewardsManager.connect(accounts[2]).claimStakingRewards(owner);
-    await rewardsManager.connect(accounts[3]).claimStakingRewards(owner);
 
-    // The stakers reward total is 5000 SYLOs. Account 2 owns 66% of the stake, and account 1 owns
+    // The stakers reward total is 5000 SYLOs. Account 0 owns 66% of the stake, and account 2 owns
     // 33% of the stake, the splits should be 3/5 * 5000 and 2/5 * 5000
 
-    const postDelegatorTwoBalance = await token.balanceOf(await accounts[2].getAddress());
+    const postDelegatorTwoBalance = await token.balanceOf(await accounts[0].getAddress());
     const expectedPostDelegatorTwoBalance = initialDelegatorTwoBalance.add(toSOLOs(3 / 5 * 5000));
     compareExpectedBalance(expectedPostDelegatorTwoBalance, postDelegatorTwoBalance);
 
-    const postDelegatorThreeBalance = await token.balanceOf(await accounts[3].getAddress());
+    const postDelegatorThreeBalance = await token.balanceOf(await accounts[2].getAddress());
     const expectedPostDelegatorThreeBalance = initialDelegatorThreeBalance.add(toSOLOs(2 / 5 * 5000));
     compareExpectedBalance(expectedPostDelegatorThreeBalance, postDelegatorThreeBalance);
 
@@ -444,10 +444,11 @@ describe.only('Ticketing', () => {
     await token.transfer(await accounts[2].getAddress(), 1000 );
     await token.connect(accounts[2]).approve(stakingManager.address, toSOLOs(1000));
 
+    await stakingManager.addStake(toSOLOs(3), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
     // have account 2 as a delegated staker
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(1), owner);
-
-    await listings.setListing("0.0.0.0/0", 1);
 
     await particpateNextEpoch(owner);
     await epochsManager.initializeEpoch();
@@ -524,9 +525,10 @@ describe.only('Ticketing', () => {
       await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
     }
 
+    await stakingManager.addStake(toSOLOs(1000), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    // have account 2, 3 and 4 as delegated stakers with varying levels of stake
+    // have accounts 2, 3 and 4 as delegated stakers with varying levels of stake
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(250), owner);
     await stakingManager.connect(accounts[3]).addStake(toSOLOs(400), owner);
     await stakingManager.connect(accounts[4]).addStake(toSOLOs(350), owner);
@@ -555,15 +557,15 @@ describe.only('Ticketing', () => {
 
     // verify each staker will receive the correct amount of reward if they were to claim now
     const stakerClaimTwo = await rewardsManager.calculateStakerClaim(owner, await accounts[2].getAddress());
-    const expectedStakerClaimTwo = toSOLOs(9000 * 0.25);
+    const expectedStakerClaimTwo = toSOLOs(9000 * 0.125);
     compareExpectedBalance(expectedStakerClaimTwo, stakerClaimTwo);
 
     const stakerClaimThree = await rewardsManager.calculateStakerClaim(owner, await accounts[3].getAddress());
-    const expectedStakerClaimThree = toSOLOs(9000 * 0.4);
+    const expectedStakerClaimThree = toSOLOs(9000 * 0.2);
     compareExpectedBalance(expectedStakerClaimThree, stakerClaimThree);
 
     const stakerClaimFour = await rewardsManager.calculateStakerClaim(owner, await accounts[4].getAddress());
-    const expectedStakerClaimFour = toSOLOs(9000 * 0.35);
+    const expectedStakerClaimFour = toSOLOs(9000 * 0.175);
     compareExpectedBalance(expectedStakerClaimFour, stakerClaimFour);
 
     // ensure each staker is actually able to claim
@@ -578,6 +580,7 @@ describe.only('Ticketing', () => {
       await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
     }
 
+    await stakingManager.addStake(toSOLOs(1000), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
@@ -649,6 +652,7 @@ describe.only('Ticketing', () => {
       await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
     }
 
+    await stakingManager.addStake(toSOLOs(1000), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
@@ -707,12 +711,13 @@ describe.only('Ticketing', () => {
   // truffle test network/client. However this should be manually run if any significant changes
   // to the Rewards contract calculation is made.
   // TODO: Create script to spin up new test network to run this test locally or for CI automatically.
-  it.skip('should calculate updated stake and rewards over several ticket redemptions without significant precision loss [ @skip-on-coverage ]', async () => {
+  it('should calculate updated stake and rewards over several ticket redemptions without significant precision loss [ @skip-on-coverage ]', async () => {
     for (let i = 2; i < 5; i++) {
       await token.transfer(await accounts[i].getAddress(), toSOLOs(1000));
       await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
     }
 
+    await stakingManager.addStake(toSOLOs(1000), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
@@ -727,7 +732,9 @@ describe.only('Ticketing', () => {
     await particpateNextEpoch(owner);
     await epochsManager.initializeEpoch();
 
-    for (let i = 0; i < 500; i++) {
+    const iterations = 450;
+
+    for (let i = 0; i < iterations; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
         await createWinningTicket(alice, owner);
 
@@ -735,17 +742,17 @@ describe.only('Ticketing', () => {
     }
 
     const stakerClaimTwo = await rewardsManager.calculateStakerClaim(owner, await accounts[2].getAddress());
-    const expectedStakerClaimTwo = toSOLOs(500 * 500 * 0.25);
+    const expectedStakerClaimTwo = toSOLOs(iterations * 500 * 0.125);
     compareExpectedBalance(expectedStakerClaimTwo, stakerClaimTwo);
 
     const stakerClaimThree = await rewardsManager.calculateStakerClaim(owner, await accounts[3].getAddress());
-    const expectedStakerClaimThree = toSOLOs(500 * 500 * 0.4);
+    const expectedStakerClaimThree = toSOLOs(iterations * 500 * 0.2);
     compareExpectedBalance(expectedStakerClaimThree, stakerClaimThree);
 
     const stakerClaimFour = await rewardsManager.calculateStakerClaim(owner, await accounts[4].getAddress());
-    const expectedStakerClaimFour = toSOLOs(500 * 500 * 0.35);
+    const expectedStakerClaimFour = toSOLOs(iterations * 500 * 0.175);
     compareExpectedBalance(expectedStakerClaimFour, stakerClaimFour);
-  });
+  }).timeout(0);
 
   it('should decay winning probability as ticket approaches expiry', async () => {
     // deploy another ticketing contract with simpler parameters

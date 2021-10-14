@@ -11,6 +11,8 @@ type Options = {
   decayRate?: number;
   ticketDuration?: number;
   epochDuration?: number;
+  minimumOwnedStake?: number;
+  unlockDuration?: number;
 }
 
 const initializeContracts = async function(deployer: string, tokenAddress: string, opts: Options = {}) {
@@ -29,6 +31,10 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   const ticketDuration = opts.ticketDuration ? opts.ticketDuration : 20;
 
   const epochDuration = opts.epochDuration ? opts.epochDuration : 30;
+
+  const unlockDuration = opts.unlockDuration ?? 0;
+
+  const minimumOwnedStake = opts.minimumOwnedStake ?? 2000;
 
   const Listings = await ethers.getContractFactory("Listings");
   const listings = await Listings.deploy() as Listings;
@@ -61,7 +67,8 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
     tokenAddress,
     rewardsManager.address,
     epochsManager.address,
-    0,
+    unlockDuration,
+    minimumOwnedStake,
     { from: deployer }
   );
   await rewardsManager.initialize(
@@ -92,7 +99,7 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
     directory.address,
     epochsManager.address,
     rewardsManager.address,
-    0,
+    unlockDuration,
     { from: deployer }
   );
 
