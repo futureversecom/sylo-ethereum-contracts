@@ -212,7 +212,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 redeemerRand,
         bytes memory sig,
         EpochsManager.Epoch memory epoch
-    ) internal view {
+    ) public view {
         require(ticket.sender != address(0), "Ticket sender is null");
         require(ticket.redeemer != address(0), "Ticket redeemer is null");
 
@@ -253,7 +253,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes memory sig,
         uint256 redeemerRand,
         uint128 winProb
-    ) internal pure returns (bool) {
+    ) public pure returns (bool) {
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
         uint256 prob = uint256(winProb) << 128 | uint256(winProb);
         return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
