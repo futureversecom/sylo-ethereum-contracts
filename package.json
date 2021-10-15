@@ -41,8 +41,6 @@
     "hardhat-gas-reporter": "^1.0.4",
     "libsodium": "^0.7.9",
     "libsodium-wrappers-sumo": "^0.7.9",
-    "prettier": "^2.4.1",
-    "prettier-plugin-solidity": "^1.0.0-beta.18",
     "solhint": "^3.3.6",
     "solidity-coverage": "^0.7.17",
     "ts-node": "^10.3.0",

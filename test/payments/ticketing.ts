@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { BigNumber, BigNumberish, Signer, Wallet } from "ethers";
-import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, SyloToken } from "../../typechain";
+import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, SyloToken, TicketingParameters } from "../../typechain";
 const crypto = require("crypto");
 const sodium = require('libsodium-wrappers-sumo');
 const eth = require('eth-lib');
@@ -20,6 +20,7 @@ describe('Ticketing', () => {
   let epochsManager: EpochsManager;
   let rewardsManager: RewardsManager;
   let ticketing: SyloTicketing;
+  let ticketingParameters: TicketingParameters;
   let directory: Directory;
   let listings: Listings;
   let stakingManager: StakingManager;
@@ -38,6 +39,7 @@ describe('Ticketing', () => {
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
     ticketing = contracts.ticketing;
+    ticketingParameters = contracts.ticketingParameters;
     directory = contracts.directory;
     listings = contracts.listings;
     stakingManager = contracts.stakingManager;
@@ -46,6 +48,33 @@ describe('Ticketing', () => {
 
     await token.approve(stakingManager.address, toSOLOs(10000000));
     await token.approve(ticketing.address, toSOLOs(10000000));
+  });
+
+  it('should be able to set parameters after initialization', async () => {
+    await ticketingParameters.setFaceValue(777);
+    await ticketingParameters.setBaseLiveWinProb(888);
+    await ticketingParameters.setExpiredWinProb(999);
+    await ticketingParameters.setDecayRate(1111);
+    await ticketingParameters.setTicketDuration(2222);
+    await ticketing.setUnlockDuration(3333);
+
+    const faceValue = await ticketingParameters.faceValue();
+    assert.equal(faceValue.toNumber(), 777, "Expected face value to be correctly set");
+
+    const baseLiveWinProb = await ticketingParameters.baseLiveWinProb();
+    assert.equal(baseLiveWinProb.toNumber(), 888, "Expected base live win prob to be correctly set");
+
+    const expiredWinProb = await ticketingParameters.expiredWinProb();
+    assert.equal(expiredWinProb.toNumber(), 999, "Expected expired win prob to be correctly set");
+
+    const decayRate = await ticketingParameters.decayRate();
+    assert.equal(decayRate, 1111, "Expected decay rate to be correctly set");
+
+    const ticketDuration = await ticketingParameters.ticketDuration();
+    assert.equal(ticketDuration.toNumber(), 2222, "Expected ticket duration to be correctly set");
+
+    const unlockDuration = await ticketing.unlockDuration();
+    assert.equal(unlockDuration.toNumber(), 3333, "Expected unlock duration to be correctly set");
   });
 
   it('should be able to deposit escrow', async () => {
