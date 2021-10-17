@@ -20,6 +20,9 @@ jobs:
           name: build contracts
           command: npm run build
       - run:
+          name: solidity lint
+          command: npm run solhint
+      - run:
           name: prepare outputs
           command: node ./scripts/parseArtifacts.js
       - save_cache:
@@ -38,11 +41,9 @@ jobs:
       - run:
           name: test contracts
           command: npm test
-
       - run:
           name: prepare outputs
           command: node ./scripts/parseArtifacts.js
-
       - store_artifacts:
           path: ~/sylo-ethereum-contracts/gasReport.txt
 

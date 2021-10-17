@@ -10,27 +10,26 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
-/*
+/**
  * Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
  * and also to payout delegated stakers after the epoch ends.
  * After deployment, the SyloTicketing contract should be
  * set up as a manager to be able to call certain restricted functions.
 */
-
 contract RewardsManager is Initializable, OwnableUpgradeable {
-    uint256 constant ONE_SYLO = 1 ether;
+    uint256 internal constant ONE_SYLO = 1 ether;
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
-    int128 constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
+    int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
     /* ERC 20 compatible token we are dealing with */
-    IERC20 _token;
+    IERC20 public _token;
 
     /* Sylo Staking Manager contract. */
-    StakingManager _stakingManager;
+    StakingManager public _stakingManager;
 
     /* Sylo Epochs Manager. */
-    EpochsManager _epochsManager;
+    EpochsManager public _epochsManager;
 
     mapping (address => uint256) public unclaimedNodeRewards;
 
@@ -62,14 +61,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     // Reward Pools are indexed by a key that is derived from the epochId and the stakee's address
-    mapping (bytes32 => RewardPool) rewardPools;
+    mapping (bytes32 => RewardPool) public rewardPools;
 
     // Certain functions of this contract should only be called by certain other
     // contracts, namely the Ticketing contract.
     // We use this mapping to restrict access to those functions in a similar
     // fashion to the onlyOwner construct. The stored value is the block the
     // managing was contract was added in.
-    mapping (address => uint256) managers;
+    mapping (address => uint256) public managers;
 
     function initialize(
         IERC20 token,
@@ -140,7 +139,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         latestActiveRewardPools[msg.sender] = nextEpochId;
     }
 
-    /*
+    /**
      * This function should be called by the Ticketing contract when a
      * ticket is successfully redeemed. The face value of the ticket
      * should be split between incrementing the node's reward balance,
@@ -274,7 +273,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return updatedStake - stakeEntry.amount;
     }
 
-    /*
+    /**
      * Helper function to convert a uint256 value in SOLOs to a 64.64 fixed point
      * representation in SYLOs while avoiding any possibility of overflow.
      * Any remainders from converting SOLO to SYLO is explicitly handled to mitigate
@@ -287,7 +286,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return ABDKMath64x64.add(fullSylos, ABDKMath64x64.div(fracSylos, ONE_SYLO_FIXED));
     }
 
-    /*
+    /**
      * Helper function to convert a 64.64 fixed point value in SYLOs to a uint256
      * representation in SOLOs while avoiding any possibility of overflow.
      */

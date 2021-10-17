@@ -25,7 +25,7 @@ contract Listings is Initializable, OwnableUpgradeable {
         bool initialized;
     }
 
-    mapping(address => Listing) listings;
+    mapping(address => Listing) public listings;
 
     uint16 public defaultPayoutPercentage;
 

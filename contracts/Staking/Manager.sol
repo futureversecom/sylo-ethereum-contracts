@@ -9,20 +9,20 @@ import "../Payments/Ticketing/RewardsManager.sol";
 import "../Epochs/Manager.sol";
 import "../Utils.sol";
 
-/*
+/**
  * Manages stakes and delegated stakes for accounts that wish to be listed
-*/
+ */
 contract StakingManager is Initializable, OwnableUpgradeable {
     /** ERC 20 compatible token we are dealing with */
-    IERC20 _token;
+    IERC20 public _token;
 
     /**
      * Rewards Manager contract. Any changes to stake will automatically
      * trigger a claim to any outstanding rewards
      */
-    RewardsManager _rewardsManager;
+    RewardsManager public _rewardsManager;
 
-    EpochsManager _epochsManager;
+    EpochsManager public _epochsManager;
 
     struct StakeEntry {
         uint256 amount;
@@ -54,7 +54,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         uint256 unlockAt; // Block number the stake becomes withdrawable
     }
 
-    mapping (address => Stake) stakes;
+    mapping (address => Stake) public stakes;
 
     /** Tracks overall total stake */
     uint256 public totalManagedStake;
