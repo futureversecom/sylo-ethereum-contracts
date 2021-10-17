@@ -37,36 +37,37 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
-    /* ERC 20 compatible token we are dealing with */
-    IERC20 _token;
+    /** ERC 20 compatible token we are dealing with */
+    IERC20 public _token;
 
-    /* Sylo Listings contract */
-    Listings _listings;
+    /** Sylo Listings contract */
+    Listings public _listings;
 
-    /* Sylo Staking Manager contract */
-    StakingManager _stakingManager;
+    /** Sylo Staking Manager contract */
+    StakingManager public _stakingManager;
 
-    /* Sylo Directory contract */
-    Directory _directory;
+    /** Sylo Directory contract */
+    Directory public _directory;
 
-    /* Rewards Manager contract */
-    RewardsManager _rewardsManager;
+    /** Rewards Manager contract */
+    RewardsManager public _rewardsManager;
 
-    /* Sylo Epochs Manager.
+    /**
+     * Sylo Epochs Manager.
      * This contract holds various ticketing parameters
      */
-    EpochsManager _epochsManager;
+    EpochsManager public _epochsManager;
 
-    /*
+    /**
      * The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their funds
      */
     uint256 public unlockDuration;
 
-    /* Mapping of user deposits to their address */
+    /** Mapping of user deposits to their address */
     mapping(address => Deposit) public deposits;
 
-    /* Mapping of ticket hashes, used to check if ticket has been redeemed */
+    /** Mapping of ticket hashes, used to check if ticket has been redeemed */
     mapping (bytes32 => bool) public usedTickets;
 
     // TODO define events
