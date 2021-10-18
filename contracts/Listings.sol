@@ -36,8 +36,8 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) public onlyOwner {
         require(
-            _defaultPayoutPercentage >= 0 && _defaultPayoutPercentage <= 10000,
-            "The payout percentage must be a value between 0 and 10000"
+            _defaultPayoutPercentage <= 10000,
+            "The payout percentage can not exceed 100 percent"
         );
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }

@@ -21,18 +21,16 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
       opts.payoutPercentage :
       5000;
 
-  const faceValue = opts.faceValue ? opts.faceValue : toWei('15');
+  const faceValue = opts.faceValue ?? toWei('15');
   const baseLiveWinProb =
-    opts.baseLiveWinProb ?
-      opts.baseLiveWinProb :
-      BigNumber.from(2).pow(128).sub(1);
-  const expiredWinProb = opts.expiredWinProb ? opts.expiredWinProb : 1000;
-  const decayRate = opts.decayRate ? opts.decayRate : 8000;
-  const ticketDuration = opts.ticketDuration ? opts.ticketDuration : 20;
+    opts.baseLiveWinProb ?? BigNumber.from(2).pow(128).sub(1);
+  const expiredWinProb = opts.expiredWinProb ?? 1000;
+  const decayRate = opts.decayRate ?? 8000;
+  const ticketDuration = opts.ticketDuration ?? 20;
 
-  const epochDuration = opts.epochDuration ? opts.epochDuration : 30;
+  const epochDuration = opts.epochDuration ?? 30;
 
-  const unlockDuration = opts.unlockDuration ?? 0;
+  const unlockDuration = opts.unlockDuration ?? 10;
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 

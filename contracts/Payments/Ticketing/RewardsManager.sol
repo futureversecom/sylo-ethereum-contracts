@@ -123,7 +123,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         );
 
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(msg.sender);
-        require(totalStake > 0, "Must have stake to intitialize a reward pool");
+        require(totalStake > 0, "Must have stake to initialize a reward pool");
 
         nextRewardPool.initializedAt = block.number;
 

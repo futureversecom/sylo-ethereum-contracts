@@ -121,7 +121,7 @@ contract Directory is Initializable, OwnableUpgradeable {
                 return directories[currentDirectory].entries[index].stakee;
             } else if (expectedVal < lower) {
                 right = index - 1;
-            } else if (expectedVal >= upper) {
+            } else {  // expectedVal >= upper
                 left = index + 1;
             }
         }

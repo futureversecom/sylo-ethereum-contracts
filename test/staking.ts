@@ -116,6 +116,16 @@ describe('Staking', () => {
 
     await expect(stakingManager.calculateMaxAdditionalDelegatedStake(owner))
       .to.be.revertedWith("Can not add more delegated stake to this stakee");
+    });
+
+  it('should not able to add stake to zero address', async () => {
+    await expect(stakingManager.addStake(100, "0x0000000000000000000000000000000000000000"))
+      .to.be.revertedWith("Address is null");
+  });
+
+  it('should not be able to add 0 stake', async () => {
+    await expect(stakingManager.addStake(0, owner))
+      .to.be.revertedWith("Cannot stake nothing");
   });
 
   it('should be able to unlock stake', async () => {
@@ -125,6 +135,53 @@ describe('Staking', () => {
     const key = await stakingManager.getKey(owner, owner);
     const unlocking = await stakingManager.unlockings(key);
     assert.equal(unlocking.amount.toNumber(), 100, 'Expected unlocking to exist');
+  });
+
+  it('can not unlock no stake', async () => {
+    await expect(stakingManager.unlockStake(100, owner))
+      .to.be.revertedWith("Nothing to unstake");
+  });
+
+  it('can not unlock zero stake', async () => {
+    await stakingManager.addStake(100, owner);
+    await expect(stakingManager.unlockStake(0, owner))
+      .to.be.revertedWith("Cannot unlock with zero amount");
+  });
+
+  it('can not unlock more stake than exists', async () => {
+    await stakingManager.addStake(100, owner);
+    await expect(stakingManager.unlockStake(101, owner))
+      .to.be.revertedWith("Cannot unlock more than staked");
+  });
+
+  it('should update unlocking state when unlocking more stake', async () => {
+    await stakingManager.addStake(100, owner);
+    await stakingManager.unlockStake(40, owner);
+
+    const key = await stakingManager.getKey(owner, owner);
+    const unlockingOne = await stakingManager.unlockings(key);
+
+    await stakingManager.unlockStake(40, owner);
+    const unlockingTwo = await stakingManager.unlockings(key);
+
+    expect(unlockingTwo.unlockAt.toNumber()).to.be.greaterThan(unlockingOne.unlockAt.toNumber());
+  });
+
+  it("doesn't update unlock at if existing unlock will unlock later", async () => {
+    await stakingManager.addStake(100, owner);
+    await stakingManager.unlockStake(40, owner);
+
+    const key = await stakingManager.getKey(owner, owner);
+    const unlockingOne = await stakingManager.unlockings(key);
+
+    // we sit the unlock duration to a shorter value here
+    await stakingManager.setUnlockDuration(1);
+
+    await stakingManager.unlockStake(40, owner);
+    const unlockingTwo = await stakingManager.unlockings(key);
+
+    // expect the second unlocking to not overwrite the original one
+    expect(unlockingTwo.unlockAt.toNumber()).to.be.equal(unlockingOne.unlockAt.toNumber());
   });
 
   it('should be able to restake when everything is unstaked', async () => {
@@ -141,6 +198,9 @@ describe('Staking', () => {
 
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
+
+    await utils.advanceBlock(11);
+
     await stakingManager.withdrawStake(owner);
 
     const postWithdrawBalance = await token.balanceOf(owner);
@@ -150,6 +210,50 @@ describe('Staking', () => {
       postWithdrawBalance.toString(),
       "Balance should be equal to initial balance after withdrawing"
     );
+  });
+
+  it("should not be able to withdraw stake that hasn't unlocked", async () => {
+    await stakingManager.addStake(100, owner);
+    await stakingManager.unlockStake(100, owner);
+    await expect(stakingManager.withdrawStake(owner))
+      .to.be.revertedWith("Stake not yet unlocked");
+  });
+
+  it('should be able to cancel unlocking', async () => {
+    await stakingManager.addStake(100, owner);
+    await stakingManager.unlockStake(100, owner);
+    await stakingManager.cancelUnlocking(100, owner);
+
+    const key = await stakingManager.getKey(owner, owner);
+    const unlocking = await stakingManager.unlockings(key);
+
+    assert.equal(
+      unlocking.amount.toNumber(),
+      0,
+      "Expected unlocking to be cancelled"
+    );
+  });
+
+  it('should be able to cancel a portion of the unlocking', async () => {
+    await stakingManager.addStake(100, owner);
+    await stakingManager.unlockStake(100, owner);
+    await stakingManager.cancelUnlocking(54, owner);
+
+    const key = await stakingManager.getKey(owner, owner);
+    const unlocking = await stakingManager.unlockings(key);
+
+    assert.equal(
+      unlocking.amount.toNumber(),
+      46,
+      "Expected only a portion of the unlocking to be cancelled"
+    );
+  });
+
+  it("can not cancel more unlocking than exists", async () => {
+    await stakingManager.addStake(100, owner);
+    await stakingManager.unlockStake(100, owner);
+    await expect(stakingManager.cancelUnlocking(101, owner))
+      .to.be.revertedWith("Unlock has insufficient amount");
   });
 
   it("should not allow delegated stake to exceed minimum owned stake by the stakee", async () => {
@@ -290,8 +394,26 @@ describe('Staking', () => {
     }
   });
 
+  it('should be able to get total managed stake', async () => {
+    let expectedTotalStake = 0;
+    for (let i = 0; i < accounts.length; i++) {
+      await token.transfer(await accounts[i].getAddress(), 100);
+      await token.connect(accounts[i]).approve(stakingManager.address, 100);
+      await stakingManager.connect(accounts[i]).addStake(i + 1, await accounts[i].getAddress());
+      expectedTotalStake += i + 1;
+    }
+
+    const totalManagedStake = await stakingManager.getTotalManagedStake();
+
+    assert.equal(
+      totalManagedStake.toNumber(),
+      expectedTotalStake,
+      "Expected to be able to query for total managed stake"
+    );
+  });
+
   it('should correctly scan accounts based on their stake proportions', async () => {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
       await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
@@ -300,15 +422,16 @@ describe('Staking', () => {
 
     await directory.setCurrentDirectory(epochId);
 
-    const quarterPoint = BigNumber.from(2).pow(128).sub(1).div(4);
+    const fifthPoint = BigNumber.from(2).pow(128).sub(1).div(5);
     const points = [
       '0',
-      quarterPoint.add(1).toString(),
-      quarterPoint.add(1).add(quarterPoint).add(1).toString(),
-      quarterPoint.add(1).add(quarterPoint).add(1).add(quarterPoint).add(1).toString()
+      fifthPoint.add(1).toString(),
+      fifthPoint.mul(2).add(2).toString(),
+      fifthPoint.mul(3).add(3).toString(),
+      fifthPoint.mul(4).add(4).toString()
     ];
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const address = await directory.scan(points[i]);
       assert.equal(address, await accounts[i].getAddress(), "Expected scan to return correct result");
     }

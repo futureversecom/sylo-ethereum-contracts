@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { Signer } from "ethers";
 import { Listings } from "../typechain";
-import { assert } from "chai";
+import { assert, expect } from "chai";
 
 describe('Listing', () => {
   let accounts: Signer[];
@@ -37,4 +37,13 @@ describe('Listing', () => {
     assert.equal(listing.minDelegatedStake.toNumber(), 1, "Expected listing to have correct min delegated stake");
   });
 
+  it('requires default payout percentage to not exceed 100%', async () => {
+    await expect(listings.setDefaultPayoutPercentage(10001))
+      .to.be.revertedWith("The payout percentage can not exceed 100 percent");
+  });
+
+  it('requires listing to not have empty multiaddr string', async () => {
+    await expect(listings.setListing("", 1))
+      .to.be.revertedWith("Multiaddr string is empty");
+  });
 });
