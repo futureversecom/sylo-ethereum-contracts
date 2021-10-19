@@ -27,7 +27,7 @@ type ContractParameters = {
 
   StakingManager: {
     unlockDuration: BigNumberish;
-    minimumNodeStake: number;
+    minimumStakeProportion: number;
   }
 }
 
@@ -61,7 +61,7 @@ const GenesisParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 8000,
-    minimumNodeStake: 3000
+    minimumStakeProportion: 3000
   }
 }
 

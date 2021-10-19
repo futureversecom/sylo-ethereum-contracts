@@ -48,13 +48,13 @@ describe('Staking', () => {
 
   it('should be able to set parameters after initialization', async () => {
     await stakingManager.setUnlockDuration(100);
-    await stakingManager.setMinimumNodeStake(3000);
+    await stakingManager.setMinimumStakeProportion(3000);
 
     const unlockDuration = await stakingManager.unlockDuration();
-    const minimumNodeStake = await stakingManager.minimumNodeStake();
+    const minimumStakeProportion = await stakingManager.minimumStakeProportion();
 
     assert.equal(unlockDuration.toNumber(), 100, "Expected unlock duration to be correctly set");
-    assert.equal(minimumNodeStake, 3000, "Expected minimum node stake to be correctly set");
+    assert.equal(minimumStakeProportion, 3000, "Expected minimum node stake to be correctly set");
   });
 
   it('should be able to get unlocking duration', async () => {
@@ -83,6 +83,21 @@ describe('Staking', () => {
       '100',
       "A stake entry with 100 tokens should be managed by the contract"
     );
+  });
+
+  it('should not be able to add more stake if minimum stake proportion not met', async () => {
+    await expect(stakingManager.addStake(1, await accounts[1].getAddress()))
+      .to.be.revertedWith("Can not add more stake until stakee adds more stake itself");
+  });
+
+  it('should be able to calculate remaining stake that can be added to a stakee', async () => {
+    await stakingManager.addStake(111, owner);
+
+    const expectedRemaining = Math.floor(111 / 0.2);
+
+    const remaining = await stakingManager.calculateMaxAdditionalDelegatedStake(owner);
+
+    assert.equal(expectedRemaining, remaining.toNumber(), "Expected remaining additional stake to be correctly calculated");
   });
 
   it('should be able to unlock stake', async () => {

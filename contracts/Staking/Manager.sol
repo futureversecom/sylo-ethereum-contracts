@@ -72,29 +72,29 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * Minimum amount of stake that a Node needs to own represented
      * as a percentage of the Node's total stake
      */
-    uint16 public minimumNodeStake;
+    uint16 public minimumStakeProportion;
 
     function initialize(
         IERC20 token,
         RewardsManager rewardsManager,
         EpochsManager epochsManager,
         uint256 _unlockDuration,
-        uint16 _minimumNodeStake
+        uint16 _minimumStakeProportion
     ) public initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _rewardsManager = rewardsManager;
         _epochsManager = epochsManager;
         unlockDuration = _unlockDuration;
-        minimumNodeStake = _minimumNodeStake;
+        minimumStakeProportion = _minimumStakeProportion;
     }
 
     function setUnlockDuration(uint256 _unlockDuration) public onlyOwner {
         unlockDuration = _unlockDuration;
     }
 
-    function setMinimumNodeStake(uint16 _minimumNodeStake) public onlyOwner {
-        minimumNodeStake = _minimumNodeStake;
+    function setMinimumStakeProportion(uint16 _minimumStakeProportion) public onlyOwner {
+        minimumStakeProportion = _minimumStakeProportion;
     }
 
     function addStake(uint256 amount, address stakee) public {
@@ -126,7 +126,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         // ensure that the node's own stake is still at the minimum amount
         if (msg.sender != stakee) {
             require(
-                checkNodeOwnsMinimumStake(stakee),
+                checkMinimumStakeProportion(stakee),
                 "Can not add more stake until stakee adds more stake itself"
             );
         }
@@ -222,12 +222,25 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         return stakes[stakee].totalManagedStake;
     }
 
-    function checkNodeOwnsMinimumStake(address stakee) public view returns (bool) {
+    function checkMinimumStakeProportion(address stakee) public view returns (bool) {
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        uint16 ownedStake = SyloUtils.asPerc(uint128(currentlyOwnedStake), stake.totalManagedStake);
+        uint16 ownedStakeProportion = SyloUtils.asPerc(uint128(currentlyOwnedStake), stake.totalManagedStake);
 
-        return ownedStake > minimumNodeStake;
+        return ownedStakeProportion > minimumStakeProportion;
+    }
+
+    /**
+     * This function should be called by clients to determine how much additional
+     * delegated stake can be allocated to a stakee via addStake or cancelUnlocking,
+     * without causing a revert due to the minimum stake proportion requirement.
+     */
+    function calculateMaxAdditionalDelegatedStake(address stakee) public view returns (uint256) {
+        Stake storage stake = stakes[stakee];
+
+        uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
+
+        return currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR / minimumStakeProportion;
     }
 }
