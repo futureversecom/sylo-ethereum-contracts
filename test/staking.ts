@@ -90,14 +90,19 @@ describe('Staking', () => {
       .to.be.revertedWith("Can not add more stake until stakee adds more stake itself");
   });
 
-  it('should be able to calculate remaining stake that can be added to a stakee', async () => {
+  it.only('should be able to calculate remaining stake that can be added to a stakee', async () => {
     await stakingManager.addStake(111, owner);
 
-    const expectedRemaining = Math.floor(111 / 0.2);
+    const expectedRemaining = Math.floor(111 / 0.2) - 111;
 
     const remaining = await stakingManager.calculateMaxAdditionalDelegatedStake(owner);
 
     assert.equal(expectedRemaining, remaining.toNumber(), "Expected remaining additional stake to be correctly calculated");
+
+    // ensure we can actually add that amount
+    await token.transfer(await accounts[1].getAddress(), 1000);
+    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await stakingManager.connect(accounts[1]).addStake(expectedRemaining, owner);
   });
 
   it('should be able to unlock stake', async () => {

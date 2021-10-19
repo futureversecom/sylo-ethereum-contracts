@@ -228,7 +228,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
         uint16 ownedStakeProportion = SyloUtils.asPerc(uint128(currentlyOwnedStake), stake.totalManagedStake);
 
-        return ownedStakeProportion > minimumStakeProportion;
+        return ownedStakeProportion >= minimumStakeProportion;
     }
 
     /**
@@ -240,7 +240,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
+        uint256 totalMaxStake = currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR / minimumStakeProportion;
 
-        return currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR / minimumStakeProportion;
+        return totalMaxStake - stake.totalManagedStake;
     }
 }
