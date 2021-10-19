@@ -71,6 +71,10 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
         expiredWinProb = _expiredWinProb;
     }
 
+    function setDecayRate(uint16 _decayRate) public onlyOwner {
+        decayRate = _decayRate;
+    }
+
     function setTicketDuration(uint256 _ticketDuration) public onlyOwner {
         require(_ticketDuration > 0, "Ticket duration cannot be 0");
         ticketDuration = _ticketDuration;

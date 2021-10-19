@@ -100,6 +100,7 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
     rewardsManager.address,
     epochsManager.address,
     config.StakingManager.unlockDuration,
+    config.StakingManager.minimumStakeProportion
   );
 
   console.log('Initialized staking manager contract');

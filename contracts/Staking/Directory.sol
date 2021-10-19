@@ -79,6 +79,10 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 stakeReward = _rewardsManager.unclaimedStakeRewards(stakee);
         uint256 totalStake = managedStake + stakeReward;
         require(totalStake > 0, "Can not join directory for next epoch without any stake");
+        require(
+            _stakingManager.checkMinimumStakeProportion(stakee),
+            "Can not join directory without owning minimum amount of stake"
+        );
 
         uint256 epochId = currentDirectory + 1;
 

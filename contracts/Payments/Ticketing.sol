@@ -19,7 +19,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * The maximum probability value, where probability is represented
      * as an integer between 0 to 2^128 - 1.
      */
-    uint128 constant MAX_PROB = type(uint128).max;
+    uint128 internal constant MAX_PROB = type(uint128).max;
 
     struct Deposit {
         uint256 escrow; // Balance of users escrow
@@ -34,7 +34,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 senderCommit; // Hash of the secret random number of the sender
-        bytes32 redeemerCommit; // Hash of the secret random number of the redeemder
+        bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
     /* ERC 20 compatible token we are dealing with */
@@ -212,7 +212,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 redeemerRand,
         bytes memory sig,
         EpochsManager.Epoch memory epoch
-    ) internal view {
+    ) public view {
         require(ticket.sender != address(0), "Ticket sender is null");
         require(ticket.redeemer != address(0), "Ticket redeemer is null");
 
@@ -253,7 +253,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes memory sig,
         uint256 redeemerRand,
         uint128 winProb
-    ) internal pure returns (bool) {
+    ) public pure returns (bool) {
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
         uint256 prob = uint256(winProb) << 128 | uint256(winProb);
         return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
