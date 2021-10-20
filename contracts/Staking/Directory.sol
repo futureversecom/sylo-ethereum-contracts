@@ -9,17 +9,17 @@ import "../Utils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/*
+/**
  * The Directory contract constructs and manages a structure holding the current stakes,
  * which is queried against using the scan function. The scan function allows submitting
  * random points which will return a staked node's address in proportion to the stake it has.
 */
 contract Directory is Initializable, OwnableUpgradeable {
-    /* Sylo Staking Manager contract */
-    StakingManager _stakingManager;
+    /** Sylo Staking Manager contract */
+    StakingManager public _stakingManager;
 
-    /* Sylo Rewards Manager contract */
-    RewardsManager _rewardsManager;
+    /** Sylo Rewards Manager contract */
+    RewardsManager public _rewardsManager;
 
     struct DirectoryEntry {
         address stakee;
@@ -37,7 +37,7 @@ contract Directory is Initializable, OwnableUpgradeable {
     uint256 public currentDirectory;
 
     // Directories are indexed by the associated epoch's id
-    mapping (uint256 => Directory) directories;
+    mapping (uint256 => Directory) public directories;
 
     function initialize(
         StakingManager stakingManager,
@@ -52,7 +52,7 @@ contract Directory is Initializable, OwnableUpgradeable {
         currentDirectory = epochId;
     }
 
-    /*
+    /**
      * This function is called by a node as a prerequiste to participate in the next epoch.
      * This will construct the directory as nodes join. The directory is constructed
      * by creating a boundary value which is a sum of the current directory's total stake, and
@@ -107,12 +107,12 @@ contract Directory is Initializable, OwnableUpgradeable {
         // a uint128 cannot overflow a uint256.
         uint256 expectedVal = directories[currentDirectory].totalStake * uint256(point) >> 128;
 
-        uint256 l = 0;
-        uint256 r = directories[currentDirectory].entries.length - 1;
+        uint256 left = 0;
+        uint256 right = directories[currentDirectory].entries.length - 1;
 
         // perform a binary search through the directory
-        while (l <= r) {
-            uint index = (l + r) / 2;
+        while (left <= right) {
+            uint index = (left + right) / 2;
 
             uint lower = index == 0 ? 0 : directories[currentDirectory].entries[index - 1].boundary;
             uint upper = directories[currentDirectory].entries[index].boundary;
@@ -120,9 +120,9 @@ contract Directory is Initializable, OwnableUpgradeable {
             if (expectedVal >= lower && expectedVal < upper) {
                 return directories[currentDirectory].entries[index].stakee;
             } else if (expectedVal < lower) {
-                r = index - 1;
-            } else if (expectedVal >= upper) {
-                l = index + 1;
+                right = index - 1;
+            } else {  // expectedVal >= upper
+                left = index + 1;
             }
         }
     }

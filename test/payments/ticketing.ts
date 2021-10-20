@@ -77,6 +77,26 @@ describe('Ticketing', () => {
     assert.equal(unlockDuration.toNumber(), 3333, "Expected unlock duration to be correctly set");
   });
 
+  it('can remove managers from rewards manager', async () => {
+    await rewardsManager.removeManager(stakingManager.address);
+    const b = await rewardsManager.managers(stakingManager.address);
+    assert.equal(
+      b.toNumber(),
+      0,
+      "Expected staking manager to be removed as manager"
+    );
+  });
+
+  it('can not call functions that onlyManager constraint', async () => {
+    await expect(rewardsManager.incrementRewardPool(owner, 10000))
+      .to.be.revertedWith("Only managers of this contract can call this function");
+  });
+
+  it('can not set ticket duration to 0', async () => {
+    await expect(ticketingParameters.setTicketDuration(0))
+      .to.be.revertedWith("Ticket duration cannot be 0");
+  })
+
   it('should be able to deposit escrow', async () => {
     const alice = Wallet.createRandom();
     await ticketing.depositEscrow(50, alice.address);
@@ -173,12 +193,52 @@ describe('Ticketing', () => {
 
     const deposit = await ticketing.deposits(owner);
     assert.equal(deposit.unlockAt.toString(), '0', 'Expected deposit to move out of unlocking phase');
-
   });
+
+  it('should fail to deposit while unlocking', async () => {
+    await ticketing.depositEscrow(50, owner);
+    await ticketing.unlockDeposits();
+
+    await expect(ticketing.depositEscrow(10, owner))
+      .to.be.revertedWith("Cannot deposit while unlocking");
+    await expect(ticketing.depositPenalty(10, owner))
+      .to.be.revertedWith("Cannot deposit while unlocking");
+  });
+
+  it('should be able to withdraw after unlocking phase has completed', async () => {
+    await ticketing.depositEscrow(50, owner);
+    await ticketing.unlockDeposits();
+
+    await utils.advanceBlock(11);
+
+    const balanceBeforeWithdrawal = await token.balanceOf(owner);
+
+    await ticketing.withdraw();
+
+    const balanceAfterWithdrawal = await token.balanceOf(owner);
+
+    expect(balanceAfterWithdrawal).to.be.equal(balanceBeforeWithdrawal.add(50));
+
+    // can now deposit again
+    await ticketing.depositEscrow(50, owner);
+  });
+
+  it('should fail to withdraw if deposits not unlocked', async () => {
+    await ticketing.depositEscrow(50, owner);
+    await expect(ticketing.withdraw())
+      .to.be.revertedWith("Deposits not unlocked");
+  });
+
+  it('should fail to withdraw if still unlocking', async () => {
+    await ticketing.depositEscrow(50, owner);
+    await ticketing.unlockDeposits();
+
+    await expect(ticketing.withdraw())
+      .to.be.revertedWith("Unlock period not complete");
+  })
 
   it('should be able to initialize next reward pool', async () => {
     await stakingManager.addStake(30, owner);
-    await listings.setListing("0.0.0.0/0", 1);
 
     const currentBlock = await ethers.provider.getBlockNumber();
     await rewardsManager.initializeNextRewardPool();
@@ -199,6 +259,18 @@ describe('Ticketing', () => {
       "30",
       "Expected reward pool to correctly track the stake at the time it was created"
     );
+  });
+
+  it('can not initialize reward pool more than once', async () => {
+    await stakingManager.addStake(30, owner);
+    await rewardsManager.initializeNextRewardPool();
+    await expect(rewardsManager.initializeNextRewardPool())
+      .to.be.revertedWith("The next reward pool has already been initialized");
+  });
+
+  it('should not be able to initialize next reward pool without stake', async () => {
+    await expect(rewardsManager.initializeNextRewardPool())
+      .to.be.revertedWith("Must have stake to initialize a reward pool");
   });
 
   it('can not redeem ticket with invalid signature', async () => {
@@ -264,6 +336,126 @@ describe('Ticketing', () => {
       .to.be.revertedWith("This ticket was not generated during it\'s associated epoch");
   });
 
+  it('can not redeem ticket if node does not have a listing', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+
+    await particpateNextEpoch(owner);
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Ticket redeemer must have a valid listing");
+  });
+
+  it('can not redeem ticket if node has not joined directory', async () => {
+    await listings.setListing("0.0.0.0/0", 1);
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Ticket redeemer must have joined the directory for this epoch");
+  });
+
+  it('can not redeem ticket if node has not initialized reward pool', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    await directory.joinNextDirectory();
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Reward pool has not been initialized for the current epoch");
+  });
+
+  it('can not redeem invalid ticket', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    await particpateNextEpoch(owner);
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    let malformedTicket = { ...ticket };
+    malformedTicket.sender = '0x0000000000000000000000000000000000000000';
+    await expect(ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Ticket sender is null");
+
+    malformedTicket = { ...ticket };
+    malformedTicket.redeemer = '0x0000000000000000000000000000000000000000';
+    await expect(ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Ticket redeemer is null");
+
+    malformedTicket = { ...ticket };
+    malformedTicket.senderCommit = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    await expect(ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Hash of senderRand doesn't match senderRandHash");
+
+    malformedTicket = { ...ticket };
+    malformedTicket.redeemerCommit = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    await expect(ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Hash of redeemerRand doesn't match redeemerRandHash");
+
+    const malformedSig = '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, malformedSig))
+      .to.be.revertedWith("Ticket doesn't have a valid signature");
+  });
+
+  it('rejects non winning ticket', async () => {
+    // redeploy contracts with win chance of 0%
+    const contracts = await utils.initializeContracts(owner, token.address, { baseLiveWinProb: 0 });
+    await token.approve(contracts.stakingManager.address, toSOLOs(100000));
+    await contracts.stakingManager.addStake(toSOLOs(1), owner);
+    await contracts.listings.setListing("0.0.0.0/0", 1);
+
+    await contracts.directory.joinNextDirectory();
+    await contracts.rewardsManager.initializeNextRewardPool();
+
+    await contracts.directory.transferOwnership(contracts.epochsManager.address);
+    await contracts.epochsManager.initializeEpoch();
+
+    await token.approve(contracts.ticketing.address, toSOLOs(100000));
+    const alice = Wallet.createRandom();
+    await contracts.ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await contracts.ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner, 1);
+
+    await utils.advanceBlock(5);
+
+    await expect(contracts.ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Ticket is not a winner");
+  });
+
   it('can redeem winning ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
@@ -293,6 +485,26 @@ describe('Ticketing', () => {
       toSOLOs(1000),
       "Expected balance of unclaimed rewards to have added the ticket face value"
     );
+  });
+
+  it('can not redeem ticket more than once', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    await particpateNextEpoch(owner);
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Ticket already redeemed");
   });
 
   it('burns penalty on insufficient escrow', async () => {
@@ -382,6 +594,8 @@ describe('Ticketing', () => {
   it('fails to to claim non existent rewards', async () => {
     await expect(rewardsManager.claimStakingRewards(owner))
       .to.be.revertedWith("Nothing to claim");
+    await expect(rewardsManager.claimNodeRewards())
+      .to.be.revertedWith("Nothing to claim");
   });
 
   it('can claim ticketing rewards', async () => {
@@ -449,6 +663,13 @@ describe('Ticketing', () => {
 
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
     }
+
+    const totalStakersReward = await rewardsManager.getRewardPoolStakersTotal(1, owner);
+    assert.equal(
+      totalStakersReward.toString(),
+      toSOLOs(5000),
+      "Expected correct amount of reward to be allocated to stakers"
+    );
 
     const initialDelegatorTwoBalance = await token.balanceOf(await accounts[0].getAddress());
     const initialDelegatorThreeBalance = await token.balanceOf(await accounts[2].getAddress());
@@ -839,6 +1060,116 @@ describe('Ticketing', () => {
     );
   });
 
+  it('should be able to correctly calculate staker rewards if node was not active for multiple epochs', async () => {
+    for (let i = 2; i < 5; i++) {
+      await token.transfer(await accounts[i].getAddress(), toSOLOs(1000) );
+      await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
+    }
+
+    await stakingManager.addStake(toSOLOs(1000), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    // have accounts 2, 3 and 4 as delegated stakers with varying levels of stake
+    await stakingManager.connect(accounts[2]).addStake(toSOLOs(250), owner);
+    await stakingManager.connect(accounts[3]).addStake(toSOLOs(400), owner);
+    await stakingManager.connect(accounts[4]).addStake(toSOLOs(350), owner);
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(500000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    // the node doesn't participate for several epochs
+    for (let i = 0; i < 3; i++) {
+      await utils.advanceBlock(11);
+      await epochsManager.initializeEpoch();
+    }
+
+    for (let j = 0; j < 3; j++) {
+      await particpateNextEpoch(owner);
+      await epochsManager.initializeEpoch();
+
+      // 500 is added to the stakers reward total on each redemption (50% of 1000)
+      for (let i = 0 ; i < 6; i++) {
+        const { ticket, senderRand, redeemerRand, signature } =
+          await createWinningTicket(alice, owner);
+
+        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      }
+    }
+
+    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(owner);
+
+    // the total unclaimed stake reward should 3 * 6 * 500 = 9000
+    compareExpectedBalance(toSOLOs(9000), unclaimedStakeReward);
+
+    // verify each staker will receive the correct amount of reward if they were to claim now
+    const stakerClaimTwo = await rewardsManager.calculateStakerClaim(owner, await accounts[2].getAddress());
+    const expectedStakerClaimTwo = toSOLOs(9000 * 0.125);
+    compareExpectedBalance(expectedStakerClaimTwo, stakerClaimTwo);
+
+    const stakerClaimThree = await rewardsManager.calculateStakerClaim(owner, await accounts[3].getAddress());
+    const expectedStakerClaimThree = toSOLOs(9000 * 0.2);
+    compareExpectedBalance(expectedStakerClaimThree, stakerClaimThree);
+
+    const stakerClaimFour = await rewardsManager.calculateStakerClaim(owner, await accounts[4].getAddress());
+    const expectedStakerClaimFour = toSOLOs(9000 * 0.175);
+    compareExpectedBalance(expectedStakerClaimFour, stakerClaimFour);
+
+    // ensure each staker is actually able to claim
+    for (let i = 2; i < 5; i++) {
+      await rewardsManager.connect(accounts[i]).claimStakingRewards(owner);
+    }
+  });
+
+  it('allows node to claim remaining unclaimed rewards', async () => {
+    await token.transfer(await accounts[2].getAddress(), toSOLOs(1000));
+    await token.connect(accounts[2]).approve(stakingManager.address, toSOLOs(1000));
+
+    await stakingManager.addStake(toSOLOs(3), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    // have account 2 as a delegated staker
+    await stakingManager.connect(accounts[2]).addStake(toSOLOs(1), owner);
+
+    await particpateNextEpoch(owner);
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    for (let i = 0; i < 10; i++) {
+      const { ticket, senderRand, redeemerRand, signature } =
+        await createWinningTicket(alice, owner);
+
+      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    }
+
+    // all stakers have unstaked and have automatically claimed their rewards
+    await stakingManager.unlockStake(toSOLOs(3), owner);
+    await stakingManager.connect(accounts[2]).unlockStake(toSOLOs(1), owner);
+
+    // all tickets redeemed at this point should just have entire face value given to node
+    for (let i = 0; i < 10; i++) {
+      const { ticket, senderRand, redeemerRand, signature } =
+        await createWinningTicket(alice, owner);
+
+      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    }
+
+    const balanceBeforeClaim = await token.balanceOf(owner);
+
+    await rewardsManager.claimNodeRewards();
+
+    const balanceAfterClaim = await token.balanceOf(owner);
+
+    assert.equal(
+      balanceAfterClaim.toString(),
+      balanceBeforeClaim.add(toSOLOs(15000)).toString(),
+      "Expected node to be able to claim remaining rewards"
+    );
+  });
+
   it('returns 0 winning probability if ticket has expired', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
@@ -951,7 +1282,7 @@ describe('Ticketing', () => {
     await rewardsManager.initializeNextRewardPool({ from: account });
   }
 
-  async function createWinningTicket(sender: Wallet, redeemer: string) {
+  async function createWinningTicket(sender: Wallet, redeemer: string, epochId?: number) {
     const senderRand = 1;
     const senderCommit = soliditySha3(senderRand)!;
 
@@ -960,9 +1291,8 @@ describe('Ticketing', () => {
 
     const generationBlock = await ethers.provider.getBlockNumber();
 
-    const epochId = await epochsManager.currentIteration();
     const ticket = {
-      epochId: epochId.toNumber(),
+      epochId: epochId ?? await epochsManager.currentIteration(),
       sender: sender.address,
       redeemer,
       generationBlock: BigNumber.from(generationBlock + 1),

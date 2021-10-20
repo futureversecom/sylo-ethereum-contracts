@@ -31,13 +31,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint16 decayRate;
     }
 
-    Directory _directory;
+    Directory public _directory;
 
-    Listings _listings;
+    Listings public _listings;
 
-    TicketingParameters _ticketingParameters;
+    TicketingParameters public _ticketingParameters;
 
-    /* Define all Epoch specific parameters here.
+    /*
+     * Define all Epoch specific parameters here.
      * When initializing an epoch, these parameters are read,
      * along with parameters from the other contracts to create the
      * new epoch.
@@ -49,7 +50,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     // The iteration is also used as the epoch's identifier.
     uint256 public currentIteration;
 
-    mapping (uint256 => Epoch) epochs;
+    mapping (uint256 => Epoch) public epochs;
 
     event NewEpoch(uint256 epochId);
 

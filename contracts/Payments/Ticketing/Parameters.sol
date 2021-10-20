@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/*
+/**
  * Persists the parameters for the ticketing mechanism. This contract is
  * read by the EpochManager. Extracting the parameters into another
  * contract is necessary to avoid a cyclic dependency between the ticketing and epoch contracts.
