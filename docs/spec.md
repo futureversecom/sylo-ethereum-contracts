@@ -8,7 +8,8 @@ payments. This protocol will be used to power the [Event Relay
 Protocol](overview.md#the-event-relay-protocol) that allows for trustless,
 decentralized communication. The purpose of this document is to help understand
 the current implementation of the contracts. A more general
-[overview](overview.md) of the system is also available.
+[overview](overview.md) of the system is also available. This suite of contracts
+is also currently scoped for [phase two](#phase-two) of the Sylo Network incentivization plan.
 
 ## Users
 
@@ -650,3 +651,34 @@ values at the end of epoch 3 respectively:
   that if a user claims their reward (or changes their stake) earlier in the
   epoch, and the Node continues to redeem tickets throughout the rest of the
   epoch, that user will not be eligible claim any of those rewards.
+
+### Deployment Timeline
+
+The Sylo Network will be updated in [three major phases](https://sylo.io/newsroom/article/sylo-network-incentivisation-release-plan). The first phase involves
+deploying the Sylo Token erc21 contract, and increasing liquidity for
+the token through various means. This phase has completed. The current set of
+contracts is scoped for **phase two**.
+
+#### Phase Two
+
+The second phase includes a deployment of the Sylo Network contracts onto the
+Ethereum mainnet, as well as a mechanism to incentivize Sylo Node operators in
+order to bootstrap the network. This mechanism involves the Sylo Team running
+their own Nodes that periodically generate artificial work for the network.
+This artificial work will follow the exact same process specified in the
+Event Relay Protocol, and from a Node Operator's perspective will look exactly
+the same as "real" work.
+
+This phase allows the Sylo Team to have more time to integrate the Event
+Relay Protocol into real applications, such as the Sylo Wallet. It also
+allows us to discover any flaws or learnings from the current system. Phase
+two does not require all network/economic mechanisms to be present in the system,
+and as such has not been fully realized in the contracts yet. This includes:
+  - **Payouts for expired tickets**. Artificial work will be generated from
+  Nodes that the Sylo Team operates and should always be online. There should
+  not be a case where a winning ticket is redeemed much later than the time it
+  was generated.
+  - **Slashing/Stake Distribution**. This is a complex process that will likely
+  benefit from the learnings gained in phase two. Additionally as the work is
+  artificial for phase two, there is no gain from having this system in place
+  yet.
