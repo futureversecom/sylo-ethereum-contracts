@@ -111,12 +111,12 @@ Network parameters for the current epoch are saved into this structure by the `E
 | startBlock | The block the epoch started |
 | duration | The duration in blocks the epoch will last for |
 | endBlock | The block the epoch ended. Initially set to 0 but will be updated when the next epoch is initialized |
-| defaultPayoutPercentage | [See defaultPayoutPercentage](#-defaultPayoutPercentage) |
-| faceValue | [See faceValue](#-faceValue) |
-| baseLiveWinProb | [See baseLiveWinProb](#-baseLiveWinProb) |
-| expiredWinProb | [See expiredWinProb](#-expiredWinProb) |
-| ticketDuration | [See ticketDuration](#-ticketDuration) |
-| decayRate | [See defaultPayoutPercentage](#-decayRate) |
+| defaultPayoutPercentage | [See defaultPayoutPercentage](#defaultPayoutPercentage) |
+| faceValue | [See faceValue](#faceValue) |
+| baseLiveWinProb | [See baseLiveWinProb](#baseLiveWinProb) |
+| expiredWinProb | [See expiredWinProb](#expiredWinProb) |
+| ticketDuration | [See ticketDuration](#ticketDuration) |
+| decayRate | [See defaultPayoutPercentage](#decayRate) |
 
 #### **Ticket**
 
@@ -239,8 +239,6 @@ Allows Node and delegators to set their stake for unlocking, which eventually wi
 | amount | The amount of stake to unlock in  `SOLO` |
 | stakee | The address of the stakee |
 
-**Algorithm**
-
 #### *cancelUnlocking*
 
 Cancels stake that is in the unlocking phase and adds it back to the total managed stake for that stakee. The re-added stake can be utilized in the next epoch.
@@ -362,4 +360,89 @@ In the case that a ticket is redeemed though the sender does not have hold suffi
 
 ## Appendix
 
-### Cumulative Reward Factor
+### Reward Calculation and Cumulative Reward Factor
+
+The `Cumulative Reward Factor` is a variable that significantly improves the gas cost efficiency of calculating staking reward distributions. Delegated stakers are compensated on a pro-rata basis. Additionally, any outstanding rewards are automatically considered as part of the delegator's stake for the next epoch. Thus their stake will grow over in time as they continue to hold stake towards a Node. The way a delegator's stake grows in relation to the rewards gained and to the other stakers can be seen in the table below:
+
+| Epoch | 0 | 1 | 2 | 3 |
+|-------|---|---|---|---|
+| Reward Gained | 0 | 10 | 8 | 12 |
+| Total Stake | 20 | 30 | 38 | 50
+| Alice Stake | 5 | 7.5 | 9.5 | 12.5 |
+| Bob Stake | 15 | 22.5 | 28.5 | 37.5 |
+
+- **Reward Gained** refers to the total amount of rewards gained in that epoch from redeeming tickets that will be allocated to a Node's stakers
+- **Total Stake** will be the total amount of `SOLO` staked towards the Node in the **next** epoch. This value is essentially the sum of the total stake at the start of the epoch, plus the reward gained value
+- **Alice Stake** and **Bob Stake** are Alice's and Bob's respective at the end of the epoch. Their stake at the end of the epoch will be used to calculate their reward share for the *next* epoch.
+
+It is simple enough to calculate each staker's share of the reward for an epoch (and thus their updated stake total) manually.
+
+<img src="https://render.githubusercontent.com/render/math?math=aliceStake_1 = 5 %2B 10 * 5/20">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=aliceStake_1 = 7.5">
+
+Alice’s stake at the end of an epoch can be determined by multiplying alice’s proportion of stake held stake at the previous epoch, against the reward gained at the specified epoch. Then adding that value to their stake from the previous epoch.
+
+Similarly for epoch 2, we can perform:
+
+<img src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = aliceStake_1 %2B 8 * \frac{aliceStake_1}{30}">
+
+Substituting `aliceStake_1` for the original calculation gives us:
+
+<img src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = 5 %2B 10 * 5/20 %2B 8 * \frac{5 %2B 10 * 5/20}{30}">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = 9.5">
+
+The problem with calculating the reward distribution with this approach, is that staker's are naturally incentivized to continue staking against a Node before withdrawing their rewards for as long as possible. If stake is held for several epochs before withdrawing, once they finally wish to withdraw, the implementation would have to iterate through each epoch to read the respective stake and reward values for that epoch in order to perform the calculation. This can easily cause the withdraw process to become too expensive in terms of gas costs, as essentially the the number of storage reads that need to be performed will scale linearly with the number of epochs.
+
+To solve this issue, a cumulative reward factor variable is introduced. If we examine the above calculations we can notice that Alice's initial stake of `5` is a constant and the calculation can be easily simplified.
+
+<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1 %2B \frac{10}{20}">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1 %2B \frac{10}{20} %2B + 8 * \frac{1 %2B 10/20}{30}">
+
+and simplifying:
+
+<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1.5">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1.9">
+
+We can use the values of `1.5` and `1.9` to calculate Bob's stake value as well.
+
+<img src="https://render.githubusercontent.com/render/math?math=bobStake_1 = 1.5 * 15 = 22.5">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=bobStake_2 = 1.9 * 15 = 28.5">
+
+Thus if we store the values of `1.5` and `1.9` for every epoch, the contract can calculate the update stake values without needing to iterate through all previous epochs. This is known as the cumulative reward factor (CRF) for that epoch.
+
+The contract can rely on the previous epoch's CRF to calculate the current CRF. Going back to previous equations we can see that the CRF calculated in epoch 2 can be derived from the CRF in epoch 1:
+
+<img src="https://render.githubusercontent.com/render/math?math=CRF_1 = 1 + \frac{10}{20}">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=CRF_2 = 1 + \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
+
+Substituting `CRF(1)` into the equation for `CRF(2)` and also referring to the reward gained in epoch 2 as `R(2)` and the active stake at epoch 2 as `S(2)`, we get:
+
+<img src="https://render.githubusercontent.com/render/math?math=CRF_2 = CRF_1 %2B R_2 * \frac{CRF_1}{S_2}">
+
+Or simplified further:
+
+<img src="https://render.githubusercontent.com/render/math?math=CRF_n = CRF_{n-1} %2B CRF_{n-1} * \frac{Rn}{Sn}">
+
+So if `R(3) = 12`, and `S(3) = 38`, then:
+
+<img src="https://render.githubusercontent.com/render/math?math=CRF_3 = 1.9 %2B 1.9 * 12 / 38">
+
+We can then use the value of CRF(3) to calculate Alice's and Bob's updated stake values at the end of epoch 3 respectively:
+
+<img src="https://render.githubusercontent.com/render/math?math=aliceStake_3 = 5 * 2.5 = 12.5">
+<br></br>
+<img src="https://render.githubusercontent.com/render/math?math=bobStake_3 = 15 * 2.5 = 37.5">
+
+
+**Notes**:
+- Utilizing cumulative reward factors requires that any changes to a user's delegated stake via `addStake` or `unlockStake` will automatically claim any outstanding rewards.
+- The calculation of the CRF value at the first epoch a Node starts redeeming tickets is different as it can not rely on the previous CRF value. Instead, the CRF value is just calculated as `CRF = Reward / TotalStake`. This also means that the formula used to calculate slightly differs in the contract implementation as well, where it is actually: <br></br>
+<img src="https://render.githubusercontent.com/render/math?math=stake_n = stake_m * CRF_n / CRF_m"> <br></br>
+where `m` refers to the epoch the user's stake first became active
+- The actual CRF value used to calculate a user's reward is of the most current, **not** the CRF value at the **end** of the epoch. The implication of this is that if a user claims their reward (or changes their stake) earlier in the epoch, and the Node continues to redeem tickets throughout the rest of the epoch, that user will not be eligible claim any of those rewards.

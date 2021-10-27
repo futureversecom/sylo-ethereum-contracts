@@ -2,8 +2,8 @@
 
 **Protocol and Economic Incentives For Decentralized Communications Infrastructure**
 
-Paul Freeman            <paul@sylo.io>  
-John Carlo San Pedro    <john@sylo.io>  
+Paul Freeman            <paul@sylo.io>
+John Carlo San Pedro    <john@sylo.io>
 Joshua Dawes            <josh@sylo.io>
 
 
@@ -23,10 +23,10 @@ Joshua Dawes            <josh@sylo.io>
 * [Ticket decay with time](#ticket-decay-with-time)
 
 
-   
+
 ## Introduction and Background ###########################################
 
-Sylo Nodes are an application that anyone can run, to help provide network services to Sylo users in a truly private, fully decentralised way. 
+Sylo Nodes are an application that anyone can run, to help provide network services to Sylo users in a truly private, fully decentralised way.
 
 Sylo Nodes provide Incentivised Event Relay to applications and users of the Sylo Network.
 
@@ -39,7 +39,7 @@ An Epoch is the main unit of time in the Sylo Network, measured as a number of o
 
 ## Probabilistic Micropayments ###########################################
 
-Sylo Tickets are probabilistic micropayments used for rewarding Sylo Nodes for their work. Because Sylo Nodes can be run by anybody, they need a financial incentive to perform relay - the Sylo Network cannot rely on altruism and still provide a reliable, high quality service. 
+Sylo Tickets are probabilistic micropayments used for rewarding Sylo Nodes for their work. Because Sylo Nodes can be run by anybody, they need a financial incentive to perform relay - the Sylo Network cannot rely on altruism and still provide a reliable, high quality service.
 
 A single relay is so inexpensive that the blockchain transaction costs associated with paying per message would be unreasonably high. Because of this, we need a way to exchange value for every relay performed, without relying on an on-chain transaction each time.
 
@@ -60,9 +60,9 @@ The value of a Ticket is it’s expected value: the Ticket's “face value” th
 
 ### Asynchronous Event Relay
 
-Peer Alice wishes to send a packet to peer Bob via Bob’s node. 
+Peer Alice wishes to send a packet to peer Bob via Bob’s node.
 
-Both Alice and Bob use the Sylo network intermittently - in the worst case, they may never be online at the same time as each other. This means that Alice is unable to check in with Bob later, to ensure that her relays were delivered.  Alice needs a protocol that is "fire and forget" - once she has left a relay request with Bob's node, Alice needs to be sure that the node will do it's best to deliver her message to Bob, with no further input from her. 
+Both Alice and Bob use the Sylo network intermittently - in the worst case, they may never be online at the same time as each other. This means that Alice is unable to check in with Bob later, to ensure that her relays were delivered.  Alice needs a protocol that is "fire and forget" - once she has left a relay request with Bob's node, Alice needs to be sure that the node will do it's best to deliver her message to Bob, with no further input from her.
 
 This means that Alice needs a trustless method of setting payment aside for Bob's node, to be claimed once the relay is delivered. This is accomplished by signing a ticket, which will pay out from money held in escrow in a smart contract when the ticket is redeemed.
 
@@ -75,11 +75,11 @@ Bob's node cannot be trusted to be truthful about delivery, because it has a fin
 
 In general, Bob also cannot be trusted to unlock Alice’s payment for Bob's node. Because Alice is sending to Bob, Bob and Alice may have some relationship with one another, and so Bob is assumed to have some incentive to refuse to unlock Alice's payment.
 
-However, Bob only has one node - all of Bob’s relay traffic, from a variety of peers, comes through that node. This gives Bob's node a mechanism to punish Bob with, if Bob withholds payment - blacklisting. 
+However, Bob only has one node - all of Bob’s relay traffic, from a variety of peers, comes through that node. This gives Bob's node a mechanism to punish Bob with, if Bob withholds payment - blacklisting.
 
-By threatening to withhold Bob's future traffic as punishment for bad behavior, Bob can be trusted to unlock Alice’s payment - the small incentive Bob has to help any individual relay sender is outweighed by Bob's desire to remain in good standing with his node. 
+By threatening to withhold Bob's future traffic as punishment for bad behavior, Bob can be trusted to unlock Alice’s payment - the small incentive Bob has to help any individual relay sender is outweighed by Bob's desire to remain in good standing with his node.
 
-This allows Bob to act as the service completion oracle. When Alice leaves a relay request with Bob's node, it contains a secret from Alice that is encrypted for Bob. Once Bob receives the relay, he decrypts the secret and passes it back to the node, allowing the node to claim payment. 
+This allows Bob to act as the service completion oracle. When Alice leaves a relay request with Bob's node, it contains a secret from Alice that is encrypted for Bob. Once Bob receives the relay, he decrypts the secret and passes it back to the node, allowing the node to claim payment.
 
 
 Blacklisting also prevents abuse in the case where Alice and Bob are the same financial entity, with shared cost incentives. The goal in this case is to limit the amount of free relay that Alice and Bob are able to extract from the network.
@@ -92,9 +92,9 @@ After this, Alice’s escrow must be moved to another wallet to begin the proces
 
 ### Nodes
 
-Sylo Nodes are an application that anyone can run on their own server, to help provide network services to Sylo users in a truly private, fully decentralised way. Sylo Nodes currently provide incentivised event relay and will provide additional services in future. 
+Sylo Nodes are an application that anyone can run on their own server, to help provide network services to Sylo users in a truly private, fully decentralised way. Sylo Nodes currently provide incentivised event relay and will provide additional services in future.
 
-Sylo Nodes are financially incentivized to provide and maintain good service. For good service they receive payouts via Sylo Tickets at a service price, which is set each epoch. 
+Sylo Nodes are financially incentivized to provide and maintain good service. For good service they receive payouts via Sylo Tickets at a service price, which is set each epoch.
 
 Sylo Nodes require Stake before they are eligible to receive work to do.
 
@@ -124,14 +124,14 @@ A node can be staked by the Node’s owner, or by other holders of the SYLO toke
 
 ### Scanning for a node
 
-When a Sylo Node has SYLO Token staked against it, this is recorded in the stake directory. 
+When a Sylo Node has SYLO Token staked against it, this is recorded in the stake directory.
 
 The stake directory is an on-chain data structure that holds information about which Sylo Nodes are staked to provide services in the Sylo Network, and how much SYLO Token is staked against each node.
 
 Any peer with access to the blockchain can see the full list of staked Sylo Nodes, and use the stake directory to determine which node they are assigned to for the current epoch, by a process known as scanning.
 
 
-When a peer wants to identify their Sylo Node, they query the blockchain using a “scan” function. This function takes the peer ID as input, and pseudo-randomly assigns them a Sylo Node. 
+When a peer wants to identify their Sylo Node, they query the blockchain using a “scan” function. This function takes the peer ID as input, and pseudo-randomly assigns them a Sylo Node.
 
 The scan function does this using the following steps:
 
@@ -160,15 +160,16 @@ They reduce the gas overhead of running the on-chain components of the network.T
 
 ## Rewards ###########################################
 
-- TODO This is the new part - need to outline the idea of pushing the payouts into stake until claimed, and the gas-efficient method of accounting we use.
-- Might want to see John's progress on this one to get a sense of how he explains it.
+Rewards gained from redeeming tickets are held in escrow, and will continue to accumulate until either the Node or a delegated staker withdraws their rewards.
+On redeeming a ticket, a portion of the reward is allocated to the Node itself as direct payment for running the Event Relay service. The remaining portion is then split amongst the Node's stakers on a pro-rata basis. Unclaimed staking rewards are also automatically reconsidered as part of the Node's total stake.
 
+Further detail of the staking rewards are calculated over multiple epochs can be found in the [technical specification](spec.md#reward-calculation-and-cumulative-reward-factor).
 
 ## Ticket decay with time ###########################################
 
 To incentivize relays to be delivered as soon as possible, the the mechanism that pays out winning Sylo Tickets is modified, so that the probability of a Ticket winning decreases as the time since the relay request was made increases.
 
-The current blockchain block number is included in each Sylo Ticket when the ticket is issued, and signed by the ticket's sender. This block number defines the start of the ticket's valid duration, and is used to measure time. This trustless measure of elapsed time is then used to modify the ticket's probability of winning, decreasing the ticket's expected value as time goes on. 
+The current blockchain block number is included in each Sylo Ticket when the ticket is issued, and signed by the ticket's sender. This block number defines the start of the ticket's valid duration, and is used to measure time. This trustless measure of elapsed time is then used to modify the ticket's probability of winning, decreasing the ticket's expected value as time goes on.
 
 This creates a direct incentive for Sylo Nodes to perform relay as soon as possible, to maximise their income from performing the service. It similarly incentivises them to invest in throughput and uptime improvements.
 
