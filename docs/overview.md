@@ -53,6 +53,8 @@ Tickets only have a small percentage chance of winning, which means that most Ti
 
 If the Ticket wins, it is worth it's full face value, and can be submitted on-chain to claim that full payout for the sender's funds in escrow. These funds are locked in escrow for a substantial period of time, to ensure that Tickets redeemed in the future will still have funds available to redeem winnings from.
 
+In addition, the owner of the escrow must post penalty escrow, which is burned if the payment escrow is ever empty when a ticket is redeemed. This penalty escrow prevents the owner of the escrow from emptying their own escrow balance into another wallet, as a means of avoiding paying nodes for their work - an attack known as front-running.
+
 The value of a Ticket is it’s expected value: the Ticket's “face value” that is paid out if it wins, multiplied by its probability of winning. By choosing values of these two parameters, these probabilistic micropayment Tickets can be used to pay for arbitrarily small units of work in a gas-efficient way.
 
 ## The Event Relay Protocol ###########################################
@@ -161,15 +163,14 @@ They reduce the gas overhead of running the on-chain components of the network.T
 ## Rewards ###########################################
 
 Rewards gained from redeeming tickets are held in escrow, and will continue to accumulate until either the Node or a delegated staker withdraws their rewards.
-On redeeming a ticket, a portion of the reward is allocated to the Node itself as direct payment for running the Event Relay service. The remaining portion is then split amongst the Node's stakers on a pro-rata basis. Unclaimed staking rewards are also automatically reconsidered as part of the Node's total stake.
+On redeeming a ticket, a portion of the reward is allocated to the Node itself as direct payment for running the Event Relay service. The remaining portion is then split amongst the Node's stakers on a pro-rata basis. Unclaimed staking rewards are also automatically reconsidered as part of the Node's total stake, bringing the Node additional network traffic until that stake is claimed.
 
 Further detail of the staking rewards are calculated over multiple epochs can be found in the [technical specification](spec.md#reward-calculation-and-cumulative-reward-factor).
 
 ## Ticket decay with time ###########################################
 
-To incentivize relays to be delivered as soon as possible, the the mechanism that pays out winning Sylo Tickets is modified, so that the probability of a Ticket winning decreases as the time since the relay request was made increases.
+To incentivize relays to be delivered as soon as possible, the mechanism that pays out winning Sylo Tickets is modified, so that the probability of a Ticket winning decreases as the time since the relay request was made increases.
 
 The current blockchain block number is included in each Sylo Ticket when the ticket is issued, and signed by the ticket's sender. This block number defines the start of the ticket's valid duration, and is used to measure time. This trustless measure of elapsed time is then used to modify the ticket's probability of winning, decreasing the ticket's expected value as time goes on.
 
-This creates a direct incentive for Sylo Nodes to perform relay as soon as possible, to maximise their income from performing the service. It similarly incentivises them to invest in throughput and uptime improvements.
-
+This creates a direct incentive for Sylo Nodes to perform relay as soon as possible, to maximise their income from performing the service. It similarly incentivises them to invest in throughput and uptime improvements, so that they can claim tickets as soon as possible, and earn more from the work that they do.

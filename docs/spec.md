@@ -28,7 +28,7 @@ contracts.
     to an existing Node within the Network in order to increase the Node's
     potential for generating revenue. Delegated Stakers will be rewarded on a
     pro-rata basis.
-  - **Senders**: Senders are uses which hold `SYLO` tokens and wish to utilize
+  - **Senders**: Senders are users who hold `SYLO` tokens and wish to utilize
     Sylo Nodes for their decentralized communication service. Senders must
     deposit `SYLO` tokens into both an `escrow` and `penalty` balance held
     within a smart contract. Nodes will be paid via these balances, and senders
@@ -44,7 +44,7 @@ contracts.
     have "ownership" of the contracts. Ownership allows certain privileged
     functions to be called on the contracts. These functions range from manually
     adjusting network parameters to making the call to initialize the next
-    Epoch. These responsibilities be passed over to a DAO.
+    Epoch. These responsibilities will be passed over to a DAO.
 
 A [sequence diagram showcasing the interactions](contracts_sequence_diagram.png)
 between the users and the contracts is also available.
@@ -60,13 +60,13 @@ this value will result in failure.
 #### **defaultPayoutPercentage**
 
 The payout percentage refers to the percentage of a ticket's face value that
-will be divvied out to a Node's delegated stakers. The remaining value is then
+will be divvied out to a Node's stakers. The remaining value is then
 given to the Node as a fee for providing Event Relay service.
 
 Example:
 
 If this value was set to `40%`, and a ticket's value was `1000 SOLO`. Then on
-redeeming a ticket, `400 SOLO` would be set aside for delegated stakers, and the
+redeeming a ticket, `400 SOLO` would be set aside for those who have stake in the Node, and shared out in proportion to the amount staked. The
 remaining (`600 SOLO`) is given directly to the Node.
 
 The `defaultPayoutPercentage` parameter is the default value for this. **Note**:
@@ -90,7 +90,7 @@ Changes to this value will only take effect in the next epoch.
 #### **expiredWinProb**
 
 The probability of a ticket winning after the ticket's entire duration has
-elapsed.
+elapsed. (Payouts for expired tickets are not currently implemented).
 
 Changes to this value will only take effect in the next epoch.
 
@@ -119,16 +119,16 @@ withdrawn (once the unlocking phase has begun).
 #### **minimumStakeProportion**
 
 The minimum amount of stake a Node must own for itself, expressed as a
-percentage of the Node's overall delegated stake. This requirement must always
-be must met whenever the Node unlock stake, or if other delegators attempt to
+percentage of the Node's overall stake. This requirement must always
+be must met whenever the Node unlocks stake, or if other delegators attempt to
 add more stake to the Node. Failing to meet this requirement will prevent the
 Node from participating in the next epoch.
 
 Example:
 
 A minimum stake proportion of `20%` indicates that the Node must own 20% of its
-total delegated stake. Thus if the stake total was `1000 SOLO`, then the must
-own at least `200 SOLO` to participate in the network.
+total stake. Thus if the stake total was `1000 SOLO`, then the Node must
+own at least `200 SOLO` of this stake to participate in the network.
 
 ## Smart Contract Specification
 
@@ -256,8 +256,8 @@ parameters which are configured by Nodes themselves.
 | Field | Description |
 |-------|-------------|
 | multiAddr | The libp2p multi address of the Node. This is needed for clients to connect to their Node. Nodes should take care to ensure this value is correct and up to date |
-| payoutPercentage | Percentage that of a redeemed tickets value that will be paid out to the Node's delegated stakers. **This value is currently unused and is superseded by the *defaultPayoutPercentage* network parameter for phase two**.
-| minDelegatedStake | The minimum amount of stake a delegated staker must put forth |
+| payoutPercentage | Percentage of a redeemed tickets value that will be paid out to the Node's delegated stakers. **This value is currently unused and is superseded by the *defaultPayoutPercentage* network parameter for phase two**.
+| minDelegatedStake | The minimum amount of stake a delegated staker must put forth|
 
 
 ### Functions
@@ -341,10 +341,10 @@ next epoch. This function allows the stake delegated to a Node be used in the
 `scan` function. It will create and append a `DirectoryEntry` based on the sum
 of the total managed stake the Node has, plus any unclaimed staking rewards.
 
-There are no explicit parameters for this function though only allows a Node to
+There are no explicit parameters for this function, though it only allows a Node to
 call this function once per epoch. It is in the Node's best interest to call
 this function near the end of the current epoch, in order to maximize the amount
-of unclaimed reward that can be used for the directory entry.
+of unclaimed reward that can be included as stake in the next Epoch's directory entry.
 
 #### *scan*
 
@@ -376,7 +376,7 @@ reward pool based on the sum of the total managed stake the Node has. The new
 reward pool will also read the `cumulativeRewardFactor` from the previous pool
 and begin tracking a new factor for the next epoch.
 
-There are no explicit parameters for this function though only allows a Node to
+There are no explicit parameters for this function, though it only allows a Node to
 call this function once per epoch. It is in the Node's best interest to call
 this function near the end of the current epoch, in order to maximize the amount
 of unclaimed reward that can be used for the directory entry.
@@ -398,7 +398,7 @@ epoch begins
 
 A public function `calculateStakerClaim` is exposed by the `RewardsManager`
 contract which allows users to understand the amount in `SOLO` gained if they
-were to call `claimStakingReward`. As this will also remove the users unclaimed
+were to call `claimStakingReward`. As claiming rewards will also remove the users unclaimed
 reward from being used in the total active stake for the next epoch, users may
 wish to wait until the reward value is high enough to offset gas costs.
 
@@ -444,7 +444,7 @@ face value of the ticket will be paid out from the escrow.
 This function should be called in conjunction with `depositEscrow` to also hold
 a `penalty` amount in escrow. When winning tickets are redeemed, if the face
 value of a ticket is greater than the sender's escrow, then the penalty will be
-burned instead. This is to prevent certain economic attacks. [Further detail
+burned instead. This is to prevent an  economic attack on the probabilistic micropayment mechanism called front-running. [Further detail
 with regards to the economics of the Sylo Network can be found in the
 overview](overview.md).
 
@@ -502,7 +502,7 @@ ticket's [baseLiveWinProb](#baseLiveWinProb) and the number of blocks that has
 elapsed since the ticket was generated. The ticket's parameters are retrieved
 from the Epoch the ticket is associated with. The calculation is as follows:
 
-<img src="https://render.githubusercontent.com/render/math?math=p=baseLiveWinProb - baseLiveProb * decayRate * blocksElapsed / ticektDuration">
+<img src="https://render.githubusercontent.com/render/math?math=p=baseLiveWinProb - baseLiveProb * decayRate * blocksElapsed / ticketDuration">
 
 | Param | Description |
 |-------|-------------|
