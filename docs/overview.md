@@ -2,10 +2,9 @@
 
 **Protocol and Economic Incentives For Decentralized Communications Infrastructure**
 
-Paul Freeman            <paul@sylo.io>
-John Carlo San Pedro    <john@sylo.io>
-Joshua Dawes            <josh@sylo.io>
-
+Paul Freeman            <paul@sylo.io> </br>
+John Carlo San Pedro    <john@sylo.io> </br>
+Joshua Dawes            <josh@sylo.io> </br>
 
 
 ## Table of Contents ###########################################
@@ -111,7 +110,7 @@ In order to be allocated work on the Sylo Network, nodes must have SYLO Tokens s
 
 Staking is important because it ensures that the owners of nodes have a financial stake in the overall network. Staking ensures that node owners’ incentives align with the network as a whole - taking actions that add value to the network adds value to their stake, and taking actions that harm the network reduces the value of their stake.
 
-Stakers can initiate the withdrawal of their stake at any time, but the stake is “locked in” for a period of time before it is withdrawn, to ensure that speculators cannot take short-term control of the network’s services in order to manipulate them for profit.
+Stakers can initiate the withdrawal of their stake at any time, but the stake is locked in for a period of time before it is withdrawn, to ensure that speculators cannot take short-term control of the network’s services in order to manipulate them for profit.
 
 Staking against a node does two things:
 - It increases the amount of traffic that the node receives from the network, increasing that node’s income.
@@ -137,7 +136,7 @@ When a peer wants to identify their Sylo Node, they query the blockchain using a
 
 The scan function does this using the following steps:
 
-- Compute the hash of the peer id, concatenated with the current epoch number and the peer’s on-chain channel number. This hash can be mapped to a pseudo-random number between 0 and 1. It is unique to each peer, and changes each epoch.
+- Compute the hash of the peer ID, concatenated with the current epoch number and the peer’s on-chain channel number. This hash can be mapped to a pseudo-random number between 0 and 1. It is unique to each peer, and changes each epoch.
 - Multiply the total amount of stake in the stake tree by this random number, to produce a number between 0 and total_staked.
 - Binary search the stake directory to find which node is associated with the number produced above, returning that node.
 
@@ -157,7 +156,7 @@ At the start of each epoch, the stake directory is updated based on all staking 
 
 Epochs have several benefits:
 
-They reduce the gas overhead of running the on-chain components of the network.They also provide a predictable time for changes to come into effect, simplifying the process of peers monitoring the network for changes - e.g.  has my Node changed?
+They reduce the gas overhead of running the on-chain components of the network. They also provide a predictable time for changes to come into effect, simplifying the process of peers monitoring the network for changes - e.g.  has my Node changed?
 
 
 ## Rewards ###########################################

@@ -1,5 +1,20 @@
 # Sylo Network Protocol Technical Specification
 
+Paul Freeman            <paul@sylo.io> </br>
+John Carlo San Pedro    <john@sylo.io> </br>
+Joshua Dawes            <josh@sylo.io> </br>
+
+## Table of Contents
+
+* [Introduction](#introduction)
+* [Users](#users)
+* [Network Parameters](#network-parameters)
+* [Snart Contract Specification](#smart-contract-specification)
+	* [Data Types](#data-types)
+	* [Functions](#functions)
+* [Deployment Timeline](#deployment-timeline)
+* [Appendix](#appendix)
+
 ## Introduction
 
 The Sylo Network Protocol is a suite of smart contracts deployed on Ethereum,
@@ -51,6 +66,10 @@ A [sequence diagram showcasing the interactions](contracts_sequence_diagram.png)
 between the users and the contracts is also available.
 
 ## Network Parameters
+
+The following network parameters will be manually set and adjusted by the Sylo
+Team over the course of phase two. Note: `SYLO` token parameters are all
+specified in [`SOLO`](#sylo/solo) units instead.
 
 #### **epochDuration**
 
@@ -503,7 +522,7 @@ ticket's [baseLiveWinProb](#baseLiveWinProb) and the number of blocks that has
 elapsed since the ticket was generated. The ticket's parameters are retrieved
 from the Epoch the ticket is associated with. The calculation is as follows:
 
-<img src="https://render.githubusercontent.com/render/math?math=p=baseLiveWinProb - baseLiveProb * decayRate * blocksElapsed / ticketDuration">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=p=baseLiveWinProb - baseLiveProb * decayRate * blocksElapsed / ticketDuration">
 
 | Param | Description |
 |-------|-------------|
@@ -529,7 +548,44 @@ This function is used in conjunction with
 [calculateWinningProbability](#calculateWinningProbability) to determine the
 `winProb` parameter.
 
+## Deployment Timeline
+
+The Sylo Network will be updated in [three major phases](https://sylo.io/newsroom/article/sylo-network-incentivisation-release-plan). The first phase involves
+deploying the Sylo Token erc21 contract, and increasing liquidity for
+the token through various means. This phase has completed. The current set of
+contracts is scoped for **phase two**.
+
+### Phase Two
+
+The second phase includes a deployment of the Sylo Network contracts onto the
+Ethereum mainnet, as well as a mechanism to incentivize Sylo Node operators in
+order to bootstrap the network. This mechanism involves the Sylo Team running
+their own Nodes that periodically generate artificial work for the network.
+This artificial work will follow the exact same process specified in the
+Event Relay Protocol, and from a Node Operator's perspective will look exactly
+the same as "real" work.
+
+This phase allows the Sylo Team to have more time to integrate the Event
+Relay Protocol into real applications, such as the Sylo Wallet. It also
+allows us to discover any flaws or learnings from the current system. Phase
+two does not require all network/economic mechanisms to be present in the system,
+and as such has not been fully realized in the contracts yet. This includes:
+  - **Payouts for expired tickets**. Artificial work will be generated from
+  Nodes that the Sylo Team operates and should always be online. There should
+  not be a case where a winning ticket is redeemed much later than the time it
+  was generated.
+  - **Slashing/Stake Distribution**. This is a complex process that will likely
+  benefit from the learnings gained in phase two. Additionally as the work is
+  artificial for phase two, there is no gain from having this system in place
+  yet.
+
 ## Appendix
+
+### SYLO/SOLO
+
+A single `SYLO` token refers `10**18 SOLO`. This mirrors the `ETH/WEI`
+representation. All function parameters and data types that work with
+token values are represented in `SOLO`.
 
 ### Reward Calculation and Cumulative Reward Factor
 
@@ -560,7 +616,7 @@ the other stakers can be seen in the table below:
 It is simple enough to calculate each staker's share of the reward for an epoch
 (and thus their updated stake total) manually.
 
-<img src="https://render.githubusercontent.com/render/math?math=aliceStake_1 = 5 %2B 10 * 5/20 = 7.5">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_1 = 5 %2B 10 * 5/20 = 7.5">
 
 Alice’s stake at the end of an epoch can be determined by multiplying alice’s
 proportion of stake held stake at the previous epoch, against the reward gained
@@ -569,11 +625,11 @@ epoch.
 
 Similarly for epoch 2, we can perform:
 
-<img src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = aliceStake_1 %2B 8 * \frac{aliceStake_1}{30}">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = aliceStake_1 %2B 8 * \frac{aliceStake_1}{30}">
 
 Substituting `aliceStake(1)` for the original calculation gives us:
 
-<img src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = 5 %2B 10 * 5/20 %2B 8 * \frac{5 %2B 10 * 5/20}{30} = 9.5">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = 5 %2B 10 * 5/20 %2B 8 * \frac{5 %2B 10 * 5/20}{30} = 9.5">
 
 The problem with calculating the reward distribution with this approach, is that
 staker's are naturally incentivized to continue staking against a Node before
@@ -589,18 +645,18 @@ To solve this issue, a cumulative reward factor variable is introduced. If we
 examine the above calculations we can notice that Alice's initial stake of `5`
 is a constant and the calculation can be easily simplified.
 
-<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1 %2B \frac{10}{20}"> </br>
-<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1 %2B \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1 %2B \frac{10}{20}"> </br>
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1 %2B \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
 
 and simplifying:
 
-<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1.5"> </br>
-<img src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1.9">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1.5"> </br>
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1.9">
 
 We can use the values of `1.5` and `1.9` to calculate Bob's stake value as well.
 
-<img src="https://render.githubusercontent.com/render/math?math=bobStake_1 = 1.5 * 15 = 22.5"> </br>
-<img src="https://render.githubusercontent.com/render/math?math=bobStake_2 = 1.9 * 15 = 28.5">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=bobStake_1 = 1.5 * 15 = 22.5"> </br>
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=bobStake_2 = 1.9 * 15 = 28.5">
 
 Thus if we store the values of `1.5` and `1.9` for every epoch, the contract can
 calculate the update stake values without needing to iterate through all
@@ -611,28 +667,28 @@ The contract can rely on the previous epoch's CRF to calculate the current CRF.
 Going back to previous equations we can see that the CRF calculated in epoch 2
 can be derived from the CRF in epoch 1:
 
-<img src="https://render.githubusercontent.com/render/math?math=CRF_1 = 1 %2B \frac{10}{20}"> </br>
-<img src="https://render.githubusercontent.com/render/math?math=CRF_2 = 1 %2B \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_1 = 1 %2B \frac{10}{20}"> </br>
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_2 = 1 %2B \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
 
 Substituting `CRF(1)` into the equation for `CRF(2)` and also referring to the
 reward gained in epoch 2 as `R(2)` and the active stake at epoch 2 as `S(2)`, we
 get:
 
-<img src="https://render.githubusercontent.com/render/math?math=CRF_2 = CRF_1 %2B R_2 * \frac{CRF_1}{S_2}">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_2 = CRF_1 %2B R_2 * \frac{CRF_1}{S_2}">
 
 Or simplified further:
 
-<img src="https://render.githubusercontent.com/render/math?math=CRF_n = CRF_{n-1} %2B CRF_{n-1} * \frac{Rn}{Sn}">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_n = CRF_{n-1} %2B CRF_{n-1} * \frac{Rn}{Sn}">
 
 So if `R(3) = 12`, and `S(3) = 38`, then:
 
-<img src="https://render.githubusercontent.com/render/math?math=CRF_3 = 1.9 %2B 1.9 * 12 / 38">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_3 = 1.9 %2B 1.9 * 12 / 38">
 
 We can then use the value of CRF(3) to calculate Alice's and Bob's updated stake
 values at the end of epoch 3 respectively:
 
-<img src="https://render.githubusercontent.com/render/math?math=aliceStake_3 = 5 * 2.5 = 12 5"></br>
-<img src="https://render.githubusercontent.com/render/math?math=bobStake_3 = 15 * 2.5 = 37.5">
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_3 = 5 * 2.5 = 12 5"></br>
+<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=bobStake_3 = 15 * 2.5 = 37.5">
 
 
 **Notes**:
@@ -644,41 +700,10 @@ values at the end of epoch 3 respectively:
   the CRF value is just calculated as `CRF = Reward / TotalStake`. This also
   means that the formula used to calculate slightly differs in the contract
   implementation as well, where it is actually: </br>
-  <img src="https://render.githubusercontent.com/render/math?math=stake_n = stake_m *CRF_n / CRF_m"> </br> where `m` refers to the epoch the user's stake first
+  <img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=stake_n = stake_m *CRF_n / CRF_m"> </br> where `m` refers to the epoch the user's stake first
   became active
 - The actual CRF value used to calculate a user's reward is of the most current,
   **not** the CRF value at the **end** of the epoch. The implication of this is
   that if a user claims their reward (or changes their stake) earlier in the
   epoch, and the Node continues to redeem tickets throughout the rest of the
   epoch, that user will not be eligible claim any of those rewards.
-
-### Deployment Timeline
-
-The Sylo Network will be updated in [three major phases](https://sylo.io/newsroom/article/sylo-network-incentivisation-release-plan). The first phase involves
-deploying the Sylo Token erc21 contract, and increasing liquidity for
-the token through various means. This phase has completed. The current set of
-contracts is scoped for **phase two**.
-
-#### Phase Two
-
-The second phase includes a deployment of the Sylo Network contracts onto the
-Ethereum mainnet, as well as a mechanism to incentivize Sylo Node operators in
-order to bootstrap the network. This mechanism involves the Sylo Team running
-their own Nodes that periodically generate artificial work for the network.
-This artificial work will follow the exact same process specified in the
-Event Relay Protocol, and from a Node Operator's perspective will look exactly
-the same as "real" work.
-
-This phase allows the Sylo Team to have more time to integrate the Event
-Relay Protocol into real applications, such as the Sylo Wallet. It also
-allows us to discover any flaws or learnings from the current system. Phase
-two does not require all network/economic mechanisms to be present in the system,
-and as such has not been fully realized in the contracts yet. This includes:
-  - **Payouts for expired tickets**. Artificial work will be generated from
-  Nodes that the Sylo Team operates and should always be online. There should
-  not be a case where a winning ticket is redeemed much later than the time it
-  was generated.
-  - **Slashing/Stake Distribution**. This is a complex process that will likely
-  benefit from the learnings gained in phase two. Additionally as the work is
-  artificial for phase two, there is no gain from having this system in place
-  yet.
