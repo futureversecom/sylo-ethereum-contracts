@@ -106,8 +106,6 @@ Sylo Node runners provide Node Staking. Sylo users can stake toward Nodes via De
 
 Using the total amount staked to Nodes across the Network, the Stake Directory is updated each epoch. The Stake Directory is used by the stake-weighted scan function for users to know which Node is assigned to which user.
 
-In order to be allocated work on the Sylo Network, nodes must have SYLO Tokens staked against them on-chain. These tokens are still owned by the person who staked them, but are locked in a smart contract for a period of time.
-
 Staking is important because it ensures that the owners of nodes have a financial stake in the overall network. Staking ensures that node owners’ incentives align with the network as a whole - taking actions that add value to the network adds value to their stake, and taking actions that harm the network reduces the value of their stake.
 
 Stakers can initiate the withdrawal of their stake at any time, but the stake is locked in for a period of time before it is withdrawn, to ensure that speculators cannot take short-term control of the network’s services in order to manipulate them for profit.
