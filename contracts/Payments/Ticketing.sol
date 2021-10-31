@@ -230,7 +230,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
 
-        require(isWinningTicket(sig, ticket, redeemerRand), "Ticket is not a winner");
+        require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
@@ -248,12 +248,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     function isWinningTicket(
         bytes memory sig,
         Ticket memory ticket,
+        uint256 senderRand,
         uint256 redeemerRand
     ) public view returns (bool) {
         uint256 winProb = calculateWinningProbability(ticket);
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
         uint256 prob = uint256(winProb) << 128 | uint256(winProb);
-        return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
+        return uint256(keccak256(abi.encodePacked(sig, senderRand, redeemerRand))) < prob;
     }
 
     function calculateWinningProbability(
