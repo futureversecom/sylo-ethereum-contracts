@@ -49,7 +49,8 @@ contracts.
     deposit `SYLO` tokens into both an `escrow` and `penalty` balance held
     within a smart contract. Nodes will be paid via these balances, and senders
     are required to maintain a healthy level of both `escrow` and `penalty` to
-    be able to participate in the network.
+    be able to participate in the network. The contracts and event relay service
+    allows for the `escrow` to be deposited by a third-party.
   - **Receivers**: Receivers do not explicitly interact with the contracts but
     play a critical role in the Event Relay protocol. On receiving an event,
     receivers will reveal the necessary information in order for a Node to
@@ -122,7 +123,7 @@ Changes to this value will only take effect in the next epoch.
 
 #### **decayRate**
 
-The rate at which a ticket's winning probability will decay over its lifetime,
+The rate at which a ticket's winning probability will decay over its `ticketDuration`,
 expressed as a percentage.
 
 Example:
@@ -551,7 +552,7 @@ This function is used in conjunction with
 ## Deployment Timeline
 
 The Sylo Network will be updated in [three major phases](https://sylo.io/newsroom/article/sylo-network-incentivisation-release-plan). The first phase involves
-deploying the Sylo Token erc21 contract, and increasing liquidity for
+deploying the Sylo Token ERC20 contract, and increasing liquidity for
 the token through various means. This phase has completed. The current set of
 contracts is scoped for **phase two**.
 
@@ -578,6 +579,13 @@ and as such has not been fully realized in the contracts yet. This includes:
   benefit from the learnings gained in phase two. Additionally as the work is
   artificial for phase two, there is no gain from having this system in place
   yet.
+
+### Phase Three
+
+Along with implementing the missing functionality stated above, phase three
+will also likely involve a transition of ownership/management of the contracts
+to a DAO. The Sylo Network will be completely autonomous and decentralized
+at this point.
 
 ## Appendix
 

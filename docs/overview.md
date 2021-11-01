@@ -3,9 +3,9 @@
 **Protocol and Economic Incentives For Decentralized Communications
 Infrastructure**
 
-Paul Freeman            <paul@sylo.io> </br> John Carlo San Pedro
-<john@sylo.io> </br> Joshua Dawes            <josh@sylo.io> </br>
-
+Paul Freeman            <paul@sylo.io> </br>
+John Carlo San Pedro    <john@sylo.io> </br>
+Joshua Dawes            <josh@sylo.io> </br>
 
 ## Table of Contents ###########################################
 
