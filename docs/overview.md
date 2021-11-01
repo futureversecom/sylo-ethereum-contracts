@@ -40,6 +40,9 @@ very small units of work, off-chain.
 An Epoch is the main unit of time in the Sylo Network, measured as a number of
 on-chain blocks.
 
+The Sylo Network is currently in [phase two](spec.md#phase-two) of its
+deployment.
+
 
 ## Probabilistic Micropayments ###########################################
 
@@ -231,6 +234,8 @@ When a peer wants to identify their Sylo Node, they query the blockchain using a
 “scan” function. This function takes the peer ID as input, and pseudo-randomly
 assigns them a Sylo Node.
 
+#### Scanning Process
+
 The scan function does this using the following steps:
 
 - Compute the hash of the peer ID, concatenated with the current epoch number
@@ -312,3 +317,34 @@ This creates a direct incentive for Sylo Nodes to perform relay as soon as
 possible, to maximize their income from performing the service. It similarly
 incentivizes them to invest in throughput and uptime improvements, so that they
 can claim tickets as soon as possible, and earn more from the work that they do.
+
+## Future Work
+
+### Stake Redistribution
+
+To further incentivize the performance of Nodes, a stake redistribution
+mechanism will be introduced that punishes Nodes for failing to deliver
+event relays.
+
+Nodes that perform relay accumulate evidence of completing those relays, in the
+form of cryptographically signed "receipts" from sending peers, which they keep
+until the end of the epoch. These "receipts" can submitted to the blockchain
+as proof of servicing relay requests. The number of receipts that must be
+submitted will be proportional to the total stake against the Node, as more
+stake indicates that the Node should be receiving more traffic. Failing to
+submit sufficient evidence will result in the Node's stake being redistributed
+to other high performing Nodes.
+
+This mechanism is still a work in progress and will not be implemented for
+phase two as the network traffic will not involve real users.
+
+### Channels
+
+Economic incentives should generally prevent any one Node from offering
+a substandard relay service. However, in the case that a user wishes to
+switch service providers, the user can set an on-chain integer value
+known as a `channel`. Senders can retrieve the `channel` value for a user,
+and include that value when computing the hash used in the
+[scanning process](#scanning-process). The default channel value would be
+0, but any non-zero value would result in a different Node being returned
+from the scan output.
