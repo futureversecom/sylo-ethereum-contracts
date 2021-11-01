@@ -1049,8 +1049,7 @@ describe('Ticketing', () => {
     const expectedProbability = 100000 - (0.5 * 0.8 * 100000);
 
     const decayedProbability = await ticketing.calculateWinningProbability(
-      ticket,
-      await epochsManager.getEpoch(ticket.epochId)
+      ticket
     );
 
     assert.equal(
@@ -1176,6 +1175,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom()
 
+    await epochsManager.initializeEpoch();
+
     const { ticket } =
       await createWinningTicket(alice, owner);
 
@@ -1183,8 +1184,7 @@ describe('Ticketing', () => {
     await utils.advanceBlock(21);
 
     const p = await ticketing.calculateWinningProbability(
-      ticket,
-      await epochsManager.getEpoch(ticket.epochId)
+      ticket
     );
 
     assert.equal(

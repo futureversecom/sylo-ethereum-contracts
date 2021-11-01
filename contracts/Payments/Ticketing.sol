@@ -173,7 +173,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         bytes32 ticketHash = getTicketHash(ticket);
 
-        requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig, epoch);
+        requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
 
         Listings.Listing memory listing = _listings.getListing(ticket.redeemer);
         require(listing.initialized == true, "Ticket redeemer must have a valid listing");
@@ -208,8 +208,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes32 ticketHash,
         uint256 senderRand,
         uint256 redeemerRand,
-        bytes memory sig,
-        EpochsManager.Epoch memory epoch
+        bytes memory sig
     ) public view {
         require(ticket.sender != address(0), "Ticket sender is null");
         require(ticket.redeemer != address(0), "Ticket redeemer is null");
@@ -231,8 +230,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
 
-        uint128 remainingProbability = calculateWinningProbability(ticket, epoch);
-        require(isWinningTicket(sig, redeemerRand, remainingProbability), "Ticket is not a winner");
+        require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
@@ -249,18 +247,27 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     function isWinningTicket(
         bytes memory sig,
-        uint256 redeemerRand,
-        uint128 winProb
-    ) public pure returns (bool) {
+        Ticket memory ticket,
+        uint256 senderRand,
+        uint256 redeemerRand
+    ) public view returns (bool) {
+        uint256 winProb = calculateWinningProbability(ticket);
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
         uint256 prob = uint256(winProb) << 128 | uint256(winProb);
-        return uint256(keccak256(abi.encodePacked(sig, redeemerRand))) < prob;
+        return uint256(keccak256(abi.encodePacked(sig, senderRand, redeemerRand))) < prob;
     }
 
     function calculateWinningProbability(
-        Ticket memory ticket,
-        EpochsManager.Epoch memory epoch
+        Ticket memory ticket
     ) public view returns (uint128) {
+        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
+        require(epoch.startBlock > 0, "Ticket's associated epoch does not exist");
+        require(
+            ticket.generationBlock >= epoch.startBlock &&
+                (epoch.endBlock > 0 ? ticket.generationBlock < epoch.endBlock : true),
+            "This ticket was not generated during it's associated epoch"
+        );
+
         uint256 elapsedDuration = block.number - ticket.generationBlock;
 
         // Ticket has completely expired
