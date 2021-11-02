@@ -10,10 +10,10 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * The Directory contract constructs and manages a structure holding the current stakes,
+ * @notice The Directory contract constructs and manages a structure holding the current stakes,
  * which is queried against using the scan function. The scan function allows submitting
  * random points which will return a staked node's address in proportion to the stake it has.
-*/
+ */
 contract Directory is Initializable, OwnableUpgradeable {
     /** Sylo Staking Manager contract */
     StakingManager public _stakingManager;
@@ -26,6 +26,11 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 boundary;
     }
 
+    /**
+     * @dev A Directory will be stored for every epoch. The directory will be
+     * constructed piece by piece as Nodes join, each adding their own
+     * directory entry based on their current stake value.
+     */
     struct Directory {
         DirectoryEntry[] entries;
 
@@ -34,9 +39,14 @@ contract Directory is Initializable, OwnableUpgradeable {
         uint256 totalStake;
     }
 
+    /**
+     * @notice The epoch ID of the current directory.
+     */
     uint256 public currentDirectory;
 
-    // Directories are indexed by the associated epoch's id
+    /**
+     * @notice Tracks every directory, which will be indexed by an epoch ID
+     */
     mapping (uint256 => Directory) public directories;
 
     function initialize(
@@ -48,13 +58,22 @@ contract Directory is Initializable, OwnableUpgradeable {
         _rewardsManager = rewardsManager;
     }
 
+    /**
+     * @notice This function should be called when a new epoch is initialized.
+     * This will set the current directory the specified epoch. This is only
+     * callable by the owner of this contract, which should be the EpochsManager
+     * contract.
+     * @dev After deployment, the EpochsManager should immediately be set as
+     * the owner.
+     * @param epochId The ID of the specified epoch.
+     */
     function setCurrentDirectory(uint256 epochId) public onlyOwner {
         currentDirectory = epochId;
     }
 
     /**
-     * This function is called by a node as a prerequiste to participate in the next epoch.
-     * This will construct the directory as nodes join. The directory is constructed
+     * @notice This function is called by a node as a prerequisite to participate in the next epoch.
+     * @dev This will construct the directory as nodes join. The directory is constructed
      * by creating a boundary value which is a sum of the current directory's total stake, and
      * the current stakee's total stake, and pushing the new boundary into the entries array.
      * The previous boundary and the current boundary essentially create a range, where if a
@@ -98,6 +117,14 @@ contract Directory is Initializable, OwnableUpgradeable {
         directories[epochId].totalStake = nextBoundary;
     }
 
+    /**
+     * @notice Call this to perform a stake-weighted scan to find the Node assigned
+     * to the given point.
+     * @dev The current implementation will perform a binary search through
+     * the directory. This can allow gas costs to be low if this needs to be
+     * used in a transaction.
+     * @param point The point, which will usually be a hash of a public key.
+     */
     function scan(uint128 point) public view returns (address stakee) {
         if (directories[currentDirectory].entries.length == 0) {
             return address(0);
@@ -127,14 +154,31 @@ contract Directory is Initializable, OwnableUpgradeable {
         }
     }
 
+    /**
+     * @notice Retrieve the total stake a Node has for the directory in the
+     * specified epoch.
+     * @param epochId The ID of the epoch.
+     * @param stakee The address of the Node.
+     * @return The amount of stake the Node has for the given directory in SOLO.
+     */
     function getTotalStakeForStakee(uint256 epochId, address stakee) public view returns (uint256) {
         return directories[epochId].stakes[stakee];
     }
 
+    /**
+     * @notice Retrieve the total stake for a directory in the specified epoch, which
+     * will be the sum of the stakes for all Nodes participating in that epoch.
+     * @param epochId The ID of the epoch.
+     * @return The total amount of stake in SOLO.
+     */
     function getTotalStake(uint256 epochId) public view returns (uint256) {
         return directories[epochId].totalStake;
     }
 
+    /**
+     * @notice Retrieve all entries for a directory in a specified epoch.
+     * @return An array of all the directory entries.
+     */
     function getEntries(uint256 epochId) public view returns (address[] memory, uint256[] memory) {
         address[] memory stakees = new address[](directories[epochId].entries.length);
         uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);

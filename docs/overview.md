@@ -238,10 +238,10 @@ assigns them a Sylo Node.
 
 The scan function does this using the following steps:
 
-- Compute the hash of the peer ID, concatenated with the current epoch number
-  and the peer’s on-chain channel number. This hash can be mapped to a
-  pseudo-random number between 0 and 1. It is unique to each peer, and changes
-  each epoch.
+- Compute the hash of the peer ID of the recipient, concatenated with
+  the current epoch number and the peer’s on-chain channel number.
+  This hash can be mapped to a pseudo-random number between 0 and 1. It is
+  unique to each peer, and changes each epoch.
 - Multiply the total amount of stake in the stake tree by this random number, to
   produce a number between 0 and total_staked.
 - Binary search the stake directory to find which node is associated with the
