@@ -37,8 +37,8 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     /**
      * @notice Payout percentage refers to the portion of a tickets reward
-     * that will be allocated to the Node's stakers. This global, and is
-     * currently set for all Nodes for phase two.
+     * that will be allocated to the Node's stakers. This is global, and is
+     * currently set for all Nodes.
      */
     uint16 public defaultPayoutPercentage;
 

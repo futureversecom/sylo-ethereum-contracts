@@ -60,7 +60,7 @@ contract Directory is Initializable, OwnableUpgradeable {
 
     /**
      * @notice This function should be called when a new epoch is initialized.
-     * This will set the current directory the specified epoch. This is only
+     * This will set the current directory to the specified epoch. This is only
      * callable by the owner of this contract, which should be the EpochsManager
      * contract.
      * @dev After deployment, the EpochsManager should immediately be set as

@@ -89,7 +89,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
     /**
      * @notice Minimum amount of stake that a Node needs to stake
      * against itself in order to participate in the network. This is
-     * represented as a percentage of the Node's total stake.
+     * represented as a percentage of the Node's total stake, where
+     * the value is a ratio of 10000.
      */
     uint16 public minimumStakeProportion;
 
@@ -131,7 +132,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * this will trigger an automatic claim of any outstanding staking
      * rewards. This function will fail under the following conditions:
      *   - If the Node address is invalid
-     *   - If the the specified stake value is zero
+     *   - If the specified stake value is zero
      *   - If the additional stake causes the Node to fail to meet the
      *     minimum stake proportion requirement.
      * @param amount The amount of stake to add in SOLO.
@@ -184,7 +185,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      *   - If the unlock amount is more than what is staked
      * Note: If calling as a Node, this function will *not* revert if it causes
      * the Node to fail to meet the minimum stake proportion. However it will still
-     * prevent the Node from participating in the network until the minimum is meet
+     * prevent the Node from participating in the network until the minimum is met
      * again.
      * @param amount The amount of stake to unlock in SOLO.
      * @param stakee The address of the staked Node.

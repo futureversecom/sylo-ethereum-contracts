@@ -9,7 +9,7 @@ Joshua Dawes            <josh@sylo.io> </br>
 * [Introduction](#introduction)
 * [Users](#users)
 * [Network Parameters](#network-parameters)
-* [Snart Contract Specification](#smart-contract-specification)
+* [Smart Contract Specification](#smart-contract-specification)
 	* [Data Types](#data-types)
 	* [Functions](#functions)
 * [Deployment Timeline](#deployment-timeline)

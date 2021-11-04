@@ -25,7 +25,8 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
     /**
      * @notice The probability of a ticket winning after it has expired.
      * This is a uint128 value representing the numerator in the probability
-     * ratio where 2^128 - 1 is the denominator.
+     * ratio where 2^128 - 1 is the denominator. Note: Redeeming expired
+     * tickets is currently not supported.
      */
     uint128 public expiredWinProb;
 

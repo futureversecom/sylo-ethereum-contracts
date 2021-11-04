@@ -22,7 +22,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
-    /** ERC 20 compatible token we are dealing with */
+    /** ERC20 Sylo token contract. */
     IERC20 public _token;
 
     /** Sylo Staking Manager contract. */
@@ -53,15 +53,15 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
     /**
      * @notice Tracks the last epoch a delegated staker made a reward claim in.
-     * They key to this mapping is a hash of the Node's address and the delegated
+     * The key to this mapping is a hash of the Node's address and the delegated
      * stakers address.
      */
     mapping (bytes32 => uint256) public lastClaims;
 
     /**
      * @dev This type will hold the necessary information for delegated stakers
-     * to make reward claims against their Node. There should be an independent
-     * for every Node participating in an epoch.
+     * to make reward claims against their Node. Every Node will initialize
+     * and store a new Reward Pool for each they participate in.
      */
     struct RewardPool {
         // Tracks the balance of the reward pool owed to the stakers
@@ -84,7 +84,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
 
     /**
      * @notice Tracks each reward pool initialized by a Node. The key to this map
-     * derived from the epochId and the Node's address.
+     * is derived from the epochId and the Node's address.
      */
     mapping (bytes32 => RewardPool) public rewardPools;
 
@@ -93,7 +93,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * contracts, namely the Ticketing contract.
      * We use this mapping to restrict access to those functions in a similar
      * fashion to the onlyOwner construct. The stored value is the block the
-     * managing was contract was added in.
+     * managing contract was added in.
      */
     mapping (address => uint256) public managers;
 
@@ -153,7 +153,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Retrieve the total accumulated that will be distributed to a Node's
+     * @notice Retrieve the total accumulated reward that will be distributed to a Node's
      * delegated stakers for a given epoch.
      * @param epochId The ID of the epoch the reward pool was initialized in.
      * @param stakee The address of the Node.
@@ -198,8 +198,8 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * @notice This is used by Nodes to initialize their reward pool for
      * the next epoch. This function will revert if the caller has no stake, or
      * if the reward pool has already been initialized. The total active stake
-     * for the next reward pool by summing up the total managed stake held by
-     * the RewardsManager contract, plus any unclaimed staking rewards.
+     * for the next reward pool is calculated by summing up the total managed
+     * stake held by the RewardsManager contract, plus any unclaimed staking rewards.
      */
     function initializeNextRewardPool() public {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
