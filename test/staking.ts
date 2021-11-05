@@ -438,26 +438,34 @@ describe('Staking', () => {
   });
 
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
-    for (let i = 0; i < accounts.length; i++) {
+    const numAccounts = 10;
+
+    let totalStake = 0;
+    for (let i = 0; i < numAccounts; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
       await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
       await directory.connect(accounts[i]).joinNextDirectory();
+      totalStake += 1;
     }
 
     await directory.setCurrentDirectory(epochId);
 
+    const iterations = 5000;
+
     let expectedResults: Results = {};
-    for (let i = 0; i < accounts.length; i++) {
-      expectedResults[await accounts[i].getAddress()] = 1/accounts.length * 3000;
+    for (let i = 0; i < numAccounts; i++) {
+      expectedResults[await accounts[i].getAddress()] = 1/totalStake * iterations;
     }
 
-    await testScanResults(3000, expectedResults);
+    await testScanResults(iterations, expectedResults);
   }).timeout(0);
 
   it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
+    const numAccounts = 10;
+
     let totalStake = 0;
-    for (let i = 0; i < accounts.length; i++) {
+    for (let i = 0; i < numAccounts; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
       await stakingManager.connect(accounts[i]).addStake(i + 1, await accounts[i].getAddress());
@@ -467,12 +475,14 @@ describe('Staking', () => {
 
     await directory.setCurrentDirectory(epochId);
 
+    const iterations = 5000;
+
     let expectedResults: Results = {};
-    for (let i = 0; i < accounts.length; i++) {
-      expectedResults[await accounts[i].getAddress()] = (i+1)/totalStake * 3000;
+    for (let i = 0; i < numAccounts; i++) {
+      expectedResults[await accounts[i].getAddress()] = (i+1)/totalStake * iterations;
     }
 
-    await testScanResults(3000, expectedResults);
+    await testScanResults(iterations, expectedResults);
   }).timeout(0);
 
   it('should be able to scan after unlocking all stake [ @skip-on-coverage ]', async () => {
@@ -524,7 +534,9 @@ describe('Staking', () => {
     const chiResult = chi2gof(x, y).toJSON();
 
     if (chiResult.rejected) {
-      assert.fail("Expected scan result to pass goodness-of-fit test");
+      assert.fail("Expected scan result to pass goodness-of-fit test \n" +
+        `Expected: ${JSON.stringify(expectedResults)} \n` +
+        `Actual: ${JSON.stringify(results)} \n`);
     }
   }
 
