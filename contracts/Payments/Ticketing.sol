@@ -13,6 +13,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+/**
+ * @notice The SyloTicketing contract manages the Probabilistic
+ * Micro-Payment Ticketing system that pays Nodes for providing the
+ * Event Relay service.
+ */
 contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     /**
@@ -37,7 +42,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
-    /** ERC 20 compatible token we are dealing with */
+    /** ERC20 Sylo token contract.*/
     IERC20 public _token;
 
     /** Sylo Listings contract */
@@ -53,24 +58,23 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     RewardsManager public _rewardsManager;
 
     /**
-     * Sylo Epochs Manager.
-     * This contract holds various ticketing parameters
+     * @notice Sylo Epochs Manager.
+     * @dev The ticketing parameters used when redeeming tickets
+     * will be read from this contract.
      */
     EpochsManager public _epochsManager;
 
     /**
-     * The number of blocks a user must wait after calling "unlock"
-     * before they can withdraw their funds
+     * @notice The number of blocks a user must wait after calling "unlock"
+     * before they can withdraw their funds.
      */
     uint256 public unlockDuration;
 
-    /** Mapping of user deposits to their address */
+    /** @notice Mapping of user deposits */
     mapping(address => Deposit) public deposits;
 
-    /** Mapping of ticket hashes, used to check if ticket has been redeemed */
+    /** @notice Mapping of ticket hashes, used to check if a ticket has been redeemed */
     mapping (bytes32 => bool) public usedTickets;
-
-    // TODO define events
 
     function initialize(
         IERC20 token,
@@ -91,10 +95,22 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         unlockDuration = _unlockDuration;
     }
 
-    function setUnlockDuration(uint256 newUnlockDuration) public onlyOwner {
-        unlockDuration = newUnlockDuration;
+    /**
+     * @notice Set the unlock duration for deposits. Only callable
+     * by the owner.
+     * @param _unlockDuration The unlock duration in blocks.
+     */
+    function setUnlockDuration(uint256 _unlockDuration) public onlyOwner {
+        unlockDuration = _unlockDuration;
     }
 
+    /**
+     * @notice Use this function to deposit funds into the
+     * escrow. This will fail if the deposit is currently being
+     * unlocked.
+     * @param amount The amount in SOLO to add to the escrow.
+     * @param account The address of the account holding the escrow.
+     */
     function depositEscrow(uint256 amount, address account) public {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
@@ -104,6 +120,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         _token.transferFrom(msg.sender, address(this), amount);
     }
 
+    /**
+     * @notice Use this function to deposit funds into the
+     * penalty. This will fail if the deposit is currently being
+     * unlocked.
+     * @param amount The amount in SOLO to add to the escrow.
+     * @param account The address of the account holding the penalty.
+     */
     function depositPenalty(uint256 amount, address account) public {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
@@ -113,7 +136,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         _token.transferFrom(msg.sender, address(this), amount);
     }
 
-    // Unlock deposits, starting the withdrawl process
+    /**
+     * @notice Call this function to begin unlocking deposits. This function
+     * will fail if no deposit exists, or if the unlock process has
+     * already begun.
+     */
     function unlockDeposits() public returns (uint256) {
 
         Deposit storage deposit = getDeposit(msg.sender);
@@ -125,7 +152,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         return deposit.unlockAt;
     }
 
-    // Cancel the withdrawl process
+    /**
+     * @notice Call this function to cancel any deposit that is in the
+     * unlocking process.
+     */
     function lockDeposits() public {
 
         Deposit storage deposit = getDeposit(msg.sender);
@@ -134,11 +164,21 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         deposit.unlockAt = 0;
     }
 
+    /**
+     * @notice Call this function once the unlock duration has
+     * elapsed in order to transfer the unlocked tokens to the caller's account.
+     */
     function withdraw() public {
         return withdrawTo(msg.sender);
     }
 
-    // Complete the withdrawl process and withdraw the deposits
+    /**
+     * @notice Call this function once the unlock duration has
+     * elapsed in order to transfer the unlocked tokens to the specified
+     * account.
+     * @param account The address of the account the tokens should be
+     * transferred to.
+     */
     function withdrawTo(address account) public {
 
         Deposit storage deposit = getDeposit(msg.sender);
@@ -157,6 +197,20 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         _token.transfer(account, amount);
     }
 
+    /**
+     * @notice Nodes should call this function on completing an event
+     * delivery and having the sender rand revealed. This function will fail if
+     * the ticket is invalid or if the ticket is not a winner. Clients should
+     * calculate if the ticket is a winner locally, but can also us the public view
+     * functions: `requireValidWinningTicket` and `isWinningTicket` to check
+     * that a ticket is winning.
+     * @param ticket The ticket issued by the sender.
+     * @param senderRand The sender random value, revealed on completing an event
+     * relay.
+     * @param redeemerRand The redeemer random value, generated by the Node prior
+     * to performing the event relay.
+     * @param sig The signature of the sender of the ticket.
+     */
     function redeem(
         Ticket memory ticket,
         uint256 senderRand,
@@ -203,6 +257,26 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         }
     }
 
+    /**
+     * @notice Call this function to check if a ticket is valid and is
+     * a winning ticket. It will fail if the ticket is invalid or is not
+     * a winner. A ticket is invalid if:
+     *      - The sender or redeemer addresses are null
+     *      - The ticket has already been redeemed.
+     *      - The secret random value of the sender does not match the commit
+     *        in the ticket.
+     *      - The secret random value of the redeemer does not match the commit
+     *        in the ticket.
+     *      - The signature is invalid.
+     * @param ticket The ticket issued by the sender.
+     * @param ticketHash The hash of the ticket. Should match the hash generated
+     * by `getTicketHash`.
+     * @param senderRand The sender random value, revealed on completing an event
+     * relay.
+     * @param redeemerRand The redeemer random value, generated by the Node prior
+     * to performing the event relay.
+     * @param sig The signature of the sender of the ticket.
+     */
     function requireValidWinningTicket(
         Ticket memory ticket,
         bytes32 ticketHash,
@@ -245,6 +319,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         return ECDSA.recover(ticketHash, sig) == sender;
     }
 
+    /**
+     * @notice Use this function to check if a ticket is winning.
+     * @param sig The signature of the sender of the ticket.
+     * @param ticket The ticket issued by the sender, which holds the various ticketing parameters.
+     * @param senderRand The sender random value, revealed on completing an event
+     * relay.
+     * @param redeemerRand The redeemer random value, generated by the Node prior
+     * to performing the event relay.
+     * @return True if a ticket is a winner.
+     */
     function isWinningTicket(
         bytes memory sig,
         Ticket memory ticket,
@@ -257,6 +341,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         return uint256(keccak256(abi.encodePacked(sig, senderRand, redeemerRand))) < prob;
     }
 
+    /**
+     * @notice This function calculates the probability of a ticket winning at
+     * the block that this function was called. A ticket's winning probability
+     * will decay every block since its issuance. The amount of decay will depend
+     * on the decay rate parameter of the epoch the ticket was generated in.
+     * @param ticket The ticket issued by the sender.
+     */
     function calculateWinningProbability(
         Ticket memory ticket
     ) public view returns (uint128) {
@@ -283,11 +374,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // uint128 value so we cannot phantom overflow here
         uint256 decayedProbability = maxDecayValue * elapsedDuration / epoch.ticketDuration;
 
-        // calculate the remaining probability by substracting the decayed probability
+        // calculate the remaining probability by subtracting the decayed probability
         // from the base
         return epoch.baseLiveWinProb - uint128(decayedProbability);
     }
 
+    /**
+     * @notice Returns the hash of the ticket. Takes all fields in a ticket
+     * as inputs to the hash.
+     * @return A byte-array representing the hash.
+     */
     function getTicketHash(Ticket memory ticket) public pure returns (bytes32) {
         return keccak256(
             abi.encodePacked(

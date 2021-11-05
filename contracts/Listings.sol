@@ -5,6 +5,11 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+/**
+ * @notice This contract manages Listings for Nodes. A Listing is a
+ * set of parameters configured by the Node itself. A Node is required
+ * to have a valid Listing to be able to participate in the network.
+ */
 contract Listings is Initializable, OwnableUpgradeable {
 
     struct Listing {
@@ -12,7 +17,7 @@ contract Listings is Initializable, OwnableUpgradeable {
         string multiAddr;
 
         // Percentage of a tickets value that will be rewarded to
-        // delagated stakers expressed as a fraction of 10000.
+        // delegated stakers expressed as a fraction of 10000.
         // This value is currently locked to the default payout percentage
         // until epochs are implemented.
         uint16 payoutPercentage;
@@ -25,8 +30,16 @@ contract Listings is Initializable, OwnableUpgradeable {
         bool initialized;
     }
 
+    /**
+     * @notice Tracks each Node's listing.
+     */
     mapping(address => Listing) public listings;
 
+    /**
+     * @notice Payout percentage refers to the portion of a tickets reward
+     * that will be allocated to the Node's stakers. This is global, and is
+     * currently set for all Nodes.
+     */
     uint16 public defaultPayoutPercentage;
 
     function initialize(uint16 _defaultPayoutPercentage) public initializer {
@@ -34,6 +47,12 @@ contract Listings is Initializable, OwnableUpgradeable {
         setDefaultPayoutPercentage(_defaultPayoutPercentage);
     }
 
+    /**
+     * @notice Set the global default payout percentage value. Only callable
+     * by the owner.
+     * @param _defaultPayoutPercentage The payout percentage as a value where the
+     * denominator is 10000.
+     */
     function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) public onlyOwner {
         require(
             _defaultPayoutPercentage <= 10000,
@@ -42,6 +61,13 @@ contract Listings is Initializable, OwnableUpgradeable {
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
+    /**
+     * @notice Call this as a Node to set or update your Listing entry.
+     * @param multiAddr The libp2p multiAddr of your Node. Essential for
+     * clients to be able to establish a p2p connection.
+     * @param minDelegatedStake The minimum amount of stake in SOLO that
+     * a staker must add when calling StakingManager.addStake.
+     */
     function setListing(string memory multiAddr, uint256 minDelegatedStake) public {
         require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
 
@@ -50,6 +76,11 @@ contract Listings is Initializable, OwnableUpgradeable {
         listings[msg.sender] = listing;
     }
 
+    /**
+     * @notice Retrieve the listing associated with a Node.
+     * @param account The address of the Node.
+     * @return The Node's Listing.
+     */
     function getListing(address account) public view returns (Listing memory) {
         return listings[account];
     }

@@ -11,10 +11,10 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
 /**
- * Handles epoch based reward pools that are incremented from redeeming tickets.
+ * @notice Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
- * and also to payout delegated stakers after the epoch ends.
- * After deployment, the SyloTicketing contract should be
+ * and stakers use this contract to track and claim staking rewards.
+ * @dev After deployment, the SyloTicketing contract should be
  * set up as a manager to be able to call certain restricted functions.
 */
 contract RewardsManager is Initializable, OwnableUpgradeable {
@@ -22,25 +22,47 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
-    /* ERC 20 compatible token we are dealing with */
+    /** ERC20 Sylo token contract. */
     IERC20 public _token;
 
-    /* Sylo Staking Manager contract. */
+    /** Sylo Staking Manager contract. */
     StakingManager public _stakingManager;
 
-    /* Sylo Epochs Manager. */
+    /** Sylo Epochs Manager. */
     EpochsManager public _epochsManager;
 
+    /**
+     * @notice Tracks each Nodes total unclaimed rewards in SOLOs. This value
+     * accumulated as Node's redeem tickets, and tracks the portion of the
+     * reward which is allocated to the Node as payment for operating
+     * a Sylo Node.
+     */
     mapping (address => uint256) public unclaimedNodeRewards;
 
+    /**
+     * @notice Tracks each Nodes total unclaimed staking rewards in SOLOs. This
+     * value is accumulated as Node's redeem tickets, and tracks the portion of
+     * the reward which is allocated to its delegated stakers.
+     */
     mapping (address => uint256) public unclaimedStakeRewards;
 
-    /* For every node, track their most recently initialized reward pool */
+    /**
+     * @notice Tracks each Node's most recently initialized reward pool
+     */
     mapping (address => uint256) public latestActiveRewardPools;
 
-    /* For every delegated staker a node has, track the last epoch they made a claim in */
+    /**
+     * @notice Tracks the last epoch a delegated staker made a reward claim in.
+     * The key to this mapping is a hash of the Node's address and the delegated
+     * stakers address.
+     */
     mapping (bytes32 => uint256) public lastClaims;
 
+    /**
+     * @dev This type will hold the necessary information for delegated stakers
+     * to make reward claims against their Node. Every Node will initialize
+     * and store a new Reward Pool for each they participate in.
+     */
     struct RewardPool {
         // Tracks the balance of the reward pool owed to the stakers
         uint256 stakersRewardTotal;
@@ -60,14 +82,19 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         int128 cumulativeRewardFactor;
     }
 
-    // Reward Pools are indexed by a key that is derived from the epochId and the stakee's address
+    /**
+     * @notice Tracks each reward pool initialized by a Node. The key to this map
+     * is derived from the epochId and the Node's address.
+     */
     mapping (bytes32 => RewardPool) public rewardPools;
 
-    // Certain functions of this contract should only be called by certain other
-    // contracts, namely the Ticketing contract.
-    // We use this mapping to restrict access to those functions in a similar
-    // fashion to the onlyOwner construct. The stored value is the block the
-    // managing was contract was added in.
+    /**
+     * @dev Certain functions of this contract should only be called by certain other
+     * contracts, namely the Ticketing contract.
+     * We use this mapping to restrict access to those functions in a similar
+     * fashion to the onlyOwner construct. The stored value is the block the
+     * managing contract was added in.
+     */
     mapping (address => uint256) public managers;
 
     function initialize(
@@ -81,42 +108,103 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         _stakingManager = stakingManager;
     }
 
-    function getKey(uint256 epochId, address stakee) public pure returns (bytes32) {
+    /**
+     * @notice Returns the key used to index a reward pool. The key is a hash of
+     * the epochId and Node's address.
+     * @param epochId The epoch ID the reward pool was created in.
+     * @param stakee The address of the Node.
+     * @return A byte-array representing the reward pool key.
+     */
+    function getRewardPoolKey(uint256 epochId, address stakee) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(epochId, stakee));
     }
 
+    /**
+     * @notice Returns the key used to index staking claims. The key is a hash of
+     * the Node's address and the staker's address.
+     * @param stakee The address of the Node.
+     * @param staker The address of the stake.
+     * @return A byte-array representing the key.
+     */
     function getStakerKey(address stakee, address staker) public pure returns(bytes32) {
         return keccak256(abi.encodePacked(stakee, staker));
     }
 
+    /**
+     * @notice Retrieves the ID of the epoch in which a staker last made their
+     * staking claim.
+     * @param stakee The address of the Node.
+     * @param staker The address of the staker.
+     * @return The ID of the epoch.
+     */
     function getLastClaim(address stakee, address staker) public view returns(uint256) {
         return lastClaims[getStakerKey(stakee, staker)];
     }
 
+    /**
+     * @notice Retrieve the reward pool initialized by the given node, at the specified
+     * epoch.
+     * @param epochId The ID of the epoch the reward pool was initialized in.
+     * @param stakee The address of the Node.
+     * @return The reward pool.
+     */
     function getRewardPool(uint256 epochId, address stakee) public view returns (RewardPool memory) {
-        return rewardPools[getKey(epochId, stakee)];
+        return rewardPools[getRewardPoolKey(epochId, stakee)];
     }
 
+    /**
+     * @notice Retrieve the total accumulated reward that will be distributed to a Node's
+     * delegated stakers for a given epoch.
+     * @param epochId The ID of the epoch the reward pool was initialized in.
+     * @param stakee The address of the Node.
+     * @return The total accumulated staker reward in SOLO.
+     */
     function getRewardPoolStakersTotal(uint256 epochId, address stakee) public view returns (uint256) {
-        return rewardPools[getKey(epochId, stakee)].stakersRewardTotal;
+        return rewardPools[getRewardPoolKey(epochId, stakee)].stakersRewardTotal;
     }
 
+    /**
+     * @notice Retrieve the total active stake that will be used for a Node's reward
+     * pool in a given epoch.
+     * @param epochId The ID of the epoch the reward pool was initialized in.
+     * @param stakee The address of the Node.
+     * @return The total active stake for that reward pool in SOLO.
+     */
     function getRewardPoolActiveStake(uint256 epochId, address stakee) public view returns (uint256) {
-        return rewardPools[getKey(epochId, stakee)].totalActiveStake;
+        return rewardPools[getRewardPoolKey(epochId, stakee)].totalActiveStake;
     }
 
+    /**
+     * @notice Retrieve the total unclaimed reward allocated to a Node as payment
+     * for providing a service.
+     * @param stakee The address of the Node.
+     * @return The total unclaimed Node reward in SOLO.
+     */
     function getUnclaimedNodeReward(address stakee) public view returns (uint256) {
         return unclaimedNodeRewards[stakee];
     }
 
+    /**
+     * @notice Retrieve the total unclaimed staking reward allocated to a Node's
+     * delegated stakers.
+     * @param stakee The address of the Node.
+     * @return The total unclaimed staking reward in SOLO.
+     */
     function getUnclaimedStakeReward(address stakee) public view returns (uint256) {
         return unclaimedStakeRewards[stakee];
     }
 
+    /**
+     * @notice This is used by Nodes to initialize their reward pool for
+     * the next epoch. This function will revert if the caller has no stake, or
+     * if the reward pool has already been initialized. The total active stake
+     * for the next reward pool is calculated by summing up the total managed
+     * stake held by the RewardsManager contract, plus any unclaimed staking rewards.
+     */
     function initializeNextRewardPool() public {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
-        RewardPool storage nextRewardPool = rewardPools[getKey(nextEpochId, msg.sender)];
+        RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, msg.sender)];
         require(
             nextRewardPool.initializedAt == 0,
             "The next reward pool has already been initialized"
@@ -131,7 +219,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // active stake total
         nextRewardPool.totalActiveStake = totalStake + unclaimedStakeRewards[msg.sender];
 
-        nextRewardPool.initialCumulativeRewardFactor = rewardPools[getKey(
+        nextRewardPool.initialCumulativeRewardFactor = rewardPools[getRewardPoolKey(
             latestActiveRewardPools[msg.sender],
             msg.sender
         )].cumulativeRewardFactor;
@@ -140,11 +228,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * This function should be called by the Ticketing contract when a
+     * @dev This function should be called by the Ticketing contract when a
      * ticket is successfully redeemed. The face value of the ticket
      * should be split between incrementing the node's reward balance,
      * and the reward balance for the node's delegated stakers. The face value
-     * will be added to the current reward pool's balance.
+     * will be added to the current reward pool's balance. This function will
+     * fail if the Ticketing contract has not been set as a manager.
+     * @param stakee The address of the Node.
+     * @param amount The face value of the ticket in SOLO.
      */
     function incrementRewardPool(
         address stakee,
@@ -152,7 +243,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
     ) public onlyManager {
         EpochsManager.Epoch memory currentEpoch = _epochsManager.getCurrentActiveEpoch();
 
-        RewardPool storage rewardPool = rewardPools[getKey(currentEpoch.iteration, stakee)];
+        RewardPool storage rewardPool = rewardPools[getRewardPoolKey(currentEpoch.iteration, stakee)];
         require(
             rewardPool.totalActiveStake > 0,
             "Reward pool has not been initialized for the current epoch"
@@ -205,6 +296,16 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         );
     }
 
+    /**
+     * @notice Call this function to calculate the total portion of staking reward
+     * that a delegated staker is owed. This value will include all epochs since the
+     * last claim was made.
+     * @dev This function will utilize the cumulative reward factor to perform the
+     * calculation, keeping the gas cost scaling of this function to a constant value.
+     * @param stakee The address of the Node.
+     * @param staker The address of the staker.
+     * @return The value of the reward owed to the staker in SOLO.
+     */
     function calculateStakerClaim(address stakee, address staker) public view returns (uint256) {
         // The staking manager will track the initial stake that was available prior
         // to becoming active
@@ -217,7 +318,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         // which will be the first reward pool after their last claim
         uint256 activeAt = 0;
         for (uint i = lastClaims[getStakerKey(stakee, staker)] + 1; i < _epochsManager.getNextEpochId(); i++) {
-            RewardPool storage rewardPool = rewardPools[getKey(i, stakee)];
+            RewardPool storage rewardPool = rewardPools[getRewardPoolKey(i, stakee)];
             // check if node initialized a reward pool for this epoch
             if (rewardPool.initializedAt > 0) {
                 activeAt = i;
@@ -229,15 +330,15 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             return 0;
         }
 
-        RewardPool storage initialActivePool = rewardPools[getKey(activeAt, stakee)];
+        RewardPool storage initialActivePool = rewardPools[getRewardPoolKey(activeAt, stakee)];
 
-        // We convert the staker amount to SYLOs as the maximum uint256 value that
+        // We convert the staker amount to SYLO as the maximum uint256 value that
         // can be used for the fixed point representation is 2^64-1.
         int128 initialStake = toFixedPointSYLO(stakeEntry.amount);
         int128 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
 
         // if the staker started staking prior to the node generating any
-        // rewards (initial crf == 0), then we have to manually calculate the proprotion of reward
+        // rewards (initial crf == 0), then we have to manually calculate the proportion of reward
         // for the first epoch, and use that value as the initial stake instead
         if (initialCumulativeRewardFactor == int128(0)) {
             initialStake = ABDKMath64x64.add(
@@ -253,7 +354,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
             initialCumulativeRewardFactor = initialActivePool.cumulativeRewardFactor;
         }
 
-        RewardPool storage latestRewardPool = rewardPools[getKey(
+        RewardPool storage latestRewardPool = rewardPools[getRewardPoolKey(
             latestActiveRewardPools[stakee], stakee
         )];
 
@@ -301,6 +402,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         return fullSolos + fracSolos;
     }
 
+    /**
+     * @notice Call this function to claim rewards as a delegated staker. The
+     * SYLO tokens will be transferred to the caller's account. This function will
+     * fail if there exists no reward to claim. Note: Calling this will remove
+     * the current unclaimed reward from being used as stake in the next round.
+     * @param stakee The address of the Node to claim against.
+     */
     function claimStakingRewards(address stakee) public {
         uint256 rewardClaim = calculateStakerClaim(stakee, msg.sender);
         require(rewardClaim > 0, "Nothing to claim");
@@ -309,10 +417,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         _token.transfer(msg.sender, rewardClaim);
     }
 
-    /*
-     * This function will generally be called by the staking manager to
-     * automatically claim rewards for a staker when the staker wishes to
-     * update their stake amount.
+    /**
+     * @notice This function should be called to automatically claim rewards
+     * when a staker wishes to update their stake. This is only callable
+     * by the StakingManager contract.
+     * @dev This function will revert if the StakingManager contract has
+     * not been set as a manager.
+     * @param stakee The address of the Node to claim against.
+     * @param staker The address of the staker.
      */
     function claimStakingRewardsAsManager(address stakee, address staker) public onlyManager {
         uint256 rewardClaim = calculateStakerClaim(stakee, staker);
@@ -324,6 +436,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         _token.transfer(staker, rewardClaim);
     }
 
+    /**
+     * @notice Call this function as a Node operator to claim the accumulated
+     * reward for operating a Sylo Node.
+     */
     function claimNodeRewards() public {
         uint256 claim = unclaimedNodeRewards[msg.sender];
 
@@ -344,14 +460,26 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         _token.transfer(msg.sender, claim);
     }
 
+    /**
+     * @notice Adds a manager to this contract. Only callable by the owner.
+     * @param manager The address of the manager contract.
+     */
     function addManager(address manager) public onlyOwner {
       managers[manager] = block.number;
     }
 
+    /**
+     * @notice Removes a manager from this contract. Only callable by the owner.
+     * @param manager The address of the manager contract.
+     */
     function removeManager(address manager) public onlyOwner {
       delete managers[manager];
     }
 
+    /**
+     * @dev This modifier allows us to specify that certain contracts have
+     * special privileges to call restricted functions.
+     */
     modifier onlyManager() {
       require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
       _;
