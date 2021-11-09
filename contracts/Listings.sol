@@ -22,7 +22,9 @@ contract Listings is Initializable, OwnableUpgradeable {
         uint16 payoutPercentage;
 
         // The minimum amount of stake that is required to
-        // add a delegated stake against this node
+        // add delegated stake against this node.
+        // Note: This value is currently unused as there is no gas costs
+        // that scale with the number of delegated stakers.
         uint256 minDelegatedStake;
 
         // Explicit property to check if an instance of this struct actually exists
@@ -35,6 +37,11 @@ contract Listings is Initializable, OwnableUpgradeable {
     mapping(address => Listing) public listings;
 
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
+
+    /**
+     * @notice An array of all Nodes that set a listing.
+     */
+    address[] public nodes;
 
     /**
      * @notice Payout percentage refers to the portion of a tickets reward
@@ -77,9 +84,17 @@ contract Listings is Initializable, OwnableUpgradeable {
     function setListing(string memory multiAddr, uint256 minDelegatedStake) external {
         require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
 
+        Listing storage listing = listings[msg.sender];
+
+        listing.multiAddr = multiAddr;
         // TODO Remove defaultPayoutPercentage once epochs are introduced
-        Listing memory listing = Listing(multiAddr, defaultPayoutPercentage, minDelegatedStake, true);
-        listings[msg.sender] = listing;
+        listing.payoutPercentage = defaultPayoutPercentage;
+        listing.minDelegatedStake = minDelegatedStake;
+
+        if (!listing.initialized) {
+            listing.initialized = true;
+            nodes.push(msg.sender);
+        }
     }
 
     /**
@@ -89,5 +104,13 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     function getListing(address account) external view returns (Listing memory) {
         return listings[account];
+    }
+
+    /**
+     * @notice Retrieve all nodes that have set a valid listing.
+     * @return The addresses of the nodes that have set a listing.
+     */
+    function getNodes() public view returns (address[] memory) {
+        return nodes;
     }
 }

@@ -48,4 +48,17 @@ describe('Listing', () => {
     await expect(listings.setListing("", 1))
       .to.be.revertedWith("Multiaddr string is empty");
   });
+
+  it('can query address of all nodes that made a listing', async () => {
+    for (let account of accounts) {
+      await listings.connect(account).setListing("0.0.0.0/0", 1);
+    }
+
+    const nodes = await listings.getNodes();
+
+    assert.deepEqual(
+      nodes,
+      await Promise.all(accounts.map((a) => a.getAddress()))
+    );
+  });
 });
