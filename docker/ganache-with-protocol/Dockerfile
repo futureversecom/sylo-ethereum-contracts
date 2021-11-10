@@ -22,10 +22,10 @@ RUN mkdir ganache-data
 # expose this directory in a volume to access the
 # accounts and addresses.json
 RUN mkdir deployment
-COPY docker/hardhat-with-protocol/deploy_contracts.sh .
+COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
 RUN ./deploy_contracts.sh
 
 EXPOSE 8545
 
-ENTRYPOINT [ "ganache-cli" ]
+ENTRYPOINT [ "ganache-cli", "--host", "0.0.0.0", "--db", "/app/ganache-data", "--deterministic", "--mnemonic", "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" ]
