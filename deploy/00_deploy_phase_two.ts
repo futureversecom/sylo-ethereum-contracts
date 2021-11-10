@@ -2,6 +2,7 @@ import { ethers, upgrades, network } from 'hardhat';
 import Config from './genesis.config';
 import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
 import * as fs from 'fs/promises';
+import { Manifest } from '@openzeppelin/upgrades-core';
 
 type PhaseTwoContracts = {
   token: string,
@@ -165,6 +166,18 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
 
 function logDeployment(contract: string, contractAddress: string) {
   console.log(`Deployed ${contract} at ${contractAddress}`);
+}
+
+async function getImplementationAddressForProxy(
+  manifest: Manifest,
+  proxyAddress: string
+): Promise<string> {
+  const data = await manifest.read();
+  const deployment = data.proxies.find(d => d?.address === proxyAddress);
+  if (deployment === undefined) {
+    throw new Error(`Failed to find implementation address for proxy address: ${proxyAddress}`);
+  }
+  return deployment.address;
 }
 
 async function main() {

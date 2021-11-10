@@ -52,7 +52,7 @@ This project attempts to maintain 100% code coverage at all times.
 A docker image that contains a local ethereum node with the current contracts
 deployed to that network can be built with:
 
-`DOCKER_BUILDKIT=1 docker build . -f docker/Dockerfile`
+`DOCKER_BUILDKIT=1 docker build . -f docker/ganache-with-protocol/Dockerfile`
 
 See the [docker readme](docker/ganache-with-protocol/README.md)
 for more details.
