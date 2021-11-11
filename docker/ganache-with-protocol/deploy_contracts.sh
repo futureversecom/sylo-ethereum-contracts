@@ -44,11 +44,16 @@ ganache-cli \
 
 ganache_pid=`echo $!`
 
-trap 'kill -9 $ganache_pid' EXIT
-
+echo "waiting for ganache to start up"
 sleep 5
 
 echo "deploying contracts to local node"
 npx hardhat --network ganache run ./deploy/00_deploy_phase_two.ts
-
+sleep 10
 mv ./deploy/ganache_deployment_phase_two.json deployment/addresses.json
+sleep 10
+
+echo "shutting down ganache"
+kill $ganache_pid
+sleep 10
+echo "deployment complete"

@@ -26,6 +26,12 @@ COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
 RUN ./deploy_contracts.sh
 
+FROM trufflesuite/ganache-cli:v6.12.2
+
+WORKDIR /app
+COPY --from=node-builder /app/ganache-data /app/ganache-data
+COPY --from=node-builder /app/deployment /app/deployment
+
 EXPOSE 8545
 
-ENTRYPOINT [ "ganache-cli", "--host", "0.0.0.0", "--db", "/app/ganache-data", "--deterministic", "--mnemonic", "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" ]
+ENTRYPOINT ["node", "/app/ganache-core.docker.cli.js"]
