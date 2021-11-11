@@ -29,7 +29,8 @@ const config: HardhatUserConfig = {
   },
   networks: {
     localhost: {
-      url: 'http://0.0.0.0:8545'
+      url: 'http://0.0.0.0:8545',
+      accounts: 'remote'
     },
     ropsten: {
       url: process.env.ROPSTEN_INFURA_ENDPOINT ?? '',

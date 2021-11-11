@@ -9,6 +9,7 @@ COPY ["package.json", "package-lock.json*", "./"]
 COPY contracts contracts
 COPY deploy deploy
 COPY tsconfig.json .
+COPY hardhat.config.ts .
 
 # install npm modules
 RUN npm install
