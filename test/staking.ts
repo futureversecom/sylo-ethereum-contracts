@@ -249,11 +249,19 @@ describe('Staking', () => {
     );
   });
 
-  it("can not cancel more unlocking than exists", async () => {
+  it("unlocking more than exists clears entire stake", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
-    await expect(stakingManager.cancelUnlocking(101, owner))
-      .to.be.revertedWith("Unlock has insufficient amount");
+    await stakingManager.cancelUnlocking(101, owner);
+
+    const key = await stakingManager.getKey(owner, owner);
+    const unlocking = await stakingManager.unlockings(key);
+
+    assert.equal(
+      unlocking.amount.toNumber(),
+      0,
+      "Expected unlocking to be cancelled"
+    );
   });
 
   it("should not allow delegated stake to exceed minimum owned stake by the stakee", async () => {

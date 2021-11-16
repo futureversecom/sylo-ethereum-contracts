@@ -251,8 +251,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @notice Call this function to cancel any stake that is in the process
      * of unlocking. As this essentially adds back stake to the Node, this
      * will trigger an automatic claim of any outstanding staking rewards.
-     * This will fail if the specified amount to cancel is greater
-     * than the stake that is currently unlocking.
+     * If the specified amount to cancel is greater than the stake that is
+     * currently being unlocked, it will cancel the maximum stake possible.
      * @param amount The amount of unlocking stake to cancel in SOLO.
      * @param stakee The address of the staked Node.
      */
@@ -261,12 +261,12 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         Unlock storage unlock = unlockings[key];
 
-        if (amount == unlock.amount) {
+        if (amount >= unlock.amount) {
+            amount = unlock.amount;
             delete unlockings[key];
-        } else {
-            require(amount < unlock.amount, "Unlock has insufficient amount");
-            unlock.amount -= amount;
-        }
+        } else {    
+            unlock.amount -= amount;    
+        }   
 
         addStake_(amount, stakee);
     }
