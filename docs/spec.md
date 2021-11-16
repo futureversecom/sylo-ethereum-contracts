@@ -335,7 +335,8 @@ and the unlock duration will be reset.
 
 Cancels stake that is in the unlocking phase and adds it back to the total
 managed stake for that stakee. The re-added stake can be utilized in the next
-epoch.
+epoch. Cancelling more stake than is available results in the maximum amount
+of unlocking stake being cancelled.
 
 | Param | Description |
 |-------|-------------|
