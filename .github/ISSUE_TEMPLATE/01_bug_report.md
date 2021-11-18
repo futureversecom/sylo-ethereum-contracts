@@ -3,11 +3,11 @@ name: 🐜 Bug report
 about: If something isn't working
 ---
 
-## What is the expected behavior?
+## What is the expected behaviour?
 
 
 
-## What is the actual behavior?
+## What is the actual behaviour?
 
 
 

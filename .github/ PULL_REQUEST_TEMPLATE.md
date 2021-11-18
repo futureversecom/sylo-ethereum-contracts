@@ -22,13 +22,12 @@ If not applicable to this PR, the item can be checked, crossed out, or removed.
 - [ ] Updated the readme documents (`README.md`, etc.)
 - [ ] Updated the spec if applicable (`docs/spec.md`, etc.)
 - [ ] Updated any doc comments, and checked for spelling mistakes.
-- [ ] Updated the Sylo Node administration guide (Google Doc)
 
 ### Local Build
 
 - [ ] Removed references to any local packages in build files
-- [ ] Ran `npm i` and no changes were made to `package-lock.json`
-- [ ] Ran `npm test` with no faiulres
+- [ ] Ran `npm install` and no changes were made to `package-lock.json`
+- [ ] Ran `npm test` with no failures
 - [ ] Ran `npm coverage` and validated coverage has not decreased
 
 ### GitHub
