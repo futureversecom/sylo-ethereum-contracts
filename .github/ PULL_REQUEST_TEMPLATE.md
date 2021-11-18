@@ -37,6 +37,7 @@ If not applicable to this PR, the item can be checked, crossed out, or removed.
 - [ ] There are no conflicts with the base branch
 - [ ] Any dependent changes have been merged and published in upstream modules
 - [ ] Performed a self-review of my code
+- [ ] All commits are signed
 - [ ] Additional reviews have been performed
 - [ ] Removed the WIP message from the top of this PR
 
