@@ -24,7 +24,7 @@ This project employs [Hardhat](https://hardhat.org/getting-started/) for develop
 
 Ensure Node.js (>=v12.0) is installed.
 
-`npm i`
+`npm install`
 
 ### Build
 
