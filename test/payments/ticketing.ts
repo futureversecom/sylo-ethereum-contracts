@@ -241,7 +241,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(30, owner);
 
     const currentBlock = await ethers.provider.getBlockNumber();
-    await rewardsManager.initializeNextRewardPool();
+    await epochsManager.joinNextEpoch();
 
     const rewardPool = await rewardsManager.getRewardPool(
       await epochsManager.getNextEpochId(),
@@ -263,13 +263,13 @@ describe('Ticketing', () => {
 
   it('can not initialize reward pool more than once', async () => {
     await stakingManager.addStake(30, owner);
-    await rewardsManager.initializeNextRewardPool();
-    await expect(rewardsManager.initializeNextRewardPool())
+    await epochsManager.joinNextEpoch();
+    await expect(epochsManager.joinNextEpoch())
       .to.be.revertedWith("The next reward pool has already been initialized");
   });
 
   it('should not be able to initialize next reward pool without stake', async () => {
-    await expect(rewardsManager.initializeNextRewardPool())
+    await expect(epochsManager.joinNextEpoch())
       .to.be.revertedWith("Must have stake to initialize a reward pool");
   });
 
@@ -339,8 +339,7 @@ describe('Ticketing', () => {
   it('can not redeem ticket if node does not have a listing', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -370,31 +369,11 @@ describe('Ticketing', () => {
       .to.be.revertedWith("Ticket redeemer must have joined the directory for this epoch");
   });
 
-  it('can not redeem ticket if node has not initialized reward pool', async () => {
-    await stakingManager.addStake(toSOLOs(1), owner);
-    await listings.setListing("0.0.0.0/0", 1);
-
-    await directory.joinNextDirectory();
-
-    await epochsManager.initializeEpoch();
-
-    const alice = Wallet.createRandom()
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
-
-    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
-      .to.be.revertedWith("Reward pool has not been initialized for the current epoch");
-  });
-
   it('can not redeem invalid ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -436,8 +415,7 @@ describe('Ticketing', () => {
     await contracts.stakingManager.addStake(toSOLOs(1), owner);
     await contracts.listings.setListing("0.0.0.0/0", 1);
 
-    await contracts.directory.joinNextDirectory();
-    await contracts.rewardsManager.initializeNextRewardPool();
+    await contracts.epochsManager.joinNextEpoch();
 
     await contracts.directory.transferOwnership(contracts.epochsManager.address);
     await contracts.epochsManager.initializeEpoch();
@@ -460,8 +438,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -491,8 +468,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -511,8 +487,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -558,8 +533,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(5, owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -572,8 +546,7 @@ describe('Ticketing', () => {
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
     }
 
-    await particpateNextEpoch(owner);
-
+    epochsManager.joinNextEpoch();
 
     const rewardPool = await rewardsManager.getRewardPool(
       await epochsManager.getNextEpochId(),
@@ -602,8 +575,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(web3.utils.toWei('1'), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -650,7 +622,7 @@ describe('Ticketing', () => {
     // have account 2 as a delegated staker
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(2), owner);
 
-    await particpateNextEpoch(owner);
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -700,7 +672,7 @@ describe('Ticketing', () => {
     // have account 2 as a delegated staker
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(1), owner);
 
-    await particpateNextEpoch(owner);
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -748,7 +720,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -788,7 +760,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let j = 0; j < 3; j++) {
-      await particpateNextEpoch(owner);
+      await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
@@ -850,7 +822,8 @@ describe('Ticketing', () => {
         // their stake will be active in the next round
         await stakingManager.connect(accounts[5]).addStake(toSOLOs(500), owner);
       }
-      await particpateNextEpoch(owner);
+
+      await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
       // 7.5 is added to the stakers reward total on each redemption (50% of 15)
@@ -919,7 +892,8 @@ describe('Ticketing', () => {
       if (j == 1) {
         await stakingManager.connect(accounts[2]).unlockStake(toSOLOs(250), owner);
       }
-      await particpateNextEpoch(owner);
+
+      await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
       // 7 is added to the stakers reward total on each redemption (50% of 15)
@@ -979,7 +953,7 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(1000 * 500), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    await particpateNextEpoch(owner);
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const iterations = 450;
@@ -1024,6 +998,7 @@ describe('Ticketing', () => {
 
     await directory.transferOwnership(epochsManager.address);
     await rewardsManager.addManager(ticketing.address);
+    await rewardsManager.addManager(epochsManager.address);
 
     await token.approve(ticketing.address, toSOLOs(10000));
     await token.approve(stakingManager.address, toSOLOs(10000));
@@ -1031,8 +1006,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -1084,7 +1058,7 @@ describe('Ticketing', () => {
     }
 
     for (let j = 0; j < 3; j++) {
-      await particpateNextEpoch(owner);
+      await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
@@ -1130,7 +1104,7 @@ describe('Ticketing', () => {
     // have account 2 as a delegated staker
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(1), owner);
 
-    await particpateNextEpoch(owner);
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom()
@@ -1202,8 +1176,7 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), node);
     await listings.setListing("0.0.0.0/0", 1);
 
-    await particpateNextEpoch(owner);
-
+    await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
     // set up the sender's escrow
@@ -1275,11 +1248,6 @@ describe('Ticketing', () => {
 
   function toSOLOs(a: number): string {
     return web3.utils.toWei(a.toString());
-  }
-
-  async function particpateNextEpoch(account: string) {
-    await directory.joinNextDirectory({ from: account });
-    await rewardsManager.initializeNextRewardPool({ from: account });
   }
 
   async function createWinningTicket(sender: Wallet, redeemer: string, epochId?: number) {

@@ -132,6 +132,16 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Initalize and join the next epoch.
+     * @dev This is a proxy function for `initalizeNextRewardPool` and
+     * `joinNextDirectory`.
+     */
+    function joinNextEpoch() public {
+        _directory._rewardsManager().initializeNextRewardPool(msg.sender);
+        _directory.joinNextDirectory(msg.sender);
+    }
+
+    /**
      * @notice Retrieve the integer value that will be used for the
      * next epoch id.
      * @return The next epoch id identifier.

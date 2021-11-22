@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
+import "../../Manageable.sol";
 import "../../Staking/Manager.sol";
 import "../../Epochs/Manager.sol";
 import "../../Utils.sol";
@@ -17,7 +18,7 @@ import "abdk-libraries-solidity/ABDKMath64x64.sol";
  * @dev After deployment, the SyloTicketing contract should be
  * set up as a manager to be able to call certain restricted functions.
 */
-contract RewardsManager is Initializable, OwnableUpgradeable {
+contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     uint256 internal constant ONE_SYLO = 1 ether;
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
@@ -87,15 +88,6 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * is derived from the epochId and the Node's address.
      */
     mapping (bytes32 => RewardPool) public rewardPools;
-
-    /**
-     * @dev Certain functions of this contract should only be called by certain other
-     * contracts, namely the Ticketing contract.
-     * We use this mapping to restrict access to those functions in a similar
-     * fashion to the onlyOwner construct. The stored value is the block the
-     * managing contract was added in.
-     */
-    mapping (address => uint256) public managers;
 
     function initialize(
         IERC20 token,
@@ -201,30 +193,30 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
      * for the next reward pool is calculated by summing up the total managed
      * stake held by the RewardsManager contract, plus any unclaimed staking rewards.
      */
-    function initializeNextRewardPool() public {
+    function initializeNextRewardPool(address stakee) public onlyManager {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
-        RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, msg.sender)];
+        RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
         require(
             nextRewardPool.initializedAt == 0,
             "The next reward pool has already been initialized"
         );
 
-        uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(msg.sender);
+        uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
         require(totalStake > 0, "Must have stake to initialize a reward pool");
 
         nextRewardPool.initializedAt = block.number;
 
         // Any unclaimed staker rewards will automatically be added to the
         // active stake total
-        nextRewardPool.totalActiveStake = totalStake + unclaimedStakeRewards[msg.sender];
+        nextRewardPool.totalActiveStake = totalStake + unclaimedStakeRewards[stakee];
 
         nextRewardPool.initialCumulativeRewardFactor = rewardPools[getRewardPoolKey(
-            latestActiveRewardPools[msg.sender],
-            msg.sender
+            latestActiveRewardPools[stakee],
+            stakee
         )].cumulativeRewardFactor;
 
-        latestActiveRewardPools[msg.sender] = nextEpochId;
+        latestActiveRewardPools[stakee] = nextEpochId;
     }
 
     /**
@@ -459,30 +451,4 @@ contract RewardsManager is Initializable, OwnableUpgradeable {
         unclaimedNodeRewards[msg.sender] = 0;
         _token.transfer(msg.sender, claim);
     }
-
-    /**
-     * @notice Adds a manager to this contract. Only callable by the owner.
-     * @param manager The address of the manager contract.
-     */
-    function addManager(address manager) public onlyOwner {
-      managers[manager] = block.number;
-    }
-
-    /**
-     * @notice Removes a manager from this contract. Only callable by the owner.
-     * @param manager The address of the manager contract.
-     */
-    function removeManager(address manager) public onlyOwner {
-      delete managers[manager];
-    }
-
-    /**
-     * @dev This modifier allows us to specify that certain contracts have
-     * special privileges to call restricted functions.
-     */
-    modifier onlyManager() {
-      require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
-      _;
-    }
-
 }

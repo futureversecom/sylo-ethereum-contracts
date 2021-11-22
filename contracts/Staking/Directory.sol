@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "./Manager.sol";
 import "../Payments/Ticketing/RewardsManager.sol";
 import "../Utils.sol";
+import "../Manageable.sol";
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -14,7 +15,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * which is queried against using the scan function. The scan function allows submitting
  * random points which will return a staked node's address in proportion to the stake it has.
  */
-contract Directory is Initializable, OwnableUpgradeable {
+contract Directory is Initializable, OwnableUpgradeable, Manageable {
     /** Sylo Staking Manager contract */
     StakingManager public _stakingManager;
 
@@ -91,9 +92,7 @@ contract Directory is Initializable, OwnableUpgradeable {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
-    function joinNextDirectory() public {
-        address stakee = msg.sender;
-
+    function joinNextDirectory(address stakee) public onlyManager {
         uint256 managedStake = _stakingManager.getStakeeTotalManagedStake(stakee);
         uint256 stakeReward = _rewardsManager.unclaimedStakeRewards(stakee);
         uint256 totalStake = managedStake + stakeReward;

@@ -103,6 +103,11 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
 
   await rewardsManager.addManager(ticketing.address, { from: deployer });
   await rewardsManager.addManager(stakingManager.address, { from: deployer });
+  await rewardsManager.addManager(epochsManager.address, { from: deployer });
+
+  await directory.addManager(ticketing.address);
+  await directory.addManager(rewardsManager.address);
+  await directory.addManager(epochsManager.address);
 
   return {
     listings,
