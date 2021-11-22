@@ -450,6 +450,11 @@ describe('Staking', () => {
     }
   });
 
+  it('can not call functions that onlyManager constraint', async () => {
+    await expect(directory.joinNextDirectory(owner))
+      .to.be.revertedWith("Only managers of this contract can call this function");
+  });
+
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     const numAccounts = 10;
 
@@ -458,7 +463,6 @@ describe('Staking', () => {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
       await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
-      // await directory.connect(accounts[i]).joinNextDirectory(await accounts[i].getAddress());
       await epochsManager.connect(accounts[i]).joinNextEpoch();
       totalStake += 1;
     }
@@ -483,7 +487,6 @@ describe('Staking', () => {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
       await stakingManager.connect(accounts[i]).addStake(i + 1, await accounts[i].getAddress());
-      // await directory.connect(accounts[i]).joinNextDirectory(await accounts[i].getAddress());
       await epochsManager.connect(accounts[i]).joinNextEpoch();
       totalStake += i + 1;
     }

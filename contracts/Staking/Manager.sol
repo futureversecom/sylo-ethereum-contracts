@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
-pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -264,9 +263,9 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         if (amount >= unlock.amount) {
             amount = unlock.amount;
             delete unlockings[key];
-        } else {    
-            unlock.amount -= amount;    
-        }   
+        } else {
+            unlock.amount -= amount;
+        }
 
         addStake_(amount, stakee);
     }

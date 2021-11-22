@@ -92,6 +92,11 @@ describe('Ticketing', () => {
       .to.be.revertedWith("Only managers of this contract can call this function");
   });
 
+  it('can not call functions that onlyManager constraint', async () => {
+    await expect(rewardsManager.initializeNextRewardPool(owner))
+      .to.be.revertedWith("Only managers of this contract can call this function");
+  });
+
   it('can not set ticket duration to 0', async () => {
     await expect(ticketingParameters.setTicketDuration(0))
       .to.be.revertedWith("Ticket duration cannot be 0");
