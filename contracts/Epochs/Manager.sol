@@ -131,7 +131,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Initalize and join the next epoch.
+     * @notice Nodes should call this to join the next epoch. It will
+     * initialize the next reward pool and set the stake for the next directory.
      * @dev This is a proxy function for `initalizeNextRewardPool` and
      * `joinNextDirectory`.
      */

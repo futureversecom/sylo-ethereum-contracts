@@ -274,6 +274,12 @@ describe('Staking', () => {
       .to.be.revertedWith("Can not add more stake until stakee adds more stake itself");
   });
 
+  it('should not allow directory to be joined with no stake', async () => {
+    await directory.addManager(owner);
+    await expect(directory.joinNextDirectory(owner))
+      .to.be.revertedWith('Can not join directory for next epoch without any stake');
+  });
+
   it("should not allow directory to be joined without stakee owning minimum stake", async () => {
     await stakingManager.addStake(100, owner);
 
@@ -284,7 +290,8 @@ describe('Staking', () => {
     // after unlocking, Node will own less than 20% of stake
     await stakingManager.unlockStake(80, owner);
 
-    await expect(epochsManager.joinNextEpoch())
+    directory.addManager(owner);
+    await expect(directory.joinNextDirectory(owner))
       .to.be.revertedWith("Can not join directory without owning minimum amount of stake");
   });
 
@@ -340,6 +347,8 @@ describe('Staking', () => {
   it('should be able to scan after joining directory', async () => {
     await stakingManager.addStake(1, owner);
     await epochsManager.joinNextEpoch();
+
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     await directory.scan(0);
@@ -347,12 +356,14 @@ describe('Staking', () => {
 
   it('should not be able to join the next epoch more than once', async () => {
     await stakingManager.addStake(1, owner);
-    await epochsManager.joinNextEpoch();
-    await expect(epochsManager.joinNextEpoch())
-      .to.be.revertedWith('The next reward pool has already been initialized');
+    await directory.addManager(owner);
+    await directory.joinNextDirectory(owner);
+    await expect(directory.joinNextDirectory(owner))
+      .to.be.revertedWith('Can only join the directory once per epoch');
   });
 
   it('should be able to scan empty directory', async () => {
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const address = await directory.scan(0);
@@ -381,6 +392,7 @@ describe('Staking', () => {
       );
     }
 
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const totalStake = await directory.getTotalStake(1);
@@ -433,6 +445,7 @@ describe('Staking', () => {
       await epochsManager.connect(accounts[i]).joinNextEpoch();
     }
 
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const fifthPoint = BigNumber.from(2).pow(128).sub(1).div(5);
@@ -467,6 +480,7 @@ describe('Staking', () => {
       totalStake += 1;
     }
 
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const iterations = 5000;
@@ -491,6 +505,7 @@ describe('Staking', () => {
       totalStake += i + 1;
     }
 
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const iterations = 5000;
@@ -518,6 +533,7 @@ describe('Staking', () => {
     await stakingManager.connect(accounts[1]).unlockStake(1, await accounts[1].getAddress());
     await stakingManager.connect(accounts[2]).unlockStake(1, await accounts[2].getAddress());
 
+    await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const address = await directory.scan(0);
@@ -525,7 +541,7 @@ describe('Staking', () => {
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
 
-  it('can not join directory without a stake [ @skip-on-coverage ]', async () => {
+  it('can not join directory without a stake', async () => {
     await stakingManager.addStake(1, owner);
     await stakingManager.unlockStake(1, owner);
 

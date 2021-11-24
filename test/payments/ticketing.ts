@@ -44,8 +44,6 @@ describe('Ticketing', () => {
     listings = contracts.listings;
     stakingManager = contracts.stakingManager;
 
-    await directory.transferOwnership(epochsManager.address);
-
     await token.approve(stakingManager.address, toSOLOs(10000000));
     await token.approve(ticketing.address, toSOLOs(10000000));
   });
@@ -87,12 +85,12 @@ describe('Ticketing', () => {
     );
   });
 
-  it('can not call functions that onlyManager constraint', async () => {
+  it('Only managers can call functions with the onlyManager constraint', async () => {
     await expect(rewardsManager.incrementRewardPool(owner, 10000))
       .to.be.revertedWith("Only managers of this contract can call this function");
   });
 
-  it('can not call functions that onlyManager constraint', async () => {
+  it('Only managers can call functions with the onlyManager constraint', async () => {
     await expect(rewardsManager.initializeNextRewardPool(owner))
       .to.be.revertedWith("Only managers of this contract can call this function");
   });
@@ -328,6 +326,17 @@ describe('Ticketing', () => {
       .to.be.revertedWith('Ticket\'s associated epoch does not exist');
   });
 
+  it('can not calculate winning probability if associated epoch does not exist', async () => {
+    const alice = Wallet.createRandom()
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    ticket.epochId = 1;
+
+    await expect(ticketing.calculateWinningProbability(ticket))
+      .to.be.revertedWith('Ticket\'s associated epoch does not exist');
+  });
+
   it('can not redeem ticket if not generated during associated epoch', async () => {
     await epochsManager.initializeEpoch();
 
@@ -338,6 +347,19 @@ describe('Ticketing', () => {
     const updatedTicket = { ...ticket, generationBlock: 1 }
 
     await expect(ticketing.redeem(updatedTicket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("This ticket was not generated during it\'s associated epoch");
+  });
+
+  it('can not calculate winning probablility if not generated during associated epoch', async () => {
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    const updatedTicket = { ...ticket, generationBlock: 1 }
+
+    await expect(ticketing.calculateWinningProbability(updatedTicket))
       .to.be.revertedWith("This ticket was not generated during it\'s associated epoch");
   });
 
@@ -372,6 +394,26 @@ describe('Ticketing', () => {
 
     await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
       .to.be.revertedWith("Ticket redeemer must have joined the directory for this epoch");
+  });
+
+  it('can not redeem ticket if node has not initialized reward pool', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    await directory.addManager(owner);
+    await directory.joinNextDirectory(owner);
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom()
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+      .to.be.revertedWith("Reward pool has not been initialized for the current epoch");
   });
 
   it('can not redeem invalid ticket', async () => {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
@@ -12,13 +11,12 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
  * `onlyManager`, which can be applied to your functions to restrict their use to
  * other contracts which have explicitly been added.
  */
-abstract contract Manageable is Initializable, OwnableUpgradeable {
+abstract contract Manageable is OwnableUpgradeable {
     /**
-     * @dev Certain functions of this contract should only be called by certain other
-     * contracts.
+     * @dev Tracks the managers added to this contract, where they key is the
+     * address of the managing contract, and the value is the block the manager was added in.
      * We use this mapping to restrict access to those functions in a similar
-     * fashion to the onlyOwner construct. The stored value is the block the
-     * managing contract was added in.
+     * fashion to the onlyOwner construct.
      */
     mapping (address => uint256) public managers;
 

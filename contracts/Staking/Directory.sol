@@ -67,7 +67,7 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * the owner.
      * @param epochId The ID of the specified epoch.
      */
-    function setCurrentDirectory(uint256 epochId) public onlyOwner {
+    function setCurrentDirectory(uint256 epochId) public onlyManager {
         currentDirectory = epochId;
     }
 

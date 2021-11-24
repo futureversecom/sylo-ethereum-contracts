@@ -136,8 +136,6 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
   logDeployment("Ticketing", ticketing.address);
 
   // add managers to the staking manager contract
-  await directory.addManager(ticketing.address);
-  await directory.addManager(rewardsManager.address);
   await directory.addManager(epochsManager.address);
 
   console.log('Added managers to staking manager contract');
