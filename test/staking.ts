@@ -59,7 +59,15 @@ describe('Staking', () => {
 
   it('should be able to join the next epoch and directory at once', async () => {
     await stakingManager.addStake(100, owner);
+
+    let epochId = (await directory.currentDirectory()).add(1);
+    let nextRewardPool = await rewardsManager.getRewardPool(epochId, owner);
+    assert.equal(nextRewardPool.initializedAt.toNumber(), 0, "Expected next reward pool to be uninitalized");
+
     await epochsManager.joinNextEpoch();
+
+    let currentRewardPool = await rewardsManager.getRewardPool(epochId, owner);
+    assert.notEqual(currentRewardPool.initializedAt.toNumber(), 0, "Expected reward pool to have been initalized");
   });
 
   it('should be able to get unlocking duration', async () => {
