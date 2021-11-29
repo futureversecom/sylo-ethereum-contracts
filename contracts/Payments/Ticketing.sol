@@ -63,6 +63,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     EpochsManager public _epochsManager;
 
+    event UnlockDurationUpdated(uint256 unlockDuration);
+
     /**
      * @notice The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their funds.
@@ -101,6 +103,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
         unlockDuration = _unlockDuration;
+        emit UnlockDurationUpdated(_unlockDuration);
     }
 
     /**

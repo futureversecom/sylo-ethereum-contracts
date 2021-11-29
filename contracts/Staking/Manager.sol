@@ -73,17 +73,20 @@ contract StakingManager is Initializable, OwnableUpgradeable {
     uint256 public totalManagedStake;
 
     /**
-     * @notice The number of blocks a user must wait after calling "unlock"
-     * before they can withdraw their stake
-     */
-    uint256 public unlockDuration;
-
-    /**
      * @notice Tracks funds that are in the process of being unlocked. This
      * is indexed by a key that hashes both the address of the staked Node and
      * the address of the staker.
      */
     mapping(bytes32 => Unlock) public unlockings;
+
+    event UnlockDurationUpdated(uint256 unlockDuration);
+    event MinimumStakeProportionUpdated(uint256 minimumStakeProportion);
+
+    /**
+     * @notice The number of blocks a user must wait after calling "unlock"
+     * before they can withdraw their stake
+     */
+    uint256 public unlockDuration;
 
     /**
      * @notice Minimum amount of stake that a Node needs to stake
@@ -115,6 +118,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      */
     function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
         unlockDuration = _unlockDuration;
+        emit UnlockDurationUpdated(_unlockDuration);
     }
 
     /**
@@ -124,6 +128,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      */
     function setMinimumStakeProportion(uint16 _minimumStakeProportion) external onlyOwner {
         minimumStakeProportion = _minimumStakeProportion;
+        emit MinimumStakeProportionUpdated(_minimumStakeProportion);
     }
 
     /**

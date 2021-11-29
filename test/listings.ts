@@ -22,7 +22,9 @@ describe('Listing', () => {
   });
 
   it('can allow owner to set default payout percentage', async () => {
-    await listings.setDefaultPayoutPercentage(2000);
+    await expect(listings.setDefaultPayoutPercentage(2000))
+      .to.emit(listings, 'DefaultPayoutPercentageUpdated')
+      .withArgs(2000);
 
     const p = await listings.defaultPayoutPercentage();
     assert.equal(p, 2000, "Expected default payout percentage to be correctly updated");

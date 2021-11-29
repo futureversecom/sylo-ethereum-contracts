@@ -28,7 +28,10 @@ describe('Epochs', () => {
   });
 
   it('can initialize next epoch', async () => {
-    await epochsManager.initializeEpoch();
+    await expect(epochsManager.initializeEpoch())
+      .to.emit(epochsManager, 'NewEpoch')
+      .withArgs(1);
+
     let currentIteration = await epochsManager.currentIteration();
     assert.equal(
       currentIteration.toNumber(),

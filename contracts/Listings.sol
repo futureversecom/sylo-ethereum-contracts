@@ -34,6 +34,8 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     mapping(address => Listing) public listings;
 
+    event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
+
     /**
      * @notice Payout percentage refers to the portion of a tickets reward
      * that will be allocated to the Node's stakers. This is global, and is
@@ -43,7 +45,11 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     function initialize(uint16 _defaultPayoutPercentage) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        setDefaultPayoutPercentage(_defaultPayoutPercentage);
+        require(
+            _defaultPayoutPercentage <= 10000,
+            "The payout percentage can not exceed 100 percent"
+        );
+        defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
     /**
@@ -52,12 +58,13 @@ contract Listings is Initializable, OwnableUpgradeable {
      * @param _defaultPayoutPercentage The payout percentage as a value where the
      * denominator is 10000.
      */
-    function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) public onlyOwner {
+    function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) external onlyOwner {
         require(
             _defaultPayoutPercentage <= 10000,
             "The payout percentage can not exceed 100 percent"
         );
         defaultPayoutPercentage = _defaultPayoutPercentage;
+        emit DefaultPayoutPercentageUpdated(_defaultPayoutPercentage);
     }
 
     /**

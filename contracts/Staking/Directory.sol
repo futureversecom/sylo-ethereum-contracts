@@ -39,6 +39,8 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
         uint256 totalStake;
     }
 
+    event CurrentDirectoryUpdated(uint256 currentDirectory);
+
     /**
      * @notice The epoch ID of the current directory.
      */
@@ -69,6 +71,7 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      */
     function setCurrentDirectory(uint256 epochId) external onlyManager {
         currentDirectory = epochId;
+        emit CurrentDirectoryUpdated(epochId);
     }
 
     /**

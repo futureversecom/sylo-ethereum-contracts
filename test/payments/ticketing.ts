@@ -49,12 +49,29 @@ describe('Ticketing', () => {
   });
 
   it('should be able to set parameters after initialization', async () => {
-    await ticketingParameters.setFaceValue(777);
-    await ticketingParameters.setBaseLiveWinProb(888);
-    await ticketingParameters.setExpiredWinProb(999);
-    await ticketingParameters.setDecayRate(1111);
-    await ticketingParameters.setTicketDuration(2222);
-    await ticketing.setUnlockDuration(3333);
+    await expect(ticketingParameters.setFaceValue(777))
+      .to.emit(ticketingParameters, 'FaceValueUpdated')
+      .withArgs(777);
+
+    await expect(ticketingParameters.setBaseLiveWinProb(888))
+      .to.emit(ticketingParameters, 'BaseLiveWinProbUpdated')
+      .withArgs(888);
+
+    await expect(ticketingParameters.setExpiredWinProb(999))
+      .to.emit(ticketingParameters, 'ExpiredWinProbUpdated')
+      .withArgs(999);
+
+    await expect(ticketingParameters.setDecayRate(1111))
+      .to.emit(ticketingParameters, 'DecayRateUpdated')
+      .withArgs(1111);
+
+    await expect(ticketingParameters.setTicketDuration(2222))
+      .to.emit(ticketingParameters, 'TicketDurationUpdated')
+      .withArgs(2222);
+
+    await expect(ticketing.setUnlockDuration(3333))
+      .to.emit(ticketing, 'UnlockDurationUpdated')
+      .withArgs(3333);
 
     const faceValue = await ticketingParameters.faceValue();
     assert.equal(faceValue.toNumber(), 777, "Expected face value to be correctly set");

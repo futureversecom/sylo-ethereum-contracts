@@ -47,8 +47,13 @@ describe('Staking', () => {
   });
 
   it('should be able to set parameters after initialization', async () => {
-    await stakingManager.setUnlockDuration(100);
-    await stakingManager.setMinimumStakeProportion(3000);
+    await expect(stakingManager.setUnlockDuration(100))
+      .to.emit(stakingManager, 'UnlockDurationUpdated')
+      .withArgs(100);
+
+    await expect(stakingManager.setMinimumStakeProportion(3000))
+      .to.emit(stakingManager, 'MinimumStakeProportionUpdated')
+      .withArgs(3000);
 
     const unlockDuration = await stakingManager.unlockDuration();
     const minimumStakeProportion = await stakingManager.minimumStakeProportion();
