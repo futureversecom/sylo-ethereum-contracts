@@ -99,7 +99,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         EpochsManager epochsManager,
         uint256 _unlockDuration,
         uint16 _minimumStakeProportion
-    ) public initializer {
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _rewardsManager = rewardsManager;
@@ -113,7 +113,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * the owner.
      * @param _unlockDuration The unlock duration in number of blocks.
      */
-    function setUnlockDuration(uint256 _unlockDuration) public onlyOwner {
+    function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
         unlockDuration = _unlockDuration;
     }
 
@@ -122,7 +122,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * the owner.
      * @param _minimumStakeProportion The minimum stake proportion in SOLO.
      */
-    function setMinimumStakeProportion(uint16 _minimumStakeProportion) public onlyOwner {
+    function setMinimumStakeProportion(uint16 _minimumStakeProportion) external onlyOwner {
         minimumStakeProportion = _minimumStakeProportion;
     }
 
@@ -137,7 +137,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @param amount The amount of stake to add in SOLO.
      * @param stakee The address of the staked Node.
      */
-    function addStake(uint256 amount, address stakee) public {
+    function addStake(uint256 amount, address stakee) external {
         addStake_(amount, stakee);
         _token.transferFrom(msg.sender, address(this), amount);
     }
@@ -189,7 +189,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @param amount The amount of stake to unlock in SOLO.
      * @param stakee The address of the staked Node.
      */
-    function unlockStake(uint256 amount, address stakee) public returns (uint256) {
+    function unlockStake(uint256 amount, address stakee) external returns (uint256) {
         Stake storage stake = stakes[stakee];
 
         uint256 currentStake = getCurrentStakerAmount(stakee, msg.sender);
@@ -232,7 +232,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * This will fail if the stake has not yet unlocked.
      * @param stakee The address of the staked Node.
      */
-    function withdrawStake(address stakee) public {
+    function withdrawStake(address stakee) external {
         bytes32 key = getKey(stakee, msg.sender);
 
         Unlock storage unlock = unlockings[key];
@@ -255,7 +255,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @param amount The amount of unlocking stake to cancel in SOLO.
      * @param stakee The address of the staked Node.
      */
-    function cancelUnlocking(uint256 amount, address stakee) public {
+    function cancelUnlocking(uint256 amount, address stakee) external {
         bytes32 key = getKey(stakee, msg.sender);
 
         Unlock storage unlock = unlockings[key];
@@ -285,7 +285,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @notice Retrieve the total stake being managed by this contract.
      * @return The total amount of managed stake in SOLO.
      */
-    function getTotalManagedStake() public view returns (uint256) {
+    function getTotalManagedStake() external view returns (uint256) {
         return totalManagedStake;
     }
 
@@ -295,7 +295,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @param staker The address of the staker.
      * @return The stake entry.
      */
-    function getStakeEntry(address stakee, address staker) public view returns (StakeEntry memory) {
+    function getStakeEntry(address stakee, address staker) external view returns (StakeEntry memory) {
         return stakes[stakee].stakeEntries[staker];
     }
 
@@ -315,7 +315,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @param stakee The address of the staked Node.
      * @return The amount of staked SOLO.
      */
-    function getStakeeTotalManagedStake(address stakee) public view returns (uint256) {
+    function getStakeeTotalManagedStake(address stakee) external view returns (uint256) {
         return stakes[stakee].totalManagedStake;
     }
 
@@ -340,7 +340,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * the minimum stake proportion requirement not being met from the additional stake.
      * @param stakee The address of the staked Node.
      */
-    function calculateMaxAdditionalDelegatedStake(address stakee) public view returns (uint256) {
+    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;

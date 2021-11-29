@@ -24,7 +24,7 @@ abstract contract Manageable is OwnableUpgradeable {
      * @notice Adds a manager to this contract. Only callable by the owner.
      * @param manager The address of the manager contract.
      */
-    function addManager(address manager) public onlyOwner {
+    function addManager(address manager) external onlyOwner {
       managers[manager] = block.number;
     }
 
@@ -32,7 +32,7 @@ abstract contract Manageable is OwnableUpgradeable {
      * @notice Removes a manager from this contract. Only callable by the owner.
      * @param manager The address of the manager contract.
      */
-    function removeManager(address manager) public onlyOwner {
+    function removeManager(address manager) external onlyOwner {
       delete managers[manager];
     }
 

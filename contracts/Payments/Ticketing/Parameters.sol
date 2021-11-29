@@ -51,12 +51,13 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
         uint128 _expiredWinProb,
         uint16 _decayRate,
         uint256 _ticketDuration
-    ) public initializer {
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         faceValue = _faceValue;
         baseLiveWinProb = _baseLiveWinProb;
         expiredWinProb = _expiredWinProb;
         decayRate = _decayRate;
+
         setTicketDuration(_ticketDuration);
     }
 
@@ -65,7 +66,7 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * the contract owner.
      * @param _faceValue The face value to set in SOLO.
      */
-    function setFaceValue(uint256 _faceValue) public onlyOwner {
+    function setFaceValue(uint256 _faceValue) external onlyOwner {
         faceValue = _faceValue;
     }
 
@@ -75,7 +76,7 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _baseLiveWinProb The probability represented as a value
      * between 0 to 2**128 - 1.
      */
-    function setBaseLiveWinProb(uint128 _baseLiveWinProb) public onlyOwner {
+    function setBaseLiveWinProb(uint128 _baseLiveWinProb) external onlyOwner {
         baseLiveWinProb = _baseLiveWinProb;
     }
 
@@ -85,7 +86,7 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _expiredWinProb The probability represented as a value
      * between 0 to 2**128 - 1.
      */
-    function setExpiredWinProb(uint128 _expiredWinProb) public onlyOwner {
+    function setExpiredWinProb(uint128 _expiredWinProb) external onlyOwner {
         expiredWinProb = _expiredWinProb;
     }
 
@@ -95,7 +96,7 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _decayRate The decay rate as a percentage, where the
      * denominator is 10000.
      */
-    function setDecayRate(uint16 _decayRate) public onlyOwner {
+    function setDecayRate(uint16 _decayRate) external onlyOwner {
         decayRate = _decayRate;
     }
 

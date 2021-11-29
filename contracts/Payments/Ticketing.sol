@@ -83,7 +83,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         EpochsManager epochsManager,
         RewardsManager rewardsManager,
         uint256 _unlockDuration
-    ) public initializer {
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _listings = listings;
@@ -99,7 +99,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * by the owner.
      * @param _unlockDuration The unlock duration in blocks.
      */
-    function setUnlockDuration(uint256 _unlockDuration) public onlyOwner {
+    function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
         unlockDuration = _unlockDuration;
     }
 
@@ -110,7 +110,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * @param amount The amount in SOLO to add to the escrow.
      * @param account The address of the account holding the escrow.
      */
-    function depositEscrow(uint256 amount, address account) public {
+    function depositEscrow(uint256 amount, address account) external {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
@@ -126,7 +126,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * @param amount The amount in SOLO to add to the escrow.
      * @param account The address of the account holding the penalty.
      */
-    function depositPenalty(uint256 amount, address account) public {
+    function depositPenalty(uint256 amount, address account) external {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
@@ -140,7 +140,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * will fail if no deposit exists, or if the unlock process has
      * already begun.
      */
-    function unlockDeposits() public returns (uint256) {
+    function unlockDeposits() external returns (uint256) {
 
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.escrow > 0 || deposit.penalty > 0, "Nothing to withdraw");
@@ -155,7 +155,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * @notice Call this function to cancel any deposit that is in the
      * unlocking process.
      */
-    function lockDeposits() public {
+    function lockDeposits() external {
 
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.unlockAt != 0, "Not unlocking, cannot lock");
@@ -167,7 +167,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * @notice Call this function once the unlock duration has
      * elapsed in order to transfer the unlocked tokens to the caller's account.
      */
-    function withdraw() public {
+    function withdraw() external {
         return withdrawTo(msg.sender);
     }
 
@@ -215,7 +215,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 senderRand,
         uint256 redeemerRand,
         bytes memory sig
-    ) public {
+    ) external {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         require(epoch.startBlock > 0, "Ticket's associated epoch does not exist");
         require(
