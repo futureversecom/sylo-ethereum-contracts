@@ -135,11 +135,17 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
 
   logDeployment("Ticketing", ticketing.address);
 
+  // add managers to the staking manager contract
+  await directory.addManager(epochsManager.address);
+
+  console.log('Added managers to staking manager contract');
+
   // add managers to the rewards manager contract
   await rewardsManager.addManager(ticketing.address);
   await rewardsManager.addManager(stakingManager.address);
+  await rewardsManager.addManager(epochsManager.address);
 
-  console.log('Aadded managers to rewards manager contract');
+  console.log('Added managers to rewards manager contract');
 
   // set directory ownership to the epochs manager
   await directory.transferOwnership(epochsManager.address);

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
-pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -129,6 +128,17 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      */
     function getCurrentActiveEpoch() public view returns (Epoch memory) {
         return epochs[currentIteration];
+    }
+
+    /**
+     * @notice Nodes should call this to join the next epoch. It will
+     * initialize the next reward pool and set the stake for the next directory.
+     * @dev This is a proxy function for `initalizeNextRewardPool` and
+     * `joinNextDirectory`.
+     */
+    function joinNextEpoch() public {
+        _directory._rewardsManager().initializeNextRewardPool(msg.sender);
+        _directory.joinNextDirectory(msg.sender);
     }
 
     /**
