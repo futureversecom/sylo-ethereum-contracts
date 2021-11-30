@@ -780,6 +780,38 @@ describe('Ticketing', () => {
     );
   });
 
+  it('can calculate staker claim if reward total is 0', async () => {
+    for (let i = 2; i < 4; i++) {
+      const account = await accounts[i].getAddress();
+      await token.transfer(account, toSOLOs(1000));
+      await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
+    }
+
+    await stakingManager.addStake(toSOLOs(3), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    // have account 2 as a delegated staker
+    await stakingManager.connect(accounts[2]).addStake(toSOLOs(2), owner);
+
+    async function calculateClaims() {
+      expect(await rewardsManager.calculateStakerClaim(owner, owner))
+        .to.equal(0);
+      expect(await rewardsManager.calculateStakerClaim(owner, await accounts[2].getAddress()))
+        .to.equal(0);
+    }
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    await calculateClaims();
+
+    await utils.advanceBlock(31);
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    await calculateClaims();
+  });
+
   it('can not claim reward more than once', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await listings.setListing("0.0.0.0/0", 1);

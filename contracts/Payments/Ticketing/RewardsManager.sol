@@ -305,13 +305,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
             return 0;
         }
 
-        // find the reward pool when their stake became active,
-        // which will be the first reward pool after their last claim
+        // find the first reward pool where their stake was active and had
+        // generated rewards
         uint256 activeAt = 0;
         for (uint i = lastClaims[getStakerKey(stakee, staker)] + 1; i < _epochsManager.getNextEpochId(); i++) {
             RewardPool storage rewardPool = rewardPools[getRewardPoolKey(i, stakee)];
-            // check if node initialized a reward pool for this epoch
-            if (rewardPool.initializedAt > 0) {
+            // check if node initialized a reward pool for this epoch and
+            // gained rewards
+            if (rewardPool.initializedAt > 0 && rewardPool.stakersRewardTotal > 0) {
                 activeAt = i;
                 break;
             }
