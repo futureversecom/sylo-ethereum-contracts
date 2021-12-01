@@ -92,7 +92,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         IERC20 token,
         StakingManager stakingManager,
         EpochsManager epochsManager
-    ) public initializer {
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
         _epochsManager = epochsManager;
@@ -128,7 +128,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param staker The address of the staker.
      * @return The ID of the epoch.
      */
-    function getLastClaim(address stakee, address staker) public view returns(uint256) {
+    function getLastClaim(address stakee, address staker) external view returns(uint256) {
         return lastClaims[getStakerKey(stakee, staker)];
     }
 
@@ -139,7 +139,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node.
      * @return The reward pool.
      */
-    function getRewardPool(uint256 epochId, address stakee) public view returns (RewardPool memory) {
+    function getRewardPool(uint256 epochId, address stakee) external view returns (RewardPool memory) {
         return rewardPools[getRewardPoolKey(epochId, stakee)];
     }
 
@@ -150,7 +150,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node.
      * @return The total accumulated staker reward in SOLO.
      */
-    function getRewardPoolStakersTotal(uint256 epochId, address stakee) public view returns (uint256) {
+    function getRewardPoolStakersTotal(uint256 epochId, address stakee) external view returns (uint256) {
         return rewardPools[getRewardPoolKey(epochId, stakee)].stakersRewardTotal;
     }
 
@@ -161,7 +161,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node.
      * @return The total active stake for that reward pool in SOLO.
      */
-    function getRewardPoolActiveStake(uint256 epochId, address stakee) public view returns (uint256) {
+    function getRewardPoolActiveStake(uint256 epochId, address stakee) external view returns (uint256) {
         return rewardPools[getRewardPoolKey(epochId, stakee)].totalActiveStake;
     }
 
@@ -171,7 +171,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node.
      * @return The total unclaimed Node reward in SOLO.
      */
-    function getUnclaimedNodeReward(address stakee) public view returns (uint256) {
+    function getUnclaimedNodeReward(address stakee) external view returns (uint256) {
         return unclaimedNodeRewards[stakee];
     }
 
@@ -181,7 +181,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node.
      * @return The total unclaimed staking reward in SOLO.
      */
-    function getUnclaimedStakeReward(address stakee) public view returns (uint256) {
+    function getUnclaimedStakeReward(address stakee) external view returns (uint256) {
         return unclaimedStakeRewards[stakee];
     }
 
@@ -192,7 +192,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * for the next reward pool is calculated by summing up the total managed
      * stake held by the RewardsManager contract, plus any unclaimed staking rewards.
      */
-    function initializeNextRewardPool(address stakee) public onlyManager {
+    function initializeNextRewardPool(address stakee) external onlyManager {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
         RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
@@ -231,7 +231,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     function incrementRewardPool(
         address stakee,
         uint256 amount
-    ) public onlyManager {
+    ) external onlyManager {
         EpochsManager.Epoch memory currentEpoch = _epochsManager.getCurrentActiveEpoch();
 
         RewardPool storage rewardPool = rewardPools[getRewardPoolKey(currentEpoch.iteration, stakee)];
@@ -305,13 +305,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
             return 0;
         }
 
-        // find the reward pool when their stake became active,
-        // which will be the first reward pool after their last claim
+        // find the first reward pool where their stake was active and had
+        // generated rewards
         uint256 activeAt = 0;
         for (uint i = lastClaims[getStakerKey(stakee, staker)] + 1; i < _epochsManager.getNextEpochId(); i++) {
             RewardPool storage rewardPool = rewardPools[getRewardPoolKey(i, stakee)];
-            // check if node initialized a reward pool for this epoch
-            if (rewardPool.initializedAt > 0) {
+            // check if node initialized a reward pool for this epoch and
+            // gained rewards
+            if (rewardPool.initializedAt > 0 && rewardPool.stakersRewardTotal > 0) {
                 activeAt = i;
                 break;
             }
@@ -400,7 +401,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * the current unclaimed reward from being used as stake in the next round.
      * @param stakee The address of the Node to claim against.
      */
-    function claimStakingRewards(address stakee) public {
+    function claimStakingRewards(address stakee) external {
         uint256 rewardClaim = calculateStakerClaim(stakee, msg.sender);
         require(rewardClaim > 0, "Nothing to claim");
         unclaimedStakeRewards[stakee] -= rewardClaim;
@@ -417,7 +418,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node to claim against.
      * @param staker The address of the staker.
      */
-    function claimStakingRewardsAsManager(address stakee, address staker) public onlyManager {
+    function claimStakingRewardsAsManager(address stakee, address staker) external onlyManager {
         uint256 rewardClaim = calculateStakerClaim(stakee, staker);
         lastClaims[getStakerKey(stakee, staker)] = latestActiveRewardPools[stakee];
         if (rewardClaim == 0) {
@@ -431,7 +432,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * @notice Call this function as a Node operator to claim the accumulated
      * reward for operating a Sylo Node.
      */
-    function claimNodeRewards() public {
+    function claimNodeRewards() external {
         uint256 claim = unclaimedNodeRewards[msg.sender];
 
         // Also add any unclaimed staker rewards that can no longer be claimed

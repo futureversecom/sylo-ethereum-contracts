@@ -70,7 +70,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Listings listings,
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
-    ) public initializer {
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _directory = directory;
         _listings = listings;
@@ -87,7 +87,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * the parameters in a new Epoch struct. The end block of the current epoch
      * will also be set to a non-zero value.
      */
-    function initializeEpoch() public returns (uint256) {
+    function initializeEpoch() external returns (uint256) {
         Epoch storage current = epochs[currentIteration];
 
         uint256 end = current.startBlock + current.duration;
@@ -126,7 +126,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * @notice Retrieve the parameters for the current epoch.
      * @return The current Epoch parameters.
      */
-    function getCurrentActiveEpoch() public view returns (Epoch memory) {
+    function getCurrentActiveEpoch() external view returns (Epoch memory) {
         return epochs[currentIteration];
     }
 
@@ -136,7 +136,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * @dev This is a proxy function for `initalizeNextRewardPool` and
      * `joinNextDirectory`.
      */
-    function joinNextEpoch() public {
+    function joinNextEpoch() external {
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
     }
@@ -155,7 +155,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * @param epochId The id of the epoch to retrieve.
      * @return The epoch parameters associated with the id.
      */
-    function getEpoch(uint256 epochId) public view returns (Epoch memory) {
+    function getEpoch(uint256 epochId) external view returns (Epoch memory) {
         return epochs[epochId];
     }
 }

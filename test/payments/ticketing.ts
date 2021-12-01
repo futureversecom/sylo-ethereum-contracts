@@ -49,12 +49,29 @@ describe('Ticketing', () => {
   });
 
   it('should be able to set parameters after initialization', async () => {
-    await ticketingParameters.setFaceValue(777);
-    await ticketingParameters.setBaseLiveWinProb(888);
-    await ticketingParameters.setExpiredWinProb(999);
-    await ticketingParameters.setDecayRate(1111);
-    await ticketingParameters.setTicketDuration(2222);
-    await ticketing.setUnlockDuration(3333);
+    await expect(ticketingParameters.setFaceValue(777))
+      .to.emit(ticketingParameters, 'FaceValueUpdated')
+      .withArgs(777);
+
+    await expect(ticketingParameters.setBaseLiveWinProb(888))
+      .to.emit(ticketingParameters, 'BaseLiveWinProbUpdated')
+      .withArgs(888);
+
+    await expect(ticketingParameters.setExpiredWinProb(999))
+      .to.emit(ticketingParameters, 'ExpiredWinProbUpdated')
+      .withArgs(999);
+
+    await expect(ticketingParameters.setDecayRate(1111))
+      .to.emit(ticketingParameters, 'DecayRateUpdated')
+      .withArgs(1111);
+
+    await expect(ticketingParameters.setTicketDuration(2222))
+      .to.emit(ticketingParameters, 'TicketDurationUpdated')
+      .withArgs(2222);
+
+    await expect(ticketing.setUnlockDuration(3333))
+      .to.emit(ticketing, 'UnlockDurationUpdated')
+      .withArgs(3333);
 
     const faceValue = await ticketingParameters.faceValue();
     assert.equal(faceValue.toNumber(), 777, "Expected face value to be correctly set");
@@ -761,6 +778,38 @@ describe('Ticketing', () => {
       '0',
       "Expected reward to be automatically claimed after adding stake"
     );
+  });
+
+  it('can calculate staker claim if reward total is 0', async () => {
+    for (let i = 2; i < 4; i++) {
+      const account = await accounts[i].getAddress();
+      await token.transfer(account, toSOLOs(1000));
+      await token.connect(accounts[i]).approve(stakingManager.address, toSOLOs(1000));
+    }
+
+    await stakingManager.addStake(toSOLOs(3), owner);
+    await listings.setListing("0.0.0.0/0", 1);
+
+    // have account 2 as a delegated staker
+    await stakingManager.connect(accounts[2]).addStake(toSOLOs(2), owner);
+
+    async function calculateClaims() {
+      expect(await rewardsManager.calculateStakerClaim(owner, owner))
+        .to.equal(0);
+      expect(await rewardsManager.calculateStakerClaim(owner, await accounts[2].getAddress()))
+        .to.equal(0);
+    }
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    await calculateClaims();
+
+    await utils.advanceBlock(31);
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    await calculateClaims();
   });
 
   it('can not claim reward more than once', async () => {

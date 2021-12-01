@@ -34,6 +34,8 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     mapping(address => Listing) public listings;
 
+    event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
+
     /**
      * @notice Payout percentage refers to the portion of a tickets reward
      * that will be allocated to the Node's stakers. This is global, and is
@@ -41,9 +43,13 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     uint16 public defaultPayoutPercentage;
 
-    function initialize(uint16 _defaultPayoutPercentage) public initializer {
+    function initialize(uint16 _defaultPayoutPercentage) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        setDefaultPayoutPercentage(_defaultPayoutPercentage);
+        require(
+            _defaultPayoutPercentage <= 10000,
+            "The payout percentage can not exceed 100 percent"
+        );
+        defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
     /**
@@ -52,12 +58,13 @@ contract Listings is Initializable, OwnableUpgradeable {
      * @param _defaultPayoutPercentage The payout percentage as a value where the
      * denominator is 10000.
      */
-    function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) public onlyOwner {
+    function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) external onlyOwner {
         require(
             _defaultPayoutPercentage <= 10000,
             "The payout percentage can not exceed 100 percent"
         );
         defaultPayoutPercentage = _defaultPayoutPercentage;
+        emit DefaultPayoutPercentageUpdated(_defaultPayoutPercentage);
     }
 
     /**
@@ -67,7 +74,7 @@ contract Listings is Initializable, OwnableUpgradeable {
      * @param minDelegatedStake The minimum amount of stake in SOLO that
      * a staker must add when calling StakingManager.addStake.
      */
-    function setListing(string memory multiAddr, uint256 minDelegatedStake) public {
+    function setListing(string memory multiAddr, uint256 minDelegatedStake) external {
         require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
 
         // TODO Remove defaultPayoutPercentage once epochs are introduced
@@ -80,7 +87,7 @@ contract Listings is Initializable, OwnableUpgradeable {
      * @param account The address of the Node.
      * @return The Node's Listing.
      */
-    function getListing(address account) public view returns (Listing memory) {
+    function getListing(address account) external view returns (Listing memory) {
         return listings[account];
     }
 }

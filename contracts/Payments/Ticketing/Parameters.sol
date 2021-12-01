@@ -11,6 +11,13 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * and epoch contracts.
  */
 contract TicketingParameters is Initializable, OwnableUpgradeable {
+
+    event FaceValueUpdated(uint256 faceValue);
+    event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
+    event ExpiredWinProbUpdated(uint128 expiredWinProb);
+    event TicketDurationUpdated(uint256 ticketDuration);
+    event DecayRateUpdated(uint16 decayRate);
+
     /** @notice The value of a winning ticket in SOLO. */
     uint256 public faceValue;
 
@@ -51,13 +58,15 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
         uint128 _expiredWinProb,
         uint16 _decayRate,
         uint256 _ticketDuration
-    ) public initializer {
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         faceValue = _faceValue;
         baseLiveWinProb = _baseLiveWinProb;
         expiredWinProb = _expiredWinProb;
         decayRate = _decayRate;
-        setTicketDuration(_ticketDuration);
+
+        require(_ticketDuration > 0, "Ticket duration cannot be 0");
+        ticketDuration = _ticketDuration;
     }
 
     /**
@@ -65,8 +74,9 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * the contract owner.
      * @param _faceValue The face value to set in SOLO.
      */
-    function setFaceValue(uint256 _faceValue) public onlyOwner {
+    function setFaceValue(uint256 _faceValue) external onlyOwner {
         faceValue = _faceValue;
+        emit FaceValueUpdated(_faceValue);
     }
 
     /**
@@ -75,8 +85,9 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _baseLiveWinProb The probability represented as a value
      * between 0 to 2**128 - 1.
      */
-    function setBaseLiveWinProb(uint128 _baseLiveWinProb) public onlyOwner {
+    function setBaseLiveWinProb(uint128 _baseLiveWinProb) external onlyOwner {
         baseLiveWinProb = _baseLiveWinProb;
+        emit BaseLiveWinProbUpdated(_baseLiveWinProb);
     }
 
     /**
@@ -85,8 +96,9 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _expiredWinProb The probability represented as a value
      * between 0 to 2**128 - 1.
      */
-    function setExpiredWinProb(uint128 _expiredWinProb) public onlyOwner {
+    function setExpiredWinProb(uint128 _expiredWinProb) external onlyOwner {
         expiredWinProb = _expiredWinProb;
+        emit ExpiredWinProbUpdated(_expiredWinProb);
     }
 
     /**
@@ -95,8 +107,9 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _decayRate The decay rate as a percentage, where the
      * denominator is 10000.
      */
-    function setDecayRate(uint16 _decayRate) public onlyOwner {
+    function setDecayRate(uint16 _decayRate) external onlyOwner {
         decayRate = _decayRate;
+        emit DecayRateUpdated(_decayRate);
     }
 
     /**
@@ -104,8 +117,9 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * contract owner.
      * @param _ticketDuration The duration of a ticket in number of blocks.
      */
-    function setTicketDuration(uint256 _ticketDuration) public onlyOwner {
+    function setTicketDuration(uint256 _ticketDuration) external onlyOwner {
         require(_ticketDuration > 0, "Ticket duration cannot be 0");
         ticketDuration = _ticketDuration;
+        emit TicketDurationUpdated(_ticketDuration);
     }
 }
