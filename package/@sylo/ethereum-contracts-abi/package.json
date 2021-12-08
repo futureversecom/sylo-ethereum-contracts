@@ -1,0 +1,13 @@
+{
+  "name": "@sylo/ethereum-contracts-abi",
+  "version": "0.1.0",
+  "description": "Compiled ABI's for the sylo the sylo ethereum contracts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ethers": "^5.5.2"
+  }
+}
