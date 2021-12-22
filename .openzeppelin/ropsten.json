@@ -1,10 +1,10 @@
 {
   "manifestVersion": "3.2",
   "admin": {
-    "address": "0x92bfcf24528e3494da916dB68EE04704e42af7e5",
-    "txHash": "0x732edd6776e4b18d7bc9a593467c87ca19037d5962e7601723757360d43ae512",
+    "address": "0x6BA21f448889b8B308a6C27B6d24744cF0111167",
+    "txHash": "0x4b3a23c08d3198be747db95c5a8f9e33e8bdfd429c316500de639afb3df54125",
     "deployTransaction": {
-      "hash": "0x732edd6776e4b18d7bc9a593467c87ca19037d5962e7601723757360d43ae512",
+      "hash": "0x4b3a23c08d3198be747db95c5a8f9e33e8bdfd429c316500de639afb3df54125",
       "type": 2,
       "accessList": [],
       "blockHash": null,
@@ -14,15 +14,15 @@
       "from": "0x448c8e9e1816300Dd052e77D2A44c990A2807D15",
       "gasPrice": {
         "type": "BigNumber",
-        "hex": "0x3b9aca1a"
+        "hex": "0x59682ec7"
       },
       "maxPriorityFeePerGas": {
         "type": "BigNumber",
-        "hex": "0x3b9aca00"
+        "hex": "0x59682ebc"
       },
       "maxFeePerGas": {
         "type": "BigNumber",
-        "hex": "0x3b9aca1a"
+        "hex": "0x59682ec7"
       },
       "gasLimit": {
         "type": "BigNumber",
@@ -33,56 +33,56 @@
         "type": "BigNumber",
         "hex": "0x00"
       },
-      "nonce": 20,
+      "nonce": 342,
       "data": "0x608060405234801561001057600080fd5b50600080546001600160a01b031916339081178255604051909182917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0908290a350610759806100616000396000f3fe60806040526004361061007b5760003560e01c80639623609d1161004e5780639623609d1461011157806399a88ec414610124578063f2fde38b14610144578063f3b7dead146101645761007b565b8063204e1c7a14610080578063715018a6146100bc5780637eff275e146100d35780638da5cb5b146100f3575b600080fd5b34801561008c57600080fd5b506100a061009b366004610515565b610184565b6040516001600160a01b03909116815260200160405180910390f35b3480156100c857600080fd5b506100d1610215565b005b3480156100df57600080fd5b506100d16100ee366004610554565b610292565b3480156100ff57600080fd5b506000546001600160a01b03166100a0565b6100d161011f36600461058c565b61031c565b34801561013057600080fd5b506100d161013f366004610554565b6103ad565b34801561015057600080fd5b506100d161015f366004610515565b610405565b34801561017057600080fd5b506100a061017f366004610515565b6104ef565b6000806000836001600160a01b03166040516101aa90635c60da1b60e01b815260040190565b600060405180830381855afa9150503d80600081146101e5576040519150601f19603f3d011682016040523d82523d6000602084013e6101ea565b606091505b5091509150816101f957600080fd5b8080602001905181019061020d9190610538565b949350505050565b6000546001600160a01b031633146102485760405162461bcd60e51b815260040161023f906106c0565b60405180910390fd5b600080546040516001600160a01b03909116907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0908390a3600080546001600160a01b0319169055565b6000546001600160a01b031633146102bc5760405162461bcd60e51b815260040161023f906106c0565b6040516308f2839760e41b81526001600160a01b038281166004830152831690638f283970906024015b600060405180830381600087803b15801561030057600080fd5b505af1158015610314573d6000803e3d6000fd5b505050505050565b6000546001600160a01b031633146103465760405162461bcd60e51b815260040161023f906106c0565b60405163278f794360e11b81526001600160a01b03841690634f1ef286903490610376908690869060040161065d565b6000604051808303818588803b15801561038f57600080fd5b505af11580156103a3573d6000803e3d6000fd5b5050505050505050565b6000546001600160a01b031633146103d75760405162461bcd60e51b815260040161023f906106c0565b604051631b2ce7f360e11b81526001600160a01b038281166004830152831690633659cfe6906024016102e6565b6000546001600160a01b0316331461042f5760405162461bcd60e51b815260040161023f906106c0565b6001600160a01b0381166104945760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201526564647265737360d01b606482015260840161023f565b600080546040516001600160a01b03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b6000806000836001600160a01b03166040516101aa906303e1469160e61b815260040190565b600060208284031215610526578081fd5b81356105318161070b565b9392505050565b600060208284031215610549578081fd5b81516105318161070b565b60008060408385031215610566578081fd5b82356105718161070b565b915060208301356105818161070b565b809150509250929050565b6000806000606084860312156105a0578081fd5b83356105ab8161070b565b925060208401356105bb8161070b565b9150604084013567ffffffffffffffff808211156105d7578283fd5b818601915086601f8301126105ea578283fd5b8135818111156105fc576105fc6106f5565b604051601f8201601f19908116603f01168101908382118183101715610624576106246106f5565b8160405282815289602084870101111561063c578586fd5b82602086016020830137856020848301015280955050505050509250925092565b600060018060a01b038416825260206040818401528351806040850152825b818110156106985785810183015185820160600152820161067c565b818111156106a95783606083870101525b50601f01601f191692909201606001949350505050565b6020808252818101527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e6572604082015260600190565b634e487b7160e01b600052604160045260246000fd5b6001600160a01b038116811461072057600080fd5b5056fea2646970667358221220d849f96f3086b9f82cdcf665adb8c697ace05638da1c7c16ab2d26293717af6764736f6c63430008020033",
-      "r": "0xcbdf72bafb801fcc3161db83dcb23a48098158b73a5d44e51879c090c61d6ef3",
-      "s": "0x261f1bd6d2947cbd2d76f8f94bc5c6f4eea8a4f97d0ffb37f5414edf027cb465",
+      "r": "0x7e0de0072cd52b8d94591ea09aa06578b832cd6b73eb8922492fec4bbc50db90",
+      "s": "0x17d122bf11bba6039bc780d4cc5072246e1b2b96e3710d70ca0a1ce4e65b0599",
       "v": 1,
-      "creates": "0x92bfcf24528e3494da916dB68EE04704e42af7e5",
+      "creates": "0x6BA21f448889b8B308a6C27B6d24744cF0111167",
       "chainId": 3
     }
   },
   "proxies": [
     {
-      "address": "0x2EDF01da7116AD2655b784B56d0FC025F6AEd08a",
-      "txHash": "0x2dd4c42aea232e1e2b7623cb5a0f8946f2a71bd279116343cf35f13dcbe8f3ee",
+      "address": "0xCEA7dBD3fC297fBB3d140BFBDB19F1F14c945573",
+      "txHash": "0x1f73a736aee648d94975dfa66aa368e40f349de2d582125567130825666e4907",
       "kind": "transparent"
     },
     {
-      "address": "0xE98227d2621489C6d7348508e89D7d97aEA19107",
-      "txHash": "0xfba8e3eea7ac77962ab0cf6e0a4c323ddc0be14effa1cc49e93761d4fa7b538d",
+      "address": "0xF38C77b4BB64063A17fDd00259a4b7E0688db99a",
+      "txHash": "0x3d04985375a32ca7dd2d2944509bfb3c5562a338f8c93839da53d673987d2235",
       "kind": "transparent"
     },
     {
-      "address": "0x039E437c9F8550f0b90b467FA59e069eCC56339e",
-      "txHash": "0x9c3cc7fbb2eecb10c326e85eadec3f6c0bd9334c3fd320c46c5741b3385ced2d",
+      "address": "0x4A60923212cDE57797C938e5cb5f45827D922343",
+      "txHash": "0x1330c0851ca5dfba6674e7724cda8408ae549cba8407f681ee5bddb6c4575a39",
       "kind": "transparent"
     },
     {
-      "address": "0xacbB0539De27DEC771994b3f0d4fE9D59a7d907D",
-      "txHash": "0xf54dd458da9d755e59e292381bcda74206cd1aca7c5e1eb9a14d3dc2ca1960db",
+      "address": "0x2c25EbFf186784C02BDfba7bdd2cB5E4f34d4317",
+      "txHash": "0xd96978e4de192d187de8d64422357443c6e51071d64efa81d5c6316c8b74ad3e",
       "kind": "transparent"
     },
     {
-      "address": "0x49e5706C06a263aC142D0A8c06f7aB247C1d978A",
-      "txHash": "0x110ecf499ba10c673208840556a1cfbb453e550089ebeccf2da73882a8bcce9c",
+      "address": "0x5226d27100aA096096F9654eb8F0a825fC74bC3A",
+      "txHash": "0xd882a08ac2c03902c8386444f54dace0e7ef0d94455b5da97de596b51084fd7c",
       "kind": "transparent"
     },
     {
-      "address": "0x74759De2bF257296EB6A50E57ce641481d3b57Ed",
-      "txHash": "0x8068661c0df970641fb80329c87bb3d00319de46d01ac9f1632d658a471d5c91",
+      "address": "0x5fEA36aB027b915B01c2B57c1618Ab2991bcF508",
+      "txHash": "0xaaef13b887f7cfa5c58b3ad7401840dba18fd5e4837186cccea841ce66190a90",
       "kind": "transparent"
     },
     {
-      "address": "0x25d18101D0d74F3aD905D188BD769f07DDE24ba4",
-      "txHash": "0x728158c2b44e0d6078c6564e04e0c7840306edda82b219a7a4853e58982728d4",
+      "address": "0xC330fec2523E67c7417486D89b558C9d12Ec7d28",
+      "txHash": "0x71b111e9591fca1df0dd8121cc0d86ef5a1aa24f2939eb1c8fb5857e656de201",
       "kind": "transparent"
     }
   ],
   "impls": {
-    "97ef67b9f32b31b8daae3681f0bde18312edaaf093f1cda833715c91ab282a6b": {
-      "address": "0x67C22c5714AC2A56D6451BF879a8AC6825426894",
-      "txHash": "0x7a72eaff2d10a380f456b3dfadf0bd9392ca6af927bbd7ddab94f5f01f09dc1d",
+    "2488f2ae14f8f0557bbf8ecb775a1f612925eecdee278636a079ab0d56d22462": {
+      "address": "0x0a594e91954FA399DCF076bc4528674e766eFC1F",
+      "txHash": "0x19b53d1391477a5ed89c28a76b71f83f431d164f30cce8a3033d6bde65858bd8",
       "layout": {
         "storage": [
           {
@@ -118,24 +118,24 @@
           {
             "contract": "Listings",
             "label": "listings",
-            "type": "t_mapping(t_address,t_struct(Listing)4054_storage)",
-            "src": "contracts/Listings.sol:28"
+            "type": "t_mapping(t_address,t_struct(Listing)4081_storage)",
+            "src": "contracts/Listings.sol:35"
           },
           {
             "contract": "Listings",
             "label": "defaultPayoutPercentage",
             "type": "t_uint16",
-            "src": "contracts/Listings.sol:30"
+            "src": "contracts/Listings.sol:44"
           }
         ],
         "types": {
-          "t_mapping(t_address,t_struct(Listing)4054_storage)": {
+          "t_mapping(t_address,t_struct(Listing)4081_storage)": {
             "label": "mapping(address => struct Listings.Listing)"
           },
           "t_address": {
             "label": "address"
           },
-          "t_struct(Listing)4054_storage": {
+          "t_struct(Listing)4081_storage": {
             "label": "struct Listings.Listing",
             "members": [
               {
@@ -177,9 +177,9 @@
         }
       }
     },
-    "a60415263a548472f6fbc926937fa59f158988b150b061975820474bf337ed11": {
-      "address": "0xA7d92f7F604eC60ab0dCF31E55244Ae27795c146",
-      "txHash": "0x6d2c1dd6d10f9958386c00bd8fa508a90f583d5ee6951aca3fe8d72c7ec0838a",
+    "2619ae01d457613bb6a8e9dcb102a5890358d6f1436c633759557603d038cc0b": {
+      "address": "0xec0Fc52F22eAdE86b6E2f93dDa9f5fE7f11Cf4f6",
+      "txHash": "0x02185215f9d4af9c0a03a76ca1bde2a1541f89265e29f8b78c67b4877b71914d",
       "layout": {
         "storage": [
           {
@@ -216,31 +216,31 @@
             "contract": "TicketingParameters",
             "label": "faceValue",
             "type": "t_uint256",
-            "src": "contracts/Payments/Ticketing/Parameters.sol:15"
+            "src": "contracts/Payments/Ticketing/Parameters.sol:22"
           },
           {
             "contract": "TicketingParameters",
             "label": "baseLiveWinProb",
             "type": "t_uint128",
-            "src": "contracts/Payments/Ticketing/Parameters.sol:22"
+            "src": "contracts/Payments/Ticketing/Parameters.sol:29"
           },
           {
             "contract": "TicketingParameters",
             "label": "expiredWinProb",
             "type": "t_uint128",
-            "src": "contracts/Payments/Ticketing/Parameters.sol:29"
+            "src": "contracts/Payments/Ticketing/Parameters.sol:37"
           },
           {
             "contract": "TicketingParameters",
             "label": "ticketDuration",
             "type": "t_uint256",
-            "src": "contracts/Payments/Ticketing/Parameters.sol:36"
+            "src": "contracts/Payments/Ticketing/Parameters.sol:44"
           },
           {
             "contract": "TicketingParameters",
             "label": "decayRate",
             "type": "t_uint16",
-            "src": "contracts/Payments/Ticketing/Parameters.sol:45"
+            "src": "contracts/Payments/Ticketing/Parameters.sol:53"
           }
         ],
         "types": {
@@ -268,9 +268,9 @@
         }
       }
     },
-    "16d21dd1c58c76bb7b714e3f25907ae63a7acc7e82151b5247540f94e987ad35": {
-      "address": "0xF1B7c8449Eb4b788606737112fE30770f3C7a91a",
-      "txHash": "0x6baf695e2f81e7621402baf7333cc17aad36990ceae5f9128038446b929d5214",
+    "a624838c6269b0c6bcf22b2e3faf675ef3cd56ec25409f96fc12004183c97b6b": {
+      "address": "0x3db64F253Ae1d4bbe31FcD533704D7E64Ef28494",
+      "txHash": "0x1c77f16125313d594c24a2b92781e77f578355c2fba40e1c14dae9b834d98bd0",
       "layout": {
         "storage": [
           {
@@ -306,57 +306,57 @@
           {
             "contract": "EpochsManager",
             "label": "_directory",
-            "type": "t_contract(Directory)6458",
-            "src": "contracts/Epochs/Manager.sol:34"
+            "type": "t_contract(Directory)6673",
+            "src": "contracts/Epochs/Manager.sol:38"
           },
           {
             "contract": "EpochsManager",
             "label": "_listings",
-            "type": "t_contract(Listings)4151",
-            "src": "contracts/Epochs/Manager.sol:36"
+            "type": "t_contract(Listings)4194",
+            "src": "contracts/Epochs/Manager.sol:40"
           },
           {
             "contract": "EpochsManager",
             "label": "_ticketingParameters",
-            "type": "t_contract(TicketingParameters)5142",
-            "src": "contracts/Epochs/Manager.sol:38"
+            "type": "t_contract(TicketingParameters)5349",
+            "src": "contracts/Epochs/Manager.sol:42"
           },
           {
             "contract": "EpochsManager",
             "label": "epochDuration",
             "type": "t_uint256",
-            "src": "contracts/Epochs/Manager.sol:46"
+            "src": "contracts/Epochs/Manager.sol:52"
           },
           {
             "contract": "EpochsManager",
             "label": "currentIteration",
             "type": "t_uint256",
-            "src": "contracts/Epochs/Manager.sol:50"
+            "src": "contracts/Epochs/Manager.sol:59"
           },
           {
             "contract": "EpochsManager",
             "label": "epochs",
-            "type": "t_mapping(t_uint256,t_struct(Epoch)3839_storage)",
-            "src": "contracts/Epochs/Manager.sol:52"
+            "type": "t_mapping(t_uint256,t_struct(Epoch)3838_storage)",
+            "src": "contracts/Epochs/Manager.sol:64"
           }
         ],
         "types": {
-          "t_contract(Directory)6458": {
+          "t_contract(Directory)6673": {
             "label": "contract Directory"
           },
-          "t_contract(Listings)4151": {
+          "t_contract(Listings)4194": {
             "label": "contract Listings"
           },
-          "t_contract(TicketingParameters)5142": {
+          "t_contract(TicketingParameters)5349": {
             "label": "contract TicketingParameters"
           },
           "t_uint256": {
             "label": "uint256"
           },
-          "t_mapping(t_uint256,t_struct(Epoch)3839_storage)": {
+          "t_mapping(t_uint256,t_struct(Epoch)3838_storage)": {
             "label": "mapping(uint256 => struct EpochsManager.Epoch)"
           },
-          "t_struct(Epoch)3839_storage": {
+          "t_struct(Epoch)3838_storage": {
             "label": "struct EpochsManager.Epoch",
             "members": [
               {
@@ -422,9 +422,9 @@
         }
       }
     },
-    "d2b9e34b3f231db098661a5afb0eff6061cf8987945d28620645c3b18524efd9": {
-      "address": "0xe2F3F98D532035d9Fa51089c188A010d81153075",
-      "txHash": "0x852168b5cde66bd3a42cbc37da7ff669333035ce3d983f6607182683debe4ea5",
+    "61588ef759a009a697dcb4e250bc7a06dc0d95637314aee42f5fffa51d69e0ab": {
+      "address": "0x4421e2C7Ae69CAbD9D458dFe6FE76c0C35B7dd1d",
+      "txHash": "0xbceb12b73ab37e121f2cf8bfa764b8dff7d6afee8a48ea7990449092e01faa6e",
       "layout": {
         "storage": [
           {
@@ -461,67 +461,73 @@
             "contract": "StakingManager",
             "label": "_token",
             "type": "t_contract(IERC20)838",
-            "src": "contracts/Staking/Manager.sol:16"
+            "src": "contracts/Staking/Manager.sol:19"
           },
           {
             "contract": "StakingManager",
             "label": "_rewardsManager",
-            "type": "t_contract(RewardsManager)6043",
-            "src": "contracts/Staking/Manager.sol:22"
+            "type": "t_contract(RewardsManager)6234",
+            "src": "contracts/Staking/Manager.sol:25"
           },
           {
             "contract": "StakingManager",
             "label": "_epochsManager",
-            "type": "t_contract(EpochsManager)4036",
-            "src": "contracts/Staking/Manager.sol:24"
+            "type": "t_contract(EpochsManager)4063",
+            "src": "contracts/Staking/Manager.sol:27"
           },
           {
             "contract": "StakingManager",
             "label": "stakes",
-            "type": "t_mapping(t_address,t_struct(Stake)6494_storage)",
-            "src": "contracts/Staking/Manager.sol:56"
+            "type": "t_mapping(t_address,t_struct(Stake)6712_storage)",
+            "src": "contracts/Staking/Manager.sol:70"
           },
           {
             "contract": "StakingManager",
             "label": "totalManagedStake",
             "type": "t_uint256",
-            "src": "contracts/Staking/Manager.sol:59"
+            "src": "contracts/Staking/Manager.sol:73"
+          },
+          {
+            "contract": "StakingManager",
+            "label": "unlockings",
+            "type": "t_mapping(t_bytes32,t_struct(Unlock)6717_storage)",
+            "src": "contracts/Staking/Manager.sol:80"
           },
           {
             "contract": "StakingManager",
             "label": "unlockDuration",
             "type": "t_uint256",
-            "src": "contracts/Staking/Manager.sol:65"
+            "src": "contracts/Staking/Manager.sol:89"
           },
           {
             "contract": "StakingManager",
-            "label": "unlockings",
-            "type": "t_mapping(t_bytes32,t_struct(Unlock)6499_storage)",
-            "src": "contracts/Staking/Manager.sol:68"
+            "label": "minimumStakeProportion",
+            "type": "t_uint16",
+            "src": "contracts/Staking/Manager.sol:97"
           }
         ],
         "types": {
           "t_contract(IERC20)838": {
             "label": "contract IERC20"
           },
-          "t_contract(RewardsManager)6043": {
+          "t_contract(RewardsManager)6234": {
             "label": "contract RewardsManager"
           },
-          "t_contract(EpochsManager)4036": {
+          "t_contract(EpochsManager)4063": {
             "label": "contract EpochsManager"
           },
-          "t_mapping(t_address,t_struct(Stake)6494_storage)": {
+          "t_mapping(t_address,t_struct(Stake)6712_storage)": {
             "label": "mapping(address => struct StakingManager.Stake)"
           },
           "t_address": {
             "label": "address"
           },
-          "t_struct(Stake)6494_storage": {
+          "t_struct(Stake)6712_storage": {
             "label": "struct StakingManager.Stake",
             "members": [
               {
                 "label": "stakeEntries",
-                "type": "t_mapping(t_address,t_struct(StakeEntry)6486_storage)"
+                "type": "t_mapping(t_address,t_struct(StakeEntry)6704_storage)"
               },
               {
                 "label": "totalManagedStake",
@@ -529,10 +535,10 @@
               }
             ]
           },
-          "t_mapping(t_address,t_struct(StakeEntry)6486_storage)": {
+          "t_mapping(t_address,t_struct(StakeEntry)6704_storage)": {
             "label": "mapping(address => struct StakingManager.StakeEntry)"
           },
-          "t_struct(StakeEntry)6486_storage": {
+          "t_struct(StakeEntry)6704_storage": {
             "label": "struct StakingManager.StakeEntry",
             "members": [
               {
@@ -552,13 +558,13 @@
           "t_uint256": {
             "label": "uint256"
           },
-          "t_mapping(t_bytes32,t_struct(Unlock)6499_storage)": {
+          "t_mapping(t_bytes32,t_struct(Unlock)6717_storage)": {
             "label": "mapping(bytes32 => struct StakingManager.Unlock)"
           },
           "t_bytes32": {
             "label": "bytes32"
           },
-          "t_struct(Unlock)6499_storage": {
+          "t_struct(Unlock)6717_storage": {
             "label": "struct StakingManager.Unlock",
             "members": [
               {
@@ -570,6 +576,9 @@
                 "type": "t_uint256"
               }
             ]
+          },
+          "t_uint16": {
+            "label": "uint16"
           },
           "t_array(t_uint256)49_storage": {
             "label": "uint256[49]"
@@ -583,9 +592,9 @@
         }
       }
     },
-    "80976f8d129553919056eb7fc870e7122e9aa77969cb274cc9364d42f058c5b2": {
-      "address": "0xC21dd5F7456B2f55c0Ff380cf0c6AE74AbD1C621",
-      "txHash": "0xc038a872028970a3070ea4627e6888e043f1d4f5dc649ac163f77073ca1275b2",
+    "08512f3d90ef47c9bce0d6b8d795e3db07a4ce0855c11544e14ed5d5dc3a9499": {
+      "address": "0xc9A2f11e7BfCF27e984B232ed8EF51dBBAA50e68",
+      "txHash": "0x57ad38a99b088fc317cd8aa2be95e87fae030a556d485f9547c0e6808a927a94",
       "layout": {
         "storage": [
           {
@@ -619,68 +628,68 @@
             "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:77"
           },
           {
+            "contract": "Manageable",
+            "label": "managers",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "contracts/Manageable.sol:21"
+          },
+          {
             "contract": "RewardsManager",
             "label": "_token",
             "type": "t_contract(IERC20)838",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:27"
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:26"
           },
           {
             "contract": "RewardsManager",
             "label": "_stakingManager",
-            "type": "t_contract(StakingManager)6967",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:30"
+            "type": "t_contract(StakingManager)7340",
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:29"
           },
           {
             "contract": "RewardsManager",
             "label": "_epochsManager",
-            "type": "t_contract(EpochsManager)4036",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:33"
+            "type": "t_contract(EpochsManager)4063",
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:32"
           },
           {
             "contract": "RewardsManager",
             "label": "unclaimedNodeRewards",
             "type": "t_mapping(t_address,t_uint256)",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:35"
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:40"
           },
           {
             "contract": "RewardsManager",
             "label": "unclaimedStakeRewards",
             "type": "t_mapping(t_address,t_uint256)",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:37"
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:47"
           },
           {
             "contract": "RewardsManager",
             "label": "latestActiveRewardPools",
             "type": "t_mapping(t_address,t_uint256)",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:40"
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:52"
           },
           {
             "contract": "RewardsManager",
             "label": "lastClaims",
             "type": "t_mapping(t_bytes32,t_uint256)",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:43"
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:59"
           },
           {
             "contract": "RewardsManager",
             "label": "rewardPools",
-            "type": "t_mapping(t_bytes32,t_struct(RewardPool)5198_storage)",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:65"
-          },
-          {
-            "contract": "RewardsManager",
-            "label": "managers",
-            "type": "t_mapping(t_address,t_uint256)",
-            "src": "contracts/Payments/Ticketing/RewardsManager.sol:72"
+            "type": "t_mapping(t_bytes32,t_struct(RewardPool)5415_storage)",
+            "src": "contracts/Payments/Ticketing/RewardsManager.sol:89"
           }
         ],
         "types": {
           "t_contract(IERC20)838": {
             "label": "contract IERC20"
           },
-          "t_contract(StakingManager)6967": {
+          "t_contract(StakingManager)7340": {
             "label": "contract StakingManager"
           },
-          "t_contract(EpochsManager)4036": {
+          "t_contract(EpochsManager)4063": {
             "label": "contract EpochsManager"
           },
           "t_mapping(t_address,t_uint256)": {
@@ -698,10 +707,10 @@
           "t_bytes32": {
             "label": "bytes32"
           },
-          "t_mapping(t_bytes32,t_struct(RewardPool)5198_storage)": {
+          "t_mapping(t_bytes32,t_struct(RewardPool)5415_storage)": {
             "label": "mapping(bytes32 => struct RewardsManager.RewardPool)"
           },
-          "t_struct(RewardPool)5198_storage": {
+          "t_struct(RewardPool)5415_storage": {
             "label": "struct RewardsManager.RewardPool",
             "members": [
               {
@@ -741,9 +750,9 @@
         }
       }
     },
-    "5f29b5aa7615bf0b8969604954fa0da30515812d4dbb932ef9d54bc273f7095c": {
-      "address": "0x0c1f5B50098913e7ACf33035CEafEC41B8Eee642",
-      "txHash": "0x06787bb95ce590ad98fbd2faec0654854c2cebfd33b5702f79ff33b4e61fc8db",
+    "7b620cefc98835d88267e83abd2ceb50bbc374939dc190adfb7720e2dc89391a": {
+      "address": "0x71620406C2738c87603270d93574275A9A2e630B",
+      "txHash": "0x736b4d22c703cc6e57da2f389629cb3723007ed8e7c45fa889e534a3dd5f9e3f",
       "layout": {
         "storage": [
           {
@@ -777,49 +786,55 @@
             "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:77"
           },
           {
+            "contract": "Manageable",
+            "label": "managers",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "contracts/Manageable.sol:21"
+          },
+          {
             "contract": "Directory",
             "label": "_stakingManager",
-            "type": "t_contract(StakingManager)6967",
+            "type": "t_contract(StakingManager)7340",
             "src": "contracts/Staking/Directory.sol:19"
           },
           {
             "contract": "Directory",
             "label": "_rewardsManager",
-            "type": "t_contract(RewardsManager)6043",
+            "type": "t_contract(RewardsManager)6234",
             "src": "contracts/Staking/Directory.sol:22"
           },
           {
             "contract": "Directory",
             "label": "currentDirectory",
             "type": "t_uint256",
-            "src": "contracts/Staking/Directory.sol:37"
+            "src": "contracts/Staking/Directory.sol:47"
           },
           {
             "contract": "Directory",
             "label": "directories",
-            "type": "t_mapping(t_uint256,t_struct(Directory)6077_storage)",
-            "src": "contracts/Staking/Directory.sol:40"
+            "type": "t_mapping(t_uint256,t_struct(Directory)6273_storage)",
+            "src": "contracts/Staking/Directory.sol:52"
           }
         ],
         "types": {
-          "t_contract(StakingManager)6967": {
+          "t_contract(StakingManager)7340": {
             "label": "contract StakingManager"
           },
-          "t_contract(RewardsManager)6043": {
+          "t_contract(RewardsManager)6234": {
             "label": "contract RewardsManager"
           },
           "t_uint256": {
             "label": "uint256"
           },
-          "t_mapping(t_uint256,t_struct(Directory)6077_storage)": {
+          "t_mapping(t_uint256,t_struct(Directory)6273_storage)": {
             "label": "mapping(uint256 => struct Directory.Directory)"
           },
-          "t_struct(Directory)6077_storage": {
+          "t_struct(Directory)6273_storage": {
             "label": "struct Directory.Directory",
             "members": [
               {
                 "label": "entries",
-                "type": "t_array(t_struct(DirectoryEntry)6066_storage)dyn_storage"
+                "type": "t_array(t_struct(DirectoryEntry)6262_storage)dyn_storage"
               },
               {
                 "label": "stakes",
@@ -831,10 +846,10 @@
               }
             ]
           },
-          "t_array(t_struct(DirectoryEntry)6066_storage)dyn_storage": {
+          "t_array(t_struct(DirectoryEntry)6262_storage)dyn_storage": {
             "label": "struct Directory.DirectoryEntry[]"
           },
-          "t_struct(DirectoryEntry)6066_storage": {
+          "t_struct(DirectoryEntry)6262_storage": {
             "label": "struct Directory.DirectoryEntry",
             "members": [
               {
@@ -865,9 +880,9 @@
         }
       }
     },
-    "ed85e4b783fa8c824e71dad15b03867f3c48e73d96fe20ece1eff4c36960ed93": {
-      "address": "0xdc0D778fdB5bEa8C64dcf714a67D2ddE6b7887fE",
-      "txHash": "0x5c5e8c30fc6083846d2a3bea667e2668aae6bdbea72bf1bf87242a1570c59cc2",
+    "33686fed25c0ff2186090924383e2ac7a456750532480a3540aebaa756179a87": {
+      "address": "0x1eB0fC8174133c8c9638C1b3A1Afac459FCFb295",
+      "txHash": "0x7cf799a9893ffc2c324601b010ec962d012afb222c518f2db1ab4de77000076a",
       "layout": {
         "storage": [
           {
@@ -904,86 +919,86 @@
             "contract": "SyloTicketing",
             "label": "_token",
             "type": "t_contract(IERC20)838",
-            "src": "contracts/Payments/Ticketing.sol:41"
+            "src": "contracts/Payments/Ticketing.sol:45"
           },
           {
             "contract": "SyloTicketing",
             "label": "_listings",
-            "type": "t_contract(Listings)4151",
-            "src": "contracts/Payments/Ticketing.sol:44"
+            "type": "t_contract(Listings)4194",
+            "src": "contracts/Payments/Ticketing.sol:48"
           },
           {
             "contract": "SyloTicketing",
             "label": "_stakingManager",
-            "type": "t_contract(StakingManager)6967",
-            "src": "contracts/Payments/Ticketing.sol:47"
+            "type": "t_contract(StakingManager)7340",
+            "src": "contracts/Payments/Ticketing.sol:51"
           },
           {
             "contract": "SyloTicketing",
             "label": "_directory",
-            "type": "t_contract(Directory)6458",
-            "src": "contracts/Payments/Ticketing.sol:50"
+            "type": "t_contract(Directory)6673",
+            "src": "contracts/Payments/Ticketing.sol:54"
           },
           {
             "contract": "SyloTicketing",
             "label": "_rewardsManager",
-            "type": "t_contract(RewardsManager)6043",
-            "src": "contracts/Payments/Ticketing.sol:53"
+            "type": "t_contract(RewardsManager)6234",
+            "src": "contracts/Payments/Ticketing.sol:57"
           },
           {
             "contract": "SyloTicketing",
             "label": "_epochsManager",
-            "type": "t_contract(EpochsManager)4036",
-            "src": "contracts/Payments/Ticketing.sol:58"
+            "type": "t_contract(EpochsManager)4063",
+            "src": "contracts/Payments/Ticketing.sol:64"
           },
           {
             "contract": "SyloTicketing",
             "label": "unlockDuration",
             "type": "t_uint256",
-            "src": "contracts/Payments/Ticketing.sol:64"
+            "src": "contracts/Payments/Ticketing.sol:72"
           },
           {
             "contract": "SyloTicketing",
             "label": "deposits",
-            "type": "t_mapping(t_address,t_struct(Deposit)4183_storage)",
-            "src": "contracts/Payments/Ticketing.sol:67"
+            "type": "t_mapping(t_address,t_struct(Deposit)4283_storage)",
+            "src": "contracts/Payments/Ticketing.sol:75"
           },
           {
             "contract": "SyloTicketing",
             "label": "usedTickets",
             "type": "t_mapping(t_bytes32,t_bool)",
-            "src": "contracts/Payments/Ticketing.sol:70"
+            "src": "contracts/Payments/Ticketing.sol:78"
           }
         ],
         "types": {
           "t_contract(IERC20)838": {
             "label": "contract IERC20"
           },
-          "t_contract(Listings)4151": {
+          "t_contract(Listings)4194": {
             "label": "contract Listings"
           },
-          "t_contract(StakingManager)6967": {
+          "t_contract(StakingManager)7340": {
             "label": "contract StakingManager"
           },
-          "t_contract(Directory)6458": {
+          "t_contract(Directory)6673": {
             "label": "contract Directory"
           },
-          "t_contract(RewardsManager)6043": {
+          "t_contract(RewardsManager)6234": {
             "label": "contract RewardsManager"
           },
-          "t_contract(EpochsManager)4036": {
+          "t_contract(EpochsManager)4063": {
             "label": "contract EpochsManager"
           },
           "t_uint256": {
             "label": "uint256"
           },
-          "t_mapping(t_address,t_struct(Deposit)4183_storage)": {
+          "t_mapping(t_address,t_struct(Deposit)4283_storage)": {
             "label": "mapping(address => struct SyloTicketing.Deposit)"
           },
           "t_address": {
             "label": "address"
           },
-          "t_struct(Deposit)4183_storage": {
+          "t_struct(Deposit)4283_storage": {
             "label": "struct SyloTicketing.Deposit",
             "members": [
               {
