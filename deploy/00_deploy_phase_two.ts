@@ -1,8 +1,10 @@
 import { ethers, upgrades, network } from 'hardhat';
 import Config from './genesis.config';
 import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
+import * as fs from 'fs/promises';
 
 type PhaseTwoContracts = {
+  token: string,
   directory: Directory,
   epochsManager: EpochsManager,
   listings: Listings,
@@ -138,7 +140,7 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
   // add managers to the staking manager contract
   await directory.addManager(epochsManager.address);
 
-  console.log('Added managers to staking manager contract');
+  console.log('Added managers to directory manager contract');
 
   // add managers to the rewards manager contract
   await rewardsManager.addManager(ticketing.address);
@@ -147,14 +149,10 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
 
   console.log('Added managers to rewards manager contract');
 
-  // set directory ownership to the epochs manager
-  await directory.transferOwnership(epochsManager.address);
-
-  console.log('Transferred directory ownership to epochs manager');
-
   console.log(`Deployment of phase two contracts to network ${network.name} complete by deployer: ${deployer.address}`);
 
   return {
+    token: config.SyloToken,
     listings,
     ticketing,
     ticketingParameters,
@@ -162,7 +160,7 @@ async function deployPhaseTwoContracts(config: typeof Config): Promise<PhaseTwoC
     rewardsManager,
     epochsManager,
     stakingManager
-  }
+  };
 };
 
 function logDeployment(contract: string, contractAddress: string) {
@@ -170,7 +168,28 @@ function logDeployment(contract: string, contractAddress: string) {
 }
 
 async function main() {
-  await deployPhaseTwoContracts(Config);
+  const contracts = await deployPhaseTwoContracts(Config);
+
+  const [deployer] = await ethers.getSigners();
+
+  // write the deployed contracts to a json file
+  // this is easier to read than the openzeppelin manifest
+  const deployedJson = {
+    deployer: deployer.address,
+    token: contracts.token,
+    listings: contracts.listings.address,
+    ticketing: contracts.ticketing.address,
+    ticketingParameters: contracts.ticketingParameters.address,
+    directory: contracts.directory.address,
+    rewardsManager: contracts.rewardsManager.address,
+    epochsManager: contracts.epochsManager.address,
+    stakingManager: contracts.stakingManager.address
+  };
+
+  const f = await fs.writeFile(
+    `${__dirname}/${network.name}_deployment_phase_two.json`,
+    Buffer.from(JSON.stringify(deployedJson, null, " "), 'utf8')
+  );
 }
 
 export {
