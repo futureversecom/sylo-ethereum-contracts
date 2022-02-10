@@ -37,6 +37,12 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? ''
       }
+    },
+    cennznet_evm: {
+      url: 'https://evm.centrality.me/public',
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC
+      }
     }
   }
 };
