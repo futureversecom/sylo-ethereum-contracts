@@ -3,7 +3,7 @@
 This docker image runs a local ganache node with the contracts
 already deployed.
 
-When the image is built, an `accounts,json`
+When the image is built, an `accounts.json`
 used for the network and an `addresses.json` is stored in
 `/app/deployment`.
 
