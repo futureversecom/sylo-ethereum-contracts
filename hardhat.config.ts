@@ -28,6 +28,10 @@ const config: HardhatUserConfig = {
     noColors: true // Needed for outputfile
   },
   networks: {
+    localhost: {
+      url: 'http://0.0.0.0:8545',
+      accounts: 'remote'
+    },
     ropsten: {
       url: process.env.ROPSTEN_INFURA_ENDPOINT ?? '',
       accounts: {

@@ -2,6 +2,7 @@ import { ethers, upgrades, network } from 'hardhat';
 import Config from './genesis.config';
 import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
 import * as fs from 'fs/promises';
+import { Manifest } from '@openzeppelin/upgrades-core';
 
 type PhaseTwoContracts = {
   token: string,
