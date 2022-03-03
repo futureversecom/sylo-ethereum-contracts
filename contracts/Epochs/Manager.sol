@@ -123,6 +123,15 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Set the epoch duration. Will take effect in the next epoch. only
+     * callable by the owner.
+     * @param _epochDuration The epoch duration in number of blocks.
+     */
+    function setEpochDuration(uint256 _epochDuration) external onlyOwner {
+        epochDuration = _epochDuration;
+    }
+
+    /**
      * @notice Retrieve the parameters for the current epoch.
      * @return The current Epoch parameters.
      */
