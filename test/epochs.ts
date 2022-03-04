@@ -27,6 +27,16 @@ describe('Epochs', () => {
     await contracts.directory.transferOwnership(epochsManager.address);
   });
 
+  it('can set epoch duration', async () => {
+    await epochsManager.setEpochDuration(777);
+    const epochDuration = await epochsManager.epochDuration();
+    assert.equal(
+      epochDuration.toNumber(),
+      777,
+      "Expected epoch duration to be updated"
+    )
+  });
+
   it('can initialize next epoch', async () => {
     await expect(epochsManager.initializeEpoch())
       .to.emit(epochsManager, 'NewEpoch')
