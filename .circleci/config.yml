@@ -40,7 +40,7 @@ jobs:
             - v1-repo-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           name: test contracts
-          command: npm test
+          command: ITERATIONS=10000 npm test
       - run:
           name: prepare outputs
           command: node ./scripts/parseArtifacts.js
