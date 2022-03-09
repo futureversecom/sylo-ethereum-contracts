@@ -481,7 +481,7 @@ describe('Staking', () => {
       .to.be.revertedWith("Only managers of this contract can call this function");
   });
 
-  it.only('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
+  it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
     const numAccounts = 10;
 
     let totalStake = 0;
@@ -508,7 +508,7 @@ describe('Staking', () => {
     await testScanResults(iterations, expectedResults);
   }).timeout(0);
 
-  it.only('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
+  it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
     const numAccounts = 10;
 
     let totalStake = 0;
