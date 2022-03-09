@@ -1,7 +1,9 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const PKG_DIR = path.resolve(__dirname, "../package/@sylo/ethereum-contracts-abi");
+const PKG_DIR =
+  process.env.ABI_PACKAGE ??
+    path.resolve(__dirname, "../package/@sylo/ethereum-contracts-abi");
 const ABI_DIR = path.resolve(__dirname, "../abi");
 
 const syloContracts = [

@@ -23,7 +23,7 @@ jobs:
           name: solidity lint
           command: npm run solhint
       - run:
-          name: prepare outputs
+          name: prepare artifacts
           command: node ./scripts/parseArtifacts.js
       - save_cache:
           key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
@@ -46,6 +46,12 @@ jobs:
           command: node ./scripts/parseArtifacts.js
       - store_artifacts:
           path: ~/sylo-ethereum-contracts/gasReport.txt
+      - run:
+          name: check abis
+          command:
+            mkdir tmp_abis && \
+            ABI_PACKAGE=tmp_abis node ./scripts/packageABIs && \
+            cmp tmp_abis/index.js package/@sylo/ethereum-contracts-abi/index.js || exit 1
 
   test-coverage:
     docker:
