@@ -496,7 +496,9 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const iterations = 5000;
+    const iterations = process.env.ITERATIONS ? parseInt(process.env.ITERATIONS) : 1000;
+
+    console.log(`running all equal stake amount distribution test with ${iterations} iterations`);
 
     let expectedResults: Results = {};
     for (let i = 0; i < numAccounts; i++) {
@@ -521,7 +523,9 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const iterations = 5000;
+    const iterations = process.env.ITERATIONS ? parseInt(process.env.ITERATIONS) : 1000;
+
+    console.log(`running varied stake amount distribution test with ${iterations} iterations`);
 
     let expectedResults: Results = {};
     for (let i = 0; i < numAccounts; i++) {
