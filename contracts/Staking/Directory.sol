@@ -118,7 +118,20 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
         directories[epochId].totalStake = nextBoundary;
     }
 
-    /**
+    function scan(uint128 pk, uint8 channel)  external view returns (address stakee) {
+        uint256 point = hashPoint(pk, channel);
+        return scan(point);
+    }
+
+    function hashPoint(uint128 pk, uint8 channel) internal view returns (uint256 point) {
+        require(channel <= 48, "only channels 0-48 are supported");
+
+        bytes32 b = bytes32(keccak256(abi.encodePacked(pk, currentDirectory, channel)));
+        point = uint(b);
+        return point;
+    }
+
+     /**
      * @notice Call this to perform a stake-weighted scan to find the Node assigned
      * to the given point.
      * @dev The current implementation will perform a binary search through
@@ -126,14 +139,14 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * used in a transaction.
      * @param point The point, which will usually be a hash of a public key.
      */
-    function scan(uint128 point) external view returns (address stakee) {
+    function scan(uint256 point) internal view returns (address stakee) {
         if (directories[currentDirectory].entries.length == 0) {
             return address(0);
         }
 
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
-        uint256 expectedVal = directories[currentDirectory].totalStake * uint256(point) >> 128;
+        uint256 expectedVal = directories[currentDirectory].totalStake * point >> 128;
 
         uint256 left = 0;
         uint256 right = directories[currentDirectory].entries.length - 1;
