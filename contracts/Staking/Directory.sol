@@ -118,20 +118,43 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
         directories[epochId].totalStake = nextBoundary;
     }
 
-    function scan(uint128 pk, uint8 channel)  external view returns (address stakee) {
-        uint256 point = hashPoint(pk, channel);
-        return scan(point);
+    /**
+     * @notice This method is the entry point for the directory scan.
+     * It calls the derivePoint method to hash input values and send the result
+     * to the _scan method to get the associated node address.
+     * @param pk The user's public key.
+     * @param epochId The specified epochId to select which directory to scan.
+     * This will give the ability for users to scan using historical directories.
+     * @param channel The specified channel that can effect the hash function's
+     * output, which leads to different point and different node address. This will
+     * allow user to switch node during the same epoch.
+     * @return stakee The address of the node that user will be joined during an epoch.
+     */
+    function scan(bytes memory pk, uint256 epochId, uint8 channel)  external view returns (address stakee) {
+        uint256 point = derivePoint(pk, epochId, channel);
+        return _scan(point, epochId);
     }
 
-    function hashPoint(uint128 pk, uint8 channel) internal view returns (uint256 point) {
+    /**
+     * @notice This method will hash the public key, epoch Id, and channel
+     * provided by user.
+     * @param pk The user's public key.
+     * @param epochId The specified epochId to select which directory to scan.
+     * @param channel The specified channel that can effect the hash function's
+     * output.
+     * @return point The shifted hash value of the public key, epoch Id, and channel.
+     * The hash value is shifted to reduce its size so that it can be processed
+     * in the _scan method.
+     */
+    function derivePoint(bytes memory pk, uint256 epochId, uint8 channel) internal pure returns (uint256 point) {
         require(channel <= 48, "only channels 0-48 are supported");
 
-        bytes32 b = bytes32(keccak256(abi.encodePacked(pk, currentDirectory, channel)));
-        point = uint(b);
+        bytes32 b = bytes32(keccak256(abi.encodePacked(pk, epochId, channel)));
+        point = uint(b) >> 128;
         return point;
     }
 
-     /**
+    /**
      * @notice Call this to perform a stake-weighted scan to find the Node assigned
      * to the given point.
      * @dev The current implementation will perform a binary search through
@@ -139,27 +162,27 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * used in a transaction.
      * @param point The point, which will usually be a hash of a public key.
      */
-    function scan(uint256 point) internal view returns (address stakee) {
-        if (directories[currentDirectory].entries.length == 0) {
+    function _scan(uint256 point, uint256 epochId) public view returns (address stakee) {
+        if (directories[epochId].entries.length == 0) {
             return address(0);
         }
 
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
-        uint256 expectedVal = directories[currentDirectory].totalStake * point >> 128;
+        uint256 expectedVal = directories[epochId].totalStake * point >> 128;
 
         uint256 left = 0;
-        uint256 right = directories[currentDirectory].entries.length - 1;
+        uint256 right = directories[epochId].entries.length - 1;
 
         // perform a binary search through the directory
         while (left <= right) {
             uint index = (left + right) / 2;
 
-            uint lower = index == 0 ? 0 : directories[currentDirectory].entries[index - 1].boundary;
-            uint upper = directories[currentDirectory].entries[index].boundary;
+            uint lower = index == 0 ? 0 : directories[epochId].entries[index - 1].boundary;
+            uint upper = directories[epochId].entries[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
-                return directories[currentDirectory].entries[index].stakee;
+                return directories[epochId].entries[index].stakee;
             } else if (expectedVal < lower) {
                 right = index - 1;
             } else {  // expectedVal >= upper
