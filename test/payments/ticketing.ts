@@ -48,6 +48,18 @@ describe('Ticketing', () => {
     await token.approve(ticketing.address, toSOLOs(10000000));
   });
 
+  it('should fail to initialize because ticket duration is 0', async () => {
+    const TicketingParameters = await ethers.getContractFactory("TicketingParameters");
+    const parameters = await TicketingParameters.deploy() as TicketingParameters;
+    await expect(parameters.initialize(
+      15,
+      BigNumber.from(2).pow(128).sub(1),
+      1000,
+      8000,
+      0))
+      .to.be.revertedWith("Ticket duration cannot be 0");
+  });
+
   it('should be able to set parameters after initialization', async () => {
     await expect(ticketingParameters.setFaceValue(777))
       .to.emit(ticketingParameters, 'FaceValueUpdated')

@@ -308,6 +308,14 @@ describe('Staking', () => {
       .to.be.revertedWith("Can not join directory without owning minimum amount of stake");
   });
 
+  it('should not be able to join the next epoch more than once', async () => {
+    await stakingManager.addStake(1, owner);
+    await directory.addManager(owner);
+    await directory.joinNextDirectory(owner);
+    await expect(directory.joinNextDirectory(owner))
+      .to.be.revertedWith("Can only join the directory once per epoch");
+  });
+
   it('should be able to get total stake for a stakee', async () => {
     await stakingManager.addStake(100, owner);
     for (let i = 2; i < 10; i++) {
@@ -357,44 +365,10 @@ describe('Staking', () => {
       });
   });
 
-  it('should be able to scan after joining directory', async () => {
-    await stakingManager.addStake(1, owner);
-    await epochsManager.joinNextEpoch();
-
-    await directory.addManager(owner);
-    await directory.setCurrentDirectory(epochId);
-
-    await directory.scan(0);
-  });
-
-  it('should not be able to join the next epoch more than once', async () => {
-    await stakingManager.addStake(1, owner);
-    await directory.addManager(owner);
-    await directory.joinNextDirectory(owner);
-    await expect(directory.joinNextDirectory(owner))
-      .to.be.revertedWith('Can only join the directory once per epoch');
-  });
-
-  it('should be able to scan empty directory', async () => {
-    await directory.addManager(owner);
-    await directory.setCurrentDirectory(epochId);
-
-    const address = await directory.scan(0);
-
-    assert.equal(
-      address.toString(),
-      '0x0000000000000000000000000000000000000000',
-      "Expected empty directory to scan to zero address"
-    );
-  });
-
   it('should be able to query properties of directory', async () => {
     let expectedTotalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
-      await token.transfer(await accounts[i].getAddress(), 100);
-      await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
-      await epochsManager.connect(accounts[i]).joinNextEpoch();
+      await addStake(i)
 
       expectedTotalStake += 1;
       const stake = await directory.getTotalStakeForStakee(1, await accounts[i].getAddress());
@@ -405,8 +379,7 @@ describe('Staking', () => {
       );
     }
 
-    await directory.addManager(owner);
-    await directory.setCurrentDirectory(epochId);
+    await updateCurrentDirectory(epochId)
 
     const totalStake = await directory.getTotalStake(1);
     assert.equal(
@@ -450,16 +423,83 @@ describe('Staking', () => {
     );
   });
 
-  it('should correctly scan accounts based on their stake proportions', async () => {
-    for (let i = 0; i < 5; i++) {
-      await token.transfer(await accounts[i].getAddress(), 100);
-      await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
-      await epochsManager.connect(accounts[i]).joinNextEpoch();
-    }
+  it('can not call functions that onlyManager constraint', async () => {
+    await expect(directory.joinNextDirectory(owner))
+      .to.be.revertedWith("Only managers of this contract can call this function");
+  });
+
+  it('should be able to scan after joining directory', async () => {
+    await stakingManager.addStake(1, owner);
+    await epochsManager.joinNextEpoch();
 
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
+
+    const pk = crypto.randomBytes(32);
+    await directory.scan(pk, epochId, 0);
+  });
+
+  it('should be able to scan empty directory', async () => {
+    await directory.addManager(owner);
+    await directory.setCurrentDirectory(epochId);
+
+    const pk = crypto.randomBytes(32);
+    const address = await directory.scan(pk, epochId, 0);
+
+    assert.equal(
+      address.toString(),
+      '0x0000000000000000000000000000000000000000',
+      "Expected empty directory to scan to zero address"
+    );
+  });
+
+  it('should scan and return different node address when changing channel', async () => {
+    for (let i = 0; i < 5; i++) {
+      await addStake(i)
+    }
+    await updateCurrentDirectory(epochId)
+
+    const pk = crypto.randomBytes(32);
+    const addr1 = await directory.scan(pk, epochId, 0);
+
+    let nodeAddressChanged = false;
+    for (let i = 1; i < 48; i++) {
+      const addr2 = await directory.scan(pk, epochId, i);
+      if (addr1 !== addr2) {
+        nodeAddressChanged = true;
+        break;
+      }
+    }
+
+    assert.isTrue(nodeAddressChanged, "Expected node address to be changed");
+  });
+
+  it('should scan and return the same address for the same epochId', async () => {
+    for (let i = 0; i < 5; i++) {
+      await addStake(i)
+    }
+    await updateCurrentDirectory(epochId);
+
+    const pk = crypto.randomBytes(32);
+    const addr1 = await directory.scan(pk, epochId, 0);
+
+    await epochsManager.initializeEpoch({ from: owner });
+
+    for (let i = 0; i < 5; i++) {
+      await addStake(i)
+    }
+    await updateCurrentDirectory(epochId + 1);
+
+    const addr2 = await directory.scan(pk, epochId, 0);
+
+    assert.equal(addr1, addr2, "Expected to return the same address");
+  });
+
+  it('should correctly scan accounts based on their stake proportions in _scan', async () => {
+    for (let i = 0; i < 5; i++) {
+      await addStake(i)
+    }
+    await updateCurrentDirectory(epochId)
 
     const fifthPoint = BigNumber.from(2).pow(128).sub(1).div(5);
     const points = [
@@ -471,30 +511,33 @@ describe('Staking', () => {
     ];
 
     for (let i = 0; i < 5; i++) {
-      const address = await directory.scan(points[i]);
+      const address = await directory._scan(points[i], epochId);
       assert.equal(address, await accounts[i].getAddress(), "Expected scan to return correct result");
     }
   });
 
-  it('can not call functions that onlyManager constraint', async () => {
-    await expect(directory.joinNextDirectory(owner))
-      .to.be.revertedWith("Only managers of this contract can call this function");
+  it('cannot scan channel greater than 48', async () => {
+    await stakingManager.addStake(1, owner);
+    await epochsManager.joinNextEpoch();
+
+    await directory.addManager(owner);
+    await directory.setCurrentDirectory(epochId);
+
+    const pk = crypto.randomBytes(32);
+    await expect(directory.scan(pk, epochId, 49))
+    .to.be.revertedWith("Only channels 0-48 are supported");;
   });
 
-  it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
+  it('should distribute scan results amongst stakees proportionally in _scan - all equal [ @skip-on-coverage ]', async () => {
     const numAccounts = 10;
 
     let totalStake = 0;
     for (let i = 0; i < numAccounts; i++) {
-      await token.transfer(await accounts[i].getAddress(), 100);
-      await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
-      await epochsManager.connect(accounts[i]).joinNextEpoch();
+      await addStake(i)
       totalStake += 1;
     }
 
-    await directory.addManager(owner);
-    await directory.setCurrentDirectory(epochId);
+    await updateCurrentDirectory(epochId)
 
     const iterations = process.env.ITERATIONS ? parseInt(process.env.ITERATIONS) : 1000;
 
@@ -508,7 +551,7 @@ describe('Staking', () => {
     await testScanResults(iterations, expectedResults);
   }).timeout(0);
 
-  it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
+  it('should distribute scan results amongst stakees proportionally in _scan - varied stake amounts [ @skip-on-coverage ]', async () => {
     const numAccounts = 10;
 
     let totalStake = 0;
@@ -553,7 +596,8 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const address = await directory.scan(0);
+    const pk = crypto.randomBytes(32);
+    const address = await directory.scan(pk, epochId, 0);
 
     assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
   });
@@ -623,11 +667,25 @@ describe('Staking', () => {
       hash.update(kp.publicKey);
       hash.update(Buffer.from([0])); // append epoch
       const point = BigNumber.from(hash.digest().subarray(0, 16));
-      const address = await directory.scan(point);
+      const address = await directory._scan(point, epochId);
       updatePoint(address);
       i++;
     }
 
     return points;
+  }
+
+  async function addStake(accountNum: number) {
+    await token.transfer(await accounts[accountNum].getAddress(), 100);
+    await token.connect(accounts[accountNum]).approve(stakingManager.address, 100);
+    await stakingManager
+      .connect(accounts[accountNum])
+      .addStake(1, await accounts[accountNum].getAddress());
+    await epochsManager.connect(accounts[accountNum]).joinNextEpoch();
+  }
+
+  async function updateCurrentDirectory(epoch: number) {
+    await directory.addManager(owner);
+    await directory.setCurrentDirectory(epoch);
   }
 });

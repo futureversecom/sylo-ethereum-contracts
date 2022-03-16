@@ -39,6 +39,13 @@ describe('Listing', () => {
     assert.equal(listing.minDelegatedStake.toNumber(), 1, "Expected listing to have correct min delegated stake");
   });
 
+  it('requires default payout percentage to not exceed 100% when initializing', async () => {
+    const Listings = await ethers.getContractFactory("Listings");
+    listings = await Listings.deploy() as Listings;
+    await expect(listings.initialize(10001))
+      .to.be.revertedWith("The payout percentage can not exceed 100 percent");
+  });
+
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(listings.setDefaultPayoutPercentage(10001))
       .to.be.revertedWith("The payout percentage can not exceed 100 percent");

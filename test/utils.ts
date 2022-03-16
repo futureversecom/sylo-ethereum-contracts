@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { BigNumber, BigNumberish } from "ethers";
 import { toWei } from 'web3-utils';
-import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
+import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters, Channels } from '../typechain';
 
 type Options = {
   faceValue?: BigNumberish;
@@ -37,6 +37,10 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   const Listings = await ethers.getContractFactory("Listings");
   const listings = await Listings.deploy() as Listings;
   await listings.initialize(payoutPercentage, { from: deployer });
+
+  const Channels = await ethers.getContractFactory("Channels");
+  const channels = await Channels.deploy() as Channels;
+  await channels.initialize({ from: deployer });
 
   const TicketingParameters = await ethers.getContractFactory("TicketingParameters");
   const ticketingParameters = await TicketingParameters.deploy() as TicketingParameters;
@@ -109,12 +113,13 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
 
   return {
     listings,
+    channels,
     ticketing,
     ticketingParameters,
     directory,
     rewardsManager,
     epochsManager,
-    stakingManager
+    stakingManager,
   }
 }
 
