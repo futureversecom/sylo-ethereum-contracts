@@ -128,10 +128,10 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * @param channel The specified channel that can effect the hash function's
      * output, which leads to different point and different node address. This will
      * allow user to switch node during the same epoch.
-     * @return stakee The address of the node that user will be joined during an epoch.
+     * @return stakee The address of the node the user will be assigned to.
      */
     function scan(bytes memory pk, uint256 epochId, uint8 channel)  external view returns (address stakee) {
-        uint256 point = derivePoint(pk, epochId, channel);
+        uint128 point = derivePoint(pk, epochId, channel);
         return _scan(point, epochId);
     }
 
@@ -142,16 +142,17 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * @param epochId The specified epochId to select which directory to scan.
      * @param channel The specified channel that can effect the hash function's
      * output.
-     * @return point The shifted hash value of the public key, epoch Id, and channel.
+     * @return finalPoint The shifted hash value of the public key, epoch Id, and channel.
      * The hash value is shifted to reduce its size so that it can be processed
      * in the _scan method.
      */
-    function derivePoint(bytes memory pk, uint256 epochId, uint8 channel) internal pure returns (uint256 point) {
-        require(channel <= 48, "only channels 0-48 are supported");
+    function derivePoint(bytes memory pk, uint256 epochId, uint8 channel) internal pure returns (uint128 finalPoint) {
+        require(channel <= 48, "Only channels 0-48 are supported");
 
         bytes32 b = bytes32(keccak256(abi.encodePacked(pk, epochId, channel)));
-        point = uint(b) >> 128;
-        return point;
+        uint256 point = uint(b) >> 128;
+        finalPoint = uint128(point);
+        return finalPoint;
     }
 
     /**
@@ -162,14 +163,14 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * used in a transaction.
      * @param point The point, which will usually be a hash of a public key.
      */
-    function _scan(uint256 point, uint256 epochId) public view returns (address stakee) {
+    function _scan(uint128 point, uint256 epochId) public view returns (address stakee) {
         if (directories[epochId].entries.length == 0) {
             return address(0);
         }
 
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
-        uint256 expectedVal = directories[epochId].totalStake * point >> 128;
+        uint256 expectedVal = directories[epochId].totalStake * uint256(point) >> 128;
 
         uint256 left = 0;
         uint256 right = directories[epochId].entries.length - 1;
