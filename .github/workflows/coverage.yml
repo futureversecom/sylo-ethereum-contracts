@@ -1,0 +1,17 @@
+name: 'coverage'
+on:
+    pull_request:
+        branches:
+            - master
+            - main
+jobs:
+    test-coverage:
+      runs-on: ubuntu-latest
+      steps:
+        - run:
+            name: test contracts
+            command: npm run coverage
+        - uses: actions/checkout@v1
+            - uses: ArtiomTr/jest-coverage-report-action@v2
+              with:
+                coverage-file: ./coverage.json

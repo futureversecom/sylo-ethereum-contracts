@@ -7,7 +7,7 @@ import utils from './utils';
 import { assert, expect } from "chai";
 
 // Chi Squared goodness of fit test
-const chi2gof = require('@stdlib/stats/chi2gof');
+const chi2gof = require('@stdlib/stats-chi2gof');
 
 type Results = { [key: string]: number };
 
