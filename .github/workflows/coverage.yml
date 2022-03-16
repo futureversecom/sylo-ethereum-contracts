@@ -7,14 +7,18 @@ on:
 jobs:
     test-coverage:
       runs-on: ubuntu-latest
+      name: test coverage update
       steps:
-        - run:
-            name: install packages
-            command: npm i
-        - run:
-            name: test contracts
-            command: npm run coverage
-        - uses: actions/checkout@v1
-            - uses: ArtiomTr/jest-coverage-report-action@v2
-              with:
-                coverage-file: ~/sylo-ethereum-contracts/coverage/coverage-final.json
+        - name: Checkout
+          uses: actions/checkout@v2
+
+        - name: Coverage report
+          uses: eleboys/test-coverage-report-action@v1.0.2
+          id: report
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+            path: coverage/coverage-summary.json
+            title: Karma Test Coverage
+
+        - name: Print the output summary
+          run: echo "Report coverage json ${{ steps.report.outputs.summary }}"
