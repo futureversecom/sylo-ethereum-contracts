@@ -9,6 +9,9 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - run:
+            name: install packages
+            command: npm i
+        - run:
             name: test contracts
             command: npm run coverage
         - uses: actions/checkout@v1
