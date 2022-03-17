@@ -55,9 +55,9 @@ jobs:
       - restore_cache:
           keys:
             - v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - run:
-          name: test contracts
-          command: npm run coverage
+      - run: |
+          npm run coverage
+          npx sc-istanbul check-coverage --statements 100 --branches 100 --functions 100 --lines 100
       - store_artifacts:
             path: ~/sylo-ethereum-contracts/coverage
 
