@@ -1,5 +1,10 @@
 const fs = require('fs')
 
+const coverageFailed = () => {
+  console.log('Expected coverage to be 100%.')
+  process.exit(1)
+}
+
 const checkCoverage = () => {
   let contractStr = fs.readFileSync('coverage.json')
   let contracts = JSON.parse(contractStr)
@@ -11,9 +16,9 @@ const checkCoverage = () => {
     for (const [_, valObj] of Object.entries(results)) {
       for (const [_, val] of Object.entries(valObj)) {
         if (Array.isArray(val)) {
-          val.map(v => v === 0 && process.exit(1) )
+          val.map(v => v === 0 && coverageFailed())
         } else if (val === 0) {
-          process.exit(1)
+          coverageFailed()
         }
       }
     }
