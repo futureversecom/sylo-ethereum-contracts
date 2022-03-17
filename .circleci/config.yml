@@ -46,12 +46,10 @@ jobs:
           command: node ./scripts/parseArtifacts.js
       - store_artifacts:
           path: ~/sylo-ethereum-contracts/gasReport.txt
-      - run:
-          name: check abis
-          command:
-            mkdir tmp_abis && \
-            ABI_PACKAGE=tmp_abis node ./scripts/packageABIs && \
-            cmp tmp_abis/index.js package/@sylo/ethereum-contracts-abi/index.js || exit 1
+      - run: |
+          mkdir tmp_abis
+          ABI_PACKAGE=tmp_abis node ./scripts/packageAbis.js
+          cmp tmp_abis/index.js package/@sylo/ethereum-contracts-abi/index.js || exit 1
 
   test-coverage:
     docker:
