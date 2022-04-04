@@ -23,7 +23,7 @@ jobs:
           name: solidity lint
           command: npm run solhint
       - run:
-          name: prepare outputs
+          name: prepare artifacts
           command: node ./scripts/parseArtifacts.js
       - save_cache:
           key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
