@@ -8,6 +8,7 @@ import { assert, expect } from "chai";
 
 // Chi Squared goodness of fit test
 const chi2gof = require('@stdlib/stats/chi2gof');
+const fs = require('fs');
 
 type Results = { [key: string]: number };
 
@@ -571,7 +572,7 @@ describe('Staking', () => {
       })
   });
 
-  async function testScanResults(iterations: number, expectedResults: { [key: string]: number }) {
+  async function testScanResults(iterations: number, expectedResults: Results) {
     const results = await collectScanResults(iterations);
 
     let x = [];
@@ -592,7 +593,7 @@ describe('Staking', () => {
   }
 
   async function collectScanResults(iterations: number) {
-    const points: { [key:string]: number } = {};
+    const points: Results = {};
     const updatePoint = (address: string) => {
       if (!points[address]) {
         points[address] = 1;
@@ -609,6 +610,12 @@ describe('Staking', () => {
       setTimeout(outputCompletion, 1000);
     }
 
+    const mnemonic = "search topple trouble similar sorry just around connect hello range predict ahead";
+    const keys = [];
+    for (let i = 0; i < iterations; i++) {
+      keys.push(ethers.Wallet.fromMnemonic(mnemonic, `m/44'/60'/0'/${i}`));
+    }
+
     let i = 0;
 
     outputCompletion();
@@ -616,11 +623,8 @@ describe('Staking', () => {
     console.log("collecting scan results for", iterations, "iterations...");
 
     while (i < iterations) {
-      // generate a random ed25519 key and hash with an epoch to create a
-      // 'random' point value
-      const kp = sodium.crypto_sign_keypair('uint8array');
       const hash = crypto.createHash("sha256");
-      hash.update(kp.publicKey);
+      hash.update(keys[i].publicKey);
       hash.update(Buffer.from([0])); // append epoch
       const point = BigNumber.from(hash.digest().subarray(0, 16));
       const address = await directory.scan(point);
