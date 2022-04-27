@@ -1,7 +1,15 @@
 import { ethers } from "hardhat";
 import { BigNumber, BigNumberish } from "ethers";
-import { toWei } from 'web3-utils';
-import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, TicketingParameters } from '../typechain';
+import { toWei } from "web3-utils";
+import {
+  Directory,
+  EpochsManager,
+  Listings,
+  RewardsManager,
+  StakingManager,
+  SyloTicketing,
+  TicketingParameters,
+} from "../typechain";
 
 type Options = {
   faceValue?: BigNumberish;
@@ -13,15 +21,26 @@ type Options = {
   epochDuration?: number;
   minimumStakeProportion?: number;
   unlockDuration?: number;
-}
+};
 
-const initializeContracts = async function(deployer: string, tokenAddress: string, opts: Options = {}) {
-  const payoutPercentage =
-    opts.payoutPercentage ?
-      opts.payoutPercentage :
-      5000;
+export type Contracts = {
+  listings: Listings;
+  ticketing: SyloTicketing;
+  ticketingParameters: TicketingParameters;
+  directory: Directory;
+  rewardsManager: RewardsManager;
+  epochsManager: EpochsManager;
+  stakingManager: StakingManager;
+};
 
-  const faceValue = opts.faceValue ?? toWei('15');
+const initializeContracts = async function (
+  deployer: string,
+  tokenAddress: string,
+  opts: Options = {}
+): Promise<Contracts> {
+  const payoutPercentage = opts.payoutPercentage ? opts.payoutPercentage : 5000;
+
+  const faceValue = opts.faceValue ?? toWei("15");
   const baseLiveWinProb =
     opts.baseLiveWinProb ?? BigNumber.from(2).pow(128).sub(1);
   const expiredWinProb = opts.expiredWinProb ?? 1000;
@@ -35,11 +54,13 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 
   const Listings = await ethers.getContractFactory("Listings");
-  const listings = await Listings.deploy() as Listings;
+  const listings = await Listings.deploy();
   await listings.initialize(payoutPercentage, { from: deployer });
 
-  const TicketingParameters = await ethers.getContractFactory("TicketingParameters");
-  const ticketingParameters = await TicketingParameters.deploy() as TicketingParameters;
+  const TicketingParameters = await ethers.getContractFactory(
+    "TicketingParameters"
+  );
+  const ticketingParameters = await TicketingParameters.deploy();
   await ticketingParameters.initialize(
     faceValue,
     baseLiveWinProb,
@@ -50,16 +71,16 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   );
 
   const EpochsManager = await ethers.getContractFactory("EpochsManager");
-  const epochsManager = await EpochsManager.deploy() as EpochsManager;
+  const epochsManager = await EpochsManager.deploy();
 
   const StakingManager = await ethers.getContractFactory("StakingManager");
-  const stakingManager = await StakingManager.deploy() as StakingManager;
+  const stakingManager = await StakingManager.deploy();
 
   const RewardsManager = await ethers.getContractFactory("RewardsManager");
-  const rewardsManager = await RewardsManager.deploy() as RewardsManager;
+  const rewardsManager = await RewardsManager.deploy();
 
   const Directory = await ethers.getContractFactory("Directory");
-  const directory = await Directory.deploy() as Directory;
+  const directory = await Directory.deploy();
 
   await stakingManager.initialize(
     tokenAddress,
@@ -75,11 +96,9 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
     epochsManager.address,
     { from: deployer }
   );
-  await directory.initialize(
-      stakingManager.address,
-      rewardsManager.address,
-      { from: deployer }
-  );
+  await directory.initialize(stakingManager.address, rewardsManager.address, {
+    from: deployer,
+  });
   await epochsManager.initialize(
     directory.address,
     listings.address,
@@ -89,7 +108,7 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
   );
 
   const Ticketing = await ethers.getContractFactory("SyloTicketing");
-  const ticketing = await Ticketing.deploy() as SyloTicketing;
+  const ticketing = await Ticketing.deploy();
   await ticketing.initialize(
     tokenAddress,
     listings.address,
@@ -114,18 +133,18 @@ const initializeContracts = async function(deployer: string, tokenAddress: strin
     directory,
     rewardsManager,
     epochsManager,
-    stakingManager
-  }
-}
+    stakingManager,
+  };
+};
 
-const advanceBlock = async function(i: number) {
-  i = i ? i : 1;
+const advanceBlock = async function (i: number): Promise<void> {
+  i = i || 1;
   for (let j = 0; j < i; j++) {
-    await ethers.provider.send('evm_mine', []);
+    await ethers.provider.send("evm_mine", []);
   }
-}
+};
 
 export default {
   initializeContracts,
-  advanceBlock
-}
+  advanceBlock,
+};

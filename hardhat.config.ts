@@ -22,23 +22,23 @@ const config: HardhatUserConfig = {
     },
   },
   gasReporter: {
-    coinmarketcap: '3da4e7e8-31fb-477a-85a8-a905ad24fd28',
-    currency: 'USD',
-    outputFile: 'gasReport.txt',
-    noColors: true // Needed for outputfile
+    coinmarketcap: "3da4e7e8-31fb-477a-85a8-a905ad24fd28",
+    currency: "USD",
+    outputFile: "gasReport.txt",
+    noColors: true, // Needed for outputfile
   },
   networks: {
     localhost: {
-      url: 'http://0.0.0.0:8545',
-      accounts: 'remote'
+      url: "http://0.0.0.0:8545",
+      accounts: "remote",
     },
     ropsten: {
-      url: process.env.ROPSTEN_INFURA_ENDPOINT ?? '',
+      url: process.env.ROPSTEN_INFURA_ENDPOINT ?? "",
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? ''
-      }
-    }
-  }
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      },
+    },
+  },
 };
 
 export default config;

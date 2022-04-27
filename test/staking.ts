@@ -1,26 +1,28 @@
 import { ethers } from "hardhat";
 import { BigNumber, Signer } from "ethers";
-import { Directory, EpochsManager, Listings, RewardsManager, StakingManager, SyloTicketing, SyloToken } from "../typechain";
-const crypto = require("crypto");
-const sodium = require('libsodium-wrappers-sumo');
-import utils from './utils';
+import {
+  Directory,
+  EpochsManager,
+  RewardsManager,
+  StakingManager,
+  SyloToken,
+} from "../typechain";
+import utils from "./utils";
 import { assert, expect } from "chai";
-
 // Chi Squared goodness of fit test
-const chi2gof = require('@stdlib/stats/chi2gof');
+import { chi2gof } from "@stdlib/stats";
+import crypto from "crypto";
 
 type Results = { [key: string]: number };
 
-describe('Staking', () => {
+describe("Staking", () => {
   let accounts: Signer[];
   let owner: string;
 
   let token: SyloToken;
   let epochsManager: EpochsManager;
   let rewardsManager: RewardsManager;
-  let ticketing: SyloTicketing;
   let directory: Directory;
-  let listings: Listings;
   let stakingManager: StakingManager;
 
   const epochId = 1;
@@ -31,57 +33,79 @@ describe('Staking', () => {
     owner = await accounts[0].getAddress();
 
     const Token = await ethers.getContractFactory("SyloToken");
-    token = await Token.deploy() as SyloToken;
+    token = await Token.deploy();
   });
 
   beforeEach(async () => {
     const contracts = await utils.initializeContracts(owner, token.address);
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
-    ticketing = contracts.ticketing;
     directory = contracts.directory;
-    listings = contracts.listings;
     stakingManager = contracts.stakingManager;
 
     await token.approve(stakingManager.address, 100000);
   });
 
-  it('should be able to set parameters after initialization', async () => {
+  it("should be able to set parameters after initialization", async () => {
     await expect(stakingManager.setUnlockDuration(100))
-      .to.emit(stakingManager, 'UnlockDurationUpdated')
+      .to.emit(stakingManager, "UnlockDurationUpdated")
       .withArgs(100);
 
     await expect(stakingManager.setMinimumStakeProportion(3000))
-      .to.emit(stakingManager, 'MinimumStakeProportionUpdated')
+      .to.emit(stakingManager, "MinimumStakeProportionUpdated")
       .withArgs(3000);
 
     const unlockDuration = await stakingManager.unlockDuration();
-    const minimumStakeProportion = await stakingManager.minimumStakeProportion();
+    const minimumStakeProportion =
+      await stakingManager.minimumStakeProportion();
 
-    assert.equal(unlockDuration.toNumber(), 100, "Expected unlock duration to be correctly set");
-    assert.equal(minimumStakeProportion, 3000, "Expected minimum node stake to be correctly set");
+    assert.equal(
+      unlockDuration.toNumber(),
+      100,
+      "Expected unlock duration to be correctly set"
+    );
+    assert.equal(
+      minimumStakeProportion,
+      3000,
+      "Expected minimum node stake to be correctly set"
+    );
   });
 
-  it('should be able to join the next epoch and directory at once', async () => {
+  it("should be able to join the next epoch and directory at once", async () => {
     await stakingManager.addStake(100, owner);
 
-    let epochId = (await directory.currentDirectory()).add(1);
-    let nextRewardPool = await rewardsManager.getRewardPool(epochId, owner);
-    assert.equal(nextRewardPool.initializedAt.toNumber(), 0, "Expected next reward pool to be uninitalized");
+    const epochId = (await directory.currentDirectory()).add(1);
+    const nextRewardPool = await rewardsManager.getRewardPool(epochId, owner);
+    assert.equal(
+      nextRewardPool.initializedAt.toNumber(),
+      0,
+      "Expected next reward pool to be uninitalized"
+    );
 
     await epochsManager.joinNextEpoch();
 
-    let currentRewardPool = await rewardsManager.getRewardPool(epochId, owner);
-    assert.notEqual(currentRewardPool.initializedAt.toNumber(), 0, "Expected reward pool to have been initalized");
+    const currentRewardPool = await rewardsManager.getRewardPool(
+      epochId,
+      owner
+    );
+    assert.notEqual(
+      currentRewardPool.initializedAt.toNumber(),
+      0,
+      "Expected reward pool to have been initalized"
+    );
   });
 
-  it('should be able to get unlocking duration', async () => {
+  it("should be able to get unlocking duration", async () => {
     await stakingManager.setUnlockDuration(100);
     const unlockDuration = await stakingManager.unlockDuration();
-    assert.equal(unlockDuration.toNumber(), 100, "Expected unlock duration to be updated");
+    assert.equal(
+      unlockDuration.toNumber(),
+      100,
+      "Expected unlock duration to be updated"
+    );
   });
 
-  it('should be able to stake', async () => {
+  it("should be able to stake", async () => {
     const initialBalance = await token.balanceOf(owner);
 
     await stakingManager.addStake(100, owner);
@@ -98,32 +122,43 @@ describe('Staking', () => {
 
     assert.equal(
       stakeEntry.amount.toString(),
-      '100',
+      "100",
       "A stake entry with 100 tokens should be managed by the contract"
     );
   });
 
-  it('should not be able to add more stake if minimum stake proportion not met', async () => {
-    await expect(stakingManager.addStake(1, await accounts[1].getAddress()))
-      .to.be.revertedWith("Can not add more stake until stakee adds more stake itself");
+  it("should not be able to add more stake if minimum stake proportion not met", async () => {
+    await expect(
+      stakingManager.addStake(1, await accounts[1].getAddress())
+    ).to.be.revertedWith(
+      "Can not add more stake until stakee adds more stake itself"
+    );
   });
 
-  it('should be able to calculate remaining stake that can be added to a stakee', async () => {
+  it("should be able to calculate remaining stake that can be added to a stakee", async () => {
     await stakingManager.addStake(111, owner);
 
     const expectedRemaining = Math.floor(111 / 0.2) - 111;
 
-    const remaining = await stakingManager.calculateMaxAdditionalDelegatedStake(owner);
+    const remaining = await stakingManager.calculateMaxAdditionalDelegatedStake(
+      owner
+    );
 
-    assert.equal(expectedRemaining, remaining.toNumber(), "Expected remaining additional stake to be correctly calculated");
+    assert.equal(
+      expectedRemaining,
+      remaining.toNumber(),
+      "Expected remaining additional stake to be correctly calculated"
+    );
 
     // ensure we can actually add that amount
     await token.transfer(await accounts[1].getAddress(), 1000);
     await token.connect(accounts[1]).approve(stakingManager.address, 1000);
-    await stakingManager.connect(accounts[1]).addStake(expectedRemaining, owner);
+    await stakingManager
+      .connect(accounts[1])
+      .addStake(expectedRemaining, owner);
   });
 
-  it('should fail to calculate remaining stake if owned stake too low', async () => {
+  it("should fail to calculate remaining stake if owned stake too low", async () => {
     await stakingManager.addStake(100, owner);
 
     await token.transfer(await accounts[1].getAddress(), 1000);
@@ -132,47 +167,57 @@ describe('Staking', () => {
 
     await stakingManager.unlockStake(80, owner);
 
-    await expect(stakingManager.calculateMaxAdditionalDelegatedStake(owner))
-      .to.be.revertedWith("Can not add more delegated stake to this stakee");
-    });
-
-  it('should not able to add stake to zero address', async () => {
-    await expect(stakingManager.addStake(100, "0x0000000000000000000000000000000000000000"))
-      .to.be.revertedWith("Address is null");
+    await expect(
+      stakingManager.calculateMaxAdditionalDelegatedStake(owner)
+    ).to.be.revertedWith("Can not add more delegated stake to this stakee");
   });
 
-  it('should not be able to add 0 stake', async () => {
-    await expect(stakingManager.addStake(0, owner))
-      .to.be.revertedWith("Cannot stake nothing");
+  it("should not able to add stake to zero address", async () => {
+    await expect(
+      stakingManager.addStake(100, "0x0000000000000000000000000000000000000000")
+    ).to.be.revertedWith("Address is null");
   });
 
-  it('should be able to unlock stake', async () => {
+  it("should not be able to add 0 stake", async () => {
+    await expect(stakingManager.addStake(0, owner)).to.be.revertedWith(
+      "Cannot stake nothing"
+    );
+  });
+
+  it("should be able to unlock stake", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
 
     const key = await stakingManager.getKey(owner, owner);
     const unlocking = await stakingManager.unlockings(key);
-    assert.equal(unlocking.amount.toNumber(), 100, 'Expected unlocking to exist');
+    assert.equal(
+      unlocking.amount.toNumber(),
+      100,
+      "Expected unlocking to exist"
+    );
   });
 
-  it('can not unlock no stake', async () => {
-    await expect(stakingManager.unlockStake(100, owner))
-      .to.be.revertedWith("Nothing to unstake");
+  it("can not unlock no stake", async () => {
+    await expect(stakingManager.unlockStake(100, owner)).to.be.revertedWith(
+      "Nothing to unstake"
+    );
   });
 
-  it('can not unlock zero stake', async () => {
+  it("can not unlock zero stake", async () => {
     await stakingManager.addStake(100, owner);
-    await expect(stakingManager.unlockStake(0, owner))
-      .to.be.revertedWith("Cannot unlock with zero amount");
+    await expect(stakingManager.unlockStake(0, owner)).to.be.revertedWith(
+      "Cannot unlock with zero amount"
+    );
   });
 
-  it('can not unlock more stake than exists', async () => {
+  it("can not unlock more stake than exists", async () => {
     await stakingManager.addStake(100, owner);
-    await expect(stakingManager.unlockStake(101, owner))
-      .to.be.revertedWith("Cannot unlock more than staked");
+    await expect(stakingManager.unlockStake(101, owner)).to.be.revertedWith(
+      "Cannot unlock more than staked"
+    );
   });
 
-  it('should update unlocking state when unlocking more stake', async () => {
+  it("should update unlocking state when unlocking more stake", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(40, owner);
 
@@ -182,7 +227,9 @@ describe('Staking', () => {
     await stakingManager.unlockStake(40, owner);
     const unlockingTwo = await stakingManager.unlockings(key);
 
-    expect(unlockingTwo.unlockAt.toNumber()).to.be.greaterThan(unlockingOne.unlockAt.toNumber());
+    expect(unlockingTwo.unlockAt.toNumber()).to.be.greaterThan(
+      unlockingOne.unlockAt.toNumber()
+    );
   });
 
   it("doesn't update unlock at if existing unlock will unlock later", async () => {
@@ -199,10 +246,12 @@ describe('Staking', () => {
     const unlockingTwo = await stakingManager.unlockings(key);
 
     // expect the second unlocking to not overwrite the original one
-    expect(unlockingTwo.unlockAt.toNumber()).to.be.equal(unlockingOne.unlockAt.toNumber());
+    expect(unlockingTwo.unlockAt.toNumber()).to.be.equal(
+      unlockingOne.unlockAt.toNumber()
+    );
   });
 
-  it('should be able to restake when everything is unstaked', async () => {
+  it("should be able to restake when everything is unstaked", async () => {
     await stakingManager.addStake(1, owner);
 
     await stakingManager.unlockStake(1, owner);
@@ -211,7 +260,7 @@ describe('Staking', () => {
     await stakingManager.addStake(1, owner);
   });
 
-  it('should be able to withdraw stake', async () => {
+  it("should be able to withdraw stake", async () => {
     const initialBalance = await token.balanceOf(owner);
 
     await stakingManager.addStake(100, owner);
@@ -233,11 +282,12 @@ describe('Staking', () => {
   it("should not be able to withdraw stake that hasn't unlocked", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
-    await expect(stakingManager.withdrawStake(owner))
-      .to.be.revertedWith("Stake not yet unlocked");
+    await expect(stakingManager.withdrawStake(owner)).to.be.revertedWith(
+      "Stake not yet unlocked"
+    );
   });
 
-  it('should be able to cancel unlocking', async () => {
+  it("should be able to cancel unlocking", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
     await stakingManager.cancelUnlocking(100, owner);
@@ -252,7 +302,7 @@ describe('Staking', () => {
     );
   });
 
-  it('should be able to cancel a portion of the unlocking', async () => {
+  it("should be able to cancel a portion of the unlocking", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
     await stakingManager.cancelUnlocking(54, owner);
@@ -283,14 +333,18 @@ describe('Staking', () => {
   });
 
   it("should not allow delegated stake to exceed minimum owned stake by the stakee", async () => {
-    await expect(stakingManager.addStake(1, await accounts[1].getAddress()))
-      .to.be.revertedWith("Can not add more stake until stakee adds more stake itself");
+    await expect(
+      stakingManager.addStake(1, await accounts[1].getAddress())
+    ).to.be.revertedWith(
+      "Can not add more stake until stakee adds more stake itself"
+    );
   });
 
-  it('should not allow directory to be joined with no stake', async () => {
+  it("should not allow directory to be joined with no stake", async () => {
     await directory.addManager(owner);
-    await expect(directory.joinNextDirectory(owner))
-      .to.be.revertedWith('Can not join directory for next epoch without any stake');
+    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
+      "Can not join directory for next epoch without any stake"
+    );
   });
 
   it("should not allow directory to be joined without stakee owning minimum stake", async () => {
@@ -303,22 +357,26 @@ describe('Staking', () => {
     // after unlocking, Node will own less than 20% of stake
     await stakingManager.unlockStake(80, owner);
 
-    directory.addManager(owner);
-    await expect(directory.joinNextDirectory(owner))
-      .to.be.revertedWith("Can not join directory without owning minimum amount of stake");
+    await directory.addManager(owner);
+    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
+      "Can not join directory without owning minimum amount of stake"
+    );
   });
 
-  it('should be able to get total stake for a stakee', async () => {
+  it("should be able to get total stake for a stakee", async () => {
     await stakingManager.addStake(100, owner);
     for (let i = 2; i < 10; i++) {
       await token.transfer(await accounts[i].getAddress(), 1000);
       await token.connect(accounts[i]).approve(stakingManager.address, 1000);
       await stakingManager.connect(accounts[i]).addStake(10, owner);
 
-      const stakeAmount = await stakingManager.getCurrentStakerAmount(owner, await accounts[i].getAddress());
+      const stakeAmount = await stakingManager.getCurrentStakerAmount(
+        owner,
+        await accounts[i].getAddress()
+      );
       assert.equal(
         stakeAmount.toString(),
-        '10',
+        "10",
         "Expected contract to hold staker's stake"
       );
     }
@@ -327,12 +385,12 @@ describe('Staking', () => {
 
     assert.equal(
       totalStake.toString(),
-      '180',
+      "180",
       "Expected contract to track all stake entries"
     );
   });
 
-  it('should store the epochId the stake entry was updated at', async () => {
+  it("should store the epochId the stake entry was updated at", async () => {
     await directory.transferOwnership(epochsManager.address);
     await epochsManager.initializeEpoch({ from: owner });
 
@@ -347,17 +405,21 @@ describe('Staking', () => {
     );
   });
 
-  it('should not be able to join directory without stake', async () => {
-    await epochsManager.joinNextEpoch()
+  it("should not be able to join directory without stake", async () => {
+    await epochsManager
+      .joinNextEpoch()
       .then(() => {
-        assert.fail('Joining the next epoch should fail without stake');
+        assert.fail("Joining the next epoch should fail without stake");
       })
-      .catch(e => {
-        assert.include(e.message, 'Must have stake to initialize a reward pool');
+      .catch((e: Error) => {
+        assert.include(
+          e.message,
+          "Must have stake to initialize a reward pool"
+        );
       });
   });
 
-  it('should be able to scan after joining directory', async () => {
+  it("should be able to scan after joining directory", async () => {
     await stakingManager.addStake(1, owner);
     await epochsManager.joinNextEpoch();
 
@@ -367,15 +429,16 @@ describe('Staking', () => {
     await directory.scan(0);
   });
 
-  it('should not be able to join the next epoch more than once', async () => {
+  it("should not be able to join the next epoch more than once", async () => {
     await stakingManager.addStake(1, owner);
     await directory.addManager(owner);
     await directory.joinNextDirectory(owner);
-    await expect(directory.joinNextDirectory(owner))
-      .to.be.revertedWith('Can only join the directory once per epoch');
+    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
+      "Can only join the directory once per epoch"
+    );
   });
 
-  it('should be able to scan empty directory', async () => {
+  it("should be able to scan empty directory", async () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
@@ -383,21 +446,26 @@ describe('Staking', () => {
 
     assert.equal(
       address.toString(),
-      '0x0000000000000000000000000000000000000000',
+      "0x0000000000000000000000000000000000000000",
       "Expected empty directory to scan to zero address"
     );
   });
 
-  it('should be able to query properties of directory', async () => {
+  it("should be able to query properties of directory", async () => {
     let expectedTotalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
+      await stakingManager
+        .connect(accounts[i])
+        .addStake(1, await accounts[i].getAddress());
       await epochsManager.connect(accounts[i]).joinNextEpoch();
 
       expectedTotalStake += 1;
-      const stake = await directory.getTotalStakeForStakee(1, await accounts[i].getAddress());
+      const stake = await directory.getTotalStakeForStakee(
+        1,
+        await accounts[i].getAddress()
+      );
       assert.equal(
         stake.toNumber(),
         1,
@@ -432,12 +500,14 @@ describe('Staking', () => {
     }
   });
 
-  it('should be able to get total managed stake', async () => {
+  it("should be able to get total managed stake", async () => {
     let expectedTotalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(i + 1, await accounts[i].getAddress());
+      await stakingManager
+        .connect(accounts[i])
+        .addStake(i + 1, await accounts[i].getAddress());
       expectedTotalStake += i + 1;
     }
 
@@ -450,11 +520,13 @@ describe('Staking', () => {
     );
   });
 
-  it('should correctly scan accounts based on their stake proportions', async () => {
+  it("should correctly scan accounts based on their stake proportions", async () => {
     for (let i = 0; i < 5; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
+      await stakingManager
+        .connect(accounts[i])
+        .addStake(1, await accounts[i].getAddress());
       await epochsManager.connect(accounts[i]).joinNextEpoch();
     }
 
@@ -463,32 +535,39 @@ describe('Staking', () => {
 
     const fifthPoint = BigNumber.from(2).pow(128).sub(1).div(5);
     const points = [
-      '0',
+      "0",
       fifthPoint.add(1).toString(),
       fifthPoint.mul(2).add(2).toString(),
       fifthPoint.mul(3).add(3).toString(),
-      fifthPoint.mul(4).add(4).toString()
+      fifthPoint.mul(4).add(4).toString(),
     ];
 
     for (let i = 0; i < 5; i++) {
       const address = await directory.scan(points[i]);
-      assert.equal(address, await accounts[i].getAddress(), "Expected scan to return correct result");
+      assert.equal(
+        address,
+        await accounts[i].getAddress(),
+        "Expected scan to return correct result"
+      );
     }
   });
 
-  it('can not call functions that onlyManager constraint', async () => {
-    await expect(directory.joinNextDirectory(owner))
-      .to.be.revertedWith("Only managers of this contract can call this function");
+  it("can not call functions that onlyManager constraint", async () => {
+    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
+      "Only managers of this contract can call this function"
+    );
   });
 
-  it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {
+  it("should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]", async () => {
     const numAccounts = 10;
 
     let totalStake = 0;
     for (let i = 0; i < numAccounts; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(1, await accounts[i].getAddress());
+      await stakingManager
+        .connect(accounts[i])
+        .addStake(1, await accounts[i].getAddress());
       await epochsManager.connect(accounts[i]).joinNextEpoch();
       totalStake += 1;
     }
@@ -496,26 +575,33 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const iterations = process.env.ITERATIONS ? parseInt(process.env.ITERATIONS) : 1000;
+    const iterations = process.env.ITERATIONS
+      ? parseInt(process.env.ITERATIONS)
+      : 1000;
 
-    console.log(`running all equal stake amount distribution test with ${iterations} iterations`);
+    console.log(
+      `running all equal stake amount distribution test with ${iterations} iterations`
+    );
 
-    let expectedResults: Results = {};
+    const expectedResults: Results = {};
     for (let i = 0; i < numAccounts; i++) {
-      expectedResults[await accounts[i].getAddress()] = 1/totalStake * iterations;
+      expectedResults[await accounts[i].getAddress()] =
+        (1 / totalStake) * iterations;
     }
 
     await testScanResults(iterations, expectedResults);
   }).timeout(0);
 
-  it('should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]', async () => {
+  it("should distribute scan results amongst stakees proportionally - varied stake amounts [ @skip-on-coverage ]", async () => {
     const numAccounts = 10;
 
     let totalStake = 0;
     for (let i = 0; i < numAccounts; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
       await token.connect(accounts[i]).approve(stakingManager.address, 100);
-      await stakingManager.connect(accounts[i]).addStake(i + 1, await accounts[i].getAddress());
+      await stakingManager
+        .connect(accounts[i])
+        .addStake(i + 1, await accounts[i].getAddress());
       await epochsManager.connect(accounts[i]).joinNextEpoch();
       totalStake += i + 1;
     }
@@ -523,71 +609,96 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const iterations = process.env.ITERATIONS ? parseInt(process.env.ITERATIONS) : 1000;
+    const iterations = process.env.ITERATIONS
+      ? parseInt(process.env.ITERATIONS)
+      : 1000;
 
-    console.log(`running varied stake amount distribution test with ${iterations} iterations`);
+    console.log(
+      `running varied stake amount distribution test with ${iterations} iterations`
+    );
 
-    let expectedResults: Results = {};
+    const expectedResults: Results = {};
     for (let i = 0; i < numAccounts; i++) {
-      expectedResults[await accounts[i].getAddress()] = (i+1)/totalStake * iterations;
+      expectedResults[await accounts[i].getAddress()] =
+        ((i + 1) / totalStake) * iterations;
     }
 
     await testScanResults(iterations, expectedResults);
   }).timeout(0);
 
-  it('should be able to scan after unlocking all stake [ @skip-on-coverage ]', async () => {
+  it("should be able to scan after unlocking all stake [ @skip-on-coverage ]", async () => {
     await stakingManager.addStake(1, owner);
 
     await token.transfer(await accounts[1].getAddress(), 100);
     await token.connect(accounts[1]).approve(stakingManager.address, 100);
-    await stakingManager.connect(accounts[1]).addStake(1, await accounts[1].getAddress());
+    await stakingManager
+      .connect(accounts[1])
+      .addStake(1, await accounts[1].getAddress());
 
     await token.transfer(await accounts[2].getAddress(), 100);
     await token.connect(accounts[2]).approve(stakingManager.address, 100);
-    await stakingManager.connect(accounts[2]).addStake(1, await accounts[2].getAddress());
+    await stakingManager
+      .connect(accounts[2])
+      .addStake(1, await accounts[2].getAddress());
 
     await stakingManager.unlockStake(1, owner);
-    await stakingManager.connect(accounts[1]).unlockStake(1, await accounts[1].getAddress());
-    await stakingManager.connect(accounts[2]).unlockStake(1, await accounts[2].getAddress());
+    await stakingManager
+      .connect(accounts[1])
+      .unlockStake(1, await accounts[1].getAddress());
+    await stakingManager
+      .connect(accounts[2])
+      .unlockStake(1, await accounts[2].getAddress());
 
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
     const address = await directory.scan(0);
 
-    assert.equal(address, '0x0000000000000000000000000000000000000000', "Expected zero address");
+    assert.equal(
+      address,
+      "0x0000000000000000000000000000000000000000",
+      "Expected zero address"
+    );
   });
 
-  it('can not join directory without a stake', async () => {
+  it("can not join directory without a stake", async () => {
     await stakingManager.addStake(1, owner);
     await stakingManager.unlockStake(1, owner);
 
-    directory.joinNextDirectory(owner)
+    directory
+      .joinNextDirectory(owner)
       .then(() => {
         assert.fail("Join directory should fail as no stake for this epoch");
       })
-      .catch(e => {
-        assert.include(e.message, "Can not join directory for next epoch without any stake");
-      })
+      .catch((e: Error) => {
+        assert.include(
+          e.message,
+          "Can not join directory for next epoch without any stake"
+        );
+      });
   });
 
   async function testScanResults(iterations: number, expectedResults: Results) {
     const results = await collectScanResults(iterations);
 
-    let x = [];
-    let y = [];
+    const x = [];
+    const y = [];
 
-    for (let key of Object.keys(expectedResults)) {
+    for (const key of Object.keys(expectedResults)) {
       x.push(results[key]);
-      y.push(expectedResults[key])
+      y.push(expectedResults[key]);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const chiResult = chi2gof(x, y).toJSON();
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (chiResult.rejected) {
-      assert.fail("Expected scan result to pass goodness-of-fit test \n" +
-        `Expected: ${JSON.stringify(expectedResults)} \n` +
-        `Actual: ${JSON.stringify(results)} \n`);
+      assert.fail(
+        "Expected scan result to pass goodness-of-fit test \n" +
+          `Expected: ${JSON.stringify(expectedResults)} \n` +
+          `Actual: ${JSON.stringify(results)} \n`
+      );
     }
   }
 
@@ -599,17 +710,20 @@ describe('Staking', () => {
       } else {
         points[address]++;
       }
-    }
+    };
 
     function outputCompletion() {
       if (i >= iterations) {
         return;
       }
-      process.stdout.write(" " + (i/iterations * 100).toPrecision(2) + "% completed\r")
+      process.stdout.write(
+        " " + ((i / iterations) * 100).toPrecision(2) + "% completed\r"
+      );
       setTimeout(outputCompletion, 1000);
     }
 
-    const mnemonic = "search topple trouble similar sorry just around connect hello range predict ahead";
+    const mnemonic =
+      "search topple trouble similar sorry just around connect hello range predict ahead";
     const keys = [];
     for (let i = 0; i < iterations; i++) {
       keys.push(ethers.Wallet.fromMnemonic(mnemonic, `m/44'/60'/0'/${i}`));
