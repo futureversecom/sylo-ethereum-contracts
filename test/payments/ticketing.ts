@@ -951,6 +951,15 @@ describe('Ticketing', () => {
       'Expected staking manager to receive claim reward',
     );
 
+    assert.equal(
+      stakingManagerBalanceBefore
+        .add(claimBeforeAddingStake)
+        .add(toSOLOs(1))
+        .toString(),
+      stakingManagerBalanceAfter.toString(),
+      'Expected staking manager to receive claim reward',
+    );
+
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
         await createWinningTicket(alice, owner);
@@ -983,6 +992,12 @@ describe('Ticketing', () => {
       claimAfterRemovingStake.toString(),
       '0',
       'Expected reward to be automatically claimed after adding stake',
+    );
+
+    assert.equal(
+      stakerBalanceBefore.add(claimBeforeRemovingStake).toString(),
+      stakerBalanceAfter.toString(),
+      'Expected staker balance to have reward claim added after starting unlock process',
     );
 
     assert.equal(
