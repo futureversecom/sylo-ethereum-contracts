@@ -891,12 +891,12 @@ describe("Ticketing", () => {
   });
 
   it("should have rewards be automatically claimed when stake is updated", async () => {
-    await token.transfer(await accounts[2].getAddress(), 1000);
+    await token.transfer(await accounts[2].getAddress(), toSOLOs(1000));
     await token
       .connect(accounts[2])
       .approve(stakingManager.address, toSOLOs(1000));
 
-    await stakingManager.addStake(toSOLOs(3), owner);
+    await stakingManager.addStake(toSOLOs(10000), owner);
     await listings.setListing("0.0.0.0/0", 1);
 
     // have account 2 as a delegated staker
@@ -916,6 +916,12 @@ describe("Ticketing", () => {
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
     }
 
+    const stakingManagerBalanceBefore = await token.balanceOf(stakingManager.address);
+    const claimBeforeAddingStake = await rewardsManager.calculateStakerClaim(
+      owner,
+      await accounts[2].getAddress()
+    );
+
     // add more stake
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(1), owner);
 
@@ -924,10 +930,18 @@ describe("Ticketing", () => {
       await accounts[2].getAddress()
     );
 
+    const stakingManagerBalanceAfter = await token.balanceOf(stakingManager.address);
+
     assert.equal(
       claimAfterAddingStake.toString(),
       "0",
       "Expected reward to be automatically claimed after adding stake"
+    );
+
+    assert.equal(
+      stakingManagerBalanceBefore.add(claimBeforeAddingStake).add(toSOLOs(1)).toString(),
+      stakingManagerBalanceAfter.toString(),
+      "Expected staking manager to receive claim reward"
     );
 
     for (let i = 0; i < 10; i++) {
@@ -937,8 +951,17 @@ describe("Ticketing", () => {
       await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
     }
 
+    const claimBeforeRemovingStake = await rewardsManager.calculateStakerClaim(
+      owner,
+      await accounts[2].getAddress()
+    );
+
+    const stakerBalanceBefore = await token.balanceOf(await accounts[2].getAddress());
+
     // remove some stake
     await stakingManager.connect(accounts[2]).unlockStake(1, owner);
+
+    const stakerBalanceAfter = await token.balanceOf(await accounts[2].getAddress());
 
     const claimAfterRemovingStake = await rewardsManager.calculateStakerClaim(
       owner,
@@ -949,6 +972,12 @@ describe("Ticketing", () => {
       claimAfterRemovingStake.toString(),
       "0",
       "Expected reward to be automatically claimed after adding stake"
+    );
+
+    assert.equal(
+      stakerBalanceBefore.add(claimBeforeRemovingStake).toString(),
+      stakerBalanceAfter.toString(),
+      "Expected staker balance to have reward claim added after starting unlock process"
     );
   });
 
