@@ -180,7 +180,7 @@ describe("Staking", () => {
 
   it("should not be able to add 0 stake", async () => {
     await expect(stakingManager.addStake(0, owner)).to.be.revertedWith(
-      "Cannot stake nothing"
+      "Cannot add 0 to stake"
     );
   });
 
