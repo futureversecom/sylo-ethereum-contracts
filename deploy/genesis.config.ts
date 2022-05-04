@@ -35,6 +35,8 @@ const GenesisParameters: ContractParameters = {
   SyloToken:
     hre.network.name == "mainnet"
       ? "0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4"
+      : hre.network.name == "nikau"
+      ? "0xcccCccCC000042B4000000000000000000000000"
       : "",
 
   EpochsManager: {

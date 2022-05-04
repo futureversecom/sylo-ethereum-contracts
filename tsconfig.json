@@ -15,5 +15,6 @@
   ],
   "files": [
     "./hardhat.config.ts",
+    "./bridge_test.ts",
   ]
 }

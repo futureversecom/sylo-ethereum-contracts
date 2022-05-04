@@ -13,7 +13,7 @@ dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.4",
+    version: "0.8.13",
     settings: {
       optimizer: {
         enabled: true,
@@ -34,6 +34,18 @@ const config: HardhatUserConfig = {
     },
     ropsten: {
       url: process.env.ROPSTEN_INFURA_ENDPOINT ?? "",
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      },
+    },
+    kovan: {
+      url: process.env.KOVAN_INFURA_ENDPOINT ?? "",
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      },
+    },
+    nikau: {
+      url: "https://nikau.centrality.me/public",
       accounts: {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
       },
