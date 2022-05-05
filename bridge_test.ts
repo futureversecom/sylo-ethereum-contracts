@@ -6,7 +6,6 @@ import {
   ERC20__factory,
   StakingManager__factory,
   SyloToken__factory,
-  TestContract__factory,
 } from "./typechain";
 import { EventProofId } from "@cennznet/types";
 import { EthEventProof } from "@cennznet/api/derives/ethBridge/types";
@@ -97,26 +96,26 @@ async function testStakeDeposit() {
 
   console.log(`original balance: ${ethers.utils.formatEther(originalBalance)}`);
 
-  // await syloToken.approve(staking.address, ethers.utils.parseEther("1000"));
+  await syloToken.approve(staking.address, ethers.utils.parseEther("1000"));
 
-  // console.log("getting stake entry");
+  console.log("getting stake entry");
 
-  // const se = await staking.getStakeEntry(signer.address, signer.address);
+  const se = await staking.getStakeEntry(signer.address, signer.address);
 
-  // console.log(se);
+  console.log(se);
 
-  // console.log("depositing stake...");
+  console.log("depositing stake...");
 
-  // const tx = await staking.addStake(
-  //   ethers.utils.parseEther("10"),
-  //   signer.address
-  // );
+  const tx = await staking.addStake(
+    ethers.utils.parseEther("10"),
+    signer.address
+  );
 
-  // console.log("sent add stake tx", tx.hash);
+  console.log("sent add stake tx", tx.hash);
 
-  // const postBalance = await syloToken.balanceOf(signer.address);
+  const postBalance = await syloToken.balanceOf(signer.address);
 
-  // console.log(ethers.utils.formatEther(postBalance));
+  console.log(ethers.utils.formatEther(postBalance));
 }
 
 async function withdraw() {
@@ -219,9 +218,9 @@ async function withdraw() {
 
 // deployTestContract();
 
-// testStakeDeposit();
+testStakeDeposit();
 
-withdraw();
+// withdraw();
 
 // checkCennzSyloToken();
 
