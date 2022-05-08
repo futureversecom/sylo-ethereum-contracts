@@ -12,8 +12,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 contract Listings is Initializable, OwnableUpgradeable {
 
     struct Listing {
-        // MultiAddr to connect to the account
-        string multiAddr;
+        // Public http/s endpoint to retrieve additional metadata
+        // about the node.
+        // The current metadata schema is as follows:
+        //  { name: string, multiaddrs: string[] }
+        string publicEndpoint;
 
         // Percentage of a tickets value that will be rewarded to
         // delegated stakers expressed as a fraction of 10000.
@@ -69,16 +72,17 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     /**
      * @notice Call this as a Node to set or update your Listing entry.
-     * @param multiAddr The libp2p multiAddr of your Node. Essential for
-     * clients to be able to establish a p2p connection.
+     * @param publicEndpoint The public endpoint of your Node. Essential for
+     * clients to be able to acquire additional information, such as the
+     * multiaddr, which is used to establish a p2p connection.
      * @param minDelegatedStake The minimum amount of stake in SOLO that
      * a staker must add when calling StakingManager.addStake.
      */
-    function setListing(string memory multiAddr, uint256 minDelegatedStake) external {
-        require(bytes(multiAddr).length != 0, "Multiaddr string is empty");
+    function setListing(string memory publicEndpoint, uint256 minDelegatedStake) external {
+        require(bytes(publicEndpoint).length != 0, "Multiaddr string is empty");
 
         // TODO Remove defaultPayoutPercentage once epochs are introduced
-        Listing memory listing = Listing(multiAddr, defaultPayoutPercentage, minDelegatedStake, true);
+        Listing memory listing = Listing(publicEndpoint, defaultPayoutPercentage, minDelegatedStake, true);
         listings[msg.sender] = listing;
     }
 
