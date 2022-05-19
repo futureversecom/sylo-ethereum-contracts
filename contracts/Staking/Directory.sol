@@ -74,6 +74,24 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
         emit CurrentDirectoryUpdated(epochId);
     }
 
+    function validateJoinNextDirectory(address stakee) external {
+        uint256 managedStake = _stakingManager.getStakeeTotalManagedStake(stakee);
+        uint256 stakeReward = _rewardsManager.unclaimedStakeRewards(stakee);
+        uint256 totalStake = managedStake + stakeReward;
+        require(totalStake > 0, "Can not join directory for next epoch without any stake");
+        require(
+            _stakingManager.checkMinimumStakeProportion(stakee),
+            "Can not join directory without owning minimum amount of stake"
+        );
+
+        uint256 epochId = currentDirectory + 1;
+
+        require(
+            directories[epochId].stakes[stakee] == 0,
+            "Can only join the directory once per epoch"
+        );
+    }
+
     /**
      * @notice This function is called by a node as a prerequisite to participate in the next epoch.
      * @dev This will construct the directory as nodes join. The directory is constructed
@@ -98,18 +116,7 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
         uint256 managedStake = _stakingManager.getStakeeTotalManagedStake(stakee);
         uint256 stakeReward = _rewardsManager.unclaimedStakeRewards(stakee);
         uint256 totalStake = managedStake + stakeReward;
-        require(totalStake > 0, "Can not join directory for next epoch without any stake");
-        require(
-            _stakingManager.checkMinimumStakeProportion(stakee),
-            "Can not join directory without owning minimum amount of stake"
-        );
-
         uint256 epochId = currentDirectory + 1;
-
-        require(
-            directories[epochId].stakes[stakee] == 0,
-            "Can only join the directory once per epoch"
-        );
 
         uint256 nextBoundary = directories[epochId].totalStake + totalStake;
 

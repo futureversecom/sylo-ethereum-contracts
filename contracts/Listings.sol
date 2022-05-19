@@ -99,6 +99,8 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
+        // Proofs are only valid for a blocks since they were signed
+        require(block.number - proofBlock < 100, "Proof is expired");
         bytes32 proof = keccak256(
             abi.encode(
                 SEEKER_OWNERSHIP_PREFIX, seekerId, msg.sender, proofBlock

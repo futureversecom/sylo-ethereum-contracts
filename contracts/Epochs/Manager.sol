@@ -174,6 +174,9 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             "Node must have a valid listing to join the next epoch"
         );
 
+        _directory._rewardsManager().validateInitializeNextRewardPool(msg.sender);
+        _directory.validateJoinNextDirectory(msg.sender);
+
         bytes memory balanceOfCall = abi.encodeWithSignature("ownerOf(uint256)", listing.seekerId);
         bytes4 callbackSelector = this.completeJoinNextEpochRequest.selector;
         uint256 callbackGasLimit = 400_000;
