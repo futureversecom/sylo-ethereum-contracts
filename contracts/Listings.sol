@@ -4,12 +4,17 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+import "./ECDSA.sol";
+
 /**
  * @notice This contract manages Listings for Nodes. A Listing is a
  * set of parameters configured by the Node itself. A Node is required
  * to have a valid Listing to be able to participate in the network.
  */
 contract Listings is Initializable, OwnableUpgradeable {
+    using ECDSA for bytes32;
+
+    string constant SEEKER_OWNERSHIP_PREFIX = "This message allows your seeker to be used to operate your node.";
 
     struct Listing {
         // Public http/s endpoint to retrieve additional metadata
@@ -80,17 +85,41 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     /**
      * @notice Call this as a Node to set or update your Listing entry.
-     * @param listing The listing object to set.
+     * @param publicEndpoint The public endpoint of your Node. Essential for
+     * clients to be able to retrieve additional information, such as
+     * an address to establish a p2p connection.
+     * @param minDelegatedStake The minimum amount of stake in SOLO that
+     * a staker must add when calling StakingManager.addStake.
      */
-    function setListing(Listing memory listing) external {
-        require(bytes(listing.publicEndpoint).length != 0, "Public endpoint can not be empty");
-        require(listing.seekerAccount != address(0), "Seeker account can not be zero address");
+    function setListing(string memory publicEndpoint, uint256 minDelegatedStake) external {
+        require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
 
-        listings[msg.sender] = listing;
+        listings[msg.sender].publicEndpoint = publicEndpoint;
+        listings[msg.sender].minDelegatedStake = minDelegatedStake;
     }
 
-    function validateListing(Listing memory listing) internal {
+    function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
+        bytes32 proof = keccak256(
+            abi.encode(
+                SEEKER_OWNERSHIP_PREFIX, seekerId, msg.sender, proofBlock
+            )
+        ).toEthSignedMessageHash();
 
+        require(ECDSA.recover(proof, signature) == seekerAccount, "Proof must be signed by specified seeker account");
+
+        listings[msg.sender].seekerAccount = seekerAccount;
+        listings[msg.sender].seekerId = seekerId;
+    }
+
+    function revokeSeekerAccount(address node) external {
+        Listing storage listing = listings[msg.sender];
+
+        require(
+            listing.seekerAccount == msg.sender,
+            "Seeker account and msg.sender must be equal"
+        );
+
+        listing.seekerAccount = address(0);
     }
 
     /**
