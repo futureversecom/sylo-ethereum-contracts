@@ -18,6 +18,14 @@ contract Listings is Initializable, OwnableUpgradeable {
         //  { name: string, multiaddrs: string[] }
         string publicEndpoint;
 
+        // The account which owns a seeker that will be used to
+        // operate the Node for this listing.
+        address seekerAccount;
+
+        // The id of the seeker used to operate the node. The owner
+        // of this id should be the seeker account.
+        uint256 seekerId;
+
         // Percentage of a tickets value that will be rewarded to
         // delegated stakers expressed as a fraction of 10000.
         // This value is currently locked to the default payout percentage
@@ -25,7 +33,7 @@ contract Listings is Initializable, OwnableUpgradeable {
         uint16 payoutPercentage;
 
         // The minimum amount of stake that is required to
-        // add a delegated stake against this node
+        // add delegated stake against this node
         uint256 minDelegatedStake;
 
         // Explicit property to check if an instance of this struct actually exists
@@ -72,18 +80,17 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     /**
      * @notice Call this as a Node to set or update your Listing entry.
-     * @param publicEndpoint The public endpoint of your Node. Essential for
-     * clients to be able to acquire additional information, such as the
-     * multiaddr, which is used to establish a p2p connection.
-     * @param minDelegatedStake The minimum amount of stake in SOLO that
-     * a staker must add when calling StakingManager.addStake.
+     * @param listing The listing object to set.
      */
-    function setListing(string memory publicEndpoint, uint256 minDelegatedStake) external {
-        require(bytes(publicEndpoint).length != 0, "Public endpoint string is empty");
+    function setListing(Listing memory listing) external {
+        require(bytes(listing.publicEndpoint).length != 0, "Public endpoint can not be empty");
+        require(listing.seekerAccount != address(0), "Seeker account can not be zero address");
 
-        // TODO Remove defaultPayoutPercentage once epochs are introduced
-        Listing memory listing = Listing(publicEndpoint, defaultPayoutPercentage, minDelegatedStake, true);
         listings[msg.sender] = listing;
+    }
+
+    function validateListing(Listing memory listing) internal {
+
     }
 
     /**
