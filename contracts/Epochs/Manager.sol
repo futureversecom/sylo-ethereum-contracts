@@ -7,11 +7,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../Payments/Ticketing/Parameters.sol";
 import "../Listings.sol";
 import "../Staking/Directory.sol";
+import "../Seekers.sol";
 
 contract EpochsManager is Initializable, OwnableUpgradeable {
-
-    /// CENNZnet ethereum state oracle precompile address
-    address constant STATE_ORACLE = address(27572);
 
     /**
      * @dev This struct will hold all network parameters that will be static
@@ -41,22 +39,16 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     event EpochJoined (
         uint256 epochId,
         address node,
-        bool success
+        uint256 seekerId
     );
 
     Directory public _directory;
 
     Listings public _listings;
 
+    Seekers public _seekers;
+
     TicketingParameters public _ticketingParameters;
-
-    mapping (address => uint256) public activeRequests;
-    mapping (uint256 => JoinNextEpochRequest) public joinRequests;
-
-    /**
-     * @notice The address of the Seekers NFT contract on ethereum mainnet.
-     */
-    address public seekers;
 
     // Define all Epoch specific parameters here.
     // When initializing an epoch, these parameters are read,
@@ -86,14 +78,12 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Directory directory,
         Listings listings,
         TicketingParameters ticketingParameters,
-        address _seekers,
         uint256 _epochDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _directory = directory;
         _listings = listings;
         _ticketingParameters = ticketingParameters;
-        seekers = _seekers;
         epochDuration = _epochDuration;
         currentIteration = 0;
     }
@@ -142,14 +132,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Set the external Seekers NFT contract address.
-     * @param _seekers The address of the Seekers NFT contract.
-     */
-    function setEpochDuration(address _seekers) external onlyOwner {
-        seekers = _seekers;
-    }
-
-    /**
      * @notice Set the epoch duration. Will take effect in the next epoch. only
      * callable by the owner.
      * @param _epochDuration The epoch duration in number of blocks.
@@ -166,75 +148,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         return epochs[currentIteration];
     }
 
-    function requestJoinNextEpoch() external returns (uint256) {
-        Listings.Listing memory listing = _listings.getListing(msg.sender);
-
-        require(
-            listing.seekerAccount != address(0),
-            "Node must have a valid listing to join the next epoch"
-        );
-
-        _directory._rewardsManager().validateInitializeNextRewardPool(msg.sender);
-        _directory.validateJoinNextDirectory(msg.sender);
-
-        bytes memory balanceOfCall = abi.encodeWithSignature("ownerOf(uint256)", listing.seekerId);
-        bytes4 callbackSelector = this.completeJoinNextEpochRequest.selector;
-        uint256 callbackGasLimit = 400_000;
-        uint256 callbackBounty = 2 ether; // == 2 cpay
-
-        // request a remote eth_call via the state oracle
-        bytes memory remoteCallRequest = abi.encodeWithSignature(
-            "remoteCall(address,bytes,bytes4,uint256,uint256)",
-            this.seekers,
-            balanceOfCall,
-            callbackSelector,
-            callbackGasLimit,
-            callbackBounty
-        );
-
-        (bool success, bytes memory returnData) = STATE_ORACLE.call(remoteCallRequest);
-        require(success);
-
-        uint256 requestId = abi.decode(returnData, (uint256));
-
-        // overwrites existing request
-        uint256 currentActive = activeRequests[msg.sender];
-        activeRequests[msg.sender] = requestId;
-        joinRequests[requestId] = JoinNextEpochRequest(
-            msg.sender,
-            listing.seekerAccount,
-            listing.seekerId
-        );
-        delete joinRequests[currentActive];
-
-        return requestId;
-    }
-
-    function completeJoinNextEpochRequest(uint256 requestId, bytes32 returnData) external {
-        require(msg.sender == STATE_ORACLE, "must be state oracle");
-
-        // the account that actually owns the seeker
-        address ownerOf = address(bytes20(returnData));
-
-        // find the corresponding join request
-        JoinNextEpochRequest memory request = joinRequests[requestId];
-
-        // existing request may have been deleted already
-        if (request.node == address(0)) {
-            return;
-        }
-
-        // before placing the node in the next epoch, validate the node's seeker
-        // account owns the specified seeker id
-        if (request.seekerAccount != ownerOf) {
-            emit JoinNextEpochResult(currentIteration + 1, request.node, false);
-        } else {
-            _directory._rewardsManager().initializeNextRewardPool(request.node);
-            _directory.joinNextDirectory(request.node);
-            emit JoinNextEpochResult(currentIteration + 1, request.node, true);
-        }
-    }
-
     /**
      * @notice Nodes should call this to join the next epoch. It will
      * initialize the next reward pool and set the stake for the next directory.
@@ -242,9 +155,18 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * `joinNextDirectory`.
      */
     function joinNextEpoch() external {
+        Listings.Listing memory listing = _listings.getListing(msg.sender);
+
+        // validate the node's seeker ownership
+        require(listing.seekerAccount != address(0), "Node must have a valid seeker account to join an epoch");
+
+        address owner = _seekers.ownerOf(listing.seekerId);
+
+        require(listing.seekerAccount == owner, "Node's seeker account must own the seeker to join an epoch");
+
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
-        emit EpochJoined(currentIteration + 1, msg.sender);
+        emit EpochJoined(currentIteration + 1, msg.sender, listing.seekerId);
     }
 
     /**

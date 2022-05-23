@@ -49,6 +49,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
         uint256 _callbackGasLimit,
         uint256 _callbackBounty
     ) external initializer {
+        OwnableUpgradeable.__Ownable_init();
         seekers = _seekers;
         oracle = _oracle;
         validDuration = _validDuration;

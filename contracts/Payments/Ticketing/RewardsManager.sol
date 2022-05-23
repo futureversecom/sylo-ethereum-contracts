@@ -197,19 +197,6 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         return unclaimedStakeRewards[stakee];
     }
 
-    function validateInitializeNextRewardPool(address stakee) external {
-        uint256 nextEpochId = _epochsManager.getNextEpochId();
-
-        RewardPool memory nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
-        require(
-            nextRewardPool.initializedAt == 0,
-            "The next reward pool has already been initialized"
-        );
-
-        uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-        require(totalStake > 0, "Must have stake to initialize a reward pool");
-    }
-
     /**
      * @notice This is used by Nodes to initialize their reward pool for
      * the next epoch. This function will revert if the caller has no stake, or
@@ -221,8 +208,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
         RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
+        require(
+            nextRewardPool.initializedAt == 0,
+            "The next reward pool has already been initialized"
+        );
 
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
+        require(totalStake > 0, "Must have stake to initialize a reward pool");
 
         nextRewardPool.initializedAt = block.number;
 

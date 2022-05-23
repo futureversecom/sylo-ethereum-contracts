@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./ECDSA.sol";
+import "./Seekers.sol";
 
 /**
  * @notice This contract manages Listings for Nodes. A Listing is a
@@ -46,6 +47,11 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Seeker's contract for verifying ownership of a seeker.
+     */
+    Seekers public _seekers;
+
+    /**
      * @notice Tracks each Node's listing.
      */
     mapping(address => Listing) public listings;
@@ -59,8 +65,12 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     uint16 public defaultPayoutPercentage;
 
-    function initialize(uint16 _defaultPayoutPercentage) external initializer {
+    function initialize(
+        Seekers seekers,
+        uint16 _defaultPayoutPercentage
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
+        _seekers = _seekers;
         require(
             _defaultPayoutPercentage <= 10000,
             "The payout percentage can not exceed 100 percent"
@@ -99,7 +109,7 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
-        // Proofs are only valid for a blocks since they were signed
+        // Proofs are only valid for 100 blocks since they were signed
         require(block.number - proofBlock < 100, "Proof is expired");
         bytes32 proof = keccak256(
             abi.encode(
@@ -108,6 +118,11 @@ contract Listings is Initializable, OwnableUpgradeable {
         ).toEthSignedMessageHash();
 
         require(ECDSA.recover(proof, signature) == seekerAccount, "Proof must be signed by specified seeker account");
+
+        // Now verify the seeker account actually owns the seeker
+        address owner = _seekers.ownerOf(seekerId);
+
+        require(seekerAccount == owner, "Seeker account must own the specified seeker");
 
         listings[msg.sender].seekerAccount = seekerAccount;
         listings[msg.sender].seekerId = seekerId;
