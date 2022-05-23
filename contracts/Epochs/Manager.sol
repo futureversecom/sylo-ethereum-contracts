@@ -50,6 +50,11 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     TicketingParameters public _ticketingParameters;
 
+    /**
+     * @notice Track seekers that have joined for a specific epoch.
+     */
+    mapping (uint256 => mapping (uint256 => address)) public activeSeekers;
+
     // Define all Epoch specific parameters here.
     // When initializing an epoch, these parameters are read,
     // along with parameters from the other contracts to create the
@@ -75,12 +80,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     event NewEpoch(uint256 epochId);
 
     function initialize(
+        Seekers seekers,
         Directory directory,
         Listings listings,
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
+        _seekers = seekers;
         _directory = directory;
         _listings = listings;
         _ticketingParameters = ticketingParameters;
@@ -89,8 +96,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Call this to initialize the next epoch. This is only callable
-     * by the owner of the Sylo contracts. On success, a `NewEpoch` event
+     * @notice Call this to initialize the next epoch. On success, a `NewEpoch` event
      * will be emitted.
      * @dev The function will read the current set of network parameters, and store
      * the parameters in a new Epoch struct. The end block of the current epoch
@@ -164,8 +170,16 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
         require(listing.seekerAccount == owner, "Node's seeker account must own the seeker to join an epoch");
 
+        uint256 nextEpoch = getNextEpochId();
+
+        require(
+            activeSeekers[nextEpoch][listing.seekerId] == address(0),
+            "Seeker has already joined the next epoch"
+        );
+
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
+        activeSeekers[nextEpoch][listing.seekerId] = msg.sender;
         emit EpochJoined(currentIteration + 1, msg.sender, listing.seekerId);
     }
 
