@@ -41,8 +41,18 @@ async function deployPhaseTwoContracts(
     );
   }
 
+  const Seekers = await ethers.getContractFactory('Seekers');
+  const seekers = await upgrades.deployProxy(Seekers, [
+    config.Seekers.seekersERC721,
+    config.Seekers.oracle,
+    config.Seekers.validDuration,
+    config.Seekers.callbackGasLimit,
+    config.Seekers.callbackBounty,
+  ]);
+
   const Listings = await ethers.getContractFactory('Listings');
   const listings = (await upgrades.deployProxy(Listings, [
+    seekers.address,
     config.Listings.defaultPayoutPercentage,
   ])) as Listings;
 
@@ -98,6 +108,7 @@ async function deployPhaseTwoContracts(
   logDeployment('Directory', directory.address);
 
   await epochsManager.initialize(
+    seekers.address,
     directory.address,
     listings.address,
     ticketingParameters.address,

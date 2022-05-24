@@ -5,6 +5,14 @@ type ContractParameters = {
   // Address of the existing Sylo Token
   SyloToken: string;
 
+  Seekers: {
+    seekersERC721: string;
+    oracle: string;
+    validDuration: BigNumberish;
+    callbackGasLimit: BigNumberish;
+    callbackBounty: BigNumberish;
+  };
+
   EpochsManager: {
     epochDuration: BigNumberish;
   };
@@ -36,6 +44,17 @@ const GenesisParameters: ContractParameters = {
     hre.network.name == 'mainnet'
       ? '0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4'
       : '',
+
+  Seekers: {
+    seekersERC721:
+      hre.network.name == "rata"
+        ? "0x856D2df6998AcA9FDC4B2CA316b0527081cee8DD"
+        : "",
+    oracle: "0x0000000000000000000000000000000000006bb4",
+    validDuration: 200,
+    callbackGasLimit: 300000,
+    callbackBounty: hre.ethers.utils.parseEther("2"),
+  },
 
   EpochsManager: {
     epochDuration: 80000,
