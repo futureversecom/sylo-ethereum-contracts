@@ -240,7 +240,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
 
         Listings.Listing memory listing = _listings.getListing(ticket.redeemer);
-        require(listing.initialized == true, "Ticket redeemer must have a valid listing");
+        require(listing.seekerAccount != address(0), "Ticket redeemer must have a valid listing");
 
         usedTickets[ticketHash] = true;
 

@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./ECDSA.sol";
 import "./Seekers.sol";
+import "hardhat/console.sol";
 
 /**
  * @notice This contract manages Listings for Nodes. A Listing is a
@@ -15,7 +16,7 @@ import "./Seekers.sol";
 contract Listings is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
-    string constant SEEKER_OWNERSHIP_PREFIX = "This message allows your seeker to be used to operate your node.";
+    string constant public SEEKER_OWNERSHIP_PREFIX = "This message allows your seeker to be used to operate your node.";
 
     struct Listing {
         // Public http/s endpoint to retrieve additional metadata
@@ -41,9 +42,6 @@ contract Listings is Initializable, OwnableUpgradeable {
         // The minimum amount of stake that is required to
         // add delegated stake against this node
         uint256 minDelegatedStake;
-
-        // Explicit property to check if an instance of this struct actually exists
-        bool initialized;
     }
 
     /**
@@ -70,7 +68,7 @@ contract Listings is Initializable, OwnableUpgradeable {
         uint16 _defaultPayoutPercentage
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        _seekers = _seekers;
+        _seekers = seekers;
         require(
             _defaultPayoutPercentage <= 10000,
             "The payout percentage can not exceed 100 percent"
@@ -110,9 +108,11 @@ contract Listings is Initializable, OwnableUpgradeable {
 
     function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
         // Proofs are only valid for 100 blocks since they were signed
+        require(block.number >= proofBlock, "Proof can not be set for a future block");
         require(block.number - proofBlock < 100, "Proof is expired");
+
         bytes32 proof = keccak256(
-            abi.encode(
+            abi.encodePacked(
                 SEEKER_OWNERSHIP_PREFIX, seekerId, msg.sender, proofBlock
             )
         ).toEthSignedMessageHash();
@@ -129,7 +129,7 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     function revokeSeekerAccount(address node) external {
-        Listing storage listing = listings[msg.sender];
+        Listing storage listing = listings[node];
 
         require(
             listing.seekerAccount == msg.sender,
@@ -146,5 +146,12 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     function getListing(address account) external view returns (Listing memory) {
         return listings[account];
+    }
+
+    /**
+     * @notice Retrieves the prefix used for creating proofs.
+     */
+    function getPrefix() public pure returns (string memory) {
+        return SEEKER_OWNERSHIP_PREFIX;
     }
 }

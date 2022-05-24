@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "hardhat/console.sol";
 
 contract Seekers is Initializable, OwnableUpgradeable {
 
@@ -130,11 +131,5 @@ contract Seekers is Initializable, OwnableUpgradeable {
     function withdrawAll(address recipient) public onlyOwner {
         uint256 balance = address(this).balance;
         payable(recipient).transfer(balance);
-    }
-
-    function withdrawAllViaCall(address payable _to) public onlyOwner {
-        uint256 balance = address(this).balance;
-        (bool sent, bytes memory data) = _to.call{value: balance}("");
-        require(sent, "Failed to send Ether");
     }
 }
