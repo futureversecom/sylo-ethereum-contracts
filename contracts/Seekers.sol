@@ -101,7 +101,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
     }
 
 
-    function confirmOwnership(uint256 requestId, bytes32 returnData) external {
+    function confirmOwnership(uint256 requestId, uint256 timestamp, bytes32 returnData) external {
         require(msg.sender == oracle, "must be state oracle");
 
         address owner = address(uint160(uint256(returnData)));

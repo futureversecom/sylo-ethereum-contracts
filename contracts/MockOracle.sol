@@ -35,7 +35,7 @@ contract MockOracle {
             encoded := mload(add(returnData, 32))
         }
 
-        bytes memory callback = abi.encodeWithSelector(callbackSignature, nextRequestId, encoded);
+        bytes memory callback = abi.encodeWithSelector(callbackSignature, nextRequestId, block.timestamp, encoded);
         callbacks[nextRequestId] = Callback(msg.sender, callback);
 
         return nextRequestId;
