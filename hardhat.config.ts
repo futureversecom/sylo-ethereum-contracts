@@ -50,6 +50,12 @@ const config: HardhatUserConfig = {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
       },
     },
+    rata: {
+      url: "https://rata.centrality.me/public",
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      },
+    },
   },
 };
 
