@@ -21,6 +21,12 @@ contract Seekers is Initializable, OwnableUpgradeable {
     address public seekers;
 
     /**
+     * @notice The address of the token used for fees.
+     */
+
+    address public token;
+
+    /**
      * @notice The address of the Oracle account performing these attestations.
      */
     address public oracle;
@@ -45,6 +51,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
 
     function initialize(
         address _seekers,
+        address _token,
         address _oracle,
         uint256 _validDuration,
         uint256 _callbackGasLimit,
@@ -60,6 +67,10 @@ contract Seekers is Initializable, OwnableUpgradeable {
 
     function setSeekers(address _seekers) external onlyOwner {
         seekers = _seekers;
+    }
+
+    function setToken(address _token) external onlyOwner {
+        token = _token;
     }
 
     function setOracle(address _oracle) external onlyOwner {
@@ -78,18 +89,20 @@ contract Seekers is Initializable, OwnableUpgradeable {
         callbackBounty = _callbackBounty;
     }
 
-    function requestVerification(uint256 seekerId) external payable {
+    function requestVerification(uint256 seekerId, uint256 maxFee) external payable {
         bytes memory ownerOfCall = abi.encodeWithSignature("ownerOf(uint256)", seekerId);
         bytes4 callbackSelector = this.confirmOwnership.selector;
 
         // request a remote eth_call via the state oracle
         bytes memory remoteCallRequest = abi.encodeWithSignature(
-            "remoteCall(address,bytes,bytes4,uint256,uint256)",
+            "remoteCallWithFeeSwap(address,bytes,bytes4,uint256,uint256,address,uint32)",
             seekers,
             ownerOfCall,
             callbackSelector,
             callbackGasLimit,
-            callbackBounty
+            callbackBounty,
+            token,
+            maxFee
         );
 
         (bool success, bytes memory returnData) = oracle.call(remoteCallRequest);

@@ -44,6 +44,7 @@ async function deployPhaseTwoContracts(
   const Seekers = await ethers.getContractFactory('Seekers');
   const seekers = await upgrades.deployProxy(Seekers, [
     config.Seekers.seekersERC721,
+    config.SyloToken,
     config.Seekers.oracle,
     config.Seekers.validDuration,
     config.Seekers.callbackGasLimit,
