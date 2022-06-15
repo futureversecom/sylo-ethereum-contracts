@@ -47,7 +47,7 @@ const config: HardhatUserConfig = {
     nikau: {
       url: process.env.NIKAU_ENDPOINT ?? "",
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC,
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
       },
     },
   },
