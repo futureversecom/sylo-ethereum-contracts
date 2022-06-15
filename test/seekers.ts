@@ -53,7 +53,7 @@ describe('Listing', () => {
     // set a mock value first
     await mockOracle.setOwner(1, owner);
 
-    await seekers.requestVerification(1);
+    await seekers.requestVerification(1, 1);
 
     await mockOracle.invokeCallback();
 
@@ -72,7 +72,7 @@ describe('Listing', () => {
     // set a mock value first
     await mockOracle.setOwner(1, owner);
 
-    await seekers.requestVerification(1);
+    await seekers.requestVerification(1, 1);
 
     await mockOracle.invokeCallback();
 

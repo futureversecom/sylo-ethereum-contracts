@@ -95,7 +95,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
 
         // request a remote eth_call via the state oracle
         bytes memory remoteCallRequest = abi.encodeWithSignature(
-            "remoteCallWithFeeSwap(address,bytes,bytes4,uint256,uint256,address,uint32)",
+            "remoteCallWithFeeSwap(address,bytes,bytes4,uint256,uint256,address,uint256)",
             seekers,
             ownerOfCall,
             callbackSelector,
@@ -106,7 +106,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
         );
 
         (bool success, bytes memory returnData) = oracle.call(remoteCallRequest);
-        require(success);
+        require(success, "oracle request failed");
 
         uint256 requestId = abi.decode(returnData, (uint256));
 

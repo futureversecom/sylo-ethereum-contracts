@@ -18,12 +18,14 @@ contract MockOracle {
 
     uint256 public nextRequestId;
 
-    function remoteCall(
+    function remoteCallWithFeeSwap(
         address target,
         bytes memory input,
         bytes4 callbackSignature,
         uint256 callbackGasLimit,
-        uint256 bounty
+        uint256 bounty,
+        address token,
+        uint256 maxFee
     ) external returns (uint256) {
         nextRequestId++;
 

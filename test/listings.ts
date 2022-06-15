@@ -70,18 +70,14 @@ describe('Listing', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await utils.setSeekerOwnership(mockOracle, seekers, 1, seekerAddress);
-
-    const block = await ethers.provider.getBlockNumber();
-
-    const hash = ethers.utils.solidityKeccak256(
-      ['string', 'uint256', 'address', 'uint256'],
-      [await listings.getPrefix(), 1, owner, block],
+    await utils.setSeekerListing(
+      listings,
+      mockOracle,
+      seekers,
+      accounts[0],
+      accounts[1],
+      1,
     );
-    const proofMessage = ethers.utils.arrayify(hash);
-    const proof = await seekerAccount.signMessage(proofMessage);
-
-    await listings.setSeekerAccount(seekerAddress, 1, block, proof);
 
     const listing = await listings.getListing(owner);
 
@@ -143,34 +139,28 @@ describe('Listing', () => {
 
     const block = await ethers.provider.getBlockNumber();
 
-    const hash = ethers.utils.solidityKeccak256(
-      ['string', 'uint256', 'address', 'uint256'],
-      [await listings.getPrefix(), 1, owner, block],
-    );
-    const proofMessage = ethers.utils.arrayify(hash);
-    const proof = await seekerAccount.signMessage(proofMessage);
+    const prefix = await listings.getPrefix();
+    const accountAddress = await accounts[0].getAddress();
+    const proofMessage = `${prefix}:${1}:${accountAddress.toLowerCase()}:${block.toString()}`;
+
+    const signature = await seekerAccount.signMessage(proofMessage);
 
     await expect(
-      listings.setSeekerAccount(seekerAddress, 1, block, proof),
+      listings.setSeekerAccount(seekerAddress, 1, block, signature),
     ).to.be.revertedWith('Seeker account must own the specified seeker');
   });
 
   it('can revoke seeker account', async () => {
     const seekerAccount = accounts[1];
-    const seekerAddress = await seekerAccount.getAddress();
 
-    await utils.setSeekerOwnership(mockOracle, seekers, 1, seekerAddress);
-
-    const block = await ethers.provider.getBlockNumber();
-
-    const hash = ethers.utils.solidityKeccak256(
-      ['string', 'uint256', 'address', 'uint256'],
-      [await listings.getPrefix(), 1, owner, block],
+    await utils.setSeekerListing(
+      listings,
+      mockOracle,
+      seekers,
+      accounts[0],
+      accounts[1],
+      1,
     );
-    const proofMessage = ethers.utils.arrayify(hash);
-    const proof = await seekerAccount.signMessage(proofMessage);
-
-    await listings.setSeekerAccount(seekerAddress, 1, block, proof);
 
     await listings.connect(seekerAccount).revokeSeekerAccount(owner);
 
@@ -182,21 +172,14 @@ describe('Listing', () => {
   });
 
   it('can only revoke seeker account as seeker account', async () => {
-    const seekerAccount = accounts[1];
-    const seekerAddress = await seekerAccount.getAddress();
-
-    await utils.setSeekerOwnership(mockOracle, seekers, 1, seekerAddress);
-
-    const block = await ethers.provider.getBlockNumber();
-
-    const hash = ethers.utils.solidityKeccak256(
-      ['string', 'uint256', 'address', 'uint256'],
-      [await listings.getPrefix(), 1, owner, block],
+    await utils.setSeekerListing(
+      listings,
+      mockOracle,
+      seekers,
+      accounts[0],
+      accounts[1],
+      1,
     );
-    const proofMessage = ethers.utils.arrayify(hash);
-    const proof = await seekerAccount.signMessage(proofMessage);
-
-    await listings.setSeekerAccount(seekerAddress, 1, block, proof);
 
     await expect(listings.revokeSeekerAccount(owner)).to.be.revertedWith(
       'Seeker account and msg.sender must be equal',

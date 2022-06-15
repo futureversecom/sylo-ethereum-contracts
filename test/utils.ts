@@ -64,6 +64,7 @@ const initializeContracts = async function (
   const seekers = await Seekers.deploy();
   await seekers.initialize(
     '0x0000000000000000000000000000000000000000',
+    tokenAddress,
     mockOracle.address,
     100,
     300000,
@@ -176,7 +177,7 @@ const setSeekerOwnership = async function (
   owner: string,
 ): Promise<void> {
   await mockOracle.setOwner(tokenId, owner);
-  await seekers.requestVerification(tokenId);
+  await seekers.requestVerification(tokenId, 1);
   await mockOracle.invokeCallback();
 };
 
@@ -197,18 +198,22 @@ async function setSeekerListing(
 
   const block = await ethers.provider.getBlockNumber();
 
-  const hash = ethers.utils.solidityKeccak256(
-    ['string', 'uint256', 'address', 'uint256'],
-    [await listings.getPrefix(), tokenId, await account.getAddress(), block],
-  );
-  const proofMessage = ethers.utils.arrayify(hash);
-  const proof = await seekerAccount.signMessage(proofMessage);
+  const prefix = await listings.getPrefix();
+  const accountAddress = await account.getAddress();
+  const proofMessage = `${prefix}:${tokenId}:${accountAddress.toLowerCase()}:${block.toString()}`;
+
+  const signature = await seekerAccount.signMessage(proofMessage);
 
   await listings.connect(account).setListing('0.0.0.0/0', 1);
 
   await listings
     .connect(account)
-    .setSeekerAccount(await seekerAccount.getAddress(), tokenId, block, proof);
+    .setSeekerAccount(
+      await seekerAccount.getAddress(),
+      tokenId,
+      block,
+      signature,
+    );
 }
 
 export default {

@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./ECDSA.sol";
 import "./Seekers.sol";
@@ -111,11 +112,13 @@ contract Listings is Initializable, OwnableUpgradeable {
         require(block.number >= proofBlock, "Proof can not be set for a future block");
         require(block.number - proofBlock < 100, "Proof is expired");
 
+        bytes memory proofMessage = getProofMessage(seekerId, msg.sender, proofBlock);
+
         bytes32 proof = keccak256(
             abi.encodePacked(
-                SEEKER_OWNERSHIP_PREFIX, seekerId, msg.sender, proofBlock
+                "\x19Ethereum Signed Message:\n", Strings.toString(proofMessage.length), proofMessage
             )
-        ).toEthSignedMessageHash();
+        );
 
         require(ECDSA.recover(proof, signature) == seekerAccount, "Proof must be signed by specified seeker account");
 
@@ -154,4 +157,24 @@ contract Listings is Initializable, OwnableUpgradeable {
     function getPrefix() public pure returns (string memory) {
         return SEEKER_OWNERSHIP_PREFIX;
     }
+
+    /**
+     * @notice Helper function for deriving the proof message used to
+     * validate seeker ownership.
+     * @param seekerId The tokenId of the seeker used for operation.
+     * @param node The address of the node which that will be operated
+     * by the specified seeker.
+     * @param proofBlock The block the proof was generated in.
+     */
+     function getProofMessage(uint256 seekerId, address node, uint256 proofBlock) public view returns (bytes memory) {
+         return abi.encodePacked(
+            SEEKER_OWNERSHIP_PREFIX,
+            ":",
+            Strings.toString(seekerId),
+            ":",
+            Strings.toHexString(uint256(uint160(node)), 20),
+            ":",
+            Strings.toString(proofBlock)
+        );
+     }
 }
