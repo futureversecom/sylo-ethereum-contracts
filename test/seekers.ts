@@ -1,4 +1,4 @@
-import { ethers, network } from 'hardhat';
+import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
 import { MockOracle, Seekers } from '../typechain';
 import { assert, expect } from 'chai';
@@ -30,12 +30,12 @@ describe('Listing', () => {
 
   it('can set parameters after deployment', async () => {
     await seekers.setSeekers('0x0000000000000000000000000000000000000001');
-    expect(await seekers.seekers()).to.equal(
+    expect(await seekers._seekers()).to.equal(
       '0x0000000000000000000000000000000000000001',
     );
 
     await seekers.setOracle('0x0000000000000000000000000000000000000001');
-    expect(await seekers.oracle()).to.equal(
+    expect(await seekers._oracle()).to.equal(
       '0x0000000000000000000000000000000000000001',
     );
 
@@ -53,7 +53,7 @@ describe('Listing', () => {
     // set a mock value first
     await mockOracle.setOwner(1, owner);
 
-    await seekers.requestVerification(1, 1);
+    await seekers.requestVerification(1);
 
     await mockOracle.invokeCallback();
 
@@ -72,7 +72,7 @@ describe('Listing', () => {
     // set a mock value first
     await mockOracle.setOwner(1, owner);
 
-    await seekers.requestVerification(1, 1);
+    await seekers.requestVerification(1);
 
     await mockOracle.invokeCallback();
 
@@ -81,5 +81,23 @@ describe('Listing', () => {
     const seekerOwner = await seekers.ownerOf(1);
 
     assert.equal(seekerOwner, '0x0000000000000000000000000000000000000000');
+  });
+
+  it('can call request verification with fee swap', async () => {
+    // set a mock value first
+    await mockOracle.setOwner(1, owner);
+
+    await seekers.requestVerificationWithFeeSwap(1, 1);
+
+    await mockOracle.invokeCallback();
+
+    const seekerOwner = await seekers.ownerOf(1);
+
+    assert.equal(seekerOwner, owner);
+  });
+
+  it('can call withdraw functions', async () => {
+    await seekers.withdrawAll(owner);
+    await seekers.withdrawAllFee(owner);
   });
 });

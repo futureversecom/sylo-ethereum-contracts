@@ -18,6 +18,29 @@ contract MockOracle {
 
     uint256 public nextRequestId;
 
+    function remoteCall(
+        address target,
+        bytes memory input,
+        bytes4 callbackSignature,
+        uint256 callbackGasLimit,
+        uint256 bounty
+    ) external returns (uint256) {
+        nextRequestId++;
+
+        (bool success, bytes memory returnData) = address(this).call(input);
+        require(success);
+
+        bytes32 encoded;
+        assembly {
+            encoded := mload(add(returnData, 32))
+        }
+
+        bytes memory callback = abi.encodeWithSelector(callbackSignature, nextRequestId, block.timestamp, encoded);
+        callbacks[nextRequestId] = Callback(msg.sender, callback);
+
+        return nextRequestId;
+    }
+
     function remoteCallWithFeeSwap(
         address target,
         bytes memory input,

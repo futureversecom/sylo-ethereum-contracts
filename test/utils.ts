@@ -177,7 +177,7 @@ const setSeekerOwnership = async function (
   owner: string,
 ): Promise<void> {
   await mockOracle.setOwner(tokenId, owner);
-  await seekers.requestVerification(tokenId, 1);
+  await seekers.requestVerification(tokenId);
   await mockOracle.invokeCallback();
 };
 

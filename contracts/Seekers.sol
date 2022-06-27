@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
 contract Seekers is Initializable, OwnableUpgradeable {
@@ -18,18 +19,18 @@ contract Seekers is Initializable, OwnableUpgradeable {
     /**
      * @notice The address of the Seekers NFT contract on ethereum mainnet.
      */
-    address public seekers;
+    address public _seekers;
 
     /**
      * @notice The address of the token used for fees.
      */
 
-    address public token;
+    address public _token;
 
     /**
      * @notice The address of the Oracle account performing these attestations.
      */
-    address public oracle;
+    address public _oracle;
 
     /**
      * @notice The duration in blocks a response from the State Oracle
@@ -50,31 +51,32 @@ contract Seekers is Initializable, OwnableUpgradeable {
     uint256 public callbackBounty;
 
     function initialize(
-        address _seekers,
-        address _token,
-        address _oracle,
+        address seekers,
+        address token,
+        address oracle,
         uint256 _validDuration,
         uint256 _callbackGasLimit,
         uint256 _callbackBounty
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        seekers = _seekers;
-        oracle = _oracle;
+        _seekers = seekers;
+        _oracle = oracle;
+        _token = token;
         validDuration = _validDuration;
         callbackGasLimit = _callbackGasLimit;
         callbackBounty = _callbackBounty;
     }
 
-    function setSeekers(address _seekers) external onlyOwner {
-        seekers = _seekers;
+    function setSeekers(address seekers) external onlyOwner {
+        _seekers = seekers;
     }
 
-    function setToken(address _token) external onlyOwner {
-        token = _token;
+    function setToken(address token) external onlyOwner {
+        _token = token;
     }
 
-    function setOracle(address _oracle) external onlyOwner {
-        oracle = _oracle;
+    function setOracle(address oracle) external onlyOwner {
+        _oracle = oracle;
     }
 
     function setValidDuration(uint256 _validDuration) external onlyOwner {
@@ -89,23 +91,45 @@ contract Seekers is Initializable, OwnableUpgradeable {
         callbackBounty = _callbackBounty;
     }
 
-    function requestVerification(uint256 seekerId, uint256 maxFee) external payable {
+    function requestVerification(uint256 seekerId) external payable {
+        bytes memory ownerOfCall = abi.encodeWithSignature("ownerOf(uint256)", seekerId);
+        bytes4 callbackSelector = this.confirmOwnership.selector;
+
+        // request a remote eth_call via the state oracle
+        bytes memory remoteCallRequest = abi.encodeWithSignature(
+            "remoteCall(address,bytes,bytes4,uint256,uint256)",
+            _seekers,
+            ownerOfCall,
+            callbackSelector,
+            callbackGasLimit,
+            callbackBounty
+        );
+
+        (bool success, bytes memory returnData) = _oracle.call(remoteCallRequest);
+        require(success, "oracle request failed");
+
+        uint256 requestId = abi.decode(returnData, (uint256));
+
+        requests[requestId] = seekerId;
+    }
+
+    function requestVerificationWithFeeSwap(uint256 seekerId, uint256 maxFee) external payable {
         bytes memory ownerOfCall = abi.encodeWithSignature("ownerOf(uint256)", seekerId);
         bytes4 callbackSelector = this.confirmOwnership.selector;
 
         // request a remote eth_call via the state oracle
         bytes memory remoteCallRequest = abi.encodeWithSignature(
             "remoteCallWithFeeSwap(address,bytes,bytes4,uint256,uint256,address,uint256)",
-            seekers,
+            _seekers,
             ownerOfCall,
             callbackSelector,
             callbackGasLimit,
             callbackBounty,
-            token,
+            _token,
             maxFee
         );
 
-        (bool success, bytes memory returnData) = oracle.call(remoteCallRequest);
+        (bool success, bytes memory returnData) = _oracle.call(remoteCallRequest);
         require(success, "oracle request failed");
 
         uint256 requestId = abi.decode(returnData, (uint256));
@@ -115,7 +139,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
 
 
     function confirmOwnership(uint256 requestId, uint256 timestamp, bytes32 returnData) external {
-        require(msg.sender == oracle, "must be state oracle");
+        require(msg.sender == _oracle, "must be state oracle");
 
         address owner = address(uint160(uint256(returnData)));
 
@@ -144,5 +168,11 @@ contract Seekers is Initializable, OwnableUpgradeable {
     function withdrawAll(address recipient) public onlyOwner {
         uint256 balance = address(this).balance;
         payable(recipient).transfer(balance);
+    }
+
+    function withdrawAllFee(address recipient) public onlyOwner {
+        IERC20 token = IERC20(_token);
+        uint256 amount = token.balanceOf(address(this));
+        token.transfer(recipient, amount);
     }
 }
