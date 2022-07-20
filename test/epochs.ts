@@ -1,8 +1,8 @@
-import { ethers } from "hardhat";
-import { Signer } from "ethers";
-import { EpochsManager, SyloToken } from "../typechain";
-import utils from './utils';
-import { assert, expect } from "chai";
+import { ethers } from 'hardhat';
+import { Signer } from 'ethers';
+import { EpochsManager, SyloToken } from '../typechain';
+import utils, { Contracts } from './utils';
+import { assert, expect } from 'chai';
 
 describe('Epochs', () => {
   let accounts: Signer[];
@@ -10,15 +10,15 @@ describe('Epochs', () => {
 
   let token: SyloToken;
   let epochsManager: EpochsManager;
-  let contracts: any;
+  let contracts: Contracts;
 
   before(async () => {
     accounts = await ethers.getSigners();
     // first account is implicitly used as deployer of contracts in hardhat
     owner = await accounts[0].getAddress();
 
-    const Token = await ethers.getContractFactory("SyloToken");
-    token = await Token.deploy() as SyloToken;
+    const Token = await ethers.getContractFactory('SyloToken');
+    token = await Token.deploy();
   });
 
   beforeEach(async () => {
@@ -33,8 +33,8 @@ describe('Epochs', () => {
     assert.equal(
       epochDuration.toNumber(),
       777,
-      "Expected epoch duration to be updated"
-    )
+      'Expected epoch duration to be updated',
+    );
   });
 
   it('can initialize next epoch', async () => {
@@ -46,7 +46,7 @@ describe('Epochs', () => {
     assert.equal(
       currentIteration.toNumber(),
       1,
-      "Expected fist epoch id to be correctly set"
+      'Expected fist epoch id to be correctly set',
     );
 
     await utils.advanceBlock(31);
@@ -56,14 +56,15 @@ describe('Epochs', () => {
     assert.equal(
       currentIteration.toNumber(),
       2,
-      "Expected second epoch id to be correctly set"
+      'Expected second epoch id to be correctly set',
     );
   });
 
   it('can not initialize next epoch before current one had ended', async () => {
     await epochsManager.initializeEpoch();
-    await expect(epochsManager.initializeEpoch())
-      .to.be.revertedWith("Current epoch has not yet ended");
+    await expect(epochsManager.initializeEpoch()).to.be.revertedWith(
+      'Current epoch has not yet ended',
+    );
   });
 
   it('correctly updates the epoch parameters every epoch', async () => {
@@ -81,13 +82,9 @@ describe('Epochs', () => {
     assert.equal(
       epoch.faceValue.toNumber(),
       2222,
-      "Expected face value to change"
+      'Expected face value to change',
     );
 
-    assert.equal(
-      epoch.decayRate,
-      1111,
-      "Expected decay rate to change"
-    );
+    assert.equal(epoch.decayRate, 1111, 'Expected decay rate to change');
   });
 });
