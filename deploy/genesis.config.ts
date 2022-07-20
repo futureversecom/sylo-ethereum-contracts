@@ -1,5 +1,5 @@
-import * as hre from "hardhat";
-import { BigNumber, BigNumberish } from "ethers";
+import * as hre from 'hardhat';
+import { BigNumber, BigNumberish } from 'ethers';
 
 type ContractParameters = {
   // Address of the existing Sylo Token
@@ -33,9 +33,9 @@ type ContractParameters = {
 
 const GenesisParameters: ContractParameters = {
   SyloToken:
-    hre.network.name == "mainnet"
-      ? "0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4"
-      : "",
+    hre.network.name == 'mainnet'
+      ? '0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4'
+      : '',
 
   EpochsManager: {
     epochDuration: 80000,

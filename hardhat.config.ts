@@ -1,19 +1,19 @@
-import * as dotenv from "dotenv";
+import * as dotenv from 'dotenv';
 
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomiclabs/hardhat-etherscan";
-import "@nomiclabs/hardhat-waffle";
-import "@typechain/hardhat";
-import "@nomiclabs/hardhat-ethers";
-import "hardhat-gas-reporter";
-import "solidity-coverage";
-import "@openzeppelin/hardhat-upgrades";
+import { HardhatUserConfig } from 'hardhat/config';
+import '@nomiclabs/hardhat-etherscan';
+import '@nomiclabs/hardhat-waffle';
+import '@typechain/hardhat';
+import '@nomiclabs/hardhat-ethers';
+import 'hardhat-gas-reporter';
+import 'solidity-coverage';
+import '@openzeppelin/hardhat-upgrades';
 
 dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.4",
+    version: '0.8.4',
     settings: {
       optimizer: {
         enabled: true,
@@ -22,20 +22,20 @@ const config: HardhatUserConfig = {
     },
   },
   gasReporter: {
-    coinmarketcap: "3da4e7e8-31fb-477a-85a8-a905ad24fd28",
-    currency: "USD",
-    outputFile: "gasReport.txt",
+    coinmarketcap: '3da4e7e8-31fb-477a-85a8-a905ad24fd28',
+    currency: 'USD',
+    outputFile: 'gasReport.txt',
     noColors: true, // Needed for outputfile
   },
   networks: {
     localhost: {
-      url: "http://0.0.0.0:8545",
-      accounts: "remote",
+      url: 'http://0.0.0.0:8545',
+      accounts: 'remote',
     },
     ropsten: {
-      url: process.env.ROPSTEN_INFURA_ENDPOINT ?? "",
+      url: process.env.ROPSTEN_INFURA_ENDPOINT ?? '',
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
   },

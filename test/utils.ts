@@ -1,6 +1,6 @@
-import { ethers } from "hardhat";
-import { BigNumber, BigNumberish } from "ethers";
-import { toWei } from "web3-utils";
+import { ethers } from 'hardhat';
+import { BigNumber, BigNumberish } from 'ethers';
+import { toWei } from 'web3-utils';
 import {
   Directory,
   EpochsManager,
@@ -9,7 +9,7 @@ import {
   StakingManager,
   SyloTicketing,
   TicketingParameters,
-} from "../typechain";
+} from '../typechain';
 
 type Options = {
   faceValue?: BigNumberish;
@@ -36,11 +36,11 @@ export type Contracts = {
 const initializeContracts = async function (
   deployer: string,
   tokenAddress: string,
-  opts: Options = {}
+  opts: Options = {},
 ): Promise<Contracts> {
   const payoutPercentage = opts.payoutPercentage ? opts.payoutPercentage : 5000;
 
-  const faceValue = opts.faceValue ?? toWei("15");
+  const faceValue = opts.faceValue ?? toWei('15');
   const baseLiveWinProb =
     opts.baseLiveWinProb ?? BigNumber.from(2).pow(128).sub(1);
   const expiredWinProb = opts.expiredWinProb ?? 1000;
@@ -53,12 +53,12 @@ const initializeContracts = async function (
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 
-  const Listings = await ethers.getContractFactory("Listings");
+  const Listings = await ethers.getContractFactory('Listings');
   const listings = await Listings.deploy();
   await listings.initialize(payoutPercentage, { from: deployer });
 
   const TicketingParameters = await ethers.getContractFactory(
-    "TicketingParameters"
+    'TicketingParameters',
   );
   const ticketingParameters = await TicketingParameters.deploy();
   await ticketingParameters.initialize(
@@ -67,19 +67,19 @@ const initializeContracts = async function (
     expiredWinProb,
     decayRate,
     ticketDuration,
-    { from: deployer }
+    { from: deployer },
   );
 
-  const EpochsManager = await ethers.getContractFactory("EpochsManager");
+  const EpochsManager = await ethers.getContractFactory('EpochsManager');
   const epochsManager = await EpochsManager.deploy();
 
-  const StakingManager = await ethers.getContractFactory("StakingManager");
+  const StakingManager = await ethers.getContractFactory('StakingManager');
   const stakingManager = await StakingManager.deploy();
 
-  const RewardsManager = await ethers.getContractFactory("RewardsManager");
+  const RewardsManager = await ethers.getContractFactory('RewardsManager');
   const rewardsManager = await RewardsManager.deploy();
 
-  const Directory = await ethers.getContractFactory("Directory");
+  const Directory = await ethers.getContractFactory('Directory');
   const directory = await Directory.deploy();
 
   await stakingManager.initialize(
@@ -88,13 +88,13 @@ const initializeContracts = async function (
     epochsManager.address,
     unlockDuration,
     minimumStakeProportion,
-    { from: deployer }
+    { from: deployer },
   );
   await rewardsManager.initialize(
     tokenAddress,
     stakingManager.address,
     epochsManager.address,
-    { from: deployer }
+    { from: deployer },
   );
   await directory.initialize(stakingManager.address, rewardsManager.address, {
     from: deployer,
@@ -104,10 +104,10 @@ const initializeContracts = async function (
     listings.address,
     ticketingParameters.address,
     epochDuration,
-    { from: deployer }
+    { from: deployer },
   );
 
-  const Ticketing = await ethers.getContractFactory("SyloTicketing");
+  const Ticketing = await ethers.getContractFactory('SyloTicketing');
   const ticketing = await Ticketing.deploy();
   await ticketing.initialize(
     tokenAddress,
@@ -117,7 +117,7 @@ const initializeContracts = async function (
     epochsManager.address,
     rewardsManager.address,
     unlockDuration,
-    { from: deployer }
+    { from: deployer },
   );
 
   await rewardsManager.addManager(ticketing.address, { from: deployer });
@@ -140,7 +140,7 @@ const initializeContracts = async function (
 const advanceBlock = async function (i: number): Promise<void> {
   i = i || 1;
   for (let j = 0; j < i; j++) {
-    await ethers.provider.send("evm_mine", []);
+    await ethers.provider.send('evm_mine', []);
   }
 };
 
