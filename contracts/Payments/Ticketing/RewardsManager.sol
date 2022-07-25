@@ -417,15 +417,20 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * not been set as a manager.
      * @param stakee The address of the Node to claim against.
      * @param staker The address of the staker.
+     * @param payee The address of the account receiving the reward.
+     * This will be either the StakingManager account when adding stake,
+     * or the staker's account when withdrawing stake.
      */
-    function claimStakingRewardsAsManager(address stakee, address staker) external onlyManager {
+    function claimStakingRewardsAsManager(address stakee, address staker, address payee) external onlyManager returns (uint256) {
         uint256 rewardClaim = calculateStakerClaim(stakee, staker);
         lastClaims[getStakerKey(stakee, staker)] = latestActiveRewardPools[stakee];
         if (rewardClaim == 0) {
-            return;
+            return rewardClaim;
         }
         unclaimedStakeRewards[stakee] -= rewardClaim;
-        _token.transfer(staker, rewardClaim);
+        _token.transfer(payee, rewardClaim);
+
+        return rewardClaim;
     }
 
     /**
