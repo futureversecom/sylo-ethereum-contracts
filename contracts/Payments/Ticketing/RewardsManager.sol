@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice Handles epoch based reward pools that are incremented from redeeming tickets.
