@@ -58,9 +58,9 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
 
         // The stake at the time the claim was made. This is tracked as
         // rewards can only be claimed after an epoch has ended, but the
-        // user's stake may have changed by then. This field tracks the staking
-        // value before the change so the reward for that epoch can be
-        // manually calculated.
+        // user's stake may have changed by then. This field tracks the
+        // staking value before the change so the reward for that epoch
+        // can be manually calculated.
         uint256 stake;
     }
 
@@ -371,12 +371,12 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         // We only allow claims from up to the previous epoch, so use the initial crf
         // for calculations.
         uint256 updatedStake = fromFixedPointSYLO(
-            ABDKMath64x64.mul(
-                initialStake,
-                ABDKMath64x64.div(
-                    finalCumulativeRewardFactor,
-                    initialCumulativeRewardFactor
-                )
+            ABDKMath64x64.div(
+                ABDKMath64x64.mul(
+                    initialStake,
+                    finalCumulativeRewardFactor
+                ),
+                initialCumulativeRewardFactor
             )
         );
 
