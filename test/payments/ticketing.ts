@@ -1153,6 +1153,72 @@ describe('Ticketing', () => {
     }
   });
 
+  it('should be able to stake, accumulate rewards, and claim more than once as a delegated staker', async () => {
+    for (let i = 2; i < 5; i++) {
+      await token.transfer(await accounts[i].getAddress(), toSOLOs(1000));
+      await token
+        .connect(accounts[i])
+        .approve(stakingManager.address, toSOLOs(1000));
+    }
+
+    await stakingManager.addStake(toSOLOs(1000), owner);
+    await listings.setListing('0.0.0.0/0', 1);
+
+    const accountTwoStakeProportion = 250 / 1000;
+    const accountThreeStakeProportion = 400 / 1000;
+    const accountFourStakeProportion = 350 / 1000;
+
+    // have accounts 2, 3 and 4 as delegated stakers with varying levels of stake
+    await stakingManager.connect(accounts[2]).addStake(toSOLOs(250), owner);
+    await stakingManager.connect(accounts[3]).addStake(toSOLOs(400), owner);
+    await stakingManager.connect(accounts[4]).addStake(toSOLOs(350), owner);
+
+    const alice = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(500000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    for (let runs = 0; runs < 10; runs++) {
+      // 250 is added to the delegated stakers reward total on each redemption
+      for (let i = 0; i < 5; i++) {
+        const { ticket, senderRand, redeemerRand, signature } =
+          await createWinningTicket(alice, owner);
+
+        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      }
+
+      await epochsManager.joinNextEpoch();
+      await epochsManager.initializeEpoch();
+
+      const delegatedStakerWinnings = 1250;
+
+      // No accounts adds or withdraws stake, so stake proportions remain constant
+      await testClaims([
+        { account: accounts[0], increase: toSOLOs(1250) },
+        {
+          account: accounts[2],
+          increase: toSOLOs(
+            delegatedStakerWinnings * accountTwoStakeProportion,
+          ),
+        },
+        {
+          account: accounts[3],
+          increase: toSOLOs(
+            delegatedStakerWinnings * accountThreeStakeProportion,
+          ),
+        },
+        {
+          account: accounts[4],
+          increase: toSOLOs(
+            delegatedStakerWinnings * accountFourStakeProportion,
+          ),
+        },
+      ]);
+    }
+  });
+
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake increases', async () => {
     for (let i = 2; i < 5; i++) {
       await token.transfer(await accounts[i].getAddress(), toSOLOs(1000));
@@ -1602,24 +1668,6 @@ describe('Ticketing', () => {
     compareExpectedBalance(postBalance, initialBalance.add(toSOLOs(10000)));
   });
 
-  // Helper function for testing that an account's SYLO balance
-  // increased as expected after making a claim
-  const testClaims = async (
-    tests: { account: Signer; increase: BigNumberish }[],
-  ) => {
-    for (const t of tests) {
-      const address = await t.account.getAddress();
-
-      const expectedBalance = await token
-        .balanceOf(address)
-        .then(b => b.add(t.increase));
-
-      await rewardsManager.connect(t.account).claimStakingRewards(owner);
-
-      compareExpectedBalance(expectedBalance, await token.balanceOf(address));
-    }
-  };
-
   it('can claim staking rewards if node already joined next epoch', async () => {
     for (let i = 2; i < 5; i++) {
       await token.transfer(await accounts[i].getAddress(), toSOLOs(1000));
@@ -1918,6 +1966,24 @@ describe('Ticketing', () => {
   function fromSOLOs(a: number | BigNumber | string): string {
     return web3.utils.fromWei(a.toString());
   }
+
+  // Helper function for testing that an account's SYLO balance
+  // increased as expected after making a claim
+  const testClaims = async (
+    tests: { account: Signer; increase: BigNumberish }[],
+  ) => {
+    for (const t of tests) {
+      const address = await t.account.getAddress();
+
+      const expectedBalance = await token
+        .balanceOf(address)
+        .then(b => b.add(t.increase));
+
+      await rewardsManager.connect(t.account).claimStakingRewards(owner);
+
+      compareExpectedBalance(expectedBalance, await token.balanceOf(address));
+    }
+  };
 
   async function createWinningTicket(
     sender: Wallet,
