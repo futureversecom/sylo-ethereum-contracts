@@ -360,11 +360,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
             initialCumulativeRewardFactor = initialActivePool.cumulativeRewardFactor;
         }
 
-        RewardPool storage latestRewardPool = rewardPools[getRewardPoolKey(
-            latestActiveRewardPools[stakee], stakee
-        )];
-
-        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(stakee, staker);
+        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(stakee);
 
         // Utilize the cumulative reward factor to calculate their updated stake amount.
         // We only allow claims from up to the previous epoch, so use the initial crf
@@ -390,8 +386,8 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * to the previous epoch.
      */
     function calculateInitialClaim(address stakee, address staker) internal view returns (uint256) {
-        LastClaim storage lastClaim = lastClaims[getStakerKey(stakee, staker)];
-        RewardPool storage firstRewardPool = rewardPools[getRewardPoolKey(lastClaim.claimedAt, stakee)];
+        LastClaim memory lastClaim = lastClaims[getStakerKey(stakee, staker)];
+        RewardPool memory firstRewardPool = rewardPools[getRewardPoolKey(lastClaim.claimedAt, stakee)];
 
         if (firstRewardPool.totalActiveStake == 0) {
             return 0;
@@ -405,7 +401,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * CRF will depend when the Node last initialized a reward pool, and also when
      * the staker last made their claim.
      */
-    function getFinalCumulativeRewardFactor (address stakee, address staker) internal view returns (int128) {
+    function getFinalCumulativeRewardFactor (address stakee) internal view returns (int128) {
         uint256 currentEpoch = _epochsManager.currentIteration();
 
         RewardPool storage latestRewardPool = rewardPools[getRewardPoolKey(
@@ -417,7 +413,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         // Get the cumulative reward factor for the Node
         // for the start of this epoch, since we only perform
         // calculations up to the end of the previous epoch.
-        if (latestActiveRewardPools[stakee] < _epochsManager.currentIteration()) {
+        if (latestActiveRewardPools[stakee] < currentEpoch) {
             // If the Node has not been active, then the final
             // cumulative reward factor will just be the current one.
             finalCumulativeRewardFactor = latestRewardPool.cumulativeRewardFactor;
