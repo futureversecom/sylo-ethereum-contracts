@@ -35,7 +35,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint16 decayRate;
     }
 
-    event Join (
+    event EpochJoined (
         uint256 epochId,
         address node
     );
@@ -153,7 +153,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     function joinNextEpoch() external {
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
-        emit Join(currentIteration + 1, msg.sender);
+        emit EpochJoined(currentIteration + 1, msg.sender);
     }
 
     /**
