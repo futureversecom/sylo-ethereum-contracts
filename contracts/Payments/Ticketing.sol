@@ -271,7 +271,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             incrementRewardPool(ticket.redeemer, deposit, amount);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
-            deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
             amount = epoch.faceValue;
