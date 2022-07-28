@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -34,6 +34,11 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint256 ticketDuration;
         uint16 decayRate;
     }
+
+    event EpochJoined (
+        uint256 epochId,
+        address node
+    );
 
     Directory public _directory;
 
@@ -148,6 +153,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     function joinNextEpoch() external {
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
+        emit EpochJoined(currentIteration + 1, msg.sender);
     }
 
     /**

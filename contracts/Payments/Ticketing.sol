@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.13;
 
 import "../Listings.sol";
 import "../Staking/Directory.sol";
@@ -40,6 +40,14 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes32 senderCommit; // Hash of the secret random number of the sender
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
+
+    event Redemption (
+        uint256 epochId,
+        address sender,
+        address redeemer,
+        uint256 generationBlock,
+        uint256 amount
+    );
 
     /** ERC20 Sylo token contract.*/
     IERC20 public _token;
@@ -239,24 +247,37 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 directoryStake = _directory.getTotalStakeForStakee(ticket.epochId, ticket.redeemer);
         require(directoryStake > 0, "Ticket redeemer must have joined the directory for this epoch");
 
-        rewardRedeemer(epoch, ticket);
+        uint256 rewardAmount = rewardRedeemer(epoch, ticket);
+
+        emit Redemption(
+            ticket.epochId,
+            ticket.sender,
+            ticket.redeemer,
+            ticket.generationBlock,
+            rewardAmount
+        );
     }
 
     function rewardRedeemer(
         EpochsManager.Epoch memory epoch,
         Ticket memory ticket
-    ) internal {
+    ) internal returns (uint256) {
         Deposit storage deposit = getDeposit(ticket.sender);
 
+        uint256 amount = 0;
+
         if (epoch.faceValue > deposit.escrow) {
-            incrementRewardPool(ticket.redeemer, deposit, deposit.escrow);
+            amount = deposit.escrow;
+            incrementRewardPool(ticket.redeemer, deposit, amount);
             _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
 
-            deposit.escrow = 0;
             deposit.penalty = 0;
         } else {
-            incrementRewardPool(ticket.redeemer, deposit, epoch.faceValue);
+            amount = epoch.faceValue;
+            incrementRewardPool(ticket.redeemer, deposit, amount);
         }
+
+        return amount;
     }
 
     /**
