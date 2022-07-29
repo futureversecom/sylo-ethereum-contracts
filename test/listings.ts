@@ -35,13 +35,13 @@ describe('Listing', () => {
   });
 
   it('can set listing', async () => {
-    await listings.setListing('0.0.0.0/0', 1);
+    await listings.setListing('http://api', 1);
 
     const listing = await listings.getListing(owner);
 
     assert.equal(
-      listing.multiAddr,
-      '0.0.0.0/0',
+      listing.publicEndpoint,
+      'http://api',
       'Expected listings to have correct address',
     );
     assert.equal(
@@ -59,7 +59,7 @@ describe('Listing', () => {
 
   it('requires listing to not have empty multiaddr string', async () => {
     await expect(listings.setListing('', 1)).to.be.revertedWith(
-      'Multiaddr string is empty',
+      'Public endpoint string is empty',
     );
   });
 });
