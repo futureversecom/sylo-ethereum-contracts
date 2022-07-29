@@ -186,7 +186,7 @@ describe('Listing', () => {
     );
   });
 
-  it('requires listing to not have empty multiaddr string', async () => {
+  it('requires listing to not have empty public endpoint string', async () => {
     await expect(listings.setListing('', 1)).to.be.revertedWith(
       'Public endpoint can not be empty',
     );

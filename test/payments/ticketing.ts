@@ -1109,8 +1109,6 @@ describe('Ticketing', () => {
   });
 
   it('should be able to stake, accumulate rewards, and claim more than once as a delegated staker', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
-
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
@@ -1123,6 +1121,7 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(500000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
+    await setSeekerListing(accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
@@ -1135,6 +1134,7 @@ describe('Ticketing', () => {
         await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
       }
 
+      await setSeekerListing(accounts[0], accounts[1], 1);
       await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
