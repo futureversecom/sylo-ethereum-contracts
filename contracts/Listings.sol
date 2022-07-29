@@ -79,7 +79,7 @@ contract Listings is Initializable, OwnableUpgradeable {
      * a staker must add when calling StakingManager.addStake.
      */
     function setListing(string memory publicEndpoint, uint256 minDelegatedStake) external {
-        require(bytes(publicEndpoint).length != 0, "Multiaddr string is empty");
+        require(bytes(publicEndpoint).length != 0, "Public endpoint string is empty");
 
         // TODO Remove defaultPayoutPercentage once epochs are introduced
         Listing memory listing = Listing(publicEndpoint, defaultPayoutPercentage, minDelegatedStake, true);
