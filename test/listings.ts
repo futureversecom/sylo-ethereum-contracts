@@ -166,9 +166,7 @@ describe('Listing', () => {
 
     const listing = await listings.getListing(owner);
 
-    expect(listing.seekerAccount).to.equal(
-      '0x0000000000000000000000000000000000000000',
-    );
+    expect(listing.seekerAccount).to.equal(ethers.constants.AddressZero);
   });
 
   it('can only revoke seeker account as seeker account', async () => {

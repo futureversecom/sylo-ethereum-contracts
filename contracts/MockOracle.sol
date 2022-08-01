@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "hardhat/console.sol";
-
 // This contract is solely used for mocking the oracle state bridge
 contract MockOracle {
 

@@ -59,6 +59,7 @@ async function deployPhaseTwoContracts(
   const listings = (await upgrades.deployProxy(Listings, [
     seekers.address,
     config.Listings.defaultPayoutPercentage,
+    config.Listings.proofDuration,
   ])) as Listings;
 
   logDeployment('Listings', listings.address);

@@ -76,7 +76,7 @@ const initializeContracts = async function (
 
   const Listings = await ethers.getContractFactory('Listings');
   const listings = await Listings.deploy();
-  await listings.initialize(seekers.address, payoutPercentage, {
+  await listings.initialize(seekers.address, payoutPercentage, 100, {
     from: deployer,
   });
 

@@ -19,6 +19,7 @@ type ContractParameters = {
 
   Listings: {
     defaultPayoutPercentage: number;
+    proofDuration: number;
   };
 
   TicketingParameters: {
@@ -59,7 +60,7 @@ const GenesisParameters: ContractParameters = {
     oracle: '0x0000000000000000000000000000000000006bb4',
     validDuration: 200,
     callbackGasLimit: 300000,
-    callbackBounty: hre.ethers.utils.parseEther('2'),
+    callbackBounty: 0,
   },
 
   EpochsManager: {
@@ -68,6 +69,7 @@ const GenesisParameters: ContractParameters = {
 
   Listings: {
     defaultPayoutPercentage: 5000,
+    proofDuration: 100,
   },
 
   TicketingParameters: {

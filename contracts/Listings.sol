@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./ECDSA.sol";
 import "./Seekers.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice This contract manages Listings for Nodes. A Listing is a
@@ -64,9 +63,18 @@ contract Listings is Initializable, OwnableUpgradeable {
      */
     uint16 public defaultPayoutPercentage;
 
+    /**
+     * @notice Proof duration states the duration in blocks that the
+     * proof used to validate seeker ownership will be valid for. The
+     * `setSeekerAccount` transaction will revert if the proof message
+     * was signed too many blocks ago.
+     */
+    uint16 public proofDuration;
+
     function initialize(
         Seekers seekers,
-        uint16 _defaultPayoutPercentage
+        uint16 _defaultPayoutPercentage,
+        uint16 _proofDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _seekers = seekers;
@@ -75,6 +83,7 @@ contract Listings is Initializable, OwnableUpgradeable {
             "The payout percentage can not exceed 100 percent"
         );
         defaultPayoutPercentage = _defaultPayoutPercentage;
+        proofDuration = _proofDuration;
     }
 
     /**
@@ -110,7 +119,7 @@ contract Listings is Initializable, OwnableUpgradeable {
     function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
         // Proofs are only valid for 100 blocks since they were signed
         require(block.number >= proofBlock, "Proof can not be set for a future block");
-        require(block.number - proofBlock < 100, "Proof is expired");
+        require(block.number - proofBlock < proofDuration, "Proof is expired");
 
         bytes memory proofMessage = getProofMessage(seekerId, msg.sender, proofBlock);
 
@@ -166,7 +175,7 @@ contract Listings is Initializable, OwnableUpgradeable {
      * by the specified seeker.
      * @param proofBlock The block the proof was generated in.
      */
-     function getProofMessage(uint256 seekerId, address node, uint256 proofBlock) public view returns (bytes memory) {
+     function getProofMessage(uint256 seekerId, address node, uint256 proofBlock) public pure returns (bytes memory) {
          return abi.encodePacked(
             SEEKER_OWNERSHIP_PREFIX,
             ":",

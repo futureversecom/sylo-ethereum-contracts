@@ -4,7 +4,7 @@ import { MockOracle, Seekers } from '../typechain';
 import { assert, expect } from 'chai';
 import utils from './utils';
 
-describe('Listing', () => {
+describe('Seekers', () => {
   let accounts: Signer[];
   let owner: string;
 

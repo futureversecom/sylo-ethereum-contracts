@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "hardhat/console.sol";
 
 contract Seekers is Initializable, OwnableUpgradeable {
 
@@ -13,7 +12,12 @@ contract Seekers is Initializable, OwnableUpgradeable {
         uint256 expiry;
     }
 
+    // This is a mapping of requests Ids to Seeker tokenIds. This is
+    // used in the Oracle callback function to understand which
+    // tokenId the ownership request was made for.
     mapping (uint256 => uint256) public requests;
+
+    // A mapping from Seeker tokenId and it's respective owner on Ethereum mainnet.
     mapping (uint256 => Owner) private owners;
 
     /**
@@ -22,9 +26,9 @@ contract Seekers is Initializable, OwnableUpgradeable {
     address public _seekers;
 
     /**
-     * @notice The address of the token used for fees.
+     * @notice The address of the token used for paying oracle fees if a fee swap
+     * is used.
      */
-
     address public _token;
 
     /**
@@ -139,7 +143,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
 
 
     function confirmOwnership(uint256 requestId, uint256 timestamp, bytes32 returnData) external {
-        require(msg.sender == _oracle, "must be state oracle");
+        require(msg.sender == _oracle, "msg.sender must be state oracle");
 
         address owner = address(uint160(uint256(returnData)));
 

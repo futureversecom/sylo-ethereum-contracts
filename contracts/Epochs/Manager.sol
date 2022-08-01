@@ -168,7 +168,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
         address owner = _seekers.ownerOf(listing.seekerId);
 
-        require(listing.seekerAccount == owner, "Node's seeker account must own the seeker to join an epoch");
+        require(listing.seekerAccount == owner, "Node's seeker account does not match the current seeker owner");
 
         uint256 nextEpoch = getNextEpochId();
 
