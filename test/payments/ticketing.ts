@@ -492,7 +492,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it('can not redeem ticket if node does not have a listing', async () => {
+  it('can not redeem ticket if node does not have a valid seeker account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerListing(accounts[0], accounts[1], 1);
 
@@ -510,7 +510,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket redeemer must have a valid listing');
+    ).to.be.revertedWith('Ticket redeemer must have a valid seeker account');
   });
 
   it('can not redeem ticket if node has not joined directory', async () => {

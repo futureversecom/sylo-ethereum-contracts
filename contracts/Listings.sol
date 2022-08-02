@@ -117,7 +117,6 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
-        // Proofs are only valid for 100 blocks since they were signed
         require(block.number >= proofBlock, "Proof can not be set for a future block");
         require(block.number - proofBlock < proofDuration, "Proof is expired");
 
