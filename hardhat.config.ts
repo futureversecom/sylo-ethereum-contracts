@@ -38,6 +38,18 @@ const config: HardhatUserConfig = {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
+    rata: {
+      url: process.env.RATA_ENDPOINT ?? "",
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      },
+    },
+    nikau: {
+      url: process.env.NIKAU_ENDPOINT ?? "",
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      },
+    },
   },
 };
 

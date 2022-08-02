@@ -3,7 +3,10 @@ import { BigNumber, Signer } from 'ethers';
 import {
   Directory,
   EpochsManager,
+  Listings,
+  MockOracle,
   RewardsManager,
+  Seekers,
   StakingManager,
   SyloToken,
 } from '../typechain';
@@ -24,6 +27,9 @@ describe('Staking', () => {
   let rewardsManager: RewardsManager;
   let directory: Directory;
   let stakingManager: StakingManager;
+  let listings: Listings;
+  let seekers: Seekers;
+  let mockOracle: MockOracle;
 
   const epochId = 1;
 
@@ -42,6 +48,9 @@ describe('Staking', () => {
     rewardsManager = contracts.rewardsManager;
     directory = contracts.directory;
     stakingManager = contracts.stakingManager;
+    listings = contracts.listings;
+    seekers = contracts.seekers;
+    mockOracle = contracts.mockOracle;
 
     await token.approve(stakingManager.address, 100000);
   });
@@ -73,6 +82,7 @@ describe('Staking', () => {
 
   it('should be able to join the next epoch and directory at once', async () => {
     await stakingManager.addStake(100, owner);
+    await setSeekerListing(accounts[0], accounts[1], 1);
 
     const epochId = (await directory.currentDirectory()).add(1);
     const nextRewardPool = await rewardsManager.getRewardPool(epochId, owner);
@@ -409,6 +419,7 @@ describe('Staking', () => {
   });
 
   it('should not be able to join directory without stake', async () => {
+    await setSeekerListing(accounts[0], accounts[1], 1);
     await epochsManager
       .joinNextEpoch()
       .then(() => {
@@ -423,6 +434,7 @@ describe('Staking', () => {
   });
 
   it('should be able to scan after joining directory', async () => {
+    await setSeekerListing(accounts[0], accounts[1], 1);
     await stakingManager.addStake(1, owner);
     await epochsManager.joinNextEpoch();
 
@@ -462,6 +474,8 @@ describe('Staking', () => {
       await stakingManager
         .connect(accounts[i])
         .addStake(1, await accounts[i].getAddress());
+      await setSeekerListing(accounts[i], accounts[9], i);
+
       await epochsManager.connect(accounts[i]).joinNextEpoch();
 
       expectedTotalStake += 1;
@@ -530,6 +544,7 @@ describe('Staking', () => {
       await stakingManager
         .connect(accounts[i])
         .addStake(1, await accounts[i].getAddress());
+      await setSeekerListing(accounts[i], accounts[9], i);
       await epochsManager.connect(accounts[i]).joinNextEpoch();
     }
 
@@ -571,6 +586,7 @@ describe('Staking', () => {
       await stakingManager
         .connect(accounts[i])
         .addStake(1, await accounts[i].getAddress());
+      await setSeekerListing(accounts[i], accounts[9], i);
       await epochsManager.connect(accounts[i]).joinNextEpoch();
       totalStake += 1;
     }
@@ -605,6 +621,7 @@ describe('Staking', () => {
       await stakingManager
         .connect(accounts[i])
         .addStake(i + 1, await accounts[i].getAddress());
+      await setSeekerListing(accounts[i], accounts[9], i);
       await epochsManager.connect(accounts[i]).joinNextEpoch();
       totalStake += i + 1;
     }
@@ -680,6 +697,21 @@ describe('Staking', () => {
         );
       });
   });
+
+  async function setSeekerListing(
+    account: Signer,
+    seekerAccount: Signer,
+    tokenId: number,
+  ) {
+    await utils.setSeekerListing(
+      listings,
+      mockOracle,
+      seekers,
+      account,
+      seekerAccount,
+      tokenId,
+    );
+  }
 
   async function testScanResults(iterations: number, expectedResults: Results) {
     const results = await collectScanResults(iterations);

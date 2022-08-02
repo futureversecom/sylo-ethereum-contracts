@@ -1,11 +1,13 @@
 import { ethers } from 'hardhat';
-import { BigNumber, BigNumberish } from 'ethers';
+import { BigNumber, BigNumberish, Signer } from 'ethers';
 import { toWei } from 'web3-utils';
 import {
   Directory,
   EpochsManager,
   Listings,
+  MockOracle,
   RewardsManager,
+  Seekers,
   StakingManager,
   SyloTicketing,
   TicketingParameters,
@@ -31,6 +33,8 @@ export type Contracts = {
   rewardsManager: RewardsManager;
   epochsManager: EpochsManager;
   stakingManager: StakingManager;
+  seekers: Seekers;
+  mockOracle: MockOracle;
 };
 
 const initializeContracts = async function (
@@ -53,9 +57,28 @@ const initializeContracts = async function (
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 
+  const MockOracle = await ethers.getContractFactory('MockOracle');
+  const mockOracle = await MockOracle.deploy();
+
+  const Seekers = await ethers.getContractFactory('Seekers');
+  const seekers = await Seekers.deploy();
+  await seekers.initialize(
+    '0x0000000000000000000000000000000000000000',
+    tokenAddress,
+    mockOracle.address,
+    100,
+    300000,
+    ethers.utils.parseEther('2'),
+    {
+      from: deployer,
+    },
+  );
+
   const Listings = await ethers.getContractFactory('Listings');
   const listings = await Listings.deploy();
-  await listings.initialize(payoutPercentage, { from: deployer });
+  await listings.initialize(seekers.address, payoutPercentage, 100, {
+    from: deployer,
+  });
 
   const TicketingParameters = await ethers.getContractFactory(
     'TicketingParameters',
@@ -100,6 +123,7 @@ const initializeContracts = async function (
     from: deployer,
   });
   await epochsManager.initialize(
+    seekers.address,
     directory.address,
     listings.address,
     ticketingParameters.address,
@@ -134,6 +158,8 @@ const initializeContracts = async function (
     rewardsManager,
     epochsManager,
     stakingManager,
+    seekers,
+    mockOracle,
   };
 };
 
@@ -144,7 +170,55 @@ const advanceBlock = async function (i: number): Promise<void> {
   }
 };
 
+const setSeekerOwnership = async function (
+  mockOracle: MockOracle,
+  seekers: Seekers,
+  tokenId: number,
+  owner: string,
+): Promise<void> {
+  await mockOracle.setOwner(tokenId, owner);
+  await seekers.requestVerification(tokenId);
+  await mockOracle.invokeCallback();
+};
+
+async function setSeekerListing(
+  listings: Listings,
+  mockOracle: MockOracle,
+  seekers: Seekers,
+  account: Signer,
+  seekerAccount: Signer,
+  tokenId: number,
+): Promise<void> {
+  await setSeekerOwnership(
+    mockOracle,
+    seekers,
+    tokenId,
+    await seekerAccount.getAddress(),
+  );
+
+  const block = await ethers.provider.getBlockNumber();
+
+  const prefix = await listings.getPrefix();
+  const accountAddress = await account.getAddress();
+  const proofMessage = `${prefix}:${tokenId}:${accountAddress.toLowerCase()}:${block.toString()}`;
+
+  const signature = await seekerAccount.signMessage(proofMessage);
+
+  await listings.connect(account).setListing('0.0.0.0/0', 1);
+
+  await listings
+    .connect(account)
+    .setSeekerAccount(
+      await seekerAccount.getAddress(),
+      tokenId,
+      block,
+      signature,
+    );
+}
+
 export default {
   initializeContracts,
   advanceBlock,
+  setSeekerOwnership,
+  setSeekerListing,
 };

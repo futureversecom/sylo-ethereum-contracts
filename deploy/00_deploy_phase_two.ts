@@ -5,6 +5,7 @@ import {
   EpochsManager,
   Listings,
   RewardsManager,
+  Seekers,
   StakingManager,
   SyloTicketing,
   TicketingParameters,
@@ -20,6 +21,7 @@ type PhaseTwoContracts = {
   stakingManager: StakingManager;
   ticketingParameters: TicketingParameters;
   ticketing: SyloTicketing;
+  seekers: Seekers;
 };
 
 async function deployPhaseTwoContracts(
@@ -41,9 +43,23 @@ async function deployPhaseTwoContracts(
     );
   }
 
+  const Seekers = await ethers.getContractFactory('Seekers');
+  const seekers = (await upgrades.deployProxy(Seekers, [
+    config.Seekers.seekersERC721,
+    config.SyloToken,
+    config.Seekers.oracle,
+    config.Seekers.validDuration,
+    config.Seekers.callbackGasLimit,
+    config.Seekers.callbackBounty,
+  ])) as Seekers;
+
+  logDeployment('Seekers', seekers.address);
+
   const Listings = await ethers.getContractFactory('Listings');
   const listings = (await upgrades.deployProxy(Listings, [
+    seekers.address,
     config.Listings.defaultPayoutPercentage,
+    config.Listings.proofDuration,
   ])) as Listings;
 
   logDeployment('Listings', listings.address);
@@ -98,6 +114,7 @@ async function deployPhaseTwoContracts(
   logDeployment('Directory', directory.address);
 
   await epochsManager.initialize(
+    seekers.address,
     directory.address,
     listings.address,
     ticketingParameters.address,
@@ -166,6 +183,7 @@ async function deployPhaseTwoContracts(
     rewardsManager,
     epochsManager,
     stakingManager,
+    seekers,
   };
 }
 
@@ -190,6 +208,7 @@ async function main() {
     rewardsManager: contracts.rewardsManager.address,
     epochsManager: contracts.epochsManager.address,
     stakingManager: contracts.stakingManager.address,
+    seekers: contracts.seekers.address,
   };
 
   await fs.writeFile(

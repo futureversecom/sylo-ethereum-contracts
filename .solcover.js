@@ -3,5 +3,5 @@ module.exports = {
     grep: '@skip-on-coverage', // Find everything with this tag
     invert: true, // Run the grep's inverse set.
   },
-  skipFiles: ['ECDSA.sol'],
+  skipFiles: ['ECDSA.sol', 'MockOracle.sol'],
 };
