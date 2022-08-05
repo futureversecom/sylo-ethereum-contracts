@@ -184,10 +184,7 @@ describe('Staking', () => {
 
   it('should not able to add stake to zero address', async () => {
     await expect(
-      stakingManager.addStake(
-        100,
-        '0x0000000000000000000000000000000000000000',
-      ),
+      stakingManager.addStake(100, ethers.constants.AddressZero),
     ).to.be.revertedWith('Address is null');
   });
 
@@ -461,7 +458,7 @@ describe('Staking', () => {
 
     assert.equal(
       address.toString(),
-      '0x0000000000000000000000000000000000000000',
+      ethers.constants.AddressZero,
       'Expected empty directory to scan to zero address',
     );
   });
@@ -676,7 +673,7 @@ describe('Staking', () => {
 
     assert.equal(
       address,
-      '0x0000000000000000000000000000000000000000',
+      ethers.constants.AddressZero,
       'Expected zero address',
     );
   });

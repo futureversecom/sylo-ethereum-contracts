@@ -33,9 +33,7 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      */
     struct Directory {
         DirectoryEntry[] entries;
-
-        mapping (address => uint256) stakes;
-
+        mapping(address => uint256) stakes;
         uint256 totalStake;
     }
 
@@ -49,12 +47,12 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
     /**
      * @notice Tracks every directory, which will be indexed by an epoch ID
      */
-    mapping (uint256 => Directory) public directories;
+    mapping(uint256 => Directory) public directories;
 
-    function initialize(
-        StakingManager stakingManager,
-        RewardsManager rewardsManager
-    ) external initializer {
+    function initialize(StakingManager stakingManager, RewardsManager rewardsManager)
+        external
+        initializer
+    {
         OwnableUpgradeable.__Ownable_init();
         _stakingManager = stakingManager;
         _rewardsManager = rewardsManager;
@@ -133,23 +131,26 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
 
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
-        uint256 expectedVal = directories[currentDirectory].totalStake * uint256(point) >> 128;
+        uint256 expectedVal = (directories[currentDirectory].totalStake * uint256(point)) >> 128;
 
         uint256 left = 0;
         uint256 right = directories[currentDirectory].entries.length - 1;
 
         // perform a binary search through the directory
         while (left <= right) {
-            uint index = (left + right) / 2;
+            uint256 index = (left + right) / 2;
 
-            uint lower = index == 0 ? 0 : directories[currentDirectory].entries[index - 1].boundary;
-            uint upper = directories[currentDirectory].entries[index].boundary;
+            uint256 lower = index == 0
+                ? 0
+                : directories[currentDirectory].entries[index - 1].boundary;
+            uint256 upper = directories[currentDirectory].entries[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
                 return directories[currentDirectory].entries[index].stakee;
             } else if (expectedVal < lower) {
                 right = index - 1;
-            } else {  // expectedVal >= upper
+            } else {
+                // expectedVal >= upper
                 left = index + 1;
             }
         }
@@ -162,7 +163,11 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * @param stakee The address of the Node.
      * @return The amount of stake the Node has for the given directory in SOLO.
      */
-    function getTotalStakeForStakee(uint256 epochId, address stakee) external view returns (uint256) {
+    function getTotalStakeForStakee(uint256 epochId, address stakee)
+        external
+        view
+        returns (uint256)
+    {
         return directories[epochId].stakes[stakee];
     }
 
@@ -180,10 +185,14 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      * @notice Retrieve all entries for a directory in a specified epoch.
      * @return An array of all the directory entries.
      */
-    function getEntries(uint256 epochId) external view returns (address[] memory, uint256[] memory) {
+    function getEntries(uint256 epochId)
+        external
+        view
+        returns (address[] memory, uint256[] memory)
+    {
         address[] memory stakees = new address[](directories[epochId].entries.length);
         uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);
-        for (uint i = 0; i < directories[epochId].entries.length; i++) {
+        for (uint256 i = 0; i < directories[epochId].entries.length; i++) {
             DirectoryEntry memory entry = directories[epochId].entries[i];
             stakees[i] = entry.stakee;
             boundaries[i] = entry.boundary;

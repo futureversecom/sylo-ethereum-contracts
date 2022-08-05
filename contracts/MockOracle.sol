@@ -3,9 +3,8 @@ pragma solidity ^0.8.13;
 
 // This contract is solely used for mocking the oracle state bridge
 contract MockOracle {
-
     // mock nft ownership
-    mapping (uint256 => address) owners;
+    mapping(uint256 => address) public owners;
 
     struct Callback {
         address sender;
@@ -33,7 +32,12 @@ contract MockOracle {
             encoded := mload(add(returnData, 32))
         }
 
-        bytes memory callback = abi.encodeWithSelector(callbackSignature, nextRequestId, block.timestamp, encoded);
+        bytes memory callback = abi.encodeWithSelector(
+            callbackSignature,
+            nextRequestId,
+            block.timestamp,
+            encoded
+        );
         callbacks[nextRequestId] = Callback(msg.sender, callback);
 
         return nextRequestId;
@@ -58,7 +62,12 @@ contract MockOracle {
             encoded := mload(add(returnData, 32))
         }
 
-        bytes memory callback = abi.encodeWithSelector(callbackSignature, nextRequestId, block.timestamp, encoded);
+        bytes memory callback = abi.encodeWithSelector(
+            callbackSignature,
+            nextRequestId,
+            block.timestamp,
+            encoded
+        );
         callbacks[nextRequestId] = Callback(msg.sender, callback);
 
         return nextRequestId;

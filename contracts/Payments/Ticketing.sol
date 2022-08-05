@@ -18,7 +18,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * Event Relay service.
  */
 contract SyloTicketing is Initializable, OwnableUpgradeable {
-
     /**
      * The maximum probability value, where probability is represented
      * as an integer between 0 to 2^128 - 1.
@@ -28,7 +27,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     struct Deposit {
         uint256 escrow; // Balance of users escrow
         uint256 penalty; // Balance of users penalty
-
         uint256 unlockAt; // Block number a user can withdraw their balances
     }
 
@@ -41,7 +39,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
-    event Redemption (
+    event Redemption(
         uint256 epochId,
         address sender,
         address redeemer,
@@ -83,7 +81,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     mapping(address => Deposit) public deposits;
 
     /** @notice Mapping of ticket hashes, used to check if a ticket has been redeemed */
-    mapping (bytes32 => bool) public usedTickets;
+    mapping(bytes32 => bool) public usedTickets;
 
     function initialize(
         IERC20 token,
@@ -152,7 +150,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * already begun.
      */
     function unlockDeposits() external returns (uint256) {
-
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.escrow > 0 || deposit.penalty > 0, "Nothing to withdraw");
         require(deposit.unlockAt == 0, "Unlock already in progress");
@@ -167,7 +164,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * unlocking process.
      */
     function lockDeposits() external {
-
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.unlockAt != 0, "Not unlocking, cannot lock");
 
@@ -190,7 +186,6 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * transferred to.
      */
     function withdrawTo(address account) public {
-
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.unlockAt > 0, "Deposits not unlocked");
         require(deposit.unlockAt < block.number, "Unlock period not complete");
@@ -240,12 +235,21 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
 
         Listings.Listing memory listing = _listings.getListing(ticket.redeemer);
-        require(listing.seekerAccount != address(0), "Ticket redeemer must have a valid seeker account");
+        require(
+            listing.seekerAccount != address(0),
+            "Ticket redeemer must have a valid seeker account"
+        );
 
         usedTickets[ticketHash] = true;
 
-        uint256 directoryStake = _directory.getTotalStakeForStakee(ticket.epochId, ticket.redeemer);
-        require(directoryStake > 0, "Ticket redeemer must have joined the directory for this epoch");
+        uint256 directoryStake = _directory.getTotalStakeForStakee(
+            ticket.epochId,
+            ticket.redeemer
+        );
+        require(
+            directoryStake > 0,
+            "Ticket redeemer must have joined the directory for this epoch"
+        );
 
         uint256 rewardAmount = rewardRedeemer(epoch, ticket);
 
@@ -258,10 +262,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
     }
 
-    function rewardRedeemer(
-        EpochsManager.Epoch memory epoch,
-        Ticket memory ticket
-    ) internal returns (uint256) {
+    function rewardRedeemer(EpochsManager.Epoch memory epoch, Ticket memory ticket)
+        internal
+        returns (uint256)
+    {
         Deposit storage deposit = getDeposit(ticket.sender);
 
         uint256 amount = 0;
@@ -325,7 +329,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             "Hash of redeemerRand doesn't match redeemerRandHash"
         );
 
-        require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket doesn't have a valid signature");
+        require(
+            isValidTicketSig(sig, ticket.sender, ticketHash),
+            "Ticket doesn't have a valid signature"
+        );
 
         require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
     }
@@ -360,7 +367,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) public view returns (bool) {
         uint256 winProb = calculateWinningProbability(ticket);
         // bitshift the winProb to a 256 bit value to allow comparison to a 32 byte hash
-        uint256 prob = uint256(winProb) << 128 | uint256(winProb);
+        uint256 prob = (uint256(winProb) << 128) | uint256(winProb);
         return uint256(keccak256(abi.encodePacked(sig, senderRand, redeemerRand))) < prob;
     }
 
@@ -371,9 +378,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * on the decay rate parameter of the epoch the ticket was generated in.
      * @param ticket The ticket issued by the sender.
      */
-    function calculateWinningProbability(
-        Ticket memory ticket
-    ) public view returns (uint128) {
+    function calculateWinningProbability(Ticket memory ticket) public view returns (uint128) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         require(epoch.startBlock > 0, "Ticket's associated epoch does not exist");
         require(
@@ -395,7 +400,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // by multiplying the maximum decay value against ratio of the tickets elapsed duration
         // vs the actual ticket duration. The max decay value is calculated from a fraction of a
         // uint128 value so we cannot phantom overflow here
-        uint256 decayedProbability = maxDecayValue * elapsedDuration / epoch.ticketDuration;
+        uint256 decayedProbability = (maxDecayValue * elapsedDuration) / epoch.ticketDuration;
 
         // calculate the remaining probability by subtracting the decayed probability
         // from the base
@@ -408,16 +413,17 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * @return A byte-array representing the hash.
      */
     function getTicketHash(Ticket memory ticket) public pure returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                ticket.epochId,
-                ticket.sender,
-                ticket.redeemer,
-                ticket.generationBlock,
-                ticket.senderCommit,
-                ticket.redeemerCommit
-            )
-        );
+        return
+            keccak256(
+                abi.encodePacked(
+                    ticket.epochId,
+                    ticket.sender,
+                    ticket.redeemer,
+                    ticket.generationBlock,
+                    ticket.senderCommit,
+                    ticket.redeemerCommit
+                )
+            );
     }
 
     function incrementRewardPool(

@@ -65,7 +65,7 @@ describe('Seekers', () => {
   it('ownership check returns correct owner', async () => {
     const seekerOwner = await seekers.ownerOf(1);
 
-    assert.equal(seekerOwner, '0x0000000000000000000000000000000000000000');
+    assert.equal(seekerOwner, ethers.constants.AddressZero);
   });
 
   it('ownership checks correctly expire', async () => {
@@ -80,7 +80,7 @@ describe('Seekers', () => {
 
     const seekerOwner = await seekers.ownerOf(1);
 
-    assert.equal(seekerOwner, '0x0000000000000000000000000000000000000000');
+    assert.equal(seekerOwner, ethers.constants.AddressZero);
   });
 
   it('can call request verification with fee swap', async () => {

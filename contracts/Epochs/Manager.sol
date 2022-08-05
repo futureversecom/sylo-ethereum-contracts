@@ -10,7 +10,6 @@ import "../Staking/Directory.sol";
 import "../Seekers.sol";
 
 contract EpochsManager is Initializable, OwnableUpgradeable {
-
     /**
      * @dev This struct will hold all network parameters that will be static
      * for the entire epoch. This value will be stored in a mapping, where the
@@ -18,16 +17,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      */
     struct Epoch {
         uint256 iteration;
-
         // time related variables
         uint256 startBlock; // Block the epoch was initialized
         uint256 duration; // Minimum time epoch will be alive measured in number of blocks
         uint256 endBlock; // Block the epoch ended (and when the next epoch was initialized)
-                          // Zero here represents the epoch has not yet ended.
+        // Zero here represents the epoch has not yet ended.
 
         // listing variables
         uint16 defaultPayoutPercentage;
-
         // ticketing variables
         uint256 faceValue;
         uint128 baseLiveWinProb;
@@ -36,11 +33,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint16 decayRate;
     }
 
-    event EpochJoined (
-        uint256 epochId,
-        address node,
-        uint256 seekerId
-    );
+    event EpochJoined(uint256 epochId, address node, uint256 seekerId);
 
     Directory public _directory;
 
@@ -53,7 +46,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     /**
      * @notice Track seekers that have joined for a specific epoch.
      */
-    mapping (uint256 => mapping (uint256 => address)) public activeSeekers;
+    mapping(uint256 => mapping(uint256 => address)) public activeSeekers;
 
     // Define all Epoch specific parameters here.
     // When initializing an epoch, these parameters are read,
@@ -75,7 +68,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     /**
      * @notice A mapping of all epochs that have been initialized.
      */
-    mapping (uint256 => Epoch) public epochs;
+    mapping(uint256 => Epoch) public epochs;
 
     event NewEpoch(uint256 epochId);
 
@@ -164,11 +157,17 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Listings.Listing memory listing = _listings.getListing(msg.sender);
 
         // validate the node's seeker ownership
-        require(listing.seekerAccount != address(0), "Node must have a valid seeker account to join an epoch");
+        require(
+            listing.seekerAccount != address(0),
+            "Node must have a valid seeker account to join an epoch"
+        );
 
         address owner = _seekers.ownerOf(listing.seekerId);
 
-        require(listing.seekerAccount == owner, "Node's seeker account does not match the current seeker owner");
+        require(
+            listing.seekerAccount == owner,
+            "Node's seeker account does not match the current seeker owner"
+        );
 
         uint256 nextEpoch = getNextEpochId();
 

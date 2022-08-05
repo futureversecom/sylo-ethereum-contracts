@@ -63,7 +63,7 @@ const initializeContracts = async function (
   const Seekers = await ethers.getContractFactory('Seekers');
   const seekers = await Seekers.deploy();
   await seekers.initialize(
-    '0x0000000000000000000000000000000000000000',
+    ethers.constants.AddressZero,
     tokenAddress,
     mockOracle.address,
     100,

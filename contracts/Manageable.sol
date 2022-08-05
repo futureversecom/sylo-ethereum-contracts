@@ -18,14 +18,14 @@ abstract contract Manageable is OwnableUpgradeable {
      * We use this mapping to restrict access to those functions in a similar
      * fashion to the onlyOwner construct.
      */
-    mapping (address => uint256) public managers;
+    mapping(address => uint256) public managers;
 
     /**
      * @notice Adds a manager to this contract. Only callable by the owner.
      * @param manager The address of the manager contract.
      */
     function addManager(address manager) external onlyOwner {
-      managers[manager] = block.number;
+        managers[manager] = block.number;
     }
 
     /**
@@ -33,7 +33,7 @@ abstract contract Manageable is OwnableUpgradeable {
      * @param manager The address of the manager contract.
      */
     function removeManager(address manager) external onlyOwner {
-      delete managers[manager];
+        delete managers[manager];
     }
 
     /**
@@ -41,7 +41,7 @@ abstract contract Manageable is OwnableUpgradeable {
      * special privileges to call restricted functions.
      */
     modifier onlyManager() {
-      require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
-      _;
+        require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
+        _;
     }
 }
