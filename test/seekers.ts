@@ -39,6 +39,11 @@ describe('Seekers', () => {
       '0x0000000000000000000000000000000000000001',
     );
 
+    await seekers.setToken('0x0000000000000000000000000000000000000001');
+    expect(await seekers._oracle()).to.equal(
+      '0x0000000000000000000000000000000000000001',
+    );
+
     await seekers.setValidDuration(666);
     expect(await seekers.validDuration()).to.equal(666);
 
@@ -47,6 +52,19 @@ describe('Seekers', () => {
 
     await seekers.setCallbackBounty(666);
     expect(await seekers.callbackBounty()).to.equal(666);
+  });
+
+  it('can cannot invoke call back from mock oracle - oracle address is incorrect', async () => {
+    // set a mock value first
+    await mockOracle.setOwner(1, owner);
+
+    await seekers.requestVerification(1);
+
+    await seekers.setOracle('0x0000000000000000000000000000000000000002');
+
+    await expect(mockOracle.invokeCallback()).to.be.revertedWith(
+      'Callback to sender failed',
+    );
   });
 
   it('can make a request to the oracle and retrieve seeker owner', async () => {

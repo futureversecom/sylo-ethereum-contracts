@@ -66,6 +66,19 @@ describe('Ticketing', () => {
     await token.approve(ticketing.address, toSOLOs(10000000));
   });
 
+  it('cannot be initialize ticketing parameter when ticket duration less than or equal 0', async () => {
+    const TicketingParameters = await ethers.getContractFactory(
+      'TicketingParameters',
+    );
+    const ticketingParameters = await TicketingParameters.deploy();
+
+    await expect(
+      ticketingParameters.initialize(1, 1, 1, 1, 0, {
+        from: owner,
+      }),
+    ).to.be.revertedWith('Ticket duration cannot be 0');
+  });
+
   it('should be able to set parameters after initialization', async () => {
     await expect(ticketingParameters.setFaceValue(777))
       .to.emit(ticketingParameters, 'FaceValueUpdated')
@@ -140,7 +153,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it('Only managers can call functions with the onlyManager constraint', async () => {
+  it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.incrementRewardPool(owner, 10000),
     ).to.be.revertedWith(
@@ -148,7 +161,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it('Only managers can call functions with the onlyManager constraint', async () => {
+  it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.initializeNextRewardPool(owner),
     ).to.be.revertedWith(
@@ -198,34 +211,15 @@ describe('Ticketing', () => {
 
   it('should fail to withdraw without unlocking', async () => {
     await ticketing.depositEscrow(50, owner);
-
-    await ticketing
-      .withdraw()
-      .then(() => {
-        assert.fail('Withdrawing should fail');
-      })
-      .catch((e: Error) => {
-        assert.include(
-          e.message,
-          'Deposits not unlocked',
-          'Withdraw should fail due to not being unlocked',
-        );
-      });
+    await expect(ticketing.withdraw()).to.be.revertedWith(
+      'Deposits not unlocked',
+    );
   });
 
   it('should fail to unlock without deposit', async () => {
-    await ticketing
-      .unlockDeposits()
-      .then(() => {
-        assert.fail('Withdrawing should fail');
-      })
-      .catch((e: Error) => {
-        assert.include(
-          e.message,
-          'Nothing to withdraw',
-          'Unlock should fail due to no deposit',
-        );
-      });
+    await expect(ticketing.unlockDeposits()).to.be.revertedWith(
+      'Nothing to withdraw',
+    );
   });
 
   it('should be able to unlock', async () => {
@@ -244,34 +238,16 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(50, owner);
     await ticketing.unlockDeposits();
 
-    await ticketing
-      .unlockDeposits()
-      .then(() => {
-        assert.fail('Withdrawing should fail');
-      })
-      .catch((e: Error) => {
-        assert.include(
-          e.message,
-          'Unlock already in progress',
-          'Unlock should fail due to already unlocking',
-        );
-      });
+    await expect(ticketing.unlockDeposits()).to.be.revertedWith(
+      'Unlock already in progress',
+    );
   });
 
   it('should fail to lock if already locked', async () => {
     await ticketing.depositEscrow(50, owner);
-    await ticketing
-      .lockDeposits()
-      .then(() => {
-        assert.fail('Locking should fail');
-      })
-      .catch((e: Error) => {
-        assert.include(
-          e.message,
-          'Not unlocking, cannot lock',
-          'Expect lock to fail as it deposit is already locked',
-        );
-      });
+    await expect(ticketing.lockDeposits()).to.be.revertedWith(
+      'Not unlocking, cannot lock',
+    );
   });
 
   it('should be able to lock deposit while it is unlocked', async () => {
@@ -680,6 +656,16 @@ describe('Ticketing', () => {
       toSOLOs(1000),
       'Expected balance of unclaimed rewards to have added the ticket face value',
     );
+
+    const nextEpochId = await epochsManager.getNextEpochId();
+    const rewardPoolStakersTotal =
+      await rewardsManager.getRewardPoolStakersTotal(nextEpochId.sub(1), owner);
+
+    assert.equal(
+      unclaimedStakeReward.toString(),
+      rewardPoolStakersTotal.toString(),
+      'Expected unclaimed node reward to be equal to reward pool stakers total',
+    );
   });
 
   it('can not redeem ticket more than once', async () => {
@@ -847,6 +833,17 @@ describe('Ticketing', () => {
     );
 
     compareExpectedBalance(unclaimedNodeReward.add(unclaimedStakeReward), 0);
+
+    // check total rewards in the previous epoch after claiming
+    const nextEpochId = await epochsManager.getNextEpochId();
+    const rewardPoolStakersTotal =
+      await rewardsManager.getRewardPoolStakersTotal(nextEpochId.sub(2), owner);
+
+    assert.equal(
+      rewardPoolStakersTotal.toString(),
+      toSOLOs(500 * 10), // 500 is added to the stakers reward total on each redemption (50% of 1000)
+      'Expected reward pool stakers total in the previous epoch to be 5000 SOLOs',
+    );
   });
 
   it('delegated stakers should be able to claim rewards', async () => {

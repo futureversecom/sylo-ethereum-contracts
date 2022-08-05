@@ -420,17 +420,31 @@ describe('Staking', () => {
 
   it('should not be able to join directory without stake', async () => {
     await setSeekerListing(accounts[0], accounts[1], 1);
-    await epochsManager
-      .joinNextEpoch()
-      .then(() => {
-        assert.fail('Joining the next epoch should fail without stake');
-      })
-      .catch((e: Error) => {
-        assert.include(
-          e.message,
-          'Must have stake to initialize a reward pool',
-        );
-      });
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
+      'Must have stake to initialize a reward pool',
+    );
+  });
+
+  it('should not be able to join directory without setting seeker account', async () => {
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
+      'Node must have a valid seeker account to join an epoch',
+    );
+  });
+
+  it('should not be able to join directory when seeker account is not seeker owner', async () => {
+    await setSeekerListing(accounts[0], accounts[1], 1);
+    await stakingManager.addStake(1, owner);
+
+    await utils.setSeekerOwnership(
+      mockOracle,
+      seekers,
+      1,
+      await accounts[2].getAddress(),
+    );
+
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
+      "Node's seeker account does not match the current seeker owner",
+    );
   });
 
   it('should be able to scan after joining directory', async () => {
@@ -685,17 +699,9 @@ describe('Staking', () => {
     await stakingManager.addStake(1, owner);
     await stakingManager.unlockStake(1, owner);
 
-    directory
-      .joinNextDirectory(owner)
-      .then(() => {
-        assert.fail('Join directory should fail as no stake for this epoch');
-      })
-      .catch((e: Error) => {
-        assert.include(
-          e.message,
-          'Can not join directory for next epoch without any stake',
-        );
-      });
+    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
+      'Can not join directory for next epoch without any stake',
+    );
   });
 
   async function setSeekerListing(

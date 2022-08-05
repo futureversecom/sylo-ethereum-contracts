@@ -76,7 +76,7 @@ contract MockOracle {
     function invokeCallback() external {
         Callback storage callback = callbacks[nextRequestId];
         (bool callbackSuccess, ) = callback.sender.call(callback.callback);
-        require(callbackSuccess);
+        require(callbackSuccess, "Callback to sender failed");
     }
 
     function ownerOf(uint256 tokenId) external view returns (address) {
