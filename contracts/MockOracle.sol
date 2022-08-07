@@ -87,3 +87,27 @@ contract MockOracle {
         owners[tokenId] = owner;
     }
 }
+
+contract MockOracleFail {
+    function remoteCall(
+        address target,
+        bytes memory input,
+        bytes4 callbackSignature,
+        uint256 callbackGasLimit,
+        uint256 bounty
+    ) public pure returns (uint256) {
+        require(false, "MockOracleFail always fails");
+    }
+
+    function remoteCallWithFeeSwap(
+        address target,
+        bytes memory input,
+        bytes4 callbackSignature,
+        uint256 callbackGasLimit,
+        uint256 bounty,
+        address token,
+        uint256 maxFee
+    ) public pure returns (uint256) {
+        require(false, "MockOracleFail always fails with fee swap");
+    }
+}

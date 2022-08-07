@@ -699,6 +699,8 @@ describe('Staking', () => {
     await stakingManager.addStake(1, owner);
     await stakingManager.unlockStake(1, owner);
 
+    await directory.addManager(owner);
+
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
       'Can not join directory for next epoch without any stake',
     );

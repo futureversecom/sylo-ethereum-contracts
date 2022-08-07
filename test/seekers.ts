@@ -118,4 +118,26 @@ describe('Seekers', () => {
     await seekers.withdrawAll(owner);
     await seekers.withdrawAllFee(owner);
   });
+
+  it('can cannot request verification to mock oracle - mock oracle fail', async () => {
+    const MockOracleFail = await ethers.getContractFactory('MockOracleFail');
+    const mockOracleFail = await MockOracleFail.deploy();
+
+    await seekers.setOracle(mockOracleFail.address);
+
+    await expect(seekers.requestVerification(1)).to.be.revertedWith(
+      'Oracle request failed',
+    );
+  });
+
+  it('can cannot request verification with fee swap to mock oracle - mock oracle fail', async () => {
+    const MockOracleFail = await ethers.getContractFactory('MockOracleFail');
+    const mockOracleFail = await MockOracleFail.deploy();
+
+    await seekers.setOracle(mockOracleFail.address);
+
+    await expect(
+      seekers.requestVerificationWithFeeSwap(1, 1),
+    ).to.be.revertedWith('Oracle request failed');
+  });
 });
