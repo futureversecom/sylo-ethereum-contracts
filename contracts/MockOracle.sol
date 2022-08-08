@@ -11,7 +11,7 @@ contract MockOracle {
         bytes callback;
     }
 
-    mapping(uint256 => Callback) callbacks;
+    mapping(uint256 => Callback) private callbacks;
 
     uint256 public nextRequestId;
 

@@ -84,8 +84,11 @@ describe('Staking', () => {
     await stakingManager.addStake(100, owner);
     await setSeekerListing(accounts[0], accounts[1], 1);
 
-    const epochId = (await directory.currentDirectory()).add(1);
-    const nextRewardPool = await rewardsManager.getRewardPool(epochId, owner);
+    const currentEpochId = (await directory.currentDirectory()).add(1);
+    const nextRewardPool = await rewardsManager.getRewardPool(
+      currentEpochId,
+      owner,
+    );
     assert.equal(
       nextRewardPool.initializedAt.toNumber(),
       0,
@@ -95,7 +98,7 @@ describe('Staking', () => {
     await epochsManager.joinNextEpoch();
 
     const currentRewardPool = await rewardsManager.getRewardPool(
-      epochId,
+      currentEpochId,
       owner,
     );
     assert.notEqual(
