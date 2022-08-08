@@ -35,16 +35,16 @@ async function deployPhaseTwoContracts(
   // If there doesn't exist an address for the Sylo Token for this configuration,
   // then let's deploy the token contract and set the address
   if (config.SyloToken == '') {
-    const SyloToken = await ethers.getContractFactory('SyloToken');
-    const syloToken = await SyloToken.deploy();
+    const SyloTokenFactory = await ethers.getContractFactory('SyloToken');
+    const syloToken = await SyloTokenFactory.deploy();
     config.SyloToken = syloToken.address;
     console.log(
       `Sylo token deployed to ${network.name} network at ${syloToken.address}`,
     );
   }
 
-  const Seekers = await ethers.getContractFactory('Seekers');
-  const seekers = (await upgrades.deployProxy(Seekers, [
+  const SeekersFactory = await ethers.getContractFactory('Seekers');
+  const seekers = (await upgrades.deployProxy(SeekersFactory, [
     config.Seekers.seekersERC721,
     config.SyloToken,
     config.Seekers.oracle,
@@ -55,8 +55,8 @@ async function deployPhaseTwoContracts(
 
   logDeployment('Seekers', seekers.address);
 
-  const Listings = await ethers.getContractFactory('Listings');
-  const listings = (await upgrades.deployProxy(Listings, [
+  const ListingsFactory = await ethers.getContractFactory('Listings');
+  const listings = (await upgrades.deployProxy(ListingsFactory, [
     seekers.address,
     config.Listings.defaultPayoutPercentage,
     config.Listings.proofDuration,
@@ -64,16 +64,19 @@ async function deployPhaseTwoContracts(
 
   logDeployment('Listings', listings.address);
 
-  const TicketingParameters = await ethers.getContractFactory(
+  const TicketingParametersFactory = await ethers.getContractFactory(
     'TicketingParameters',
   );
-  const ticketingParameters = (await upgrades.deployProxy(TicketingParameters, [
-    config.TicketingParameters.faceValue,
-    config.TicketingParameters.baseLiveWinProb,
-    config.TicketingParameters.expiredWinProb,
-    config.TicketingParameters.decayRate,
-    config.TicketingParameters.ticketDuration,
-  ])) as TicketingParameters;
+  const ticketingParameters = (await upgrades.deployProxy(
+    TicketingParametersFactory,
+    [
+      config.TicketingParameters.faceValue,
+      config.TicketingParameters.baseLiveWinProb,
+      config.TicketingParameters.expiredWinProb,
+      config.TicketingParameters.decayRate,
+      config.TicketingParameters.ticketDuration,
+    ],
+  )) as TicketingParameters;
 
   logDeployment('TicketingParameters', ticketingParameters.address);
 
@@ -81,33 +84,41 @@ async function deployPhaseTwoContracts(
   // cyclic dependencies, so we need to call those functions manually after
   // deployment.
 
-  const EpochsManager = await ethers.getContractFactory('EpochsManager');
-  const epochsManager = (await upgrades.deployProxy(EpochsManager, undefined, {
-    initializer: false,
-  })) as EpochsManager;
+  const EpochsManagerFactory = await ethers.getContractFactory('EpochsManager');
+  const epochsManager = (await upgrades.deployProxy(
+    EpochsManagerFactory,
+    undefined,
+    {
+      initializer: false,
+    },
+  )) as EpochsManager;
 
   logDeployment('EpochsManager', epochsManager.address);
 
-  const StakingManager = await ethers.getContractFactory('StakingManager');
+  const StakingManagerFactory = await ethers.getContractFactory(
+    'StakingManager',
+  );
   const stakingManager = (await upgrades.deployProxy(
-    StakingManager,
+    StakingManagerFactory,
     undefined,
     { initializer: false },
   )) as StakingManager;
 
   logDeployment('StakingManager', stakingManager.address);
 
-  const RewardsManager = await ethers.getContractFactory('RewardsManager');
+  const RewardsManagerFactory = await ethers.getContractFactory(
+    'RewardsManager',
+  );
   const rewardsManager = (await upgrades.deployProxy(
-    RewardsManager,
+    RewardsManagerFactory,
     undefined,
     { initializer: false },
   )) as RewardsManager;
 
   logDeployment('RewardsManager', rewardsManager.address);
 
-  const Directory = await ethers.getContractFactory('Directory');
-  const directory = (await upgrades.deployProxy(Directory, undefined, {
+  const DirectoryFactory = await ethers.getContractFactory('Directory');
+  const directory = (await upgrades.deployProxy(DirectoryFactory, undefined, {
     initializer: false,
   })) as Directory;
 
@@ -145,8 +156,8 @@ async function deployPhaseTwoContracts(
 
   console.log('Initialized directory contract');
 
-  const Ticketing = await ethers.getContractFactory('SyloTicketing');
-  const ticketing = (await upgrades.deployProxy(Ticketing, [
+  const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
+  const ticketing = (await upgrades.deployProxy(TicketingFactory, [
     config.SyloToken,
     listings.address,
     stakingManager.address,

@@ -91,9 +91,9 @@ describe('Ticketing', () => {
       .to.emit(ticketing, 'UnlockDurationUpdated')
       .withArgs(3333);
 
-    const faceValue = await ticketingParameters.faceValue();
+    const currentfaceValue = await ticketingParameters.faceValue();
     assert.equal(
-      faceValue.toNumber(),
+      currentfaceValue.toNumber(),
       777,
       'Expected face value to be correctly set',
     );
@@ -503,10 +503,10 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
+    await listings.connect(accounts[1]).revokeSeekerAccount(owner);
+
     const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, owner);
-
-    await listings.connect(accounts[1]).revokeSeekerAccount(owner);
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
@@ -570,13 +570,13 @@ describe('Ticketing', () => {
       await createWinningTicket(alice, owner);
 
     let malformedTicket = { ...ticket };
-    malformedTicket.sender = '0x0000000000000000000000000000000000000000';
+    malformedTicket.sender = ethers.constants.AddressZero;
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
     ).to.be.revertedWith('Ticket sender is null');
 
     malformedTicket = { ...ticket };
-    malformedTicket.redeemer = '0x0000000000000000000000000000000000000000';
+    malformedTicket.redeemer = ethers.constants.AddressZero;
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
     ).to.be.revertedWith('Ticket redeemer is null');

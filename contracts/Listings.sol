@@ -16,7 +16,8 @@ import "./Seekers.sol";
 contract Listings is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
-    string constant public SEEKER_OWNERSHIP_PREFIX = "This message allows your seeker to be used to operate your node.";
+    string public constant SEEKER_OWNERSHIP_PREFIX =
+        "This message allows your seeker to be used to operate your node.";
 
     struct Listing {
         // Public http/s endpoint to retrieve additional metadata
@@ -24,21 +25,17 @@ contract Listings is Initializable, OwnableUpgradeable {
         // The current metadata schema is as follows:
         //  { name: string, multiaddrs: string[] }
         string publicEndpoint;
-
         // The account which owns a seeker that will be used to
         // operate the Node for this listing.
         address seekerAccount;
-
         // The id of the seeker used to operate the node. The owner
         // of this id should be the seeker account.
         uint256 seekerId;
-
         // Percentage of a tickets value that will be rewarded to
         // delegated stakers expressed as a fraction of 10000.
         // This value is currently locked to the default payout percentage
         // until epochs are implemented.
         uint16 payoutPercentage;
-
         // The minimum amount of stake that is required to
         // add delegated stake against this node
         uint256 minDelegatedStake;
@@ -116,7 +113,12 @@ contract Listings is Initializable, OwnableUpgradeable {
         listings[msg.sender].minDelegatedStake = minDelegatedStake;
     }
 
-    function setSeekerAccount(address seekerAccount, uint256 seekerId, uint256 proofBlock, bytes memory signature) external {
+    function setSeekerAccount(
+        address seekerAccount,
+        uint256 seekerId,
+        uint256 proofBlock,
+        bytes memory signature
+    ) external {
         require(block.number >= proofBlock, "Proof can not be set for a future block");
         require(block.number - proofBlock < proofDuration, "Proof is expired");
 
@@ -124,11 +126,16 @@ contract Listings is Initializable, OwnableUpgradeable {
 
         bytes32 proof = keccak256(
             abi.encodePacked(
-                "\x19Ethereum Signed Message:\n", Strings.toString(proofMessage.length), proofMessage
+                "\x19Ethereum Signed Message:\n",
+                Strings.toString(proofMessage.length),
+                proofMessage
             )
         );
 
-        require(ECDSA.recover(proof, signature) == seekerAccount, "Proof must be signed by specified seeker account");
+        require(
+            ECDSA.recover(proof, signature) == seekerAccount,
+            "Proof must be signed by specified seeker account"
+        );
 
         // Now verify the seeker account actually owns the seeker
         address owner = _seekers.ownerOf(seekerId);
@@ -174,15 +181,20 @@ contract Listings is Initializable, OwnableUpgradeable {
      * by the specified seeker.
      * @param proofBlock The block the proof was generated in.
      */
-     function getProofMessage(uint256 seekerId, address node, uint256 proofBlock) public pure returns (bytes memory) {
-         return abi.encodePacked(
-            SEEKER_OWNERSHIP_PREFIX,
-            ":",
-            Strings.toString(seekerId),
-            ":",
-            Strings.toHexString(uint256(uint160(node)), 20),
-            ":",
-            Strings.toString(proofBlock)
-        );
-     }
+    function getProofMessage(
+        uint256 seekerId,
+        address node,
+        uint256 proofBlock
+    ) public pure returns (bytes memory) {
+        return
+            abi.encodePacked(
+                SEEKER_OWNERSHIP_PREFIX,
+                ":",
+                Strings.toString(seekerId),
+                ":",
+                Strings.toHexString(uint256(uint160(node)), 20),
+                ":",
+                Strings.toString(proofBlock)
+            );
+    }
 }

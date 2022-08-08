@@ -57,13 +57,13 @@ const initializeContracts = async function (
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 
-  const MockOracle = await ethers.getContractFactory('MockOracle');
-  const mockOracle = await MockOracle.deploy();
+  const MockOracleFactory = await ethers.getContractFactory('MockOracle');
+  const mockOracle = await MockOracleFactory.deploy();
 
-  const Seekers = await ethers.getContractFactory('Seekers');
-  const seekers = await Seekers.deploy();
+  const SeekersFactory = await ethers.getContractFactory('Seekers');
+  const seekers = await SeekersFactory.deploy();
   await seekers.initialize(
-    '0x0000000000000000000000000000000000000000',
+    ethers.constants.AddressZero,
     tokenAddress,
     mockOracle.address,
     100,
@@ -74,16 +74,16 @@ const initializeContracts = async function (
     },
   );
 
-  const Listings = await ethers.getContractFactory('Listings');
-  const listings = await Listings.deploy();
+  const ListingsFactory = await ethers.getContractFactory('Listings');
+  const listings = await ListingsFactory.deploy();
   await listings.initialize(seekers.address, payoutPercentage, 100, {
     from: deployer,
   });
 
-  const TicketingParameters = await ethers.getContractFactory(
+  const TicketingParametersFactory = await ethers.getContractFactory(
     'TicketingParameters',
   );
-  const ticketingParameters = await TicketingParameters.deploy();
+  const ticketingParameters = await TicketingParametersFactory.deploy();
   await ticketingParameters.initialize(
     faceValue,
     baseLiveWinProb,
@@ -93,17 +93,21 @@ const initializeContracts = async function (
     { from: deployer },
   );
 
-  const EpochsManager = await ethers.getContractFactory('EpochsManager');
-  const epochsManager = await EpochsManager.deploy();
+  const EpochsManagerFactory = await ethers.getContractFactory('EpochsManager');
+  const epochsManager = await EpochsManagerFactory.deploy();
 
-  const StakingManager = await ethers.getContractFactory('StakingManager');
-  const stakingManager = await StakingManager.deploy();
+  const StakingManagerFactory = await ethers.getContractFactory(
+    'StakingManager',
+  );
+  const stakingManager = await StakingManagerFactory.deploy();
 
-  const RewardsManager = await ethers.getContractFactory('RewardsManager');
-  const rewardsManager = await RewardsManager.deploy();
+  const RewardsManagerFactory = await ethers.getContractFactory(
+    'RewardsManager',
+  );
+  const rewardsManager = await RewardsManagerFactory.deploy();
 
-  const Directory = await ethers.getContractFactory('Directory');
-  const directory = await Directory.deploy();
+  const DirectoryFactory = await ethers.getContractFactory('Directory');
+  const directory = await DirectoryFactory.deploy();
 
   await stakingManager.initialize(
     tokenAddress,
@@ -131,8 +135,8 @@ const initializeContracts = async function (
     { from: deployer },
   );
 
-  const Ticketing = await ethers.getContractFactory('SyloTicketing');
-  const ticketing = await Ticketing.deploy();
+  const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
+  const ticketing = await TicketingFactory.deploy();
   await ticketing.initialize(
     tokenAddress,
     listings.address,

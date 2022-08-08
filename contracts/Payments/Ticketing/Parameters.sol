@@ -11,7 +11,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * and epoch contracts.
  */
 contract TicketingParameters is Initializable, OwnableUpgradeable {
-
     event FaceValueUpdated(uint256 faceValue);
     event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
     event ExpiredWinProbUpdated(uint128 expiredWinProb);

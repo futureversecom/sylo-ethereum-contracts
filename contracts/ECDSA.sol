@@ -5,7 +5,7 @@ pragma solidity ^0.8.13;
  * This is a fork of @openzeppelin/contracts ECSDA
  * It has been modified to support verification of externally created ECDSA signatures, as suggested below
  * https://gist.github.com/BjornvdLaan/e41d292339bbdebb831d0b976e1804e8
-*/
+ */
 
 /**
  * @dev Elliptic Curve Digital Signature Algorithm (ECDSA) operations.

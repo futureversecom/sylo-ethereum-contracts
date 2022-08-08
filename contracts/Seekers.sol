@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Seekers is Initializable, OwnableUpgradeable {
-
     struct Owner {
         address owner;
         uint256 expiry;
@@ -15,10 +14,10 @@ contract Seekers is Initializable, OwnableUpgradeable {
     // This is a mapping of requests Ids to Seeker tokenIds. This is
     // used in the Oracle callback function to understand which
     // tokenId the ownership request was made for.
-    mapping (uint256 => uint256) public requests;
+    mapping(uint256 => uint256) public requests;
 
     // A mapping from Seeker tokenId and it's respective owner on Ethereum mainnet.
-    mapping (uint256 => Owner) private owners;
+    mapping(uint256 => Owner) private owners;
 
     /**
      * @notice The address of the Seekers NFT contract on ethereum mainnet.
@@ -87,11 +86,11 @@ contract Seekers is Initializable, OwnableUpgradeable {
         validDuration = _validDuration;
     }
 
-    function setCallbackGasLimit (uint256 _callbackGasLimit) external onlyOwner {
+    function setCallbackGasLimit(uint256 _callbackGasLimit) external onlyOwner {
         callbackGasLimit = _callbackGasLimit;
     }
 
-    function setCallbackBounty (uint256 _callbackBounty) external onlyOwner {
+    function setCallbackBounty(uint256 _callbackBounty) external onlyOwner {
         callbackBounty = _callbackBounty;
     }
 
@@ -141,8 +140,11 @@ contract Seekers is Initializable, OwnableUpgradeable {
         requests[requestId] = seekerId;
     }
 
-
-    function confirmOwnership(uint256 requestId, uint256 timestamp, bytes32 returnData) external {
+    function confirmOwnership(
+        uint256 requestId,
+        uint256 timestamp,
+        bytes32 returnData
+    ) external {
         require(msg.sender == _oracle, "msg.sender must be state oracle");
 
         address owner = address(uint160(uint256(returnData)));
