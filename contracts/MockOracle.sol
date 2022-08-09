@@ -76,7 +76,7 @@ contract MockOracle {
     function invokeCallback() external {
         Callback storage callback = callbacks[nextRequestId];
         (bool callbackSuccess, ) = callback.sender.call(callback.callback);
-        require(callbackSuccess);
+        require(callbackSuccess, "Callback to sender failed");
     }
 
     function ownerOf(uint256 tokenId) external view returns (address) {
@@ -85,5 +85,29 @@ contract MockOracle {
 
     function setOwner(uint256 tokenId, address owner) external {
         owners[tokenId] = owner;
+    }
+}
+
+contract MockOracleFail {
+    function remoteCall(
+        address target,
+        bytes memory input,
+        bytes4 callbackSignature,
+        uint256 callbackGasLimit,
+        uint256 bounty
+    ) public pure returns (uint256) {
+        require(false, "MockOracleFail always fails");
+    }
+
+    function remoteCallWithFeeSwap(
+        address target,
+        bytes memory input,
+        bytes4 callbackSignature,
+        uint256 callbackGasLimit,
+        uint256 bounty,
+        address token,
+        uint256 maxFee
+    ) public pure returns (uint256) {
+        require(false, "MockOracleFail always fails with fee swap");
     }
 }

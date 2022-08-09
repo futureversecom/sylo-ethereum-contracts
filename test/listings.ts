@@ -30,6 +30,14 @@ describe('Listing', () => {
     seekers = contracts.seekers;
   });
 
+  it('requires default payout percentage to not exceed 100% when initializing', async () => {
+    const Listings = await ethers.getContractFactory('Listings');
+    listings = await Listings.deploy();
+    await expect(
+      listings.initialize(seekers.address, 10001, 100),
+    ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
+  });
+
   it('can allow owner to set default payout percentage', async () => {
     await expect(listings.setDefaultPayoutPercentage(2000))
       .to.emit(listings, 'DefaultPayoutPercentageUpdated')

@@ -109,7 +109,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
         );
 
         (bool success, bytes memory returnData) = _oracle.call(remoteCallRequest);
-        require(success, "oracle request failed");
+        require(success, "Oracle request failed");
 
         uint256 requestId = abi.decode(returnData, (uint256));
 
@@ -133,7 +133,7 @@ contract Seekers is Initializable, OwnableUpgradeable {
         );
 
         (bool success, bytes memory returnData) = _oracle.call(remoteCallRequest);
-        require(success, "oracle request failed");
+        require(success, "Oracle request failed");
 
         uint256 requestId = abi.decode(returnData, (uint256));
 
