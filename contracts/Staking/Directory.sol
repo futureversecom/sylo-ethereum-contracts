@@ -118,35 +118,57 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
 
     /**
      * @notice Call this to perform a stake-weighted scan to find the Node assigned
-     * to the given point.
+     * to the given point of the current directory.
+     * @param point The point, which will usually be a hash of a public key.
+     */
+    function scan(uint128 point) external view returns (address stakee) {
+        return _scan(point, currentDirectory);
+    }
+
+    /**
+     * @notice Call this to perform a stake-weighted scan to find the Node assigned
+     * to the given point of the requested directory.
+     * @param point The point, which will usually be a hash of a public key.
+     * @param epochId The epoch id associated with the directory to scan.
+     */
+    function scanWithEpochId(uint128 point, uint256 epochId)
+        external
+        view
+        returns (address stakee)
+    {
+        return _scan(point, epochId);
+    }
+
+    /**
+     * @notice Call this to perform a stake-weighted scan to find the Node assigned
+     * to the given point of the requested directory (internal).
      * @dev The current implementation will perform a binary search through
      * the directory. This can allow gas costs to be low if this needs to be
      * used in a transaction.
      * @param point The point, which will usually be a hash of a public key.
+     * @param epochId The epoch id associated with the directory to scan.
      */
-    function scan(uint128 point) external view returns (address stakee) {
-        if (directories[currentDirectory].entries.length == 0) {
+    function _scan(uint128 point, uint256 epochId) internal view returns (address stakee) {
+        if (directories[epochId].entries.length == 0) {
             return address(0);
         }
 
         // Staking all the Sylo would only be 94 bits, so multiplying this with
         // a uint128 cannot overflow a uint256.
-        uint256 expectedVal = (directories[currentDirectory].totalStake * uint256(point)) >> 128;
+        uint256 expectedVal = (directories[epochId].totalStake * uint256(point)) >> 128;
 
         uint256 left = 0;
-        uint256 right = directories[currentDirectory].entries.length - 1;
+        uint256 right = directories[epochId].entries.length - 1;
 
         // perform a binary search through the directory
         while (left <= right) {
             uint256 index = (left + right) / 2;
 
-            uint256 lower = index == 0
-                ? 0
-                : directories[currentDirectory].entries[index - 1].boundary;
-            uint256 upper = directories[currentDirectory].entries[index].boundary;
+            uint256 lower = index == 0 ? 0 : directories[epochId].entries[index - 1].boundary;
+            uint256 upper = directories[epochId].entries[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
-                return directories[currentDirectory].entries[index].stakee;
+                return directories[epochId].entries[index].stakee;
             } else if (expectedVal < lower) {
                 right = index - 1;
             } else {
