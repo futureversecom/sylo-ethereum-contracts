@@ -138,9 +138,9 @@ contract Listings is Initializable, OwnableUpgradeable {
         );
 
         // Now verify the seeker account actually owns the seeker
-        address owner = _seekers.ownerOf(seekerId);
+        Seekers.Owner memory owner = _seekers.ownerOf(seekerId);
 
-        require(seekerAccount == owner, "Seeker account must own the specified seeker");
+        require(seekerAccount == owner.owner, "Seeker account must own the specified seeker");
 
         listings[msg.sender].seekerAccount = seekerAccount;
         listings[msg.sender].seekerId = seekerId;
