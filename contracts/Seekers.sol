@@ -156,19 +156,15 @@ contract Seekers is Initializable, OwnableUpgradeable {
         delete requests[requestId];
     }
 
-    function ownerOf(uint256 seekerId) external view returns (address) {
+    function ownerOf(uint256 seekerId) external view returns (Owner memory) {
         Owner memory owner = owners[seekerId];
-
-        if (owner.owner == address(0)) {
-            return address(0);
-        }
 
         // State Oracle's response has become stale.
         if (owner.expiry < block.number) {
-            return address(0);
+            return Owner(address(0), 0);
         }
 
-        return owner.owner;
+        return owner;
     }
 
     function withdrawAll(address recipient) public onlyOwner {

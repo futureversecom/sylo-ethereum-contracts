@@ -75,15 +75,18 @@ describe('Seekers', () => {
 
     await mockOracle.invokeCallback();
 
+    const blockNumber = await ethers.provider.getBlockNumber();
     const seekerOwner = await seekers.ownerOf(1);
 
-    assert.equal(seekerOwner, owner);
+    assert.equal(seekerOwner.owner, owner);
+    assert.equal(seekerOwner.expiry.toNumber(), blockNumber + 100);
   });
 
   it('ownership check returns correct owner', async () => {
     const seekerOwner = await seekers.ownerOf(1);
 
-    assert.equal(seekerOwner, ethers.constants.AddressZero);
+    assert.equal(seekerOwner.owner, ethers.constants.AddressZero);
+    assert.equal(seekerOwner.expiry.toString(), '0');
   });
 
   it('ownership checks correctly expire', async () => {
@@ -98,7 +101,8 @@ describe('Seekers', () => {
 
     const seekerOwner = await seekers.ownerOf(1);
 
-    assert.equal(seekerOwner, ethers.constants.AddressZero);
+    assert.equal(seekerOwner.owner, ethers.constants.AddressZero);
+    assert.equal(seekerOwner.expiry.toString(), '0');
   });
 
   it('can call request verification with fee swap', async () => {
@@ -109,9 +113,11 @@ describe('Seekers', () => {
 
     await mockOracle.invokeCallback();
 
+    const blockNumber = await ethers.provider.getBlockNumber();
     const seekerOwner = await seekers.ownerOf(1);
 
-    assert.equal(seekerOwner, owner);
+    assert.equal(seekerOwner.owner, owner);
+    assert.equal(seekerOwner.expiry.toNumber(), blockNumber + 100);
   });
 
   it('can call withdraw functions', async () => {
