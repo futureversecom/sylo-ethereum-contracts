@@ -391,6 +391,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     }
 
     /**
+     * This function is called by the node to get the total value of its stake
+     * reward and node reward.
+     */
+    function calculateNodeClaim() external view returns (uint256) {
+        return calculateStakerClaim(msg.sender, msg.sender) + unclaimedNodeRewards[msg.sender];
+    }
+
+    /**
      * Manually calculates the reward claim for the first epoch the claim is being
      * made for. This manual calculation is necessary as claims are only made up
      * to the previous epoch.
@@ -496,11 +504,17 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * the current unclaimed reward from being used as stake in the next round.
      * @param stakee The address of the Node to claim against.
      */
-    function claimStakingRewards(address stakee) external returns (uint256) {
+    function claimRewards(address stakee) external returns (uint256) {
         uint256 rewardClaim = calculateStakerClaim(stakee, msg.sender);
         require(rewardClaim > 0, "Nothing to claim");
         unclaimedStakeRewards[stakee] -= rewardClaim;
         updateLastClaim(stakee, msg.sender, rewardClaim);
+
+        if (msg.sender == stakee) {
+            rewardClaim += unclaimedNodeRewards[msg.sender];
+            unclaimedNodeRewards[msg.sender] = 0;
+        }
+
         _token.transfer(msg.sender, rewardClaim);
         return rewardClaim;
     }
@@ -517,7 +531,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * This will be either the StakingManager account when adding stake,
      * or the staker's account when withdrawing stake.
      */
-    function claimStakingRewardsAsManager(
+    function claimRewardsAsManager(
         address stakee,
         address staker,
         address payee
@@ -528,6 +542,12 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
             return rewardClaim;
         }
         unclaimedStakeRewards[stakee] -= rewardClaim;
+
+        if (stakee == staker) {
+            rewardClaim += unclaimedNodeRewards[stakee];
+            unclaimedNodeRewards[stakee] = 0;
+        }
+
         _token.transfer(payee, rewardClaim);
 
         return rewardClaim;
@@ -561,17 +581,5 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      */
     function updateRewardPoolAsManager(address stakee, address staker) external onlyManager {
         updateLastClaim(stakee, staker, 0);
-    }
-
-    /**
-     * @notice Call this function as a Node operator to claim the accumulated
-     * reward for operating a Sylo Node.
-     */
-    function claimNodeRewards() external {
-        uint256 claim = unclaimedNodeRewards[msg.sender];
-        require(claim > 0, "Nothing to claim");
-
-        unclaimedNodeRewards[msg.sender] = 0;
-        _token.transfer(msg.sender, claim);
     }
 }

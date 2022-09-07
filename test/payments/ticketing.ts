@@ -786,10 +786,7 @@ describe('Ticketing', () => {
   });
 
   it('fails to to claim non existent rewards', async () => {
-    await expect(rewardsManager.claimStakingRewards(owner)).to.be.revertedWith(
-      'Nothing to claim',
-    );
-    await expect(rewardsManager.claimNodeRewards()).to.be.revertedWith(
+    await expect(rewardsManager.claimRewards(owner)).to.be.revertedWith(
       'Nothing to claim',
     );
   });
@@ -816,8 +813,7 @@ describe('Ticketing', () => {
 
     const initialBalance = await token.balanceOf(owner);
 
-    await rewardsManager.claimNodeRewards();
-    await rewardsManager.claimStakingRewards(owner);
+    await rewardsManager.claimRewards(owner);
 
     const postBalance = await token.balanceOf(owner);
     // Expect the node have the entire reward balance added to their account
@@ -875,10 +871,14 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
+    const nodeReward = await rewardsManager.getUnclaimedNodeReward(
+      await accounts[0].getAddress(),
+    );
+
     await testClaims([
       {
         account: accounts[0],
-        claim: proportions[0] * totalWinnings,
+        claim: proportions[0] * totalWinnings + Number(fromSOLOs(nodeReward)),
       },
       {
         account: accounts[2],
@@ -919,6 +919,41 @@ describe('Ticketing', () => {
     await calculateClaims();
   });
 
+  it('can calculate node claim', async () => {
+    await setSeekerListing(accounts[0], accounts[1], 1);
+
+    await addStakes([
+      { account: accounts[0], stake: 2 },
+      // have account 2 as a delegated staker
+      { account: accounts[2], stake: 1 },
+    ]);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner);
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+
+    const initBalance = await token.balanceOf(owner);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const expectedReward = await rewardsManager.calculateNodeClaim();
+
+    await rewardsManager.claimRewards(owner);
+
+    const postBalance = await token.balanceOf(owner);
+
+    expect(postBalance).to.equal(initBalance.add(expectedReward));
+  });
+
   it('can not claim reward more than once for the same epoch', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerListing(accounts[0], accounts[1], 1);
@@ -937,12 +972,12 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
-    await rewardsManager.claimStakingRewards(owner);
+    await rewardsManager.claimRewards(owner);
 
     const lastClaim = await rewardsManager.getLastClaim(owner, owner);
     expect(lastClaim.claimedAt).to.be.above(0);
 
-    await expect(rewardsManager.claimStakingRewards(owner)).to.be.revertedWith(
+    await expect(rewardsManager.claimRewards(owner)).to.be.revertedWith(
       'Nothing to claim',
     );
   });
@@ -1011,7 +1046,7 @@ describe('Ticketing', () => {
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
-    for (let runs = 0; runs < 10; runs++) {
+    for (let runs = 0; runs < 3; runs++) {
       // 250 is added to the delegated stakers reward total on each redemption
       for (let i = 0; i < 5; i++) {
         const { ticket, senderRand, redeemerRand, signature } =
@@ -1026,11 +1061,15 @@ describe('Ticketing', () => {
 
       const totalWinnings = 2500;
 
+      const nodeReward = await rewardsManager.getUnclaimedNodeReward(
+        await accounts[0].getAddress(),
+      );
+
       // No accounts adds or withdraws stake, so stake proportions remain constant
       await testClaims([
         {
           account: accounts[0],
-          claim: proportions[0] * totalWinnings,
+          claim: proportions[0] * totalWinnings + Number(fromSOLOs(nodeReward)),
         },
         {
           account: accounts[1],
@@ -1132,7 +1171,7 @@ describe('Ticketing', () => {
 
     // ensure each staker is actually able to claim
     for (let i = 1; i < 5; i++) {
-      await rewardsManager.connect(accounts[i]).claimStakingRewards(owner);
+      await rewardsManager.connect(accounts[i]).claimRewards(owner);
     }
   });
 
@@ -1210,7 +1249,7 @@ describe('Ticketing', () => {
 
     // ensure each staker is actually able to claim
     for (let i = 2; i < 4; i++) {
-      await rewardsManager.connect(accounts[i]).claimStakingRewards(owner);
+      await rewardsManager.connect(accounts[i]).claimRewards(owner);
     }
   });
 
@@ -1425,7 +1464,7 @@ describe('Ticketing', () => {
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
-    await rewardsManager.claimStakingRewards(owner);
+    await rewardsManager.claimRewards(owner);
 
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -1436,13 +1475,13 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
-    await rewardsManager.claimStakingRewards(owner);
+    await rewardsManager.claimRewards(owner);
 
     const postBalance = await token.balanceOf(owner);
 
     // we redeemed 5000 SYLO each epoch, so expect to receive
-    // an additional 10000 SYLO after claiming twice
-    compareExpectedBalance(postBalance, initialBalance.add(toSOLOs(10000)));
+    // an additional 10000 SYLO after claiming twice + 10000 SYLO for node rewards
+    compareExpectedBalance(postBalance, initialBalance.add(toSOLOs(20000)));
   });
 
   it('can claim staking rewards if node already joined next epoch', async () => {
@@ -1597,7 +1636,7 @@ describe('Ticketing', () => {
 
     // have each staker claim for the first epoch
     for (let i = 2; i < 5; i++) {
-      await rewardsManager.connect(accounts[i]).claimStakingRewards(owner);
+      await rewardsManager.connect(accounts[i]).claimRewards(owner);
     }
 
     // start the next epoch without rewards being redeemed
@@ -1762,7 +1801,7 @@ describe('Ticketing', () => {
         .balanceOf(address)
         .then(b => b.add(claim));
 
-      await rewardsManager.connect(t.account).claimStakingRewards(owner);
+      await rewardsManager.connect(t.account).claimRewards(owner);
 
       compareExpectedBalance(expectedBalance, await token.balanceOf(address));
     }
