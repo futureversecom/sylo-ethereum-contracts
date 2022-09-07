@@ -501,6 +501,12 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         require(rewardClaim > 0, "Nothing to claim");
         unclaimedStakeRewards[stakee] -= rewardClaim;
         updateLastClaim(stakee, msg.sender, rewardClaim);
+
+        if (msg.sender == stakee) {
+            rewardClaim += unclaimedNodeRewards[msg.sender];
+            unclaimedNodeRewards[msg.sender] = 0;
+        }
+
         _token.transfer(msg.sender, rewardClaim);
         return rewardClaim;
     }
@@ -528,8 +534,13 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
             return rewardClaim;
         }
         unclaimedStakeRewards[stakee] -= rewardClaim;
-        _token.transfer(payee, rewardClaim);
 
+        if (msg.sender == stakee) {
+            rewardClaim += unclaimedNodeRewards[msg.sender];
+            unclaimedNodeRewards[msg.sender] = 0;
+        }
+
+        _token.transfer(payee, rewardClaim);
         return rewardClaim;
     }
 
@@ -546,17 +557,5 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
             _epochsManager.currentIteration(),
             stakeEntry.amount + rewardClaim
         );
-    }
-
-    /**
-     * @notice Call this function as a Node operator to claim the accumulated
-     * reward for operating a Sylo Node.
-     */
-    function claimNodeRewards() external {
-        uint256 claim = unclaimedNodeRewards[msg.sender];
-        require(claim > 0, "Nothing to claim");
-
-        unclaimedNodeRewards[msg.sender] = 0;
-        _token.transfer(msg.sender, claim);
     }
 }
