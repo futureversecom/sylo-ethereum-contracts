@@ -549,6 +549,21 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     }
 
     /**
+     * @notice This function should be called to update the staker's
+     * last claim in reward pool, so that the crf calculation know which
+     * epoch they have updated their stake.
+     * @dev This function will revert if the StakingManager contract has
+     * not been set as a manager.
+     * @param stakee The address of the Node to claim against.
+     * @param staker The address of the staker.
+     * This will be either the StakingManager account when adding stake,
+     * or the staker's account when withdrawing stake.
+     */
+    function updateRewardPoolAsManager(address stakee, address staker) external onlyManager {
+        updateLastClaim(stakee, staker, 0);
+    }
+
+    /**
      * @notice Call this function as a Node operator to claim the accumulated
      * reward for operating a Sylo Node.
      */

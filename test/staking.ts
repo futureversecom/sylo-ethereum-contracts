@@ -193,7 +193,7 @@ describe('Staking', () => {
 
   it('should not be able to add 0 stake', async () => {
     await expect(stakingManager.addStake(0, owner)).to.be.revertedWith(
-      'Stake amount or reward must be more than 0',
+      'Stake amount must be more than 0',
     );
   });
 
