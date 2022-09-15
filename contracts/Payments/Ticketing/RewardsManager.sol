@@ -40,6 +40,11 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     mapping(address => uint256) public unclaimedNodeRewards;
 
     /**
+     * @notice Tracks each staker's reward before they add or unlock stake.
+     */
+    mapping(address => mapping(address => uint256)) public existingRewards;
+
+    /**
      * @notice Tracks each Nodes total unclaimed staking rewards in SOLOs. This
      * value is accumulated as Node's redeem tickets, and tracks the portion of
      * the reward which is allocated to its delegated stakers.
@@ -390,6 +395,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         return claim + updatedStake - stakeEntry.amount;
     }
 
+    function calculateAllClaim(address stakee) public view returns (uint256) {
+        return calculateStakerClaim(stakee, msg.sender) + existingRewards[stakee][msg.sender];
+    }
+
     /**
      * Manually calculates the reward claim for the first epoch the claim is being
      * made for. This manual calculation is necessary as claims are only made up
@@ -498,10 +507,15 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      */
     function claimStakingRewards(address stakee) external returns (uint256) {
         uint256 rewardClaim = calculateStakerClaim(stakee, msg.sender);
-        require(rewardClaim > 0, "Nothing to claim");
+        uint256 existingReward = existingRewards[stakee][msg.sender];
+        require(rewardClaim + existingReward > 0, "Nothing to claim");
+
         unclaimedStakeRewards[stakee] -= rewardClaim;
+        existingRewards[stakee][msg.sender] = 0;
+
         updateLastClaim(stakee, msg.sender, rewardClaim);
-        _token.transfer(msg.sender, rewardClaim);
+        _token.transfer(msg.sender, rewardClaim + existingReward);
+
         return rewardClaim;
     }
 
@@ -524,11 +538,16 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     ) external onlyManager returns (uint256) {
         uint256 rewardClaim = calculateStakerClaim(stakee, staker);
         updateLastClaim(stakee, staker, rewardClaim);
-        if (rewardClaim == 0) {
-            return rewardClaim;
+
+        uint256 existingReward = existingRewards[stakee][staker];
+        if (rewardClaim + existingReward == 0) {
+            return 0;
         }
+
         unclaimedStakeRewards[stakee] -= rewardClaim;
-        _token.transfer(payee, rewardClaim);
+        existingRewards[stakee][staker] = 0;
+
+        _token.transfer(payee, rewardClaim + existingReward);
 
         return rewardClaim;
     }
@@ -559,8 +578,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * This will be either the StakingManager account when adding stake,
      * or the staker's account when withdrawing stake.
      */
-    function updateRewardPoolAsManager(address stakee, address staker) external onlyManager {
-        updateLastClaim(stakee, staker, 0);
+    function updateRewardPoolAsManager(
+        address stakee,
+        address staker,
+        uint256 reward
+    ) external onlyManager {
+        updateLastClaim(stakee, staker, reward);
+        unclaimedStakeRewards[stakee] -= reward;
+        existingRewards[stakee][staker] += reward;
     }
 
     /**
