@@ -17,7 +17,7 @@ type ContractParameters = {
     epochDuration: BigNumberish;
   };
 
-  Listings: {
+  Registries: {
     defaultPayoutPercentage: number;
     proofDuration: number;
   };
@@ -67,7 +67,7 @@ const GenesisParameters: ContractParameters = {
     epochDuration: 80000,
   },
 
-  Listings: {
+  Registries: {
     defaultPayoutPercentage: 5000,
     proofDuration: 100,
   },

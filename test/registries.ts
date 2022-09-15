@@ -1,14 +1,14 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { Listings, MockOracle, Seekers } from '../typechain';
+import { Registries, MockOracle, Seekers } from '../typechain';
 import { assert, expect } from 'chai';
 import utils from './utils';
 
-describe('Listing', () => {
+describe('Registries', () => {
   let accounts: Signer[];
   let owner: string;
 
-  let listings: Listings;
+  let registries: Registries;
   let mockOracle: MockOracle;
   let seekers: Seekers;
 
@@ -25,25 +25,25 @@ describe('Listing', () => {
     const contracts = await utils.initializeContracts(owner, token.address, {
       payoutPercentage: 5000,
     });
-    listings = contracts.listings;
+    registries = contracts.registries;
     mockOracle = contracts.mockOracle;
     seekers = contracts.seekers;
   });
 
   it('requires default payout percentage to not exceed 100% when initializing', async () => {
-    const Listings = await ethers.getContractFactory('Listings');
-    listings = await Listings.deploy();
+    const Registries = await ethers.getContractFactory('Registries');
+    registries = await Registries.deploy();
     await expect(
-      listings.initialize(seekers.address, 10001, 100),
+      registries.initialize(seekers.address, 10001, 100),
     ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
   });
 
   it('can allow owner to set default payout percentage', async () => {
-    await expect(listings.setDefaultPayoutPercentage(2000))
-      .to.emit(listings, 'DefaultPayoutPercentageUpdated')
+    await expect(registries.setDefaultPayoutPercentage(2000))
+      .to.emit(registries, 'DefaultPayoutPercentageUpdated')
       .withArgs(2000);
 
-    const p = await listings.defaultPayoutPercentage();
+    const p = await registries.defaultPayoutPercentage();
     assert.equal(
       p,
       2000,
@@ -51,35 +51,35 @@ describe('Listing', () => {
     );
   });
 
-  it('can set listing', async () => {
-    await listings.setListing('http://api', 1);
+  it('can set registry', async () => {
+    await registries.register('http://api', 1);
 
-    const listing = await listings.getListing(owner);
+    const registry = await registries.getRegistry(owner);
 
     assert.equal(
-      listing.publicEndpoint,
+      registry.publicEndpoint,
       'http://api',
-      'Expected listings to have correct address',
+      'Expected registries to have correct address',
     );
     assert.equal(
-      listing.minDelegatedStake.toNumber(),
+      registry.minDelegatedStake.toNumber(),
       1,
-      'Expected listing to have correct min delegated stake',
+      'Expected registry to have correct min delegated stake',
     );
   });
 
   it('requires default payout percentage to not exceed 100%', async () => {
-    await expect(listings.setDefaultPayoutPercentage(10001)).to.be.revertedWith(
-      'The payout percentage can not exceed 100 percent',
-    );
+    await expect(
+      registries.setDefaultPayoutPercentage(10001),
+    ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
   });
 
   it('can set seeker account with valid proof', async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await utils.setSeekerListing(
-      listings,
+    await utils.setSeekerRegistry(
+      registries,
       mockOracle,
       seekers,
       accounts[0],
@@ -87,10 +87,10 @@ describe('Listing', () => {
       1,
     );
 
-    const listing = await listings.getListing(owner);
+    const registry = await registries.getRegistry(owner);
 
-    expect(listing.seekerAccount).to.equal(seekerAddress);
-    expect(listing.seekerId).to.equal(1);
+    expect(registry.seekerAccount).to.equal(seekerAddress);
+    expect(registry.seekerId).to.equal(1);
   });
 
   it('fails to set seeker account with invalid blocks for proof', async () => {
@@ -103,19 +103,19 @@ describe('Listing', () => {
 
     const hash = ethers.utils.solidityKeccak256(
       ['string', 'uint256', 'address', 'uint256'],
-      [await listings.getPrefix(), 1, owner, block],
+      [await registries.getPrefix(), 1, owner, block],
     );
     const proofMessage = ethers.utils.arrayify(hash);
     const proof = await seekerAccount.signMessage(proofMessage);
 
     await expect(
-      listings.setSeekerAccount(seekerAddress, 1, 1000, proof),
+      registries.setSeekerAccount(seekerAddress, 1, block + 1000, proof),
     ).to.be.revertedWith('Proof can not be set for a future block');
 
     await utils.advanceBlock(200);
 
     await expect(
-      listings.setSeekerAccount(seekerAddress, 1, 10, proof),
+      registries.setSeekerAccount(seekerAddress, 1, block, proof),
     ).to.be.revertedWith('Proof is expired');
   });
 
@@ -129,7 +129,7 @@ describe('Listing', () => {
 
     const hash = ethers.utils.solidityKeccak256(
       ['string', 'uint256', 'address', 'uint256'],
-      [await listings.getPrefix(), 1, owner, block],
+      [await registries.getPrefix(), 1, owner, block],
     );
     const proofMessage = ethers.utils.arrayify(hash);
 
@@ -137,7 +137,7 @@ describe('Listing', () => {
     const proof = await accounts[0].signMessage(proofMessage);
 
     await expect(
-      listings.setSeekerAccount(seekerAddress, 1, block, proof),
+      registries.setSeekerAccount(seekerAddress, 1, block, proof),
     ).to.be.revertedWith('Proof must be signed by specified seeker account');
   });
 
@@ -147,22 +147,22 @@ describe('Listing', () => {
 
     const block = await ethers.provider.getBlockNumber();
 
-    const prefix = await listings.getPrefix();
+    const prefix = await registries.getPrefix();
     const accountAddress = await accounts[0].getAddress();
     const proofMessage = `${prefix}:${1}:${accountAddress.toLowerCase()}:${block.toString()}`;
 
     const signature = await seekerAccount.signMessage(proofMessage);
 
     await expect(
-      listings.setSeekerAccount(seekerAddress, 1, block, signature),
+      registries.setSeekerAccount(seekerAddress, 1, block, signature),
     ).to.be.revertedWith('Seeker account must own the specified seeker');
   });
 
   it('can revoke seeker account', async () => {
     const seekerAccount = accounts[1];
 
-    await utils.setSeekerListing(
-      listings,
+    await utils.setSeekerRegistry(
+      registries,
       mockOracle,
       seekers,
       accounts[0],
@@ -170,16 +170,16 @@ describe('Listing', () => {
       1,
     );
 
-    await listings.connect(seekerAccount).revokeSeekerAccount(owner);
+    await registries.connect(seekerAccount).revokeSeekerAccount(owner);
 
-    const listing = await listings.getListing(owner);
+    const registry = await registries.getRegistry(owner);
 
-    expect(listing.seekerAccount).to.equal(ethers.constants.AddressZero);
+    expect(registry.seekerAccount).to.equal(ethers.constants.AddressZero);
   });
 
   it('can only revoke seeker account as seeker account', async () => {
-    await utils.setSeekerListing(
-      listings,
+    await utils.setSeekerRegistry(
+      registries,
       mockOracle,
       seekers,
       accounts[0],
@@ -187,13 +187,13 @@ describe('Listing', () => {
       1,
     );
 
-    await expect(listings.revokeSeekerAccount(owner)).to.be.revertedWith(
+    await expect(registries.revokeSeekerAccount(owner)).to.be.revertedWith(
       'Seeker account and msg.sender must be equal',
     );
   });
 
-  it('requires listing to not have empty public endpoint string', async () => {
-    await expect(listings.setListing('', 1)).to.be.revertedWith(
+  it('requires registry to not have empty public endpoint string', async () => {
+    await expect(registries.register('', 1)).to.be.revertedWith(
       'Public endpoint can not be empty',
     );
   });

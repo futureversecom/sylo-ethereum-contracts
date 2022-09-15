@@ -3,7 +3,7 @@ import { BigNumber, Signer } from 'ethers';
 import {
   Directory,
   EpochsManager,
-  Listings,
+  Registries,
   MockOracle,
   RewardsManager,
   Seekers,
@@ -27,7 +27,7 @@ describe('Staking', () => {
   let rewardsManager: RewardsManager;
   let directory: Directory;
   let stakingManager: StakingManager;
-  let listings: Listings;
+  let registries: Registries;
   let seekers: Seekers;
   let mockOracle: MockOracle;
 
@@ -48,7 +48,7 @@ describe('Staking', () => {
     rewardsManager = contracts.rewardsManager;
     directory = contracts.directory;
     stakingManager = contracts.stakingManager;
-    listings = contracts.listings;
+    registries = contracts.registries;
     seekers = contracts.seekers;
     mockOracle = contracts.mockOracle;
 
@@ -82,7 +82,7 @@ describe('Staking', () => {
 
   it('should be able to join the next epoch and directory at once', async () => {
     await stakingManager.addStake(100, owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekeRegistry(accounts[0], accounts[1], 1);
 
     const currentEpochId = (await directory.currentDirectory()).add(1);
     const nextRewardPool = await rewardsManager.getRewardPool(
@@ -430,7 +430,7 @@ describe('Staking', () => {
   });
 
   it('should not be able to join directory without stake', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekeRegistry(accounts[0], accounts[1], 1);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
       'Must have stake to initialize a reward pool',
     );
@@ -443,7 +443,7 @@ describe('Staking', () => {
   });
 
   it('should not be able to join directory when seeker account is not seeker owner', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekeRegistry(accounts[0], accounts[1], 1);
     await stakingManager.addStake(1, owner);
 
     await utils.setSeekerOwnership(
@@ -468,7 +468,7 @@ describe('Staking', () => {
   });
 
   it('should be able to scan after joining directory', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekeRegistry(accounts[0], accounts[1], 1);
     await stakingManager.addStake(1, owner);
     await epochsManager.joinNextEpoch();
 
@@ -479,7 +479,7 @@ describe('Staking', () => {
   });
 
   it('should be able to scan with epoch id after joining directory', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekeRegistry(accounts[0], accounts[1], 1);
     await stakingManager.addStake(1, owner);
     await epochsManager.joinNextEpoch();
 
@@ -797,13 +797,13 @@ describe('Staking', () => {
     );
   });
 
-  async function setSeekerListing(
+  async function setSeekeRegistry(
     account: Signer,
     seekerAccount: Signer,
     tokenId: number,
   ) {
-    await utils.setSeekerListing(
-      listings,
+    await utils.setSeekerRegistry(
+      registries,
       mockOracle,
       seekers,
       account,
@@ -822,7 +822,7 @@ describe('Staking', () => {
     await stakingManager
       .connect(account)
       .addStake(amount, await account.getAddress());
-    await setSeekerListing(account, accounts[9], seekerId);
+    await setSeekeRegistry(account, accounts[9], seekerId);
     await epochsManager.connect(account).joinNextEpoch();
   }
 

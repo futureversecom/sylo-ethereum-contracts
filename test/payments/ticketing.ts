@@ -3,7 +3,7 @@ import { BigNumber, BigNumberish, Signer, Wallet } from 'ethers';
 import {
   Directory,
   EpochsManager,
-  Listings,
+  Registries,
   MockOracle,
   RewardsManager,
   Seekers,
@@ -33,7 +33,7 @@ describe('Ticketing', () => {
   let ticketing: SyloTicketing;
   let ticketingParameters: TicketingParameters;
   let directory: Directory;
-  let listings: Listings;
+  let registries: Registries;
   let stakingManager: StakingManager;
   let mockOracle: MockOracle;
   let seekers: Seekers;
@@ -57,7 +57,7 @@ describe('Ticketing', () => {
     ticketing = contracts.ticketing;
     ticketingParameters = contracts.ticketingParameters;
     directory = contracts.directory;
-    listings = contracts.listings;
+    registries = contracts.registries;
     stakingManager = contracts.stakingManager;
     mockOracle = contracts.mockOracle;
     seekers = contracts.seekers;
@@ -312,7 +312,7 @@ describe('Ticketing', () => {
 
   it('should be able to initialize next reward pool', async () => {
     await stakingManager.addStake(30, owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const currentBlock = await ethers.provider.getBlockNumber();
 
@@ -338,12 +338,12 @@ describe('Ticketing', () => {
 
   it('can not initialize reward pool more than once', async () => {
     await stakingManager.addStake(30, owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
 
     // change the seeker but node should still be prevented from
     // initializing the reward pool again
-    await setSeekerListing(accounts[0], accounts[1], 2);
+    await setSeekerRegistry(accounts[0], accounts[1], 2);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
       'The next reward pool has already been initialized',
     );
@@ -351,7 +351,7 @@ describe('Ticketing', () => {
 
   it('can not initialize reward pool more than once for the same seekers', async () => {
     await stakingManager.addStake(30, owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
 
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
@@ -360,7 +360,7 @@ describe('Ticketing', () => {
   });
 
   it('should not be able to initialize next reward pool without stake', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
       'Must have stake to initialize a reward pool',
     );
@@ -470,7 +470,7 @@ describe('Ticketing', () => {
 
   it('can not redeem ticket if node does not have a valid seeker account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -479,7 +479,7 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    await listings.connect(accounts[1]).revokeSeekerAccount(owner);
+    await registries.connect(accounts[1]).revokeSeekerAccount(owner);
 
     const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, owner);
@@ -490,7 +490,7 @@ describe('Ticketing', () => {
   });
 
   it('can not redeem ticket if node has not joined directory', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.initializeEpoch();
 
@@ -510,7 +510,7 @@ describe('Ticketing', () => {
 
   it('can not redeem ticket if node has not initialized reward pool', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await directory.addManager(owner);
     await directory.joinNextDirectory(owner);
@@ -533,7 +533,7 @@ describe('Ticketing', () => {
 
   it('can not redeem invalid ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -585,8 +585,8 @@ describe('Ticketing', () => {
     });
     await token.approve(contracts.stakingManager.address, toSOLOs(100000));
     await contracts.stakingManager.addStake(toSOLOs(1), owner);
-    await utils.setSeekerListing(
-      contracts.listings,
+    await utils.setSeekerRegistry(
+      contracts.registries,
       contracts.mockOracle,
       contracts.seekers,
       accounts[0],
@@ -618,7 +618,7 @@ describe('Ticketing', () => {
 
   it('can redeem winning ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -670,7 +670,7 @@ describe('Ticketing', () => {
 
   it('can not redeem ticket more than once', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -690,7 +690,7 @@ describe('Ticketing', () => {
 
   it('burns penalty on insufficient escrow', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -750,7 +750,7 @@ describe('Ticketing', () => {
 
   it('should restake unclaimed staker rewards', async () => {
     await stakingManager.addStake(5, owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -796,7 +796,7 @@ describe('Ticketing', () => {
 
   it('can claim ticketing rewards', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -847,7 +847,7 @@ describe('Ticketing', () => {
   });
 
   it('delegated stakers should be able to claim rewards', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 3 },
@@ -855,7 +855,7 @@ describe('Ticketing', () => {
       { account: accounts[2], stake: 2 },
     ]);
 
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -888,7 +888,7 @@ describe('Ticketing', () => {
   });
 
   it('should have rewards be automatically claimed when stake is updated', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await addStakes([
       { account: accounts[0], stake: 10000 },
@@ -999,7 +999,7 @@ describe('Ticketing', () => {
   });
 
   it('can calculate staker claim if reward total is 0', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await addStakes([
       { account: accounts[0], stake: 3 },
@@ -1032,7 +1032,7 @@ describe('Ticketing', () => {
 
   it('can not claim reward more than once for the same epoch', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1059,7 +1059,7 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake is the same', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1118,7 +1118,7 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(500000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
@@ -1131,7 +1131,7 @@ describe('Ticketing', () => {
         await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
       }
 
-      await setSeekerListing(accounts[0], accounts[1], 1);
+      await setSeekerRegistry(accounts[0], accounts[1], 1);
       await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
@@ -1160,7 +1160,7 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake increases', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1248,7 +1248,7 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake decreases', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1330,7 +1330,7 @@ describe('Ticketing', () => {
   // to the Rewards contract calculation is made.
   // TODO: Create script to spin up new test network to run this test locally or for CI automatically.
   it('should calculate updated stake and rewards over several ticket redemptions without significant precision loss [ @skip-on-coverage ]', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1378,7 +1378,7 @@ describe('Ticketing', () => {
     rewardsManager = contracts.rewardsManager;
     ticketing = contracts.ticketing;
     directory = contracts.directory;
-    listings = contracts.listings;
+    registries = contracts.registries;
     stakingManager = contracts.stakingManager;
 
     await directory.transferOwnership(epochsManager.address);
@@ -1389,8 +1389,8 @@ describe('Ticketing', () => {
     await token.approve(stakingManager.address, toSOLOs(10000));
 
     await stakingManager.addStake(toSOLOs(1), owner);
-    await utils.setSeekerListing(
-      contracts.listings,
+    await utils.setSeekerRegistry(
+      contracts.registries,
       contracts.mockOracle,
       contracts.seekers,
       accounts[0],
@@ -1425,7 +1425,7 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staker rewards if node was not active for multiple epochs', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1479,7 +1479,7 @@ describe('Ticketing', () => {
 
   it('claiming staking rewards only claims up to the previous epoch', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1515,7 +1515,7 @@ describe('Ticketing', () => {
 
   it('can claim staking rewards again after previous ended', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1557,7 +1557,7 @@ describe('Ticketing', () => {
   });
 
   it('can claim staking rewards if node already joined next epoch', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1623,7 +1623,7 @@ describe('Ticketing', () => {
   });
 
   it('can claim staking rewards if node already joined next epoch but skipped the current epoch', async () => {
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     const { proportions } = await addStakes([
       { account: accounts[0], stake: 1000 },
@@ -1682,7 +1682,7 @@ describe('Ticketing', () => {
     }
 
     await stakingManager.addStake(toSOLOs(1000), owner);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(250), owner);
@@ -1726,7 +1726,7 @@ describe('Ticketing', () => {
 
   it('returns 0 winning probability if ticket has expired', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await listings.setListing('0.0.0.0/0', 1);
+    await registries.register('0.0.0.0/0', 1);
 
     const alice = Wallet.createRandom();
 
@@ -1746,9 +1746,9 @@ describe('Ticketing', () => {
     const sender = Wallet.createRandom();
     const node = owner;
 
-    // set up the node's stake and listing
+    // set up the node's stake and registry
     await stakingManager.addStake(toSOLOs(1), node);
-    await setSeekerListing(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1879,13 +1879,13 @@ describe('Ticketing', () => {
     }
   };
 
-  async function setSeekerListing(
+  async function setSeekerRegistry(
     account: Signer,
     seekerAccount: Signer,
     tokenId: number,
   ) {
-    await utils.setSeekerListing(
-      listings,
+    await utils.setSeekerRegistry(
+      registries,
       mockOracle,
       seekers,
       account,

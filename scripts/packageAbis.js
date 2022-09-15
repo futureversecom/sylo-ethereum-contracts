@@ -9,7 +9,7 @@ const ABI_DIR = path.resolve(__dirname, '../abi');
 const syloContracts = [
   'Directory',
   'EpochsManager',
-  'Listings',
+  'Registries',
   'RewardsManager',
   'StakingManager',
   'SyloTicketing',

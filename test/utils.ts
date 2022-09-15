@@ -4,8 +4,8 @@ import { toWei } from 'web3-utils';
 import {
   Directory,
   EpochsManager,
-  Listings,
   MockOracle,
+  Registries,
   RewardsManager,
   Seekers,
   StakingManager,
@@ -26,7 +26,7 @@ type Options = {
 };
 
 export type Contracts = {
-  listings: Listings;
+  registries: Registries;
   ticketing: SyloTicketing;
   ticketingParameters: TicketingParameters;
   directory: Directory;
@@ -74,9 +74,9 @@ const initializeContracts = async function (
     },
   );
 
-  const ListingsFactory = await ethers.getContractFactory('Listings');
-  const listings = await ListingsFactory.deploy();
-  await listings.initialize(seekers.address, payoutPercentage, 100, {
+  const RegistriesFactory = await ethers.getContractFactory('Registries');
+  const registries = await RegistriesFactory.deploy();
+  await registries.initialize(seekers.address, payoutPercentage, 100, {
     from: deployer,
   });
 
@@ -129,7 +129,7 @@ const initializeContracts = async function (
   await epochsManager.initialize(
     seekers.address,
     directory.address,
-    listings.address,
+    registries.address,
     ticketingParameters.address,
     epochDuration,
     { from: deployer },
@@ -139,7 +139,7 @@ const initializeContracts = async function (
   const ticketing = await TicketingFactory.deploy();
   await ticketing.initialize(
     tokenAddress,
-    listings.address,
+    registries.address,
     stakingManager.address,
     directory.address,
     epochsManager.address,
@@ -155,7 +155,7 @@ const initializeContracts = async function (
   await directory.addManager(epochsManager.address);
 
   return {
-    listings,
+    registries,
     ticketing,
     ticketingParameters,
     directory,
@@ -185,8 +185,8 @@ const setSeekerOwnership = async function (
   await mockOracle.invokeCallback();
 };
 
-async function setSeekerListing(
-  listings: Listings,
+async function setSeekerRegistry(
+  registries: Registries,
   mockOracle: MockOracle,
   seekers: Seekers,
   account: Signer,
@@ -202,15 +202,15 @@ async function setSeekerListing(
 
   const block = await ethers.provider.getBlockNumber();
 
-  const prefix = await listings.getPrefix();
+  const prefix = await registries.getPrefix();
   const accountAddress = await account.getAddress();
   const proofMessage = `${prefix}:${tokenId}:${accountAddress.toLowerCase()}:${block.toString()}`;
 
   const signature = await seekerAccount.signMessage(proofMessage);
 
-  await listings.connect(account).setListing('0.0.0.0/0', 1);
+  await registries.connect(account).register('0.0.0.0/0', 1);
 
-  await listings
+  await registries
     .connect(account)
     .setSeekerAccount(
       await seekerAccount.getAddress(),
@@ -224,5 +224,5 @@ export default {
   initializeContracts,
   advanceBlock,
   setSeekerOwnership,
-  setSeekerListing,
+  setSeekerRegistry,
 };

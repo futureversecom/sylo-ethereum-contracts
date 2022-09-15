@@ -9,24 +9,24 @@ import "./ECDSA.sol";
 import "./Seekers.sol";
 
 /**
- * @notice This contract manages Listings for Nodes. A Listing is a
+ * @notice This contract manages Registries for Nodes. A Registry is a
  * set of parameters configured by the Node itself. A Node is required
- * to have a valid Listing to be able to participate in the network.
+ * to have a valid Registry to be able to participate in the network.
  */
-contract Listings is Initializable, OwnableUpgradeable {
+contract Registries is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
     string public constant SEEKER_OWNERSHIP_PREFIX =
         "This message allows your seeker to be used to operate your node.";
 
-    struct Listing {
+    struct Registry {
         // Public http/s endpoint to retrieve additional metadata
         // about the node.
         // The current metadata schema is as follows:
         //  { name: string, multiaddrs: string[] }
         string publicEndpoint;
         // The account which owns a seeker that will be used to
-        // operate the Node for this listing.
+        // operate the Node for this registry.
         address seekerAccount;
         // The id of the seeker used to operate the node. The owner
         // of this id should be the seeker account.
@@ -47,9 +47,9 @@ contract Listings is Initializable, OwnableUpgradeable {
     Seekers public _seekers;
 
     /**
-     * @notice Tracks each Node's listing.
+     * @notice Tracks each Node's registry.
      */
-    mapping(address => Listing) public listings;
+    mapping(address => Registry) public registries;
 
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
@@ -99,18 +99,18 @@ contract Listings is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Call this as a Node to set or update your Listing entry.
+     * @notice Call this as a Node to set or update your Registry entry.
      * @param publicEndpoint The public endpoint of your Node. Essential for
      * clients to be able to retrieve additional information, such as
      * an address to establish a p2p connection.
      * @param minDelegatedStake The minimum amount of stake in SOLO that
      * a staker must add when calling StakingManager.addStake.
      */
-    function setListing(string memory publicEndpoint, uint256 minDelegatedStake) external {
+    function register(string memory publicEndpoint, uint256 minDelegatedStake) external {
         require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
 
-        listings[msg.sender].publicEndpoint = publicEndpoint;
-        listings[msg.sender].minDelegatedStake = minDelegatedStake;
+        registries[msg.sender].publicEndpoint = publicEndpoint;
+        registries[msg.sender].minDelegatedStake = minDelegatedStake;
     }
 
     function setSeekerAccount(
@@ -142,28 +142,28 @@ contract Listings is Initializable, OwnableUpgradeable {
 
         require(seekerAccount == owner.owner, "Seeker account must own the specified seeker");
 
-        listings[msg.sender].seekerAccount = seekerAccount;
-        listings[msg.sender].seekerId = seekerId;
+        registries[msg.sender].seekerAccount = seekerAccount;
+        registries[msg.sender].seekerId = seekerId;
     }
 
     function revokeSeekerAccount(address node) external {
-        Listing storage listing = listings[node];
+        Registry storage registry = registries[node];
 
         require(
-            listing.seekerAccount == msg.sender,
+            registry.seekerAccount == msg.sender,
             "Seeker account and msg.sender must be equal"
         );
 
-        listing.seekerAccount = address(0);
+        registry.seekerAccount = address(0);
     }
 
     /**
-     * @notice Retrieve the listing associated with a Node.
+     * @notice Retrieve the registry associated with a Node.
      * @param account The address of the Node.
-     * @return The Node's Listing.
+     * @return The Node's Registry.
      */
-    function getListing(address account) external view returns (Listing memory) {
-        return listings[account];
+    function getRegistry(address account) external view returns (Registry memory) {
+        return registries[account];
     }
 
     /**

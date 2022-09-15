@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "../Payments/Ticketing/Parameters.sol";
-import "../Listings.sol";
+import "../Registries.sol";
 import "../Staking/Directory.sol";
 import "../Seekers.sol";
 
@@ -23,7 +23,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         uint256 endBlock; // Block the epoch ended (and when the next epoch was initialized)
         // Zero here represents the epoch has not yet ended.
 
-        // listing variables
+        // registry variables
         uint16 defaultPayoutPercentage;
         // ticketing variables
         uint256 faceValue;
@@ -37,7 +37,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     Directory public _directory;
 
-    Listings public _listings;
+    Registries public _registries;
 
     Seekers public _seekers;
 
@@ -75,14 +75,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     function initialize(
         Seekers seekers,
         Directory directory,
-        Listings listings,
+        Registries registries,
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _seekers = seekers;
         _directory = directory;
-        _listings = listings;
+        _registries = registries;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
         currentIteration = 0;
@@ -108,7 +108,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             block.number,
             epochDuration,
             0,
-            _listings.defaultPayoutPercentage(),
+            _registries.defaultPayoutPercentage(),
             _ticketingParameters.faceValue(),
             _ticketingParameters.baseLiveWinProb(),
             _ticketingParameters.expiredWinProb(),
@@ -154,32 +154,32 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * `joinNextDirectory`.
      */
     function joinNextEpoch() external {
-        Listings.Listing memory listing = _listings.getListing(msg.sender);
+        Registries.Registry memory registry = _registries.getRegistry(msg.sender);
 
         // validate the node's seeker ownership
         require(
-            listing.seekerAccount != address(0),
+            registry.seekerAccount != address(0),
             "Node must have a valid seeker account to join an epoch"
         );
 
-        Seekers.Owner memory owner = _seekers.ownerOf(listing.seekerId);
+        Seekers.Owner memory owner = _seekers.ownerOf(registry.seekerId);
 
         require(
-            listing.seekerAccount == owner.owner,
+            registry.seekerAccount == owner.owner,
             "Node's seeker account does not match the current seeker owner"
         );
 
         uint256 nextEpoch = getNextEpochId();
 
         require(
-            activeSeekers[nextEpoch][listing.seekerId] == address(0),
+            activeSeekers[nextEpoch][registry.seekerId] == address(0),
             "Seeker has already joined the next epoch"
         );
 
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
-        activeSeekers[nextEpoch][listing.seekerId] = msg.sender;
-        emit EpochJoined(currentIteration + 1, msg.sender, listing.seekerId);
+        activeSeekers[nextEpoch][registry.seekerId] = msg.sender;
+        emit EpochJoined(currentIteration + 1, msg.sender, registry.seekerId);
     }
 
     /**
