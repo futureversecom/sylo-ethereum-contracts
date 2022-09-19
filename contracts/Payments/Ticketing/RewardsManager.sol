@@ -40,14 +40,14 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      *
      * The CRF is calculated as CRF = CRF + Reward / TotalStake.
      */
-    mapping(address => int128) cumulativeRewardFactors;
+    mapping(address => int128) private cumulativeRewardFactors;
 
     /**
      * @notice When a staker uses the CRF to calculate their share of the reward, the
      * contract needs to track the value of the CRF, and use this value in the next calculation.
      * The key to this mapping is a hash of the Node's address and the staker's address.
      */
-    mapping(bytes32 => int128) lastUsedCRFs;
+    mapping(bytes32 => int128) private lastUsedCRFs;
 
     /**
      * @notice Tracks each Nodes total pending rewards in SOLOs. This
