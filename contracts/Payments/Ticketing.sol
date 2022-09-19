@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../Listings.sol";
+import "../Registries.sol";
 import "../Staking/Directory.sol";
 import "../Staking/Manager.sol";
 import "../ECDSA.sol";
@@ -50,8 +50,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     /** ERC20 Sylo token contract.*/
     IERC20 public _token;
 
-    /** Sylo Listings contract */
-    Listings public _listings;
+    /** Sylo Registries contract */
+    Registries public _registries;
 
     /** Sylo Staking Manager contract */
     StakingManager public _stakingManager;
@@ -85,7 +85,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
     function initialize(
         IERC20 token,
-        Listings listings,
+        Registries registries,
         StakingManager stakingManager,
         Directory directory,
         EpochsManager epochsManager,
@@ -94,7 +94,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _token = token;
-        _listings = listings;
+        _registries = registries;
         _stakingManager = stakingManager;
         _directory = directory;
         _epochsManager = epochsManager;
@@ -234,9 +234,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
 
-        Listings.Listing memory listing = _listings.getListing(ticket.redeemer);
+        Registries.Registry memory registry = _registries.getRegistry(ticket.redeemer);
         require(
-            listing.seekerAccount != address(0),
+            registry.seekerAccount != address(0),
             "Ticket redeemer must have a valid seeker account"
         );
 

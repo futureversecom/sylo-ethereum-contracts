@@ -3,7 +3,7 @@ import Config from './genesis.config';
 import {
   Directory,
   EpochsManager,
-  Listings,
+  Registries,
   RewardsManager,
   Seekers,
   StakingManager,
@@ -16,7 +16,7 @@ type PhaseTwoContracts = {
   token: string;
   directory: Directory;
   epochsManager: EpochsManager;
-  listings: Listings;
+  registries: Registries;
   rewardsManager: RewardsManager;
   stakingManager: StakingManager;
   ticketingParameters: TicketingParameters;
@@ -55,14 +55,14 @@ async function deployPhaseTwoContracts(
 
   logDeployment('Seekers', seekers.address);
 
-  const ListingsFactory = await ethers.getContractFactory('Listings');
-  const listings = (await upgrades.deployProxy(ListingsFactory, [
+  const RegistriesFactory = await ethers.getContractFactory('Registries');
+  const registries = (await upgrades.deployProxy(RegistriesFactory, [
     seekers.address,
-    config.Listings.defaultPayoutPercentage,
-    config.Listings.proofDuration,
-  ])) as Listings;
+    config.Registries.defaultPayoutPercentage,
+    config.Registries.proofDuration,
+  ])) as Registries;
 
-  logDeployment('Listings', listings.address);
+  logDeployment('Registries', registries.address);
 
   const TicketingParametersFactory = await ethers.getContractFactory(
     'TicketingParameters',
@@ -127,7 +127,7 @@ async function deployPhaseTwoContracts(
   await epochsManager.initialize(
     seekers.address,
     directory.address,
-    listings.address,
+    registries.address,
     ticketingParameters.address,
     config.EpochsManager.epochDuration,
   );
@@ -159,7 +159,7 @@ async function deployPhaseTwoContracts(
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
   const ticketing = (await upgrades.deployProxy(TicketingFactory, [
     config.SyloToken,
-    listings.address,
+    registries.address,
     stakingManager.address,
     directory.address,
     epochsManager.address,
@@ -187,7 +187,7 @@ async function deployPhaseTwoContracts(
 
   return {
     token: config.SyloToken,
-    listings,
+    registries,
     ticketing,
     ticketingParameters,
     directory,
@@ -212,7 +212,7 @@ async function main() {
   const deployedJson = {
     deployer: deployer.address,
     token: contracts.token,
-    listings: contracts.listings.address,
+    registries: contracts.registries.address,
     ticketing: contracts.ticketing.address,
     ticketingParameters: contracts.ticketingParameters.address,
     directory: contracts.directory.address,
