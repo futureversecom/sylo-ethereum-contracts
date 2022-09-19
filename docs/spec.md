@@ -1,19 +1,19 @@
 # Sylo Network Protocol Technical Specification
 
-Paul Freeman            <paul@sylo.io> </br>
-John Carlo San Pedro    <john@sylo.io> </br>
-Joshua Dawes            <josh@sylo.io> </br>
+Paul Freeman <paul@sylo.io> </br>
+John Carlo San Pedro <john@sylo.io> </br>
+Joshua Dawes <josh@sylo.io> </br>
 
 ## Table of Contents
 
-* [Introduction](#introduction)
-* [Users](#users)
-* [Network Parameters](#network-parameters)
-* [Smart Contract Specification](#smart-contract-specification)
-	* [Data Types](#data-types)
-	* [Functions](#functions)
-* [Deployment Timeline](#deployment-timeline)
-* [Appendix](#appendix)
+- [Introduction](#introduction)
+- [Users](#users)
+- [Network Parameters](#network-parameters)
+- [Smart Contract Specification](#smart-contract-specification)
+  - [Data Types](#data-types)
+  - [Functions](#functions)
+- [Deployment Timeline](#deployment-timeline)
+- [Appendix](#appendix)
 
 ## Introduction
 
@@ -30,38 +30,39 @@ is also currently scoped for [phase two](#phase-two) of the Sylo Network incenti
 
 The Sylo Network consists of multiple types of users interacting with the smart
 contracts.
-  - **Nodes**: Users that wish to operate and maintain a Sylo Node that will
-    support the Event Relay Protocol. Running a Node will allow for compensation
-    via redeeming micro-payment tickets. Node operators will be required to have
-    `SYLO` tokens staked against their node in order to participate in the
-    network, and the amount of work (thus the amount of compensation) that a
-    Node receives will be based on their proportion of stake relative to  other
-    Nodes within the network. The overview covers the [scan weighted
-    function](overview.md#scanning-for-a-node) in more detail.
-  - **Delegated Stakers**: Delegated Stakers (or delegators) are users that wish
-    to participate in the Sylo Network and earn `SYLO` tokens without needing to
-    run a Sylo Node themselves. These users can supply additional staked `SYLO`
-    to an existing Node within the Network in order to increase the Node's
-    potential for generating revenue. Delegated Stakers will be rewarded on a
-    pro-rata basis.
-  - **Senders**: Senders are users who hold `SYLO` tokens and wish to utilize
-    Sylo Nodes for their decentralized communication service. Senders must
-    deposit `SYLO` tokens into both an `escrow` and `penalty` balance held
-    within a smart contract. Nodes will be paid via these balances, and senders
-    are required to maintain a healthy level of both `escrow` and `penalty` to
-    be able to participate in the network. The contracts and event relay service
-    allows for the `escrow` to be deposited by a third-party.
-  - **Receivers**: Receivers do not explicitly interact with the contracts but
-    play a critical role in the Event Relay protocol. On receiving an event,
-    receivers will reveal the necessary information in order for a Node to
-    redeem a winning ticket and be compensated. The overview document goes into
-    more detail with regards to the [event relay
-    mechanism](overview.md#asynchronous-event-relay)
-  - **Sylo**: The Sylo team will be deploying the contracts to Ethereum and will
-    have "ownership" of the contracts. Ownership allows certain privileged
-    functions to be called on the contracts. These functions range from manually
-    adjusting network parameters to making the call to initialize the next
-    Epoch. These responsibilities will be passed over to a DAO.
+
+- **Nodes**: Users that wish to operate and maintain a Sylo Node that will
+  support the Event Relay Protocol. Running a Node will allow for compensation
+  via redeeming micro-payment tickets. Node operators will be required to have
+  `SYLO` tokens staked against their node in order to participate in the
+  network, and the amount of work (thus the amount of compensation) that a
+  Node receives will be based on their proportion of stake relative to other
+  Nodes within the network. The overview covers the [scan weighted
+  function](overview.md#scanning-for-a-node) in more detail.
+- **Delegated Stakers**: Delegated Stakers (or delegators) are users that wish
+  to participate in the Sylo Network and earn `SYLO` tokens without needing to
+  run a Sylo Node themselves. These users can supply additional staked `SYLO`
+  to an existing Node within the Network in order to increase the Node's
+  potential for generating revenue. Delegated Stakers will be rewarded on a
+  pro-rata basis.
+- **Senders**: Senders are users who hold `SYLO` tokens and wish to utilize
+  Sylo Nodes for their decentralized communication service. Senders must
+  deposit `SYLO` tokens into both an `escrow` and `penalty` balance held
+  within a smart contract. Nodes will be paid via these balances, and senders
+  are required to maintain a healthy level of both `escrow` and `penalty` to
+  be able to participate in the network. The contracts and event relay service
+  allows for the `escrow` to be deposited by a third-party.
+- **Receivers**: Receivers do not explicitly interact with the contracts but
+  play a critical role in the Event Relay protocol. On receiving an event,
+  receivers will reveal the necessary information in order for a Node to
+  redeem a winning ticket and be compensated. The overview document goes into
+  more detail with regards to the [event relay
+  mechanism](overview.md#asynchronous-event-relay)
+- **Sylo**: The Sylo team will be deploying the contracts to Ethereum and will
+  have "ownership" of the contracts. Ownership allows certain privileged
+  functions to be called on the contracts. These functions range from manually
+  adjusting network parameters to making the call to initialize the next
+  Epoch. These responsibilities will be passed over to a DAO.
 
 A [sequence diagram showcasing the interactions](contracts_sequence_diagram.png)
 between the users and the contracts is also available.
@@ -155,20 +156,21 @@ own at least `200 SOLO` of this stake to participate in the network.
 
 The Sylo Network Protocol contracts are written in Solidity and will initially
 be deployed to the Ethereum mainnet. The current system includes:
-  - `SyloToken`: ERC20 contract for the Sylo Token which has already been
-    deployed.
-  - `SyloTicketing`: Contract that manages user deposits for payments, and
-    implements the `redeem` function for redeeming winning tickets.
-  - `StakingManager`: Tracks the amount of stake and the delegated stakers for
-    each Node
-  - `Directory`: Creates and manages a `Directory` structure every epoch based
-    on the stake held by each stakee. The `Directory` is used as the backend for
-    the stake-weighted scan function.
-  - `RewardsManager`: Tracks rewards for each epoch when winning tickets are
-    redeemed.
-  - `EpochsManager`: Manages initializing of each epoch and stores the Network
-    parameters for every epoch.
-  - `Registries`: Stores a `Registry` struct for every Node
+
+- `SyloToken`: ERC20 contract for the Sylo Token which has already been
+  deployed.
+- `SyloTicketing`: Contract that manages user deposits for payments, and
+  implements the `redeem` function for redeeming winning tickets.
+- `StakingManager`: Tracks the amount of stake and the delegated stakers for
+  each Node
+- `Directory`: Creates and manages a `Directory` structure every epoch based
+  on the stake held by each stakee. The `Directory` is used as the backend for
+  the stake-weighted scan function.
+- `RewardsManager`: Tracks rewards for each epoch when winning tickets are
+  redeemed.
+- `EpochsManager`: Manages initializing of each epoch and stores the Network
+  parameters for every epoch.
+- `Registries`: Stores a `Registry` struct for every Node
 
 ### Data Types
 
@@ -179,63 +181,62 @@ be deployed to the Ethereum mainnet. The current system includes:
 Network parameters for the current epoch are saved into this structure by the
 `EpochsManager` contract when every new epoch is initialized.
 
-| Field | Description |
-|-------|-------------|
-| iteration | A numerical value which is incremented when a new epoch is initialized. Also used as the epoch's identifier |
-| startBlock | The block the epoch started |
-| duration | The duration in blocks the epoch will last for |
-| endBlock | The block the epoch ended. Initially set to 0 but will be updated when the next epoch is initialized |
-| defaultPayoutPercentage | [See defaultPayoutPercentage](#defaultPayoutPercentage) |
-| faceValue | [See faceValue](#faceValue) |
-| baseLiveWinProb | [See baseLiveWinProb](#baseLiveWinProb) |
-| expiredWinProb | [See expiredWinProb](#expiredWinProb) |
-| ticketDuration | [See ticketDuration](#ticketDuration) |
-| decayRate | [See defaultPayoutPercentage](#decayRate) |
+| Field                   | Description                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| iteration               | A numerical value which is incremented when a new epoch is initialized. Also used as the epoch's identifier |
+| startBlock              | The block the epoch started                                                                                 |
+| duration                | The duration in blocks the epoch will last for                                                              |
+| endBlock                | The block the epoch ended. Initially set to 0 but will be updated when the next epoch is initialized        |
+| defaultPayoutPercentage | [See defaultPayoutPercentage](#defaultPayoutPercentage)                                                     |
+| faceValue               | [See faceValue](#faceValue)                                                                                 |
+| baseLiveWinProb         | [See baseLiveWinProb](#baseLiveWinProb)                                                                     |
+| expiredWinProb          | [See expiredWinProb](#expiredWinProb)                                                                       |
+| ticketDuration          | [See ticketDuration](#ticketDuration)                                                                       |
+| decayRate               | [See defaultPayoutPercentage](#decayRate)                                                                   |
 
 #### **Ticket**
 
 Tickets are created by senders at the client level and are given to Nodes as
 compensation for providing event relay.
 
-| Field | Description |
-|-------|-------------|
-| epochId | The id of the epoch the ticket was generated in |
-| sender | Address of the sender |
-| redeemer | Address of the redeemer (Usually the node) |
+| Field           | Description                                              |
+| --------------- | -------------------------------------------------------- |
+| epochId         | The id of the epoch the ticket was generated in          |
+| sender          | Address of the sender                                    |
+| redeemer        | Address of the redeemer (Usually the node)               |
 | generationBlock | The approximate block number the ticket was generated at |
-| senderCommit | Hash of the secret random number of the sender |
-| redeemerCommit | Hash of the secret random number of the redeemer |
-
+| senderCommit    | Hash of the secret random number of the sender           |
+| redeemerCommit  | Hash of the secret random number of the redeemer         |
 
 #### **Stake**
 
-The *Stake* datatype tracks a Node's current total managed stake, and each
+The _Stake_ datatype tracks a Node's current total managed stake, and each
 individual delegated stake entry.
 
-| Field | Description |
-|-------|-------------|
-| stakeEntries | A mapping between each delegated staker and it's `StakeEntry` for the given stakee
-| totalManagedStake | The sum of all delegated stake amounts for the stakee |
+| Field             | Description                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| stakeEntries      | A mapping between each delegated staker and it's `StakeEntry` for the given stakee |
+| totalManagedStake | The sum of all delegated stake amounts for the stakee                              |
 
 #### **StakeEntry**
 
 A datatype that tracks a delegated staker's stake for a particular stakee.
 
-| Field | Description |
-|-------|-------------|
-| amount | The amount of delegated stake in `SOLO` |
-| updatedAt | The block number this stake entry was updated at |
-| epochId | The epoch id of the epoch this stake entry was updated in |
+| Field     | Description                                               |
+| --------- | --------------------------------------------------------- |
+| amount    | The amount of delegated stake in `SOLO`                   |
+| updatedAt | The block number this stake entry was updated at          |
+| epochId   | The epoch id of the epoch this stake entry was updated in |
 
 #### **Directory**
 
 A snapshot of all staking entries at the time it was created.
 
-| Field | Description |
-|-------|-------------|
-| entries | An array of `DirectoryEntry` that is iterated over during [scan](#scan)
-| stakes | A mapping of each stakee to their total stake |
-| totalStake | The sum of all stakes |
+| Field      | Description                                                             |
+| ---------- | ----------------------------------------------------------------------- |
+| entries    | An array of `DirectoryEntry` that is iterated over during [scan](#scan) |
+| stakes     | A mapping of each stakee to their total stake                           |
+| totalStake | The sum of all stakes                                                   |
 
 #### **DirectoryEntry**
 
@@ -245,11 +246,10 @@ entry includes a `boundary` value which is a sum of the current directory's
 total stake, and the current Node's total stake. This entry is then pushed to
 the end of the `entries` array for the given directory.
 
-| Field | Description |
-|-------|-------------|
-| stakee | The address of the stakee |
+| Field    | Description                       |
+| -------- | --------------------------------- |
+| stakee   | The address of the stakee         |
 | boundary | The boundary value for this entry |
-
 
 #### **RewardPool**
 
@@ -260,26 +260,24 @@ also tracks the [cumulative reward
 factor](#reward-calculation-and-cumulative-reward-factor) (CRF) to make
 calculating the distribution more efficient.
 
-| Field | Description |
-|-------|-------------|
-| stakersRewardTotal | The balance of the reward pool |
-| initializedAt | The block number the reward pool was initialized |
-| totalActiveStakes | Tracks the total active stake for this reward pool |
-| initialCumulativeRewardFactor | The CRF at the time the reward pool was initialized |
-| cumulativeRewardFactor | The ongoing CRF of the reward pool which is updated as tickets are redeemed |
-
+| Field                         | Description                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| stakersRewardTotal            | The balance of the reward pool                                              |
+| initializedAt                 | The block number the reward pool was initialized                            |
+| totalActiveStakes             | Tracks the total active stake for this reward pool                          |
+| initialCumulativeRewardFactor | The CRF at the time the reward pool was initialized                         |
+| cumulativeRewardFactor        | The ongoing CRF of the reward pool which is updated as tickets are redeemed |
 
 #### **Registry**
 
 Every Node must also have a `Registry` entry. The entry holds various network
 parameters which are configured by Nodes themselves.
 
-| Field | Description |
-|-------|-------------|
-| multiAddr | The libp2p multi address of the Node. This is needed for clients to connect to their Node. Nodes should take care to ensure this value is correct and up to date |
-| payoutPercentage | Percentage of a redeemed tickets value that will be paid out to the Node's delegated stakers. **This value is currently unused and is superseded by the *defaultPayoutPercentage* network parameter for phase two**.
-| minDelegatedStake | The minimum amount of stake a delegated staker must put forth|
-
+| Field             | Description                                                                                                                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| multiAddr         | The libp2p multi address of the Node. This is needed for clients to connect to their Node. Nodes should take care to ensure this value is correct and up to date                                                     |
+| payoutPercentage  | Percentage of a redeemed tickets value that will be paid out to the Node's delegated stakers. **This value is currently unused and is superseded by the _defaultPayoutPercentage_ network parameter for phase two**. |
+| minDelegatedStake | The minimum amount of stake a delegated staker must put forth                                                                                                                                                        |
 
 ### Functions
 
@@ -290,21 +288,29 @@ lifetime of the Sylo Network.
 
 #### Registries
 
-#### *register*
+<<<<<<< HEAD
+
+#### _register_
+
+=======
+
+#### _setListing_
+
+> > > > > > > 10caa00 (update CRF explanation in spec)
 
 Nodes are required to set their `Registry` entry to be able to stake and redeem
 tickets.
 
-| Param | Description |
-|-------|-------------|
-| multiAddr | Sets the multi addr for the Node |
+| Param             | Description                                   |
+| ----------------- | --------------------------------------------- |
+| multiAddr         | Sets the multi addr for the Node              |
 | minDelegatedStake | Sets the minimum delegated stake for the Node |
 
 ---
 
 #### StakingManager
 
-#### *addStake*
+#### _addStake_
 
 Called by both Nodes and delegators. This will transfer `SOLO` from the
 `msg.sender` to the `StakingManager` contract, and create or update a stake
@@ -313,12 +319,12 @@ any outstanding stake rewards. This function will fail if the additional added
 stake will cause the Node to own less than require
 [minimumStakeProportion](#minimumStakeProportion).
 
-| Param | Description |
-|-------|-------------|
-| amount | The amount of stake to add in  `SOLO` |
-| stakee | The address of the stakee |
+| Param  | Description                          |
+| ------ | ------------------------------------ |
+| amount | The amount of stake to add in `SOLO` |
+| stakee | The address of the stakee            |
 
-#### *unlockStake*
+#### _unlockStake_
 
 Allows Node and delegators to set their stake for unlocking, which eventually
 will allow the stake to be withdrawn once the unlocking phase has ended. This
@@ -326,37 +332,37 @@ removes the stake for consideration in the next epoch. If any stake was already
 in the unlocking phase, the amount of unlocking stake will instead be increased
 and the unlock duration will be reset.
 
-| Param | Description |
-|-------|-------------|
-| amount | The amount of stake to unlock in  `SOLO` |
-| stakee | The address of the stakee |
+| Param  | Description                             |
+| ------ | --------------------------------------- |
+| amount | The amount of stake to unlock in `SOLO` |
+| stakee | The address of the stakee               |
 
-#### *cancelUnlocking*
+#### _cancelUnlocking_
 
 Cancels stake that is in the unlocking phase and adds it back to the total
 managed stake for that stakee. The re-added stake can be utilized in the next
 epoch. Cancelling more stake than is available results in the maximum amount
 of unlocking stake being cancelled.
 
-| Param | Description |
-|-------|-------------|
-| amount | The amount of unlocking stake to cancel in  `SOLO` |
-| stakee | The address of the stakee |
+| Param  | Description                                       |
+| ------ | ------------------------------------------------- |
+| amount | The amount of unlocking stake to cancel in `SOLO` |
+| stakee | The address of the stakee                         |
 
-##### *withdrawStake*
+##### _withdrawStake_
 
 Returns stake that has finished unlocking back to the `msg.sender` account. This
 function will fail if the stake has not finished unlocking.
 
-| Param | Description |
-|-------|-------------|
+| Param  | Description               |
+| ------ | ------------------------- |
 | stakee | The address of the stakee |
 
 ---
 
 #### Directory
 
-#### *joinNextDirectory*
+#### _joinNextDirectory_
 
 Called by Nodes as a prerequisite to participating in the Sylo Network for the
 next epoch. This function allows the stake delegated to a Node be used in the
@@ -368,7 +374,7 @@ call this function once per epoch. It is in the Node's best interest to call
 this function near the end of the current epoch, in order to maximize the amount
 of unclaimed reward that can be included as stake in the next Epoch's directory entry.
 
-#### *scan*
+#### _scan_
 
 Called by users of the Event Relay service to find the node associated with a
 given `point`. The `point` value is any 16 byte value, which is likely to be the
@@ -379,8 +385,8 @@ with the directory's entries, eventually returning the address of a Node. Node's
 with larger proportions of stake are more likely to be returned by the `scan`
 function.
 
-| Param | Description |
-|-------|-------------|
+| Param | Description           |
+| ----- | --------------------- |
 | point | A psuedo-random value |
 
 **Returns**: Address of a Node
@@ -389,7 +395,7 @@ function.
 
 #### RewardsManager
 
-#### *initializeRewardPool*
+#### _initializeRewardPool_
 
 Called by Nodes as a prerequisite to participating in the Sylo Network for the
 next epoch. This function initializes and stores a new `RewardPool` entry for
@@ -403,7 +409,7 @@ call this function once per epoch. It is in the Node's best interest to call
 this function near the end of the current epoch, in order to maximize the amount
 of unclaimed reward that can be used for the directory entry.
 
-#### *claimStakeReward*
+#### _claimStakeReward_
 
 This function is called by Nodes and delegators when they wish to claim rewards
 that their stake has gained for them. This will utilize the current reward
@@ -414,8 +420,8 @@ other delegators will lead to a larger reward claim. Calling this function will
 prevent the user from being eligible to claim any further rewards until the next
 epoch begins
 
-| Param | Description |
-|-------|-------------|
+| Param  | Description                                            |
+| ------ | ------------------------------------------------------ |
 | stakee | Address of the stakee the user wishes to claim against |
 
 A public function `calculateStakerClaim` is exposed by the `RewardsManager`
@@ -424,7 +430,7 @@ were to call `claimStakingReward`. As claiming rewards will also remove the user
 reward from being used in the total active stake for the next epoch, users may
 wish to wait until the reward value is high enough to offset gas costs.
 
-#### *claimNodeReward*
+#### _claimNodeReward_
 
 This is called by Node operators when they wish to withdraw rewards gained from
 operating a Node. The current value of this reward is a public field of the
@@ -437,7 +443,7 @@ minimize the loss in earnings from gas costs.
 
 #### EpochsManager
 
-#### *initializeEpoch*
+#### _initializeEpoch_
 
 Sylo will take responsibility of calling this function every epoch to initialize
 the next epoch. Invoking this function will read the current set of network
@@ -448,45 +454,44 @@ current epoch has yet to end.
 
 #### Ticketing
 
-#### *depositEscrow*
+#### _depositEscrow_
 
 This function is called by users that wish to utilize the Event Relay service
 provided by Node. This function transfers a specified amount of `SOLO` to be
 held in escrow by the Ticketing contract. When winning tickets are redeemed, the
 face value of the ticket will be paid out from the escrow.
 
-| Param | Description |
-|-------|-------------|
-| amount | The amount in `SOLO` to deposit |
+| Param   | Description                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------- |
+| amount  | The amount in `SOLO` to deposit                                                                                   |
 | account | The account the deposit will belong to. **Note**: The tokens are still transferred from the `msg.sender` account. |
 
-
-##### *depositPenalty*
+##### _depositPenalty_
 
 This function should be called in conjunction with `depositEscrow` to also hold
 a `penalty` amount in escrow. When winning tickets are redeemed, if the face
 value of a ticket is greater than the sender's escrow, then the penalty will be
-burned instead. This is to prevent an  economic attack on the probabilistic micropayment mechanism called front-running. [Further detail
+burned instead. This is to prevent an economic attack on the probabilistic micropayment mechanism called front-running. [Further detail
 with regards to the economics of the Sylo Network can be found in the
 overview](overview.md).
 
-##### *unlockDeposits*
+##### _unlockDeposits_
 
 Moves both existing escrow and penalty values to an unlocking phase, which
 eventually allows withdrawal once the unlocking phase has completed. This
 function will fail if the user has already begun unlocking their deposits.
 
-##### *lockDeposits*
+##### _lockDeposits_
 
 This function essentially cancels the unlocking phase and allows the token to be
 used again as deposits.
 
-##### *withdraw*
+##### _withdraw_
 
 Once the unlocking phase has completed, this function can be called to transfer
 the tokens held in escrow back to the `msg.sender`.
 
-##### *redeem*
+##### _redeem_
 
 `Redeem` should be called by the Node after completing an event relay and
 learning of the ticket sender's secret random value. The Node should only call
@@ -495,12 +500,12 @@ both [calculateWinningProbability](#calculateWinningProbability) and [isWinningT
 used to determine if a ticket is winning, though the Node can also perform the
 calculation locally.
 
-| Param | Description |
-|-------|-------------|
-| ticket | The [Ticket](#Ticket) issued by the sender |
-| senderRand | The random value revealed to the Node after completing an event relay |
-| redeemerRand | The random value generated by the Node itself |
-| sig | The signature of the sender (signs the hash of the ticket) |
+| Param        | Description                                                           |
+| ------------ | --------------------------------------------------------------------- |
+| ticket       | The [Ticket](#Ticket) issued by the sender                            |
+| senderRand   | The random value revealed to the Node after completing an event relay |
+| redeemerRand | The random value generated by the Node itself                         |
+| sig          | The signature of the sender (signs the hash of the ticket)            |
 
 Redeeming a ticket will revert if the Node fails to have a valid `Registry` or if
 the Node failed to call both `joinDirectory` and `initializeRewardPool` for the
@@ -517,7 +522,7 @@ sufficient value in the deposit escrow, the sender's penalty deposit is also
 "burned". Burning in this case refers to transferring those tokens to the "deAd"
 address (`0x000000000000000000000000000000000000dEaD`).
 
-#### *calculateWinningProbability*
+#### _calculateWinningProbability_
 
 This function calculates the probability of a ticket winning based on the
 ticket's [baseLiveWinProb](#baseLiveWinProb) and the number of blocks that has
@@ -526,25 +531,25 @@ from the Epoch the ticket is associated with. The calculation is as follows:
 
 <img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=p=baseLiveWinProb - baseLiveProb * decayRate * blocksElapsed / ticketDuration">
 
-| Param | Description |
-|-------|-------------|
-| Ticket | The ticket to calculate probability for |
-| Epoch | The epoch associated with the epoch that holds the tickets parameters |
+| Param  | Description                                                           |
+| ------ | --------------------------------------------------------------------- |
+| Ticket | The ticket to calculate probability for                               |
+| Epoch  | The epoch associated with the epoch that holds the tickets parameters |
 
 **Returns**: A value between 0 and 2^128-1 representing the probability
 
-#### *isWinningTicket*
+#### _isWinningTicket_
 
 Given the probability of the ticket winning, and the signature and the redeemer
 random number of the ticket, this function checks if the ticket is actually a
 winner. This is done by checking if the hash of the ticket (as a numerical
 value) is less than the specified probability.
 
-| Param | Description |
-|-------|-------------|
-| sig | The signature of the ticket signed by the sender |
+| Param        | Description                                               |
+| ------------ | --------------------------------------------------------- |
+| sig          | The signature of the ticket signed by the sender          |
 | redeemerRand | The random number generated by the redeemer of the ticket |
-| winProb | The winning probability of the ticket |
+| winProb      | The winning probability of the ticket                     |
 
 This function is used in conjunction with
 [calculateWinningProbability](#calculateWinningProbability) to determine the
@@ -572,11 +577,12 @@ Relay Protocol into real applications, such as the Sylo Wallet. It also
 allows us to discover any flaws or learnings from the current system. Phase
 two does not require all network/economic mechanisms to be present in the system,
 and as such has not been fully realized in the contracts yet. This includes:
-  - **Payouts for expired tickets**. Artificial work will be generated from
+
+- **Payouts for expired tickets**. Artificial work will be generated from
   Nodes that the Sylo Team operates and should always be online. There should
   not be a case where a winning ticket is redeemed much later than the time it
   was generated.
-  - **Slashing/Stake Distribution**. This is a complex process that will likely
+- **Slashing/Stake Distribution**. This is a complex process that will likely
   benefit from the learnings gained in phase two. Additionally as the work is
   artificial for phase two, there is no gain from having this system in place
   yet.
@@ -599,120 +605,98 @@ token values are represented in `SOLO`.
 ### Reward Calculation and Cumulative Reward Factor
 
 The `Cumulative Reward Factor` is a variable that significantly improves the gas
-cost efficiency of calculating staking reward distributions. Delegated stakers
-are compensated on a pro-rata basis. Additionally, any outstanding rewards are
-automatically considered as part of the delegator's stake for the next epoch.
-Thus their stake will grow over in time as they continue to hold stake towards a
-Node. The way a delegator's stake grows in relation to the rewards gained and to
-the other stakers can be seen in the table below:
+cost efficiency of calculating staking reward distributions. A stakers reward
+share is determined on a pro-rata basis/
 
-| Epoch | 0 | 1 | 2 | 3 |
-|-------|---|---|---|---|
-| Reward Gained | 0 | 10 | 8 | 12 |
-| Total Stake | 20 | 30 | 38 | 50
-| Alice Stake | 5 | 7.5 | 9.5 | 12.5 |
-| Bob Stake | 15 | 22.5 | 28.5 | 37.5 |
+| Epoch         | 0   | 1   | 2   | 3   |
+| ------------- | --- | --- | --- | --- |
+| Reward Gained | 0   | 10  | 8   | 12  |
+| Total Stake   | 20  | 20  | 20  | 25  |
+| Alice Stake   | 5   | 5   | 5   | 5   |
+| Bob Stake     | 15  | 15  | 15  | 20  |
+| Alice Reward  | 0   | 2.5 | 1.6 | 2.4 |
+| Bob Reward    | 0   | 7.5 | 6   | 9.6 |
 
 - **Reward Gained** refers to the total amount of rewards gained in that epoch
   from redeeming tickets that will be allocated to a Node's stakers
 - **Total Stake** will be the total amount of `SOLO` staked towards the Node in
-  the **next** epoch. This value is essentially the sum of the total stake at
-  the start of the epoch, plus the reward gained value
-- **Alice Stake** and **Bob Stake** are Alice's and Bob's respective at the end
-  of the epoch. Their stake at the end of the epoch will be used to calculate
-  their reward share for the *next* epoch.
+  the **next** epoch. This value is the sum of each participant's stake value.
+- **Alice Stake** and **Bob Stake** are Alice's and Bob's respective stakes.
+- **Alice Reward** and **Bob Reward** are Alice's and Bob's respective rewards
+  accumulated at the end of the epoch. Their reward is determined by how much
+  stake they have.
 
 It is simple enough to calculate each staker's share of the reward for an epoch
-(and thus their updated stake total) manually.
+manually.
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_1 = 5 %2B 10 * 5/20 = 7.5">
+```math
+aliceReward_1 = 5 * 10/20 = 2.5
+```
 
-Alice’s stake at the end of an epoch can be determined by multiplying alice’s
-proportion of stake held stake at the previous epoch, against the reward gained
-at the specified epoch. Then adding that value to their stake from the previous
-epoch.
+Alice’s reward at the end of an epoch can be determined by multiplying alice’s
+proportion of stake against the reward gained
+at the specified epoch. Then adding that value to their reward from the previous epoch.
 
-Similarly for epoch 2, we can perform:
+For epochs 1 and 2, we can perform:
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = aliceStake_1 %2B 8 * \frac{aliceStake_1}{30}">
+```math
+aliceReward_2 = 5 * 10/20 + 5 * 8/25 = 4.1
+```
 
-Substituting `aliceStake(1)` for the original calculation gives us:
-
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_2 = 5 %2B 10 * 5/20 %2B 8 * \frac{5 %2B 10 * 5/20}{30} = 9.5">
-
-The problem with calculating the reward distribution with this approach, is that
-staker's are naturally incentivized to continue staking against a Node before
-withdrawing their rewards for as long as possible. If stake is held for several
-epochs before withdrawing, once they finally wish to withdraw, the
-implementation would have to iterate through each epoch to read the respective
-stake and reward values for that epoch in order to perform the calculation. This
-can easily cause the withdraw process to become too expensive in terms of gas
-costs, as essentially the the number of storage reads that need to be performed
-will scale linearly with the number of epochs.
+Calculating the reward share with this approach is problematic as more state
+needs to be read for every epoch the calculation is being made for. This
+can lead to excessively high gas costs that scale with the number of epochs that
+needs to be accounted for. This can easily cause the withdraw process to
+become too expensive in terms of gas costs, as essentially the the number of
+storage reads that need to be performed will scale linearly with the
+number of epochs.
 
 To solve this issue, a cumulative reward factor variable is introduced. If we
 examine the above calculations we can notice that Alice's initial stake of `5`
 is a constant and the calculation can be easily simplified.
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1 %2B \frac{10}{20}"> </br>
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1 %2B \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
+```math
+\frac{aliceReward_1}{5} = 10/20 = 0.5
+\frac{aliceReward_2}{5} = 10/20 + 8/20 = 0.9
+```
 
-and simplifying:
+The CRF at the end of epoch 1 is `0.5` and at the end of epoch 2 is `0.9`.
+As long as Alice's stake remains constant for the set of epochs we are calculating for,
+we can use the CRF values to calculate Alice's reward without needing to iterate through
+each epoch.
+Alice's reward is calculated by multiplying the CRF value by Alice's stake.
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_1}{5} = 1.5"> </br>
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=\frac{aliceStake_2}{5} = 1.9">
+```math
+aliceReward_1 = 0.5 * 5 = 2.5
+aliceReward_2 = 0.9 * 5 = 4.5
+```
 
-We can use the values of `1.5` and `1.9` to calculate Bob's stake value as well.
+The same values can be used to also calculate Bob's share of rewards at the end of each epoch
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=bobStake_1 = 1.5 * 15 = 22.5"> </br>
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=bobStake_2 = 1.9 * 15 = 28.5">
+```math
+bobReward_1 = 0.5 * 15 = 7.5
+bobReward_2 = 0.9 * 15 = 13.5
+```
 
-Thus if we store the values of `1.5` and `1.9` for every epoch, the contract can
-calculate the update stake values without needing to iterate through all
-previous epochs. This is known as the cumulative reward factor (CRF) for that
-epoch.
+The value of calculating `0.9 * 15` is the same as if we were to manually calculate Bob's
+reward for both epoch 1 and 2, and then sum them together.
 
-The contract can rely on the previous epoch's CRF to calculate the current CRF.
-Going back to previous equations we can see that the CRF calculated in epoch 2
-can be derived from the CRF in epoch 1:
+The above approach only works when the participant's stake is constant
+throughout the calculation (or has not yet made a claim). When the stake changes or a claim
+is made, we need to also track the CRF value when their stake was changed.
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_1 = 1 %2B \frac{10}{20}"> </br>
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_2 = 1 %2B \frac{10}{20} %2B 8 * \frac{1 %2B 10/20}{30}">
+For example on Epoch 3, Bob adds 5 SYLOs to stake, bringing his stake to 20, and the total
+stake for the node to 25.
 
-Substituting `CRF(1)` into the equation for `CRF(2)` and also referring to the
-reward gained in epoch 2 as `R(2)` and the active stake at epoch 2 as `S(2)`, we
-get:
+The CRF for the end of epoch 3 is:
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_2 = CRF_1 %2B R_2 * \frac{CRF_1}{S_2}">
+```math
+CRF_3 = 0.9 + 12 / 25 = 1.38
+```
 
-Or simplified further:
+The CRF for epoch 2 was `0.9`. To calculate the reward Bob gained at epoch 3, we need to
+use the difference in CRF values from when the calculation starts, to when the calculation ends.
 
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_n = CRF_{n-1} %2B CRF_{n-1} * \frac{Rn}{Sn}">
-
-So if `R(3) = 12`, and `S(3) = 38`, then:
-
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=CRF_3 = 1.9 %2B 1.9 * 12 / 38">
-
-We can then use the value of CRF(3) to calculate Alice's and Bob's updated stake
-values at the end of epoch 3 respectively:
-
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=aliceStake_3 = 5 * 2.5 = 12 5"></br>
-<img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=bobStake_3 = 15 * 2.5 = 37.5">
-
-
-**Notes**:
-- Utilizing cumulative reward factors requires that any changes to a user's
-  delegated stake via `addStake` or `unlockStake` will automatically claim any
-  outstanding rewards.
-- The calculation of the CRF value at the first epoch a Node starts redeeming
-  tickets is different as it can not rely on the previous CRF value. Instead,
-  the CRF value is just calculated as `CRF = Reward / TotalStake`. This also
-  means that the formula used to calculate slightly differs in the contract
-  implementation as well, where it is actually: </br>
-  <img style="background-color:white;padding:3px" src="https://render.githubusercontent.com/render/math?math=stake_n = stake_m *CRF_n / CRF_m"> </br> where `m` refers to the epoch the user's stake first
-  became active
-- The actual CRF value used to calculate a user's reward is of the most current,
-  **not** the CRF value at the **end** of the epoch. The implication of this is
-  that if a user claims their reward (or changes their stake) earlier in the
-  epoch, and the Node continues to redeem tickets throughout the rest of the
-  epoch, that user will not be eligible claim any of those rewards.
+```math
+bobRewardAtEpoch3 = 20 * (CRF_3 - CRF_2) = 20 * 0.48 = 9.6
+```
