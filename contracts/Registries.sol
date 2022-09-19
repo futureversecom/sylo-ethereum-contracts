@@ -4,9 +4,9 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "./ECDSA.sol";
-import "./Seekers.sol";
 
 /**
  * @notice This contract manages Registries for Nodes. A Registry is a
@@ -42,9 +42,10 @@ contract Registries is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Seeker's contract for verifying ownership of a seeker.
+     * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
+     * of a seeker.
      */
-    Seekers public _seekers;
+    IERC721 public _rootSeekers;
 
     /**
      * @notice Tracks each Node's registry.
@@ -69,12 +70,12 @@ contract Registries is Initializable, OwnableUpgradeable {
     uint16 public proofDuration;
 
     function initialize(
-        Seekers seekers,
+        IERC721 rootSeekers,
         uint16 _defaultPayoutPercentage,
         uint16 _proofDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        _seekers = seekers;
+        _rootSeekers = rootSeekers;
         require(
             _defaultPayoutPercentage <= 10000,
             "The payout percentage can not exceed 100 percent"
@@ -138,9 +139,9 @@ contract Registries is Initializable, OwnableUpgradeable {
         );
 
         // Now verify the seeker account actually owns the seeker
-        Seekers.Owner memory owner = _seekers.ownerOf(seekerId);
+        address owner = _rootSeekers.ownerOf(seekerId);
 
-        require(seekerAccount == owner.owner, "Seeker account must own the specified seeker");
+        require(seekerAccount == owner, "Seeker account must own the specified seeker");
 
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
