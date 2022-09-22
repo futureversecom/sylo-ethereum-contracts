@@ -5,10 +5,10 @@ import {
   EpochsManager,
   Registries,
   RewardsManager,
-  Seekers,
   StakingManager,
   SyloTicketing,
   TicketingParameters,
+  Seekers,
 } from '../typechain';
 import * as fs from 'fs/promises';
 

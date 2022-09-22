@@ -51,6 +51,11 @@ contract Registries is Initializable, OwnableUpgradeable {
      */
     mapping(address => Registry) public registries;
 
+    /**
+     * @notice Tracks the node addresses that registered to the contract.
+     */
+    address[] public nodeAddresses;
+
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
     /**
@@ -109,6 +114,10 @@ contract Registries is Initializable, OwnableUpgradeable {
     function register(string memory publicEndpoint, uint256 minDelegatedStake) external {
         require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
 
+        if (bytes(registries[msg.sender].publicEndpoint).length == 0) {
+            nodeAddresses.push(msg.sender);
+        }
+
         registries[msg.sender].publicEndpoint = publicEndpoint;
         registries[msg.sender].minDelegatedStake = minDelegatedStake;
     }
@@ -164,6 +173,20 @@ contract Registries is Initializable, OwnableUpgradeable {
      */
     function getRegistry(address account) external view returns (Registry memory) {
         return registries[account];
+    }
+
+    /**
+     * @notice Retrieve all registries.
+     * @return The array of Registry.
+     */
+    function getRegistries() external view returns (address[] memory, Registry[] memory) {
+        Registry[] memory _registries = new Registry[](nodeAddresses.length);
+
+        for (uint256 i = 0; i < nodeAddresses.length; i++) {
+            _registries[i] = registries[nodeAddresses[i]];
+        }
+
+        return (nodeAddresses, _registries);
     }
 
     /**
