@@ -64,7 +64,7 @@ const GenesisParameters: ContractParameters = {
   },
 
   EpochsManager: {
-    epochDuration: 80000,
+    epochDuration: 5760, // 8 hours
   },
 
   Registries: {
