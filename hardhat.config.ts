@@ -39,16 +39,19 @@ const config: HardhatUserConfig = {
       },
     },
     rata: {
-      url: process.env.RATA_ENDPOINT ?? "",
+      url: process.env.RATA_ENDPOINT ?? '',
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
     nikau: {
-      url: process.env.NIKAU_ENDPOINT ?? "",
-      accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
-      },
+      url: process.env.NIKAU_ENDPOINT ?? '',
+      // accounts: {
+      //   mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+      // },
+      accounts: [
+        '0x1a2be63799c2fc0ef6fc915df5b282fd878de31c1ea48252d37c17b03c0382b6',
+      ],
     },
   },
 };

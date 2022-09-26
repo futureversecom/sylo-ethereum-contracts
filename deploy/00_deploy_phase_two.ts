@@ -4,13 +4,13 @@ import {
   Directory,
   EpochsManager,
   Registries,
+  Registries__factory,
   RewardsManager,
   Seekers,
   StakingManager,
   SyloTicketing,
   TicketingParameters,
 } from '../typechain';
-import * as fs from 'fs/promises';
 
 type PhaseTwoContracts = {
   token: string;
@@ -203,29 +203,16 @@ function logDeployment(contract: string, contractAddress: string) {
 }
 
 async function main() {
-  const contracts = await deployPhaseTwoContracts(Config);
-
   const [deployer] = await ethers.getSigners();
+  console.log(deployer.address);
 
-  // write the deployed contracts to a json file
-  // this is easier to read than the openzeppelin manifest
-  const deployedJson = {
-    deployer: deployer.address,
-    token: contracts.token,
-    registries: contracts.registries.address,
-    ticketing: contracts.ticketing.address,
-    ticketingParameters: contracts.ticketingParameters.address,
-    directory: contracts.directory.address,
-    rewardsManager: contracts.rewardsManager.address,
-    epochsManager: contracts.epochsManager.address,
-    stakingManager: contracts.stakingManager.address,
-    seekers: contracts.seekers.address,
-  };
-
-  await fs.writeFile(
-    `${__dirname}/${network.name}_deployment_phase_two.json`,
-    Buffer.from(JSON.stringify(deployedJson, null, ' '), 'utf8'),
+  const registries = Registries__factory.connect(
+    '0x3db64F253Ae1d4bbe31FcD533704D7E64Ef28494',
+    deployer,
   );
+
+  await registries.register('http://54.252.224.232/public/metadata', 1);
+  console.log('Registered metadata');
 }
 
 export { deployPhaseTwoContracts };
