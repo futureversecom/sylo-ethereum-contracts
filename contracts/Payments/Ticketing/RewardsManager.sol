@@ -42,12 +42,23 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      */
     mapping(address => int128) private cumulativeRewardFactors;
 
+    struct LastClaim {
+        // The epoch the claim was made.
+        uint256 claimedAt;
+        // The stake at the time the claim was made. This is tracked as
+        // rewards can only be claimed after an epoch has ended, but the
+        // user's stake may have changed by then. This field tracks the
+        // staking value before the change so the reward for that epoch
+        // can be manually calculated.
+        uint256 stake;
+    }
+
     /**
-     * @notice When a staker uses the CRF to calculate their share of the reward, the
-     * contract needs to track the value of the CRF, and use this value in the next calculation.
-     * The key to this mapping is a hash of the Node's address and the staker's address.
+     * @notice Tracks the last epoch a delegated staker made a reward claim in.
+     * The key to this mapping is a hash of the Node's address and the delegated
+     * stakers address.
      */
-    mapping(bytes32 => int128) private lastUsedCRFs;
+    mapping(bytes32 => LastClaim) public lastClaims;
 
     /**
      * @notice Tracks each Nodes total pending rewards in SOLOs. This
@@ -172,10 +183,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     }
 
     /**
-     * @notice Retrieve the total unclaimed staking reward allocated to a Node's
+     * @notice Retrieve the total pending staking reward allocated to a Node's
      * delegated stakers.
      * @param stakee The address of the Node.
-     * @return The total unclaimed staking reward in SOLO.
+     * @return The total pending staking reward in SOLO.
      */
     function getPendingRewards(address stakee) external view returns (uint256) {
         return pendingRewards[stakee];
@@ -186,7 +197,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      * the next epoch. This function will revert if the caller has no stake, or
      * if the reward pool has already been initialized. The total active stake
      * for the next reward pool is calculated by summing up the total managed
-     * stake held by the RewardsManager contract, plus any unclaimed staking rewards.
+     * stake held by the RewardsManager contract.
      */
     function initializeNextRewardPool(address stakee) external onlyManager {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
@@ -216,10 +227,10 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      */
     function incrementRewardPool(address stakee, uint256 amount) external onlyManager {
         EpochsManager.Epoch memory currentEpoch = _epochsManager.getCurrentActiveEpoch();
-
         RewardPool storage rewardPool = rewardPools[
             getRewardPoolKey(currentEpoch.iteration, stakee)
         ];
+
         require(
             rewardPool.totalActiveStake > 0,
             "Reward pool has not been initialized for the current epoch"
@@ -241,62 +252,131 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         // update the value of the reward owed to the stakers
         pendingRewards[stakee] += stakersReward;
 
-        rewardPool.stakersRewardTotal += stakersReward;
-
         // this is the first ticket redeemed for this reward, set the initial
         // CRF value for this pool
-        if (rewardPool.initialCumulativeRewardFactor == 0) {
+        if (rewardPool.stakersRewardTotal == 0) {
             rewardPool.initialCumulativeRewardFactor = cumulativeRewardFactors[stakee];
         }
 
-        cumulativeRewardFactors[stakee] =
-            ABDKMath64x64.add(
-                cumulativeRewardFactors[stakee],
-                ABDKMath64x64.div(
-                    toFixedPointSYLO(stakersReward),
-                    toFixedPointSYLO(rewardPool.totalActiveStake)
-                )
-            );
-    }
+        rewardPool.stakersRewardTotal += stakersReward;
 
+        cumulativeRewardFactors[stakee] = ABDKMath64x64.add(
+            cumulativeRewardFactors[stakee],
+            ABDKMath64x64.div(
+                toFixedPointSYLO(stakersReward),
+                toFixedPointSYLO(rewardPool.totalActiveStake)
+            )
+        );
+    }
 
     /**
      * @dev This function utilizes the cumulative reward factors, and the staker's
      * value in stake to calculate the staker's share of the pending reward.
      */
-    function calculatePendingClaim(address stakee, address staker) internal view returns (uint256) {
+    function calculatePendingClaim(address stakee, address staker)
+        internal
+        view
+        returns (uint256)
+    {
         StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
             stakee,
             staker
         );
-        if (stakeEntry.amount == 0) {
-            return 0;
+
+        uint256 claim = calculateInitialClaim(stakee, staker);
+
+        // find the first reward pool where their stake was active and had
+        // generated rewards
+        uint256 activeAt = 0;
+        for (
+            uint256 i = lastClaims[getStakerKey(stakee, staker)].claimedAt + 1;
+            i < _epochsManager.currentIteration();
+            i++
+        ) {
+            RewardPool memory rewardPool = rewardPools[getRewardPoolKey(i, stakee)];
+            // check if node initialized a reward pool for this epoch and
+            // gained rewards
+            if (rewardPool.initializedAt > 0 && rewardPool.stakersRewardTotal > 0) {
+                activeAt = i;
+                break;
+            }
         }
 
-        // Retrieve the latest active reward pool
-        RewardPool memory latestActivePool = rewardPools[
-            getRewardPoolKey(latestActiveRewardPools[stakee], stakee)
-        ];
+        if (activeAt == 0) {
+            return claim;
+        }
 
-        // Retrieve the last used CRF value
-        int128 initialCumulativeRewardFactor = lastUsedCRFs[getStakerKey(stakee, staker)];
-        // Claims are only made up to the last epoch, so the final CRF for this claim
-        // will be the initial CRF of the latest pool
-        int128 finalCumulativeRewardFactor = latestActivePool.initialCumulativeRewardFactor;
+        RewardPool memory initialActivePool = rewardPools[getRewardPoolKey(activeAt, stakee)];
+        int128 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
+
+        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(stakee);
 
         // We convert the staker amount to SYLO as the maximum uint256 value that
         // can be used for the fixed point representation is 2^64-1.
         int128 initialStake = toFixedPointSYLO(stakeEntry.amount);
 
-        return fromFixedPointSYLO(
-            ABDKMath64x64.mul(
-                initialStake,
-                ABDKMath64x64.sub(
-                    finalCumulativeRewardFactor,
-                    initialCumulativeRewardFactor
+        return
+            fromFixedPointSYLO(
+                ABDKMath64x64.mul(
+                    initialStake,
+                    ABDKMath64x64.sub(finalCumulativeRewardFactor, initialCumulativeRewardFactor)
                 )
-            )
-        );
+            );
+    }
+
+    /**
+     * Manually calculates the reward claim for the first epoch the claim is being
+     * made for. This manual calculation is necessary as claims are only made up
+     * to the previous epoch.
+     */
+    function calculateInitialClaim(address stakee, address staker)
+        internal
+        view
+        returns (uint256)
+    {
+        LastClaim memory lastClaim = lastClaims[getStakerKey(stakee, staker)];
+        RewardPool memory firstRewardPool = rewardPools[
+            getRewardPoolKey(lastClaim.claimedAt, stakee)
+        ];
+
+        if (firstRewardPool.totalActiveStake == 0) {
+            return 0;
+        }
+
+        return
+            (firstRewardPool.stakersRewardTotal * lastClaim.stake) /
+            firstRewardPool.totalActiveStake;
+    }
+
+    /**
+     * Determines the cumulative reward factor to use for claim calculations. The
+     * CRF will depend on when the Node last initialized a reward pool, and also when
+     * the staker last made their claim.
+     */
+    function getFinalCumulativeRewardFactor(address stakee) internal view returns (int128) {
+        uint256 currentEpoch = _epochsManager.currentIteration();
+
+        RewardPool storage latestRewardPool = rewardPools[
+            getRewardPoolKey(latestActiveRewardPools[stakee], stakee)
+        ];
+
+        int128 finalCumulativeRewardFactor = 0;
+
+        // Get the cumulative reward factor for the Node
+        // for the start of this epoch, since we only perform
+        // calculations up to the end of the previous epoch.
+        if (latestActiveRewardPools[stakee] < currentEpoch) {
+            // If the Node has not been active, then the final
+            // cumulative reward factor will just be the current one.
+            finalCumulativeRewardFactor = cumulativeRewardFactors[stakee];
+        } else {
+            // We are calculating the claim for an active epoch, the
+            // final cumulative reward factor will be taken from the start of this
+            // epoch (end of previous epoch).
+            finalCumulativeRewardFactor = latestRewardPool.initialCumulativeRewardFactor;
+        }
+
+        return finalCumulativeRewardFactor;
     }
 
     /**
@@ -353,14 +433,16 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
      */
     function claimStakingRewards(address stakee) external returns (uint256) {
         uint256 pendingReward = calculatePendingClaim(stakee, msg.sender);
-        uint256 totalClaim = pendingReward + unclaimedStakingRewards[getStakerKey(stakee, msg.sender)];
+
+        uint256 totalClaim = pendingReward +
+            unclaimedStakingRewards[getStakerKey(stakee, msg.sender)];
 
         require(totalClaim > 0, "Nothing to claim");
 
         unclaimedStakingRewards[getStakerKey(stakee, msg.sender)] = 0;
         pendingRewards[stakee] -= pendingReward;
 
-        updateLastUsedCRF(stakee, msg.sender);
+        updateLastClaim(stakee, msg.sender);
 
         _token.transfer(msg.sender, totalClaim);
 
@@ -369,27 +451,27 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
 
     /**
      * @notice This is called by the staking manager to transfer pending rewards
-     * to unclaimed rewards for a staker. This is required as the lase used CRF
+     * to unclaimed rewards for a staker. This is required as the last used CRF
      * needs to be updated whenever stake changes.
      */
     function updatePendingRewards(address stakee, address staker) external onlyManager {
-        uint256 pendingReward = calculatePendingClaim(stakee, msg.sender);
+        uint256 pendingReward = calculatePendingClaim(stakee, staker);
 
         pendingRewards[stakee] -= pendingReward;
+
         unclaimedStakingRewards[getStakerKey(stakee, staker)] += pendingReward;
 
-        updateLastUsedCRF(stakee, staker);
+        updateLastClaim(stakee, staker);
     }
 
-    /**
-     * @dev Called whenever a staker's share of reward is calculated from the stakee's pending
-     * rewards.
-     */
-    function updateLastUsedCRF(address stakee, address staker) internal onlyManager {
-        // Retrieve the latest active reward pool
-        RewardPool memory latestActivePool = rewardPools[
-            getRewardPoolKey(latestActiveRewardPools[stakee], stakee)
-        ];
-        lastUsedCRFs[getStakerKey(stakee, staker)] = latestActivePool.initialCumulativeRewardFactor;
+    function updateLastClaim(address stakee, address staker) internal {
+        StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
+            stakee,
+            staker
+        );
+        lastClaims[getStakerKey(stakee, staker)] = LastClaim(
+            _epochsManager.currentIteration(),
+            stakeEntry.amount
+        );
     }
 }
