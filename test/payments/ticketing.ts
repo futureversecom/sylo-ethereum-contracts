@@ -956,6 +956,9 @@ describe('Ticketing', () => {
 
     await rewardsManager.claimStakingRewards(owner);
 
+    const lastClaim = await rewardsManager.getLastClaim(owner, owner);
+    expect(lastClaim.claimedAt).to.be.above(0);
+
     await expect(rewardsManager.claimStakingRewards(owner)).to.be.revertedWith(
       'Nothing to claim',
     );

@@ -193,6 +193,21 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     }
 
     /**
+     * @notice Retrieves the ID of the epoch in which a staker last made their
+     * staking claim.
+     * @param stakee The address of the Node.
+     * @param staker The address of the staker.
+     * @return The ID of the epoch.
+     */
+    function getLastClaim(address stakee, address staker)
+        external
+        view
+        returns (LastClaim memory)
+    {
+        return lastClaims[getStakerKey(stakee, staker)];
+    }
+
+    /**
      * @notice This is used by Nodes to initialize their reward pool for
      * the next epoch. This function will revert if the caller has no stake, or
      * if the reward pool has already been initialized. The total active stake
