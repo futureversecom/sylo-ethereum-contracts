@@ -4,11 +4,10 @@ import {
   Directory,
   EpochsManager,
   Registries,
-  MockOracle,
   RewardsManager,
-  Seekers,
   StakingManager,
   SyloToken,
+  TestSeekers,
 } from '../typechain';
 import utils from './utils';
 import { assert, expect } from 'chai';
@@ -28,8 +27,7 @@ describe('Staking', () => {
   let directory: Directory;
   let stakingManager: StakingManager;
   let registries: Registries;
-  let seekers: Seekers;
-  let mockOracle: MockOracle;
+  let seekers: TestSeekers;
 
   const epochId = 1;
 
@@ -50,7 +48,6 @@ describe('Staking', () => {
     stakingManager = contracts.stakingManager;
     registries = contracts.registries;
     seekers = contracts.seekers;
-    mockOracle = contracts.mockOracle;
 
     await token.approve(stakingManager.address, 100000);
   });
@@ -446,12 +443,13 @@ describe('Staking', () => {
     await setSeekeRegistry(accounts[0], accounts[1], 1);
     await stakingManager.addStake(1, owner);
 
-    await utils.setSeekerOwnership(
-      mockOracle,
-      seekers,
-      1,
-      await accounts[2].getAddress(),
-    );
+    await seekers
+      .connect(accounts[1])
+      .transferFrom(
+        await accounts[1].getAddress(),
+        await accounts[2].getAddress(),
+        1,
+      );
 
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
       "Node's seeker account does not match the current seeker owner",
@@ -804,7 +802,6 @@ describe('Staking', () => {
   ) {
     await utils.setSeekerRegistry(
       registries,
-      mockOracle,
       seekers,
       account,
       seekerAccount,

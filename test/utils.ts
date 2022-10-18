@@ -4,13 +4,12 @@ import { toWei } from 'web3-utils';
 import {
   Directory,
   EpochsManager,
-  MockOracle,
   Registries,
   RewardsManager,
-  Seekers,
   StakingManager,
   SyloTicketing,
   TicketingParameters,
+  TestSeekers,
 } from '../typechain';
 
 type Options = {
@@ -33,8 +32,7 @@ export type Contracts = {
   rewardsManager: RewardsManager;
   epochsManager: EpochsManager;
   stakingManager: StakingManager;
-  seekers: Seekers;
-  mockOracle: MockOracle;
+  seekers: TestSeekers;
 };
 
 const initializeContracts = async function (
@@ -57,22 +55,8 @@ const initializeContracts = async function (
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 
-  const MockOracleFactory = await ethers.getContractFactory('MockOracle');
-  const mockOracle = await MockOracleFactory.deploy();
-
-  const SeekersFactory = await ethers.getContractFactory('Seekers');
+  const SeekersFactory = await ethers.getContractFactory('TestSeekers');
   const seekers = await SeekersFactory.deploy();
-  await seekers.initialize(
-    ethers.constants.AddressZero,
-    tokenAddress,
-    mockOracle.address,
-    100,
-    300000,
-    ethers.utils.parseEther('2'),
-    {
-      from: deployer,
-    },
-  );
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = await RegistriesFactory.deploy();
@@ -163,7 +147,6 @@ const initializeContracts = async function (
     epochsManager,
     stakingManager,
     seekers,
-    mockOracle,
   };
 };
 
@@ -174,31 +157,16 @@ const advanceBlock = async function (i: number): Promise<void> {
   }
 };
 
-const setSeekerOwnership = async function (
-  mockOracle: MockOracle,
-  seekers: Seekers,
-  tokenId: number,
-  owner: string,
-): Promise<void> {
-  await mockOracle.setOwner(tokenId, owner);
-  await seekers.requestVerification(tokenId);
-  await mockOracle.invokeCallback();
-};
-
 async function setSeekerRegistry(
   registries: Registries,
-  mockOracle: MockOracle,
-  seekers: Seekers,
+  seekers: TestSeekers,
   account: Signer,
   seekerAccount: Signer,
   tokenId: number,
 ): Promise<void> {
-  await setSeekerOwnership(
-    mockOracle,
-    seekers,
-    tokenId,
-    await seekerAccount.getAddress(),
-  );
+  if (!(await seekers.exists(tokenId))) {
+    await seekers.mint(await seekerAccount.getAddress(), tokenId);
+  }
 
   const block = await ethers.provider.getBlockNumber();
 
@@ -223,6 +191,5 @@ async function setSeekerRegistry(
 export default {
   initializeContracts,
   advanceBlock,
-  setSeekerOwnership,
   setSeekerRegistry,
 };

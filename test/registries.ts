@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { Registries, MockOracle, Seekers } from '../typechain';
+import { Registries, TestSeekers } from '../typechain';
 import { assert, expect } from 'chai';
 import utils from './utils';
 
@@ -9,8 +9,7 @@ describe('Registries', () => {
   let owner: string;
 
   let registries: Registries;
-  let mockOracle: MockOracle;
-  let seekers: Seekers;
+  let seekers: TestSeekers;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -26,7 +25,6 @@ describe('Registries', () => {
       payoutPercentage: 5000,
     });
     registries = contracts.registries;
-    mockOracle = contracts.mockOracle;
     seekers = contracts.seekers;
   });
 
@@ -80,7 +78,6 @@ describe('Registries', () => {
 
     await utils.setSeekerRegistry(
       registries,
-      mockOracle,
       seekers,
       accounts[0],
       accounts[1],
@@ -97,7 +94,7 @@ describe('Registries', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await utils.setSeekerOwnership(mockOracle, seekers, 1, seekerAddress);
+    await seekers.mint(seekerAddress, 1);
 
     const block = await ethers.provider.getBlockNumber();
 
@@ -123,7 +120,7 @@ describe('Registries', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await utils.setSeekerOwnership(mockOracle, seekers, 1, seekerAddress);
+    await seekers.mint(seekerAddress, 1);
 
     const block = await ethers.provider.getBlockNumber();
 
@@ -141,9 +138,11 @@ describe('Registries', () => {
     ).to.be.revertedWith('Proof must be signed by specified seeker account');
   });
 
-  it("fails to set seeker account if ownership hasn't been verified", async () => {
+  it("fails to set seeker account if seeker isn't owned by account", async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
+
+    await seekers.mint(await accounts[2].getAddress(), 1);
 
     const block = await ethers.provider.getBlockNumber();
 
@@ -163,7 +162,6 @@ describe('Registries', () => {
 
     await utils.setSeekerRegistry(
       registries,
-      mockOracle,
       seekers,
       accounts[0],
       accounts[1],
@@ -180,7 +178,6 @@ describe('Registries', () => {
   it('can only revoke seeker account as seeker account', async () => {
     await utils.setSeekerRegistry(
       registries,
-      mockOracle,
       seekers,
       accounts[0],
       accounts[1],
