@@ -66,6 +66,18 @@ describe('Registries', () => {
     );
   });
 
+  it('can retrieve all registered nodes', async () => {
+    await registries.register('http://api', 1);
+    await registries.connect(accounts[1]).register('http://api', 1);
+
+    const nodes = await registries.getNodes();
+
+    assert.deepEqual(nodes, [
+      await accounts[0].getAddress(),
+      await accounts[1].getAddress(),
+    ]);
+  });
+
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
       registries.setDefaultPayoutPercentage(10001),
