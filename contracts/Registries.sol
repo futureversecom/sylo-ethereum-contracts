@@ -186,6 +186,43 @@ contract Registries is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Retrieves a list of registries. Takes in a
+     * a start and end indices to allow pagination.
+     * @param start The start index which is inclusive.
+     * @param end The end index which is exclusive.
+     * @return An array of Registries.
+     */
+    function getRegistries(uint256 start, uint256 end)
+        external
+        view
+        returns (address[] memory, Registry[] memory)
+    {
+        require(end > start, "end index must be greater than start index");
+        require(
+            end <= nodes.length,
+            "end index cannot be greater than total number of registered nodes"
+        );
+
+        address[] memory _nodes = new address[](end - start);
+        Registry[] memory _registries = new Registry[](end - start);
+
+        for (uint256 i = start; i < end; i++) {
+            _nodes[i - start] = nodes[i];
+            _registries[i - start] = registries[nodes[i]];
+        }
+
+        return (_nodes, _registries);
+    }
+
+    /**
+     * @notice Returns the total number of registered nodes.
+     * @return The number of registered nodes.
+     */
+    function getTotalNodes() external view returns (uint256) {
+        return nodes.length;
+    }
+
+    /**
      * @notice Retrieves the prefix used for creating proofs.
      */
     function getPrefix() public pure returns (string memory) {

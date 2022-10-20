@@ -78,6 +78,77 @@ describe('Registries', () => {
     ]);
   });
 
+  it('can query total number of registered nodes', async () => {
+    await registries.register('http://api', 1);
+    await registries.connect(accounts[1]).register('http://api', 1);
+
+    const n = await registries.getTotalNodes();
+
+    assert.equal(n.toNumber(), 2);
+  });
+
+  it('can retrieve a list of registries', async () => {
+    const addresses = await Promise.all(accounts.map(a => a.getAddress()));
+
+    for (let i = 0; i < 20; i++) {
+      await registries.connect(accounts[i]).register(`http://api/${i}`, 1);
+    }
+
+    const result = await registries.getRegistries(0, 20);
+
+    assert.deepEqual(result[0], addresses, 'Expected 20 registries returned');
+
+    for (let i = 0; i < 20; i++) {
+      assert.equal(
+        result[0][i],
+        addresses[i],
+        'Expected correct registry to be returned',
+      );
+      assert.equal(
+        result[1][i].publicEndpoint,
+        `http://api/${i}`,
+        'Expected correct registry to be returned',
+      );
+    }
+  });
+
+  it('can retrieve a list of registries with start and end indexes', async () => {
+    const addresses = await Promise.all(accounts.map(a => a.getAddress()));
+
+    for (let i = 0; i < 20; i++) {
+      await registries.connect(accounts[i]).register(`http://api/${i}`, 1);
+    }
+
+    const result = await registries.getRegistries(5, 10);
+
+    assert.deepEqual(
+      result[0],
+      addresses.slice(5, 10),
+      'Expected only accounts 5 to 9 to be returned from query',
+    );
+
+    for (let i = 5; i < 10; i++) {
+      assert.equal(
+        result[0][i - 5],
+        addresses[i],
+        'Expected correct registry to be returned',
+      );
+      assert.equal(
+        result[1][i - 5].publicEndpoint,
+        `http://api/${i}`,
+        'Expected correct registry to be returned',
+      );
+    }
+
+    await expect(registries.getRegistries(8, 5)).to.be.revertedWith(
+      'end index must be greater than start index',
+    );
+
+    await expect(registries.getRegistries(8, 21)).to.be.revertedWith(
+      'end index cannot be greater than total number of registered nodes',
+    );
+  });
+
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
       registries.setDefaultPayoutPercentage(10001),
