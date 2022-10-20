@@ -288,15 +288,7 @@ lifetime of the Sylo Network.
 
 #### Registries
 
-<<<<<<< HEAD
-
 #### _register_
-
-=======
-
-#### _setListing_
-
-> > > > > > > 10caa00 (update CRF explanation in spec)
 
 Nodes are required to set their `Registry` entry to be able to stake and redeem
 tickets.
@@ -656,8 +648,8 @@ examine the above calculations we can notice that Alice's initial stake of `5`
 is a constant and the calculation can be easily simplified.
 
 ```math
-\frac{aliceReward_1}{5} = 10/20 = 0.5
-\frac{aliceReward_2}{5} = 10/20 + 8/20 = 0.9
+aliceReward_1/5 = 10/20 = 0.5
+aliceReward_2/5 = 10/20 + 8/20 = 0.9
 ```
 
 The CRF at the end of epoch 1 is `0.5` and at the end of epoch 2 is `0.9`.

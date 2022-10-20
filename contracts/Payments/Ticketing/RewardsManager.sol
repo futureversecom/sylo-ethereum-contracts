@@ -72,6 +72,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     /**
      * @notice Tracks rewards for stakers after the stakers share has been calculated,
      * but has not actually been claimed by the staker.
+     * The node fee reward is also added to the node's unclaimedStakingRewards.
      */
     mapping(bytes32 => uint256) public unclaimedStakingRewards;
 
@@ -184,7 +185,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
 
     /**
      * @notice Retrieve the total pending staking reward allocated to a Node's
-     * delegated stakers.
+     * stakers.
      * @param stakee The address of the Node.
      * @return The total pending staking reward in SOLO.
      */
@@ -267,7 +268,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         // update the value of the reward owed to the stakers
         pendingRewards[stakee] += stakersReward;
 
-        // this is the first ticket redeemed for this reward, set the initial
+        // if this is the first ticket redeemed for this reward, set the initial
         // CRF value for this pool
         if (rewardPool.stakersRewardTotal == 0) {
             rewardPool.initialCumulativeRewardFactor = cumulativeRewardFactors[stakee];

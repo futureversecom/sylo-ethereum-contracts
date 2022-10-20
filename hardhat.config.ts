@@ -39,15 +39,15 @@ const config: HardhatUserConfig = {
       },
     },
     rata: {
-      url: process.env.RATA_ENDPOINT ?? "",
+      url: process.env.RATA_ENDPOINT ?? '',
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
     nikau: {
-      url: process.env.NIKAU_ENDPOINT ?? "",
+      url: process.env.NIKAU_ENDPOINT ?? '',
       accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? "",
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
   },
