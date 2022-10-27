@@ -81,6 +81,16 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     mapping(address => uint256) public latestActiveRewardPools;
 
     /**
+     * @notice Tracks total accumulated rewards in each epoch
+     */
+    mapping(uint256 => uint256) public totalEpochRewards;
+
+    /**
+     * @notice Tracks total accumulated staking rewards in each epoch
+     */
+    mapping(uint256 => uint256) public totalEpochStakingRewards;
+
+    /**
      * @dev This type will hold the necessary information for delegated stakers
      * to make reward claims against their Node. Every Node will initialize
      * and store a new Reward Pool for each epoch they participate in.
@@ -208,6 +218,24 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     }
 
     /**
+     * @notice Retrieves the total accumulated rewards for a specific epoch.
+     * @param epochId The epoch id.
+     * @return The total reward in that epoch.
+     */
+    function getTotalEpochRewards(uint256 epochId) external view returns (uint256) {
+        return totalEpochRewards[epochId];
+    }
+
+    /**
+     * @notice Retrieves the total accumulated rewards for stakers in a specific epoch.
+     * @param epochId The epoch id.
+     * @return The total reward in that epoch.
+     */
+    function getTotalEpochStakingRewards(uint256 epochId) external view returns (uint256) {
+        return totalEpochStakingRewards[epochId];
+    }
+
+    /**
      * @notice This is used by Nodes to initialize their reward pool for
      * the next epoch. This function will revert if the caller has no stake, or
      * if the reward pool has already been initialized. The total active stake
@@ -282,6 +310,9 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
                 toFixedPointSYLO(rewardPool.totalActiveStake)
             )
         );
+
+        totalEpochRewards[currentEpoch.iteration] += amount;
+        totalEpochStakingRewards[currentEpoch.iteration] += stakersReward;
     }
 
     /**
