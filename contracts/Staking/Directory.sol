@@ -94,11 +94,22 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      */
     function joinNextDirectory(address stakee) external onlyManager {
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-        require(totalStake > 0, "Can not join directory for next epoch without any stake");
-        require(
-            _stakingManager.checkMinimumStakeProportion(stakee),
-            "Can not join directory without owning minimum amount of stake"
-        );
+
+        uint256 joiningStake = 0;
+        if (_stakingManager.checkMinimumStakeProportion(stakee)) {
+            joiningStake = totalStake;
+        } else {
+            // if the node does meet the minimum stake proportion, then we reduce
+            // the stake used to join the epoch proportionally
+            uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
+            uint16 ownedStakeProportion = SyloUtils.asPerc(
+                uint128(currentStake),
+                totalStake
+            );
+
+            joiningStake = totalStake * ownedStakeProportion / _stakingManager.minimumStakeProportion();
+        }
+        require(joiningStake > 0, "Can not join directory for next epoch without any stake");
 
         uint256 epochId = currentDirectory + 1;
 
@@ -107,10 +118,10 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
             "Can only join the directory once per epoch"
         );
 
-        uint256 nextBoundary = directories[epochId].totalStake + totalStake;
+        uint256 nextBoundary = directories[epochId].totalStake + joiningStake;
 
         directories[epochId].entries.push(DirectoryEntry(stakee, nextBoundary));
-        directories[epochId].stakes[stakee] = totalStake;
+        directories[epochId].stakes[stakee] = joiningStake;
         directories[epochId].totalStake = nextBoundary;
     }
 

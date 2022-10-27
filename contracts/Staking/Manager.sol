@@ -165,14 +165,6 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         stake.totalManagedStake += amount;
         totalManagedStake += amount;
-
-        // ensure that the node's own stake is still at the minimum amount
-        if (msg.sender != stakee) {
-            require(
-                checkMinimumStakeProportion(stakee),
-                "Can not add more stake until stakee adds more stake itself"
-            );
-        }
     }
 
     /**
