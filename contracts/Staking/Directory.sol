@@ -95,6 +95,8 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
     function joinNextDirectory(address stakee) external onlyManager {
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
 
+        require(totalStake > 0, "Can not join directory for next epoch without any stake");
+
         uint256 joiningStake = 0;
         if (_stakingManager.checkMinimumStakeProportion(stakee)) {
             joiningStake = totalStake;

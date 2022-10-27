@@ -1625,6 +1625,46 @@ describe('Ticketing', () => {
     }
   });
 
+  it('can retrieve total staking rewards for an epoch', async () => {
+    await stakingManager.addStake(toSOLOs(1000), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    const alice = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    for (let i = 0; i < 3; i++) {
+      await epochsManager.joinNextEpoch();
+      await epochsManager.initializeEpoch();
+
+      for (let j = 0; j < 3 * (i + 1); j++) {
+        const { ticket, senderRand, redeemerRand, signature } =
+          await createWinningTicket(alice, owner);
+
+        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      }
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const totalReward = await rewardsManager.getTotalEpochRewards(i + 1);
+      const totalStakingReward =
+        await rewardsManager.getTotalEpochStakingRewards(i + 1);
+
+      expect(totalReward.toString()).to.equal(
+        BigNumber.from(toSOLOs(1000))
+          .mul(3)
+          .mul(i + 1)
+          .toString(),
+      );
+      expect(totalStakingReward.toString()).to.equal(
+        BigNumber.from(toSOLOs(500))
+          .mul(3)
+          .mul(i + 1)
+          .toString(),
+      );
+    }
+  });
+
   it('returns 0 winning probability if ticket has expired', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await registries.register('0.0.0.0/0', 1);
