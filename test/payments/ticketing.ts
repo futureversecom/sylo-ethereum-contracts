@@ -644,27 +644,12 @@ describe('Ticketing', () => {
       'Expected penalty to not be changed',
     );
 
-    const unclaimedNodeReward = await rewardsManager.getUnclaimedNodeReward(
-      owner,
-    );
-    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(
-      owner,
-    );
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      unclaimedNodeReward.add(unclaimedStakeReward).toString(),
-      toSOLOs(1000),
-      'Expected balance of unclaimed rewards to have added the ticket face value',
-    );
-
-    const nextEpochId = await epochsManager.getNextEpochId();
-    const rewardPoolStakersTotal =
-      await rewardsManager.getRewardPoolStakersTotal(nextEpochId.sub(1), owner);
-
-    assert.equal(
-      unclaimedStakeReward.toString(),
-      rewardPoolStakersTotal.toString(),
-      'Expected unclaimed node reward to be equal to reward pool stakers total',
+      pendingReward.toString(),
+      toSOLOs(500),
+      'Expected balance of pending rewards to have added the ticket face value',
     );
   });
 
@@ -718,16 +703,11 @@ describe('Ticketing', () => {
       'Expected entire penalty to be burned',
     );
 
-    const unclaimedNodeReward = await rewardsManager.getUnclaimedNodeReward(
-      owner,
-    );
-    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(
-      owner,
-    );
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      unclaimedNodeReward.add(unclaimedStakeReward).toString(),
-      '5000000000000000000',
+      pendingReward.toString(),
+      '2500000000000000000',
       'Expected unclaimed balance to have added the remaining available escrow',
     );
 
@@ -748,48 +728,8 @@ describe('Ticketing', () => {
     );
   });
 
-  it('should restake unclaimed staker rewards', async () => {
-    await stakingManager.addStake(5, owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
-
-    await epochsManager.joinNextEpoch();
-    await epochsManager.initializeEpoch();
-
-    const alice = Wallet.createRandom();
-    await ticketing.depositEscrow(50, alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
-
-    for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
-    }
-
-    await epochsManager.joinNextEpoch();
-
-    const rewardPool = await rewardsManager.getRewardPool(
-      await epochsManager.getNextEpochId(),
-      owner,
-    );
-
-    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(
-      owner,
-    );
-
-    // check the total active stake for the next epoch includes the unclaimed rewards plus
-    // the managed stake
-    assert.equal(
-      rewardPool.totalActiveStake.toString(),
-      unclaimedStakeReward.add(5).toString(),
-      'Expected total active stake for next reward pool to include unclaimed rewards',
-    );
-  });
-
   it('fails to to claim non existent rewards', async () => {
     await expect(rewardsManager.claimStakingRewards(owner)).to.be.revertedWith(
-      'Nothing to claim',
-    );
-    await expect(rewardsManager.claimNodeRewards()).to.be.revertedWith(
       'Nothing to claim',
     );
   });
@@ -816,7 +756,6 @@ describe('Ticketing', () => {
 
     const initialBalance = await token.balanceOf(owner);
 
-    await rewardsManager.claimNodeRewards();
     await rewardsManager.claimStakingRewards(owner);
 
     const postBalance = await token.balanceOf(owner);
@@ -825,14 +764,9 @@ describe('Ticketing', () => {
 
     compareExpectedBalance(expectedPostBalance, postBalance);
 
-    const unclaimedNodeReward = await rewardsManager.getUnclaimedNodeReward(
-      owner,
-    );
-    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(
-      owner,
-    );
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
 
-    compareExpectedBalance(unclaimedNodeReward.add(unclaimedStakeReward), 0);
+    compareExpectedBalance(pendingReward, 0);
 
     // check total rewards in the previous epoch after claiming
     const nextEpochId = await epochsManager.getNextEpochId();
@@ -878,7 +812,7 @@ describe('Ticketing', () => {
     await testClaims([
       {
         account: accounts[0],
-        claim: proportions[0] * totalWinnings,
+        claim: proportions[0] * totalWinnings + 5000, // add the node's fee,
       },
       {
         account: accounts[2],
@@ -887,7 +821,7 @@ describe('Ticketing', () => {
     ]);
   });
 
-  it('should have rewards be automatically claimed when stake is updated', async () => {
+  it('should have rewards be automatically removed from pending when stake is updated', async () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await addStakes([
@@ -913,40 +847,29 @@ describe('Ticketing', () => {
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
-    const stakingManagerBalanceBefore = await token.balanceOf(
-      stakingManager.address,
-    );
     const claimBeforeAddingStake = await rewardsManager.calculateStakerClaim(
       owner,
       await accounts[2].getAddress(),
     );
+    const pendingRewardBeforeAddingStake =
+      await rewardsManager.getPendingRewards(owner);
 
     // add more stake
     await addStakes([{ account: accounts[2], stake: 1 }]);
 
-    const claimAfterAddingStake = await rewardsManager.calculateStakerClaim(
-      owner,
-      await accounts[2].getAddress(),
-    );
-
-    const stakingManagerBalanceAfter = await token.balanceOf(
-      stakingManager.address,
-    );
+    // pending reward after stake is added should have previous claim removed
+    const pendingRewardAfterAddingStake =
+      await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      claimAfterAddingStake.toString(),
-      '0',
-      'Expected reward to be automatically claimed after adding stake',
-    );
-
-    assert.equal(
-      stakingManagerBalanceBefore
-        .add(claimBeforeAddingStake)
-        .add(toSOLOs(1))
+      pendingRewardBeforeAddingStake
+        .sub(pendingRewardAfterAddingStake)
         .toString(),
-      stakingManagerBalanceAfter.toString(),
-      'Expected staking manager to receive claim reward',
+      claimBeforeAddingStake.toString(),
+      'Expected claim to be removed from pending reward after adding stake',
     );
+
+    await rewardsManager.connect(accounts[2]).claimStakingRewards(owner);
 
     for (let i = 0; i < 10; i++) {
       const { ticket, senderRand, redeemerRand, signature } =
@@ -963,38 +886,21 @@ describe('Ticketing', () => {
       await accounts[2].getAddress(),
     );
 
-    const stakerBalanceBefore = await token.balanceOf(
-      await accounts[2].getAddress(),
-    );
+    const pendingRewardBeforeRemovingStake =
+      await rewardsManager.getPendingRewards(owner);
 
     // remove some stake
     await stakingManager.connect(accounts[2]).unlockStake(1, owner);
 
-    const stakerBalanceAfter = await token.balanceOf(
-      await accounts[2].getAddress(),
-    );
-
-    const claimAfterRemovingStake = await rewardsManager.calculateStakerClaim(
-      owner,
-      await accounts[2].getAddress(),
-    );
+    const pendingRewardAfterRemovingStake =
+      await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      claimAfterRemovingStake.toString(),
-      '0',
-      'Expected reward to be automatically claimed after adding stake',
-    );
-
-    assert.equal(
-      stakerBalanceBefore.add(claimBeforeRemovingStake).toString(),
-      stakerBalanceAfter.toString(),
-      'Expected staker balance to have reward claim added after starting unlock process',
-    );
-
-    assert.equal(
-      stakerBalanceBefore.add(claimBeforeRemovingStake).toString(),
-      stakerBalanceAfter.toString(),
-      'Expected staker balance to have reward claim added after starting unlock process',
+      pendingRewardBeforeRemovingStake
+        .sub(pendingRewardAfterRemovingStake)
+        .toString(),
+      claimBeforeRemovingStake.toString(),
+      'Expected claim to be removed from pending reward after removing stake',
     );
   });
 
@@ -1088,14 +994,12 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
-    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(
-      owner,
-    );
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
 
     // the total unclaimed stake reward should 3 * 6 * 500 = 9000
     const totalWinnings = 9000;
 
-    compareExpectedBalance(toSOLOs(totalWinnings), unclaimedStakeReward);
+    compareExpectedBalance(toSOLOs(totalWinnings), pendingReward);
 
     // verify each staker will receive the correct amount of reward if they were to claim now
     await testClaims([
@@ -1141,7 +1045,7 @@ describe('Ticketing', () => {
       await testClaims([
         {
           account: accounts[0],
-          claim: proportions[0] * totalWinnings,
+          claim: proportions[0] * totalWinnings + 2500,
         },
         {
           account: accounts[1],
@@ -1227,9 +1131,8 @@ describe('Ticketing', () => {
         .mul(initialStake)
         .div(epochOneActiveStake);
 
-      const stakeAtEpochTwo = initialStake.add(epochOneReward);
-      const remainingReward = stakeAtEpochTwo
-        .mul(toSOLOs(2 * 6 * 500))
+      const remainingReward = BigNumber.from(toSOLOs(2 * 6 * 500))
+        .mul(initialStake)
         .div(epochTwoActiveStake);
 
       const totalExpectedReward = epochOneReward.add(remainingReward);
@@ -1305,9 +1208,8 @@ describe('Ticketing', () => {
         .mul(initialStake)
         .div(epochOneActiveStake);
 
-      const stakeAtEpochTwo = initialStake.add(epochOneReward);
-      const remainingReward = stakeAtEpochTwo
-        .mul(toSOLOs(2 * 6 * 500))
+      const remainingReward = BigNumber.from(toSOLOs(2 * 6 * 500))
+        .mul(initialStake)
         .div(epochTwoActiveStake);
 
       const totalExpectedReward = epochOneReward.add(remainingReward);
@@ -1460,14 +1362,12 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
-    const unclaimedStakeReward = await rewardsManager.getUnclaimedStakeReward(
-      owner,
-    );
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
 
     // the total unclaimed stake reward should 3 * 6 * 500 = 9000
     const totalWinnings = 9000;
 
-    compareExpectedBalance(toSOLOs(totalWinnings), unclaimedStakeReward);
+    compareExpectedBalance(toSOLOs(totalWinnings), pendingReward);
 
     // verify each staker will receive the correct amount of reward if they were to claim now
     await testClaims([
@@ -1478,7 +1378,11 @@ describe('Ticketing', () => {
   });
 
   it('claiming staking rewards only claims up to the previous epoch', async () => {
-    await stakingManager.addStake(toSOLOs(1), owner);
+    await addStakes([
+      { account: accounts[0], stake: 1 },
+      { account: accounts[1], stake: 1 },
+    ]);
+
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
@@ -1503,14 +1407,20 @@ describe('Ticketing', () => {
     }
 
     // should only be able to claim for the first two epochs
-    let claim = await rewardsManager.calculateStakerClaim(owner, owner);
-    compareExpectedBalance(claim, toSOLOs(10000));
+    let claim = await rewardsManager.calculateStakerClaim(
+      owner,
+      await accounts[1].getAddress(),
+    );
+    compareExpectedBalance(claim, toSOLOs(5000));
 
     // initialize epoch and check all three epochs can be claimed
     await epochsManager.initializeEpoch();
 
-    claim = await rewardsManager.calculateStakerClaim(owner, owner);
-    compareExpectedBalance(claim, toSOLOs(15000));
+    claim = await rewardsManager.calculateStakerClaim(
+      owner,
+      await accounts[1].getAddress(),
+    );
+    compareExpectedBalance(claim, toSOLOs(7500));
   });
 
   it('can claim staking rewards again after previous ended', async () => {
@@ -1551,9 +1461,8 @@ describe('Ticketing', () => {
 
     const postBalance = await token.balanceOf(owner);
 
-    // we redeemed 5000 SYLO each epoch, so expect to receive
-    // an additional 10000 SYLO after claiming twice
-    compareExpectedBalance(postBalance, initialBalance.add(toSOLOs(10000)));
+    // expect to receive total balance of all redeemed tickets
+    compareExpectedBalance(postBalance, initialBalance.add(toSOLOs(20000)));
   });
 
   it('can claim staking rewards if node already joined next epoch', async () => {
