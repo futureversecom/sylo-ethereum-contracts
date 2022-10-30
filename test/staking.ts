@@ -378,7 +378,24 @@ describe('Staking', () => {
     const joinedStake = await directory.getTotalStakeForStakee(1, owner);
     const managedStake = await stakingManager.getStakeeTotalManagedStake(owner);
 
+    const meetsMinimum = await stakingManager.checkMinimumStakeProportion(
+      owner,
+    );
+    expect(meetsMinimum).to.equal(false);
+
     expect(managedStake.div(2).toString()).to.equal(joinedStake);
+  });
+
+  it('should fail to join when node`s own stake is 0', async () => {
+    await token.transfer(await accounts[1].getAddress(), 1000);
+    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await stakingManager.connect(accounts[1]).addStake(180, owner);
+
+    await directory.addManager(owner);
+
+    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
+      'Can not join directory for next epoch without any stake',
+    );
   });
 
   it('should be able to get total stake for a stakee', async () => {
@@ -406,6 +423,11 @@ describe('Staking', () => {
       '180',
       'Expected contract to track all stake entries',
     );
+
+    const meetsMinimum = await stakingManager.checkMinimumStakeProportion(
+      owner,
+    );
+    expect(meetsMinimum).to.equal(true);
   });
 
   it('should store the epochId the stake entry was updated at', async () => {

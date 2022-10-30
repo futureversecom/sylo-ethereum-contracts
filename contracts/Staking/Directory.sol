@@ -94,22 +94,23 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
      */
     function joinNextDirectory(address stakee) external onlyManager {
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-
         require(totalStake > 0, "Can not join directory for next epoch without any stake");
 
+        uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
+        uint16 ownedStakeProportion = SyloUtils.asPerc(
+            uint128(currentStake),
+            totalStake
+        );
+
+        uint16 minimumStakeProportion = _stakingManager.minimumStakeProportion();
+
         uint256 joiningStake = 0;
-        if (_stakingManager.checkMinimumStakeProportion(stakee)) {
+        if (ownedStakeProportion >= minimumStakeProportion) {
             joiningStake = totalStake;
         } else {
             // if the node does meet the minimum stake proportion, then we reduce
             // the stake used to join the epoch proportionally
-            uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
-            uint16 ownedStakeProportion = SyloUtils.asPerc(
-                uint128(currentStake),
-                totalStake
-            );
-
-            joiningStake = totalStake * ownedStakeProportion / _stakingManager.minimumStakeProportion();
+            joiningStake = totalStake * ownedStakeProportion / minimumStakeProportion;
         }
         require(joiningStake > 0, "Can not join directory for next epoch without any stake");
 
