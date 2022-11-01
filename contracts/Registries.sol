@@ -197,10 +197,10 @@ contract Registries is Initializable, OwnableUpgradeable {
         view
         returns (address[] memory, Registry[] memory)
     {
-        require(end > start, "end index must be greater than start index");
+        require(end > start, "End index must be greater than start index");
         require(
             end <= nodes.length,
-            "end index cannot be greater than total number of registered nodes"
+            "End index cannot be greater than total number of registered nodes"
         );
 
         address[] memory _nodes = new address[](end - start);

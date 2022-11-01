@@ -141,11 +141,11 @@ describe('Registries', () => {
     }
 
     await expect(registries.getRegistries(8, 5)).to.be.revertedWith(
-      'end index must be greater than start index',
+      'End index must be greater than start index',
     );
 
     await expect(registries.getRegistries(8, 21)).to.be.revertedWith(
-      'end index cannot be greater than total number of registered nodes',
+      'End index cannot be greater than total number of registered nodes',
     );
   });
 
