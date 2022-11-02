@@ -1415,6 +1415,64 @@ describe('Ticketing', () => {
     compareExpectedBalance(claim, toSOLOs(7500));
   });
 
+  it('rewards generated in the current epoch are not claimable', async () => {
+    await addStakes([
+      { account: accounts[0], stake: 1 },
+      { account: accounts[1], stake: 1 },
+    ]);
+
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    for (let j = 0; j < 2; j++) {
+      for (let i = 0; i < 10; i++) {
+        const { ticket, senderRand, redeemerRand, signature } =
+          await createWinningTicket(alice, owner);
+
+        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      }
+
+      await epochsManager.joinNextEpoch();
+      await epochsManager.initializeEpoch();
+    }
+
+    // claim rewards from the previous epoch
+    await rewardsManager.connect(accounts[1]).claimStakingRewards(owner);
+
+    let claim = await rewardsManager.calculateStakerClaim(
+      owner,
+      await accounts[1].getAddress(),
+    );
+
+    compareExpectedBalance(claim, 0);
+
+    // generate rewards for the current epoch
+    for (let i = 0; i < 10; i++) {
+      const { ticket, senderRand, redeemerRand, signature } =
+        await createWinningTicket(alice, owner);
+
+      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    }
+
+    // confirm claim is still 0
+    claim = await rewardsManager.calculateStakerClaim(
+      owner,
+      await accounts[1].getAddress(),
+    );
+
+    compareExpectedBalance(claim, 0);
+
+    await expect(
+      rewardsManager.connect(accounts[1]).claimStakingRewards(owner),
+    ).to.be.revertedWith('Nothing to claim');
+  });
+
   it('can claim staking rewards again after previous ended', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
