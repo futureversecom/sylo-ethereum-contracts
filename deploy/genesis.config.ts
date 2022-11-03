@@ -6,11 +6,8 @@ type ContractParameters = {
   SyloToken: string;
 
   Seekers: {
-    seekersERC721: string;
-    oracle: string;
-    validDuration: BigNumberish;
-    callbackGasLimit: BigNumberish;
-    callbackBounty: BigNumberish;
+    seekerAddress: string;
+    shouldMint: boolean;
   };
 
   EpochsManager: {
@@ -48,23 +45,25 @@ const GenesisParameters: ContractParameters = {
       ? '0xcCCCcCcC00004274000000000000000000000000'
       : hre.network.name === 'nikau'
       ? '0xcccCccCC000042B4000000000000000000000000'
+      : hre.network.name === 'porcini'
+      ? '0xCCcCCcCC00000C64000000000000000000000000'
       : '',
 
   Seekers: {
-    seekersERC721:
-      hre.network.name === 'rata'
-        ? '0x856D2df6998AcA9FDC4B2CA316b0527081cee8DD'
-        : hre.network.name === 'nikau'
-        ? '0x49e5706c06a263ac142d0a8c06f7ab247c1d978a'
+    seekerAddress:
+      hre.network.name === 'nikau'
+        ? '0xC65fDC6c38D0a1d3524aE54ba205BDE197AbddbA'
+        : hre.network.name === 'porcini'
+        ? '0xAAAAAAAA00001864000000000000000000000000'
         : '',
-    oracle: '0x0000000000000000000000000000000000006bb4',
-    validDuration: 200,
-    callbackGasLimit: 300000,
-    callbackBounty: 0,
+    shouldMint:
+      hre.network.name === 'localhost' || hre.network.name === 'rootlocal'
+        ? true
+        : false,
   },
 
   EpochsManager: {
-    epochDuration: 80000,
+    epochDuration: 12, // 1 minute
   },
 
   Registries: {
@@ -73,20 +72,20 @@ const GenesisParameters: ContractParameters = {
   },
 
   TicketingParameters: {
-    faceValue: 100000,
-    baseLiveWinProb: BigNumber.from(2).pow(128).sub(1).div(1000),
+    faceValue: hre.ethers.utils.parseEther('10000'),
+    baseLiveWinProb: BigNumber.from(2).pow(128).sub(1), // 100%
     expiredWinProb: BigNumber.from(2).pow(128).sub(1).div(1000),
     ticketDuration: 80000,
     decayRate: 8000,
   },
 
   Ticketing: {
-    unlockDuration: 80000,
+    unlockDuration: 30, // 150 seconds
   },
 
   StakingManager: {
-    unlockDuration: 8000,
-    minimumStakeProportion: 3000,
+    unlockDuration: 30,
+    minimumStakeProportion: 2000,
   },
 };
 

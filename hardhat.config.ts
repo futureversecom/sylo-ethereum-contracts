@@ -50,6 +50,18 @@ const config: HardhatUserConfig = {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
+    porcini: {
+      url: 'https://porcini.au.rootnet.app',
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
+      },
+    },
+    rootlocal: {
+      url: 'http://0.0.0.0:9933',
+      accounts: [
+        '0x79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf',
+      ],
+    },
   },
 };
 

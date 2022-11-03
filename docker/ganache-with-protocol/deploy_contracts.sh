@@ -5,7 +5,7 @@ ganache-cli \
   --db ganache-data \
   --deterministic \
   --mnemonic "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" \
-  --blockTime 10 \
+  --blockTime 5 \
   --account_keys_path ./deployment/accounts.json \
   &>/dev/null &
 

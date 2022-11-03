@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
-FROM node:14.17.5 AS node-builder
+FROM node:16.3.0-alpine AS node-builder
+RUN apk update && apk add bash
 
 WORKDIR /app
 
@@ -25,7 +26,7 @@ RUN mkdir ganache-data
 RUN mkdir deployment
 COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
-RUN ./deploy_contracts.sh
+RUN bash deploy_contracts.sh
 
 FROM trufflesuite/ganache-cli:v6.12.2
 

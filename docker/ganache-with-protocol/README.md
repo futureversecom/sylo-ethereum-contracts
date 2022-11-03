@@ -1,7 +1,7 @@
-## Ganache Docker Image
+# Ganache Docker Image
 
 This docker image runs a local ganache node with the contracts
-already deployed.
+already deployed, and 10 seekers minted for the deployer.
 
 When the image is built, an `accounts.json`
 used for the network and an `addresses.json` is stored in
@@ -10,17 +10,18 @@ used for the network and an `addresses.json` is stored in
 The `addresses.json` is a JSON file listing out the deployed
 contracts.
 
-```
+```json
 {
- "deployer": "0x835dF5fE77D479695a616F79A3FC3a25310eb7c6",
- "token": "0xc4db8fD3209c98290AB32693F5155c596B97Eabe",
- "registries": "0x2f2f947095021Ff12B316Fe61FcE57Fb57C90366",
- "ticketing": "0x943E7031A7Ed0FC236173f05a3084104b81Aa480",
- "ticketingParameters":"0x075EEeD1215982b78A2e05cD2213b5f53A718a9",
- "directory": "0xa4dE4FEA5e961e5C130013CfE207f7C08148A73C",
- "rewardsManager": "0x7bFCE7796fdE3Ba0F2052959d506bdA480518edA",
- "epochsManager": "0xFB87c433852Bb2917B37b0471DFA5B369e75083A",
- "stakingManager": "0x65A9be6e97eD2F417250A819e93BCb359b1140d0"
+  "deployer": "0x835dF5fE77D479695a616F79A3FC3a25310eb7c6",
+  "token": "0xc4db8fD3209c98290AB32693F5155c596B97Eabe",
+  "registries": "0x6137Da22d887053274ddd3923C6C364F7E34d9F2",
+  "ticketing": "0xB9c4F75F96cf9ba473607EC6e0e6249e39d8Ca03",
+  "ticketingParameters": "0x044Be02533C31207A3Ca34CaF6f574accB375bd1",
+  "directory": "0x4BF9F7cf118870485F135DaFd8B5EbBAC334ACAc",
+  "rewardsManager": "0x308de5B9b84961874E3414D9B677bC36Ef48fB18",
+  "epochsManager": "0xBE2cD9BECf461624a38AF9f4Df4585a3C5DbD478",
+  "stakingManager": "0x6d48a17aAbB94157F75ABB83538D6175B5354361",
+  "seekers": "0x49C537a88016186Ef41713239799Fc975F9e9aFA"
 }
 ```
 
@@ -36,14 +37,17 @@ used to deploy the contracts is
 Note: The context for building this image is in the root path of
 this repository.
 
-### Ganache Docker Image
+## Build docker
+
+```sh
+npm run docker-ganache
+```
+
+## Run docker
 
 The options used to run the local ganache node should be set correctly
 to ensure that it re-uses the same directory for the chain state.
 
-```
-docker run \
-  -p 8545:8545 \
-  $image_sha \
-  `bash -c ganache-cli --host 0.0.0.0 --db ganache-data --blockTime 10`
+```sh
+docker run -p 8545:8545 dn3010/sylo-ethereum-testnet:0.1.0 `bash -c ganache-cli --host 0.0.0.0 --db ganache-data --blockTime 5`
 ```
