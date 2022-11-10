@@ -48,7 +48,19 @@ const config: HardhatUserConfig = {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },
     },
-    porcini: {
+    nikau: {
+      url: process.env.NIKAU_ENDPOINT ?? '',
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
+      },
+    },
+    'porcini-dev': {
+      url: 'https://porcini.rootnet.app',
+      accounts: {
+        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
+      },
+    },
+    'porcini-testing': {
       url: 'https://porcini.rootnet.app',
       accounts: {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',

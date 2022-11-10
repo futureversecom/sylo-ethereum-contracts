@@ -86,7 +86,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         config.SyloToken,
         contracts[ContractNames.rewardsManager].address,
         contracts[ContractNames.epochsManager].address,
-        contracts[ContractNames.stakingManager].address,
+        config.StakingManager.unlockDuration,
         config.StakingManager.minimumStakeProportion,
       ],
     },
@@ -153,9 +153,9 @@ export default func;
 
 function getConfig(networkName: string): configs.ContractParameters {
   switch (networkName) {
-    case 'poricni-dev':
+    case 'porcini-dev':
       return configs.PorciniDevParameters;
-    case 'poricni-testing':
+    case 'porcini-testing':
       return configs.PorciniTestingParameters;
     case 'locahost':
       return configs.GanacheTestnetParameters;
