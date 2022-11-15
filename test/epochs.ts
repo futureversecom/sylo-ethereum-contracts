@@ -27,7 +27,7 @@ describe('Epochs', () => {
     await contracts.directory.transferOwnership(epochsManager.address);
   });
 
-  it('can set epoch duration', async () => {
+  it.only('can set epoch duration', async () => {
     await epochsManager.setEpochDuration(777);
     const epochDuration = await epochsManager.epochDuration();
     assert.equal(
