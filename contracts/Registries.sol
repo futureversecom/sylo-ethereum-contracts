@@ -4,9 +4,9 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "./ECDSA.sol";
-import "./Seekers.sol";
 
 /**
  * @notice This contract manages Registries for Nodes. A Registry is a
@@ -42,14 +42,20 @@ contract Registries is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Seeker's contract for verifying ownership of a seeker.
+     * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
+     * of a seeker.
      */
-    Seekers public _seekers;
+    IERC721 public _rootSeekers;
 
     /**
      * @notice Tracks each Node's registry.
      */
     mapping(address => Registry) public registries;
+
+    /**
+     * @notice Tracks the address of every registered node.
+     */
+    address[] public nodes;
 
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
@@ -69,12 +75,12 @@ contract Registries is Initializable, OwnableUpgradeable {
     uint16 public proofDuration;
 
     function initialize(
-        Seekers seekers,
+        IERC721 rootSeekers,
         uint16 _defaultPayoutPercentage,
         uint16 _proofDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        _seekers = seekers;
+        _rootSeekers = rootSeekers;
         require(
             _defaultPayoutPercentage <= 10000,
             "The payout percentage can not exceed 100 percent"
@@ -109,6 +115,11 @@ contract Registries is Initializable, OwnableUpgradeable {
     function register(string memory publicEndpoint, uint256 minDelegatedStake) external {
         require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
 
+        // This is the nodes first registration
+        if (bytes(registries[msg.sender].publicEndpoint).length == 0) {
+            nodes.push(msg.sender);
+        }
+
         registries[msg.sender].publicEndpoint = publicEndpoint;
         registries[msg.sender].minDelegatedStake = minDelegatedStake;
     }
@@ -138,9 +149,9 @@ contract Registries is Initializable, OwnableUpgradeable {
         );
 
         // Now verify the seeker account actually owns the seeker
-        Seekers.Owner memory owner = _seekers.ownerOf(seekerId);
+        address owner = _rootSeekers.ownerOf(seekerId);
 
-        require(seekerAccount == owner.owner, "Seeker account must own the specified seeker");
+        require(seekerAccount == owner, "Seeker account must own the specified seeker");
 
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
@@ -164,6 +175,51 @@ contract Registries is Initializable, OwnableUpgradeable {
      */
     function getRegistry(address account) external view returns (Registry memory) {
         return registries[account];
+    }
+
+    /**
+     * @notice Retrieve all registered nodes.
+     * @return An array of node addresses.
+     */
+    function getNodes() external view returns (address[] memory) {
+        return nodes;
+    }
+
+    /**
+     * @notice Retrieves a list of registries. Takes in a
+     * a start and end indices to allow pagination.
+     * @param start The start index which is inclusive.
+     * @param end The end index which is exclusive.
+     * @return An array of Registries.
+     */
+    function getRegistries(uint256 start, uint256 end)
+        external
+        view
+        returns (address[] memory, Registry[] memory)
+    {
+        require(end > start, "End index must be greater than start index");
+        require(
+            end <= nodes.length,
+            "End index cannot be greater than total number of registered nodes"
+        );
+
+        address[] memory _nodes = new address[](end - start);
+        Registry[] memory _registries = new Registry[](end - start);
+
+        for (uint256 i = start; i < end; i++) {
+            _nodes[i - start] = nodes[i];
+            _registries[i - start] = registries[nodes[i]];
+        }
+
+        return (_nodes, _registries);
+    }
+
+    /**
+     * @notice Returns the total number of registered nodes.
+     * @return The number of registered nodes.
+     */
+    function getTotalNodes() external view returns (uint256) {
+        return nodes.length;
     }
 
     /**

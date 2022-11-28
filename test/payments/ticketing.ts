@@ -4,13 +4,12 @@ import {
   Directory,
   EpochsManager,
   Registries,
-  MockOracle,
   RewardsManager,
-  Seekers,
   StakingManager,
   SyloTicketing,
   SyloToken,
   TicketingParameters,
+  TestSeekers,
 } from '../../typechain';
 import crypto from 'crypto';
 import sodium from 'libsodium-wrappers-sumo';
@@ -35,8 +34,7 @@ describe('Ticketing', () => {
   let directory: Directory;
   let registries: Registries;
   let stakingManager: StakingManager;
-  let mockOracle: MockOracle;
-  let seekers: Seekers;
+  let seekers: TestSeekers;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -59,7 +57,6 @@ describe('Ticketing', () => {
     directory = contracts.directory;
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
-    mockOracle = contracts.mockOracle;
     seekers = contracts.seekers;
 
     await token.approve(stakingManager.address, toSOLOs(10000000));
@@ -587,7 +584,6 @@ describe('Ticketing', () => {
     await contracts.stakingManager.addStake(toSOLOs(1), owner);
     await utils.setSeekerRegistry(
       contracts.registries,
-      contracts.mockOracle,
       contracts.seekers,
       accounts[0],
       accounts[1],
@@ -788,8 +784,6 @@ describe('Ticketing', () => {
       // have account 2 as a delegated staker
       { account: accounts[2], stake: 2 },
     ]);
-
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1035,7 +1029,6 @@ describe('Ticketing', () => {
         await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
       }
 
-      await setSeekerRegistry(accounts[0], accounts[1], 1);
       await epochsManager.joinNextEpoch();
       await epochsManager.initializeEpoch();
 
@@ -1293,7 +1286,6 @@ describe('Ticketing', () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await utils.setSeekerRegistry(
       contracts.registries,
-      contracts.mockOracle,
       contracts.seekers,
       accounts[0],
       accounts[1],
@@ -1795,7 +1787,6 @@ describe('Ticketing', () => {
   ) {
     await utils.setSeekerRegistry(
       registries,
-      mockOracle,
       seekers,
       account,
       seekerAccount,

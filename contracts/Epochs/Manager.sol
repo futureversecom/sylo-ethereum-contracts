@@ -3,11 +3,11 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "../Payments/Ticketing/Parameters.sol";
 import "../Registries.sol";
 import "../Staking/Directory.sol";
-import "../Seekers.sol";
 
 contract EpochsManager is Initializable, OwnableUpgradeable {
     /**
@@ -39,7 +39,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     Registries public _registries;
 
-    Seekers public _seekers;
+    IERC721 public _rootSeekers;
 
     TicketingParameters public _ticketingParameters;
 
@@ -73,14 +73,14 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
     event NewEpoch(uint256 epochId);
 
     function initialize(
-        Seekers seekers,
+        IERC721 rootSeekers,
         Directory directory,
         Registries registries,
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
-        _seekers = seekers;
+        _rootSeekers = rootSeekers;
         _directory = directory;
         _registries = registries;
         _ticketingParameters = ticketingParameters;
@@ -162,10 +162,10 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             "Node must have a valid seeker account to join an epoch"
         );
 
-        Seekers.Owner memory owner = _seekers.ownerOf(registry.seekerId);
+        address owner = _rootSeekers.ownerOf(registry.seekerId);
 
         require(
-            registry.seekerAccount == owner.owner,
+            registry.seekerAccount == owner,
             "Node's seeker account does not match the current seeker owner"
         );
 
