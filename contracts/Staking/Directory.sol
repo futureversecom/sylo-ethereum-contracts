@@ -108,7 +108,7 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
         if (ownedStakeProportion >= minimumStakeProportion) {
             joiningStake = totalStake;
         } else {
-            // if the node does meet the minimum stake proportion, then we reduce
+            // if the node is below the minimum stake proportion, then we reduce
             // the stake used to join the epoch proportionally
             joiningStake = totalStake * ownedStakeProportion / minimumStakeProportion;
         }

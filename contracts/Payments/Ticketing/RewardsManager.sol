@@ -220,7 +220,8 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     /**
      * @notice Retrieves the total accumulated rewards for a specific epoch.
      * @param epochId The epoch id.
-     * @return The total reward in that epoch.
+     * @return The total reward in that epoch, including staking rewards and fee
+     * reward.
      */
     function getTotalEpochRewards(uint256 epochId) external view returns (uint256) {
         return totalEpochRewards[epochId];
@@ -229,7 +230,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
     /**
      * @notice Retrieves the total accumulated rewards for stakers in a specific epoch.
      * @param epochId The epoch id.
-     * @return The total reward in that epoch.
+     * @return The total staking reward in that epoch.
      */
     function getTotalEpochStakingRewards(uint256 epochId) external view returns (uint256) {
         return totalEpochStakingRewards[epochId];
