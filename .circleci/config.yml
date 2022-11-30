@@ -24,7 +24,7 @@ jobs:
           command: npm run solhint
       - run:
           name: prepare artifacts
-          command: node ./scripts/parseArtifacts.js
+          command: npx ts-node scripts/parse_artifacts.ts
       - save_cache:
           key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
           paths:
@@ -43,7 +43,7 @@ jobs:
           command: ITERATIONS=10000 npm test
       - run:
           name: prepare outputs
-          command: node ./scripts/parseArtifacts.js
+          command: npx ts-node scripts/parse_artifacts.ts
       - store_artifacts:
           path: ~/sylo-ethereum-contracts/gasReport.txt
 
