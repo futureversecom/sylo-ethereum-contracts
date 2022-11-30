@@ -137,14 +137,6 @@ describe('Staking', () => {
     );
   });
 
-  it('should not be able to add more stake if minimum stake proportion not met', async () => {
-    await expect(
-      stakingManager.addStake(1, await accounts[1].getAddress()),
-    ).to.be.revertedWith(
-      'Can not add more stake until stakee adds more stake itself',
-    );
-  });
-
   it('should be able to calculate remaining stake that can be added to a stakee', async () => {
     await stakingManager.addStake(111, owner);
 
@@ -342,12 +334,10 @@ describe('Staking', () => {
     );
   });
 
-  it('should not allow delegated stake to exceed minimum owned stake by the stakee', async () => {
-    await expect(
-      stakingManager.addStake(1, await accounts[1].getAddress()),
-    ).to.be.revertedWith(
-      'Can not add more stake until stakee adds more stake itself',
-    );
+  it('should allow delegated stake to exceed minimum owned stake by the stakee', async () => {
+    await token.transfer(await accounts[1].getAddress(), 1000);
+    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await stakingManager.connect(accounts[1]).addStake(180, owner);
   });
 
   it('should not allow directory to be joined with no stake', async () => {
@@ -368,19 +358,43 @@ describe('Staking', () => {
     );
   });
 
-  it('should not allow directory to be joined without stakee owning minimum stake', async () => {
+  it('should reduce stake when joining directory with less than minimum stake', async () => {
     await stakingManager.addStake(100, owner);
 
     await token.transfer(await accounts[1].getAddress(), 1000);
     await token.connect(accounts[1]).approve(stakingManager.address, 1000);
-    await stakingManager.connect(accounts[1]).addStake(100, owner);
+    await stakingManager.connect(accounts[1]).addStake(180, owner);
 
     // after unlocking, Node will own less than 20% of stake
     await stakingManager.unlockStake(80, owner);
 
     await directory.addManager(owner);
+    await directory.joinNextDirectory(owner);
+
+    // the node now only owns 10% of the stake, which 50% of the
+    // minimum stake proportion
+    // the stake that the node joined with should be 50% of the managed
+    // stake
+    const joinedStake = await directory.getTotalStakeForStakee(1, owner);
+    const managedStake = await stakingManager.getStakeeTotalManagedStake(owner);
+
+    const meetsMinimum = await stakingManager.checkMinimumStakeProportion(
+      owner,
+    );
+    expect(meetsMinimum).to.equal(false);
+
+    expect(managedStake.div(2).toString()).to.equal(joinedStake);
+  });
+
+  it('should fail to join when node`s own stake is 0', async () => {
+    await token.transfer(await accounts[1].getAddress(), 1000);
+    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await stakingManager.connect(accounts[1]).addStake(180, owner);
+
+    await directory.addManager(owner);
+
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Can not join directory without owning minimum amount of stake',
+      'Can not join directory for next epoch without any stake',
     );
   });
 
@@ -409,6 +423,11 @@ describe('Staking', () => {
       '180',
       'Expected contract to track all stake entries',
     );
+
+    const meetsMinimum = await stakingManager.checkMinimumStakeProportion(
+      owner,
+    );
+    expect(meetsMinimum).to.equal(true);
   });
 
   it('should store the epochId the stake entry was updated at', async () => {
