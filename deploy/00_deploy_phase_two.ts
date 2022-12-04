@@ -10,7 +10,6 @@ import {
   TicketingParameters,
 } from '../typechain';
 import * as fs from 'fs/promises';
-import { mintSeeker } from './utils';
 
 type PhaseTwoContracts = {
   token: string;
@@ -45,12 +44,12 @@ async function deployPhaseTwoContracts(
     );
   }
 
-  if (config.Seekers.seekerAddress == '') {
+  if (config.Seekers == '') {
     const TestSeekerFactory = await ethers.getContractFactory('TestSeekers');
     const seekers = await TestSeekerFactory.deploy();
     await seekers.deployed();
 
-    config.Seekers.seekerAddress = seekers.address;
+    config.Seekers = seekers.address;
     logDeployment('Seekers', seekers.address);
   }
 
@@ -122,62 +121,61 @@ async function deployPhaseTwoContracts(
 
   logDeployment('Directory', directory.address);
 
-  let tx = await registries.initialize(
-    config.Seekers.seekerAddress,
-    config.Registries.defaultPayoutPercentage,
-    config.Registries.proofDuration,
-  );
-  await tx.wait();
+  await registries
+    .initialize(
+      config.Seekers,
+      config.Registries.defaultPayoutPercentage,
+      config.Registries.proofDuration,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized registries');
 
-  tx = await ticketingParameters.initialize(
-    config.TicketingParameters.faceValue,
-    config.TicketingParameters.baseLiveWinProb,
-    config.TicketingParameters.expiredWinProb,
-    config.TicketingParameters.decayRate,
-    config.TicketingParameters.ticketDuration,
-  );
-  await tx.wait();
+  await ticketingParameters
+    .initialize(
+      config.TicketingParameters.faceValue,
+      config.TicketingParameters.baseLiveWinProb,
+      config.TicketingParameters.expiredWinProb,
+      config.TicketingParameters.decayRate,
+      config.TicketingParameters.ticketDuration,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized ticketing parameters');
 
-  tx = await epochsManager.initialize(
-    config.Seekers.seekerAddress,
-    directory.address,
-    registries.address,
-    ticketingParameters.address,
-    config.EpochsManager.epochDuration,
-  );
-  await tx.wait();
+  await epochsManager
+    .initialize(
+      config.Seekers,
+      directory.address,
+      registries.address,
+      ticketingParameters.address,
+      config.EpochsManager.epochDuration,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized epochs manager contract');
 
-  tx = await stakingManager.initialize(
-    config.SyloToken,
-    rewardsManager.address,
-    epochsManager.address,
-    config.StakingManager.unlockDuration,
-    config.StakingManager.minimumStakeProportion,
-  );
-  await tx.wait();
+  await stakingManager
+    .initialize(
+      config.SyloToken,
+      rewardsManager.address,
+      epochsManager.address,
+      config.StakingManager.unlockDuration,
+      config.StakingManager.minimumStakeProportion,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized staking manager contract');
 
-  tx = await rewardsManager.initialize(
-    config.SyloToken,
-    stakingManager.address,
-    epochsManager.address,
-  );
-  await tx.wait();
+  await rewardsManager
+    .initialize(config.SyloToken, stakingManager.address, epochsManager.address)
+    .then(tx => tx.wait());
 
   console.log('Initialized rewards manager contract');
 
-  tx = await directory.initialize(
-    stakingManager.address,
-    rewardsManager.address,
-  );
-  await tx.wait();
+  await directory
+    .initialize(stakingManager.address, rewardsManager.address)
+    .then(tx => tx.wait());
 
   console.log('Initialized directory contract');
 
@@ -189,41 +187,33 @@ async function deployPhaseTwoContracts(
 
   logDeployment('Ticketing', ticketing.address);
 
-  tx = await ticketing.initialize(
-    config.SyloToken,
-    registries.address,
-    stakingManager.address,
-    directory.address,
-    epochsManager.address,
-    rewardsManager.address,
-    config.Ticketing.unlockDuration,
-  );
-  await tx.wait();
+  await ticketing
+    .initialize(
+      config.SyloToken,
+      registries.address,
+      stakingManager.address,
+      directory.address,
+      epochsManager.address,
+      rewardsManager.address,
+      config.Ticketing.unlockDuration,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized ticketing contract');
 
   // add managers to the staking manager contract
-  tx = await directory.addManager(epochsManager.address);
-  await tx.wait();
+  await directory.addManager(epochsManager.address).then(tx => tx.wait());
 
   console.log('Added managers to directory manager contract');
 
   // add managers to the rewards manager contract
-  tx = await rewardsManager.addManager(ticketing.address);
-  await tx.wait();
+  await rewardsManager.addManager(ticketing.address).then(tx => tx.wait());
 
-  tx = await rewardsManager.addManager(stakingManager.address);
-  await tx.wait();
+  await rewardsManager.addManager(stakingManager.address).then(tx => tx.wait());
 
-  tx = await rewardsManager.addManager(epochsManager.address);
-  await tx.wait();
+  await rewardsManager.addManager(epochsManager.address).then(tx => tx.wait());
 
   console.log('Added managers to rewards manager contract');
-
-  if (config.Seekers.shouldMint) {
-    await mintSeeker(config.Seekers.seekerAddress, deployer.address, 10);
-    console.log('Seekers minted');
-  }
 
   console.log(
     `Deployment of phase two contracts to network ${network.name} complete by deployer: ${deployer.address}`,
@@ -238,7 +228,7 @@ async function deployPhaseTwoContracts(
     rewardsManager,
     epochsManager,
     stakingManager,
-    seekers: config.Seekers.seekerAddress,
+    seekers: config.Seekers,
   };
 }
 

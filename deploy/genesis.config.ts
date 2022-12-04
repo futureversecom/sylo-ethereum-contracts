@@ -5,10 +5,8 @@ type ContractParameters = {
   // Address of the existing Sylo Token
   SyloToken: string;
 
-  Seekers: {
-    seekerAddress: string;
-    shouldMint: boolean;
-  };
+  // Address of the existing bridged Seekers contract
+  Seekers: string;
 
   EpochsManager: {
     epochDuration: BigNumberish;
@@ -49,21 +47,15 @@ const GenesisParameters: ContractParameters = {
       ? '0xCCcCCcCC00000C64000000000000000000000000'
       : '',
 
-  Seekers: {
-    seekerAddress:
-      hre.network.name === 'nikau'
-        ? '0xC65fDC6c38D0a1d3524aE54ba205BDE197AbddbA'
-        : hre.network.name === 'porcini'
-        ? '0xAAAAAAAA00001864000000000000000000000000'
-        : '',
-    shouldMint:
-      hre.network.name === 'localhost' || hre.network.name === 'rootlocal'
-        ? true
-        : false,
-  },
+  Seekers:
+    hre.network.name === 'nikau'
+      ? '0xC65fDC6c38D0a1d3524aE54ba205BDE197AbddbA'
+      : hre.network.name === 'porcini'
+      ? '0xAAAAAAAA00001864000000000000000000000000'
+      : '',
 
   EpochsManager: {
-    epochDuration: 12, // 1 minute
+    epochDuration: 80000,
   },
 
   Registries: {
@@ -72,20 +64,20 @@ const GenesisParameters: ContractParameters = {
   },
 
   TicketingParameters: {
-    faceValue: hre.ethers.utils.parseEther('10000'),
-    baseLiveWinProb: BigNumber.from(2).pow(128).sub(1), // 100%
+    faceValue: 100000,
+    baseLiveWinProb: BigNumber.from(2).pow(128).sub(1).div(1000),
     expiredWinProb: BigNumber.from(2).pow(128).sub(1).div(1000),
     ticketDuration: 80000,
     decayRate: 8000,
   },
 
   Ticketing: {
-    unlockDuration: 30, // 150 seconds
+    unlockDuration: 80000,
   },
 
   StakingManager: {
-    unlockDuration: 30,
-    minimumStakeProportion: 2000,
+    unlockDuration: 8000,
+    minimumStakeProportion: 3000,
   },
 };
 

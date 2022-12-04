@@ -5,18 +5,19 @@ RUN apk update && apk add bash
 
 WORKDIR /app
 
+# install ganache-cli, typescript, ts-node
+RUN npm install -g ganache-cli typescript ts-node
+
 # copy necessary files
 COPY ["package.json", "package-lock.json*", "./"]
 COPY contracts contracts
 COPY deploy deploy
+COPY scripts scripts
 COPY tsconfig.json .
 COPY hardhat.config.ts .
 
 # install npm modules
 RUN npm install
-
-# install ganache-cli
-RUN npm install -g ganache-cli
 
 # deploy the contracts to a local ganache network
 RUN mkdir ganache-data

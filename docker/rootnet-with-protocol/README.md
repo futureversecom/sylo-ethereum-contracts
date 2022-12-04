@@ -22,7 +22,7 @@ The contract addresses are
 
 The chain state is saved in the directory `/mnt/data`.
 
-The `private key` used to when starting the node and also
+The `private key` used when starting the node and also
 used to deploy the contracts is
 `0x79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf`
 

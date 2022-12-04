@@ -8,10 +8,14 @@ RUN apt install curl -y
 RUN curl -sL https://deb.nodesource.com/setup_16.x | bash -
 RUN apt install -y nodejs
 
+# install typescript, ts-node
+RUN npm install -g typescript ts-node
+
 # copy necessary files
 COPY ["package.json", "package-lock.json*", "./"]
 COPY contracts contracts
 COPY deploy deploy
+COPY scripts scripts
 COPY tsconfig.json .
 COPY hardhat.config.ts .
 
