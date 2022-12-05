@@ -5,7 +5,6 @@ import {
   EpochsManager,
   Registries,
   RewardsManager,
-  Seekers,
   StakingManager,
   SyloTicketing,
   TicketingParameters,
@@ -21,7 +20,7 @@ type PhaseTwoContracts = {
   stakingManager: StakingManager;
   ticketingParameters: TicketingParameters;
   ticketing: SyloTicketing;
-  seekers: Seekers;
+  seekers: string;
 };
 
 async function deployPhaseTwoContracts(
@@ -37,30 +36,28 @@ async function deployPhaseTwoContracts(
   if (config.SyloToken == '') {
     const SyloTokenFactory = await ethers.getContractFactory('SyloToken');
     const syloToken = await SyloTokenFactory.deploy();
+    await syloToken.deployed();
+
     config.SyloToken = syloToken.address;
     console.log(
       `Sylo token deployed to ${network.name} network at ${syloToken.address}`,
     );
   }
 
-  const SeekersFactory = await ethers.getContractFactory('Seekers');
-  const seekers = (await upgrades.deployProxy(SeekersFactory, [
-    config.Seekers.seekersERC721,
-    config.SyloToken,
-    config.Seekers.oracle,
-    config.Seekers.validDuration,
-    config.Seekers.callbackGasLimit,
-    config.Seekers.callbackBounty,
-  ])) as Seekers;
+  if (config.Seekers == '') {
+    const TestSeekerFactory = await ethers.getContractFactory('TestSeekers');
+    const seekers = await TestSeekerFactory.deploy();
+    await seekers.deployed();
 
-  logDeployment('Seekers', seekers.address);
+    config.Seekers = seekers.address;
+    logDeployment('Seekers', seekers.address);
+  }
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
-  const registries = (await upgrades.deployProxy(RegistriesFactory, [
-    seekers.address,
-    config.Registries.defaultPayoutPercentage,
-    config.Registries.proofDuration,
-  ])) as Registries;
+  const registries = (await upgrades.deployProxy(RegistriesFactory, undefined, {
+    initializer: false,
+  })) as Registries;
+  await registries.deployed();
 
   logDeployment('Registries', registries.address);
 
@@ -69,14 +66,10 @@ async function deployPhaseTwoContracts(
   );
   const ticketingParameters = (await upgrades.deployProxy(
     TicketingParametersFactory,
-    [
-      config.TicketingParameters.faceValue,
-      config.TicketingParameters.baseLiveWinProb,
-      config.TicketingParameters.expiredWinProb,
-      config.TicketingParameters.decayRate,
-      config.TicketingParameters.ticketDuration,
-    ],
+    undefined,
+    { initializer: false },
   )) as TicketingParameters;
+  await ticketingParameters.deployed();
 
   logDeployment('TicketingParameters', ticketingParameters.address);
 
@@ -92,6 +85,7 @@ async function deployPhaseTwoContracts(
       initializer: false,
     },
   )) as EpochsManager;
+  await epochsManager.deployed();
 
   logDeployment('EpochsManager', epochsManager.address);
 
@@ -103,6 +97,7 @@ async function deployPhaseTwoContracts(
     undefined,
     { initializer: false },
   )) as StakingManager;
+  await stakingManager.deployed();
 
   logDeployment('StakingManager', stakingManager.address);
 
@@ -114,6 +109,7 @@ async function deployPhaseTwoContracts(
     undefined,
     { initializer: false },
   )) as RewardsManager;
+  await rewardsManager.deployed();
 
   logDeployment('RewardsManager', rewardsManager.address);
 
@@ -121,63 +117,101 @@ async function deployPhaseTwoContracts(
   const directory = (await upgrades.deployProxy(DirectoryFactory, undefined, {
     initializer: false,
   })) as Directory;
+  await directory.deployed();
 
   logDeployment('Directory', directory.address);
 
-  await epochsManager.initialize(
-    seekers.address,
-    directory.address,
-    registries.address,
-    ticketingParameters.address,
-    config.EpochsManager.epochDuration,
-  );
+  await registries
+    .initialize(
+      config.Seekers,
+      config.Registries.defaultPayoutPercentage,
+      config.Registries.proofDuration,
+    )
+    .then(tx => tx.wait());
+
+  console.log('Initialized registries');
+
+  await ticketingParameters
+    .initialize(
+      config.TicketingParameters.faceValue,
+      config.TicketingParameters.baseLiveWinProb,
+      config.TicketingParameters.expiredWinProb,
+      config.TicketingParameters.decayRate,
+      config.TicketingParameters.ticketDuration,
+    )
+    .then(tx => tx.wait());
+
+  console.log('Initialized ticketing parameters');
+
+  await epochsManager
+    .initialize(
+      config.Seekers,
+      directory.address,
+      registries.address,
+      ticketingParameters.address,
+      config.EpochsManager.epochDuration,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized epochs manager contract');
 
-  await stakingManager.initialize(
-    config.SyloToken,
-    rewardsManager.address,
-    epochsManager.address,
-    config.StakingManager.unlockDuration,
-    config.StakingManager.minimumStakeProportion,
-  );
+  await stakingManager
+    .initialize(
+      config.SyloToken,
+      rewardsManager.address,
+      epochsManager.address,
+      config.StakingManager.unlockDuration,
+      config.StakingManager.minimumStakeProportion,
+    )
+    .then(tx => tx.wait());
 
   console.log('Initialized staking manager contract');
 
-  await rewardsManager.initialize(
-    config.SyloToken,
-    stakingManager.address,
-    epochsManager.address,
-  );
+  await rewardsManager
+    .initialize(config.SyloToken, stakingManager.address, epochsManager.address)
+    .then(tx => tx.wait());
 
   console.log('Initialized rewards manager contract');
 
-  await directory.initialize(stakingManager.address, rewardsManager.address);
+  await directory
+    .initialize(stakingManager.address, rewardsManager.address)
+    .then(tx => tx.wait());
 
   console.log('Initialized directory contract');
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
-  const ticketing = (await upgrades.deployProxy(TicketingFactory, [
-    config.SyloToken,
-    registries.address,
-    stakingManager.address,
-    directory.address,
-    epochsManager.address,
-    rewardsManager.address,
-    config.Ticketing.unlockDuration,
-  ])) as SyloTicketing;
+  const ticketing = (await upgrades.deployProxy(TicketingFactory, undefined, {
+    initializer: false,
+  })) as SyloTicketing;
+  await ticketing.deployed();
 
   logDeployment('Ticketing', ticketing.address);
 
+  await ticketing
+    .initialize(
+      config.SyloToken,
+      registries.address,
+      stakingManager.address,
+      directory.address,
+      epochsManager.address,
+      rewardsManager.address,
+      config.Ticketing.unlockDuration,
+    )
+    .then(tx => tx.wait());
+
+  console.log('Initialized ticketing contract');
+
   // add managers to the staking manager contract
-  await directory.addManager(epochsManager.address);
+  await directory.addManager(epochsManager.address).then(tx => tx.wait());
 
   console.log('Added managers to directory manager contract');
 
   // add managers to the rewards manager contract
-  await rewardsManager.addManager(ticketing.address);
-  await rewardsManager.addManager(stakingManager.address);
-  await rewardsManager.addManager(epochsManager.address);
+  await rewardsManager.addManager(ticketing.address).then(tx => tx.wait());
+
+  await rewardsManager.addManager(stakingManager.address).then(tx => tx.wait());
+
+  await rewardsManager.addManager(epochsManager.address).then(tx => tx.wait());
 
   console.log('Added managers to rewards manager contract');
 
@@ -194,7 +228,7 @@ async function deployPhaseTwoContracts(
     rewardsManager,
     epochsManager,
     stakingManager,
-    seekers,
+    seekers: config.Seekers,
   };
 }
 
@@ -219,7 +253,7 @@ async function main() {
     rewardsManager: contracts.rewardsManager.address,
     epochsManager: contracts.epochsManager.address,
     stakingManager: contracts.stakingManager.address,
-    seekers: contracts.seekers.address,
+    seekers: contracts.seekers,
   };
 
   await fs.writeFile(

@@ -1,15 +1,20 @@
-const fs = require('fs');
-const path = require('path');
-const mkdirp = require('mkdirp');
+import fs from 'fs';
+import path from 'path';
+import mkdirp from 'mkdirp';
 
-const parseArtifact = (inFile, outDir, outFile, type = 'abi') => {
-  fs.readFile(inFile, (err, data) => {
+const parseArtifact = (
+  inFile: string,
+  outDir: string,
+  outFile: string,
+  type = 'abi',
+) => {
+  fs.readFile(inFile, (err: NodeJS.ErrnoException | null, data: Buffer) => {
     if (err) {
       console.error('Failed to read ' + inFile + ': ' + err);
     } else {
-      const json = JSON.parse(data);
+      const json = JSON.parse(data.toString());
 
-      let jsonData;
+      let jsonData = '';
 
       if (type == 'bin') {
         jsonData = json.bytecode;
@@ -36,7 +41,7 @@ const ARTIFACT_DIR = path.resolve(__dirname, '../artifacts');
 const ABI_DIR = path.resolve(__dirname, '../abi');
 const BIN_DIR = path.resolve(__dirname, '../bin');
 
-function readDir(dir) {
+function readDir(dir: string) {
   fs.readdir(dir, (err, files) => {
     if (err) {
       console.error('Failed to read ' + ARTIFACT_DIR + ': ' + err);

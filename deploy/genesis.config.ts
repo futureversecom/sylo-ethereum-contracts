@@ -5,13 +5,8 @@ type ContractParameters = {
   // Address of the existing Sylo Token
   SyloToken: string;
 
-  Seekers: {
-    seekersERC721: string;
-    oracle: string;
-    validDuration: BigNumberish;
-    callbackGasLimit: BigNumberish;
-    callbackBounty: BigNumberish;
-  };
+  // Address of the existing bridged Seekers contract
+  Seekers: string;
 
   EpochsManager: {
     epochDuration: BigNumberish;
@@ -48,20 +43,16 @@ const GenesisParameters: ContractParameters = {
       ? '0xcCCCcCcC00004274000000000000000000000000'
       : hre.network.name === 'nikau'
       ? '0xcccCccCC000042B4000000000000000000000000'
+      : hre.network.name === 'porcini'
+      ? '0xCCcCCcCC00000C64000000000000000000000000'
       : '',
 
-  Seekers: {
-    seekersERC721:
-      hre.network.name === 'rata'
-        ? '0x856D2df6998AcA9FDC4B2CA316b0527081cee8DD'
-        : hre.network.name === 'nikau'
-        ? '0x49e5706c06a263ac142d0a8c06f7ab247c1d978a'
-        : '',
-    oracle: '0x0000000000000000000000000000000000006bb4',
-    validDuration: 200,
-    callbackGasLimit: 300000,
-    callbackBounty: 0,
-  },
+  Seekers:
+    hre.network.name === 'nikau'
+      ? '0xC65fDC6c38D0a1d3524aE54ba205BDE197AbddbA'
+      : hre.network.name === 'porcini'
+      ? '0xAAAAAAAA00001864000000000000000000000000'
+      : '',
 
   EpochsManager: {
     epochDuration: 80000,

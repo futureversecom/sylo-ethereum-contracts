@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'fs/promises';
+import path from 'path';
 
 const PKG_DIR =
   process.env.ABI_PACKAGE ??
@@ -17,11 +17,16 @@ const syloContracts = [
   'TicketingParameters',
 ];
 
+type ABI = {
+  contract: string;
+  abi: string;
+};
+
 async function parseAbis() {
   const abis = await Promise.all(
     syloContracts.map(async contract => {
       const src = `${ABI_DIR}/${contract}.abi`;
-      const abi = await fs.readFile(src).then(b => b.toString());
+      const abi = await fs.readFile(src).then((b: Buffer) => b.toString());
 
       await fs.copyFile(src, `${PKG_DIR}/${contract}.abi`);
 
@@ -32,7 +37,7 @@ async function parseAbis() {
   return abis;
 }
 
-async function writePackageIndex(abis) {
+async function writePackageIndex(abis: ABI[]) {
   let f = ``;
 
   abis.map(a => {

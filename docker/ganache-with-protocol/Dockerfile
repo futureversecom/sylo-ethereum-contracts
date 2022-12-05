@@ -1,21 +1,23 @@
 # syntax=docker/dockerfile:1
 
-FROM node:14.17.5 AS node-builder
+FROM node:16.3.0-alpine AS node-builder
+RUN apk update && apk add bash
 
 WORKDIR /app
+
+# install ganache-cli, typescript, ts-node
+RUN npm install -g ganache-cli typescript ts-node
 
 # copy necessary files
 COPY ["package.json", "package-lock.json*", "./"]
 COPY contracts contracts
 COPY deploy deploy
+COPY scripts scripts
 COPY tsconfig.json .
 COPY hardhat.config.ts .
 
 # install npm modules
 RUN npm install
-
-# install ganache-cli
-RUN npm install -g ganache-cli
 
 # deploy the contracts to a local ganache network
 RUN mkdir ganache-data
@@ -25,7 +27,7 @@ RUN mkdir ganache-data
 RUN mkdir deployment
 COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
-RUN ./deploy_contracts.sh
+RUN bash deploy_contracts.sh
 
 FROM trufflesuite/ganache-cli:v6.12.2
 
