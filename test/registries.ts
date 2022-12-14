@@ -277,4 +277,60 @@ describe('Registries', () => {
       'Public endpoint can not be empty',
     );
   });
+
+  it("Doesn't exists that more than one Registry has same seeker ID", async() => {
+    const seekerAccount = accounts[4]; // Don't think it matters which account is used
+    const seekerAddress = await seekerAccount.getAddress(); // Get the address for the account in use
+    const seekerAddressLower = seekerAddress.toLowerCase(); // Sets the seekerAddress to lower case as it is a string promise
+
+    const seekerAccountTwo = accounts[5];
+    const seekerAddressTwo = await seekerAccountTwo.getAddress();
+    const seekerAddressLowerTwo = seekerAddressTwo.toLowerCase(); // Sets the seekerAddress to lower case as it is a string promise
+
+    /* 
+    Repeating this process for my own understanding
+    */
+    // minting seeker to one of the accounts returned from ethers.getSingers
+    const tokenID = 100;
+    await seekers.mint(seekerAddress, tokenID); 
+
+    // Gets the current block number and turns it into a string
+    const block = await ethers.provider.getBlockNumber(); 
+    const blockString = block.toString();
+
+    // Gets the prefix for the proof messages from the Registries contract "This message allows your seeker to be used to operate your node."
+    const proofMessagePrefix = await registries.getPrefix();
+
+    // Constructs the proof message
+    // Signs the proof message returns a Raw Signature promise 65 byte DataHexString 
+    const proofMessage = `${proofMessagePrefix}:${tokenID}:${seekerAddressLower}:${blockString}`; 
+    const signature = await seekerAccount.signMessage(proofMessage); 
+
+    // Connects the first seeker account, seekerAccount, and sets it as a seeker account
+    // retrievs the registry present in the contract associated with that seeker account
+    await registries.connect(seekerAccount).setSeekerAccount(seekerAddress, tokenID, block, signature,);
+
+    // Transfer the minted seeker from seekerAccount to seekerAccountTwo
+    // await seekers.connect(seekerAccount).approve(registries.address, tokenID);
+    // await registries.transferOwnershipSeeker(seekerAddress, seekerAddressTwo, tokenID);
+    await seekers.connect(seekerAccount).transferFrom(seekerAddress, seekerAddressTwo, tokenID); // same as above two lines
+
+    // Constructs the proof message for the second seeker account
+    // generates a signature using the proof message, Signs the proof message returns a Raw Signature promise 65 byte DataHexString
+    const proofMessageTwo = `${proofMessagePrefix}:${tokenID}:${seekerAddressLowerTwo}:${blockString}`; 
+    const signatureTwo = await seekerAccountTwo.signMessage(proofMessageTwo); 
+
+    // Connects the second seeker account, seekerAccountTwo, and sets it as a seeker account
+    // retreives the registry for the second seeker account
+    await registries.connect(seekerAccountTwo).setSeekerAccount(seekerAddressTwo, tokenID, block, signatureTwo);
+
+    // Get the registries for the two seeker accounts
+    const regoSeekerAccountTwo = await registries.getRegistry(seekerAddressTwo);
+    const regoSeekerAccount = await registries.getRegistry(seekerAddress);
+
+    // Tests that the registry for both seekers accounts has the same seekerID (BAD, NEED TO FIX)!!!!!
+    expect(regoSeekerAccount.seekerId).not.equal(regoSeekerAccountTwo.seekerId);
+    expect(regoSeekerAccount.seekerId).to.equal(0);
+    expect(regoSeekerAccountTwo.seekerId).is.equal(100);
+  })
 });
