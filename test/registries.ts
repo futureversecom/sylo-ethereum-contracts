@@ -50,7 +50,7 @@ describe('Registries', () => {
   });
 
   it('can set registry', async () => {
-    await registries.register('http://api', 1);
+    await registries.register('http://api');
 
     const registry = await registries.getRegistry(owner);
 
@@ -59,16 +59,11 @@ describe('Registries', () => {
       'http://api',
       'Expected registries to have correct address',
     );
-    assert.equal(
-      registry.minDelegatedStake.toNumber(),
-      1,
-      'Expected registry to have correct min delegated stake',
-    );
   });
 
   it('can retrieve all registered nodes', async () => {
-    await registries.register('http://api', 1);
-    await registries.connect(accounts[1]).register('http://api', 1);
+    await registries.register('http://api');
+    await registries.connect(accounts[1]).register('http://api');
 
     const nodes = await registries.getNodes();
 
@@ -79,8 +74,8 @@ describe('Registries', () => {
   });
 
   it('can query total number of registered nodes', async () => {
-    await registries.register('http://api', 1);
-    await registries.connect(accounts[1]).register('http://api', 1);
+    await registries.register('http://api');
+    await registries.connect(accounts[1]).register('http://api');
 
     const n = await registries.getTotalNodes();
 
@@ -91,7 +86,7 @@ describe('Registries', () => {
     const addresses = await Promise.all(accounts.map(a => a.getAddress()));
 
     for (let i = 0; i < 20; i++) {
-      await registries.connect(accounts[i]).register(`http://api/${i}`, 1);
+      await registries.connect(accounts[i]).register(`http://api/${i}`);
     }
 
     const result = await registries.getRegistries(0, 20);
@@ -116,7 +111,7 @@ describe('Registries', () => {
     const addresses = await Promise.all(accounts.map(a => a.getAddress()));
 
     for (let i = 0; i < 20; i++) {
-      await registries.connect(accounts[i]).register(`http://api/${i}`, 1);
+      await registries.connect(accounts[i]).register(`http://api/${i}`);
     }
 
     const result = await registries.getRegistries(5, 10);
@@ -273,7 +268,7 @@ describe('Registries', () => {
   });
 
   it('requires registry to not have empty public endpoint string', async () => {
-    await expect(registries.register('', 1)).to.be.revertedWith(
+    await expect(registries.register('')).to.be.revertedWith(
       'Public endpoint can not be empty',
     );
   });

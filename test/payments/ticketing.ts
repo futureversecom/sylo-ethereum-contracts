@@ -1725,7 +1725,7 @@ describe('Ticketing', () => {
 
   it('returns 0 winning probability if ticket has expired', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await registries.register('0.0.0.0/0', 1);
+    await registries.register('0.0.0.0/0');
 
     const alice = Wallet.createRandom();
 
