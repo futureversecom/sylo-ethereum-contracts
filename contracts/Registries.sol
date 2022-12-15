@@ -154,17 +154,15 @@ contract Registries is Initializable, OwnableUpgradeable {
         );
 
         // Now verify the seeker account actually owns the seeker
-        
         address owner = _rootSeekers.ownerOf(seekerId);
-        
+
         require(seekerAccount == owner, "Seeker account must own the specified seeker");
 
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
 
         registries[seekerRegistration[seekerId]].seekerId = 0;
-        seekerRegistration[seekerId] = seekerAccount;
-
+        seekerRegistration[seekerId] = msg.sender;
     }
 
     function revokeSeekerAccount(address node) external {
@@ -177,7 +175,7 @@ contract Registries is Initializable, OwnableUpgradeable {
 
         registry.seekerAccount = address(0);
         seekerRegistration[registry.seekerId] = address(0);
-
+        registry.seekerId = 0;
     }
 
     /**
