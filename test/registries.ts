@@ -278,35 +278,25 @@ describe('Registries', () => {
     );
   });
 
-  it.only("can't register a seeker using the same seeker ID", async() => {
+  it("can't register a seeker using the same seeker ID", async() => {
+    const seekerAccount = accounts[3];
+    
     const account = accounts[2];
-    const accountAddress = await account.getAddress();
-    const seekerAccount = accounts[3]; 
-    const seekerAddress = await seekerAccount.getAddress(); //
+    const accountAddress = await account.getAddress(); 
 
     const accountTwo = accounts[4];
     const accountAddressTwo = await accountTwo.getAddress();
-    const seekerAccountTwo = accounts[5];
-    const seekerAddressTwo = await seekerAccountTwo.getAddress();
 
     const tokenID = 100;
 
-    // Constructs the proof message for the first seeker account and signs 
-    // Connects the first seeker account, seekerAccount, and sets it as a seeker account
     await utils.setSeekerRegistry(registries, seekers, account, seekerAccount, tokenID);
 
-    // Transfer the minted seeker from seekerAccount to seekerAccountTwo
-    await seekers.connect(seekerAccount).transferFrom(seekerAddress, seekerAddressTwo, tokenID);
+    await utils.setSeekerRegistry(registries, seekers, accountTwo, seekerAccount, tokenID);
 
-    // Constructs the proof message for the second seeker account and signs
-    // Connects the second seeker account, seekerAccountTwo, and sets it as a seeker account
-    await utils.setSeekerRegistry(registries, seekers, accountTwo, seekerAccountTwo, tokenID);
-
-    // Get the registries for the two seeker accounts
     const regoSeekerAccount = await registries.getRegistry(accountAddress);
     const regoSeekerAccountTwo = await registries.getRegistry(accountAddressTwo);
 
-    // Tests that the registry for both seeker accounts don't have the same seekerID
+    // tests that the registry for both seeker accounts don't have the same seekerID
     expect(regoSeekerAccount.seekerId).not.equal(regoSeekerAccountTwo.seekerId);
     expect(regoSeekerAccount.seekerId).to.equal(0);
     expect(regoSeekerAccountTwo.seekerId).is.equal(100);
