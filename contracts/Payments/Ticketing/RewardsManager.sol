@@ -364,7 +364,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         int128 initialStake = toFixedPointSYLO(stakeEntry.amount);
 
         return
-            fromFixedPointSYLO(
+            claim + fromFixedPointSYLO(
                 ABDKMath64x64.mul(
                     initialStake,
                     ABDKMath64x64.sub(finalCumulativeRewardFactor, initialCumulativeRewardFactor)
@@ -383,10 +383,19 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         returns (uint256)
     {
         LastClaim memory lastClaim = lastClaims[getStakerKey(stakee, staker)];
+
+        // if we have already made a claim up to the previous epoch, then
+        // there is no need to calculate the initial claim
+        if (_epochsManager.currentIteration() == lastClaim.claimedAt) {
+            return 0;
+        }
+
         RewardPool memory firstRewardPool = rewardPools[
             getRewardPoolKey(lastClaim.claimedAt, stakee)
         ];
 
+        // if there was no reward pool initialized for the first epoch,
+        // then there is no need to calculate the initial claim
         if (firstRewardPool.totalActiveStake == 0) {
             return 0;
         }
