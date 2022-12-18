@@ -158,10 +158,11 @@ contract Registries is Initializable, OwnableUpgradeable {
 
         require(seekerAccount == owner, "Seeker account must own the specified seeker");
 
+        registries[seekerRegistration[seekerId]].seekerId = 0;
+
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
 
-        registries[seekerRegistration[seekerId]].seekerId = 0;
         seekerRegistration[seekerId] = msg.sender;
     }
 

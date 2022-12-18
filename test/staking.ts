@@ -31,8 +31,6 @@ describe('Staking', () => {
 
   const epochId = 1;
 
-  const seekerIdOffset = 1;
-
   before(async () => {
     accounts = await ethers.getSigners();
     // first account is implicitly used as deployer of contracts in hardhat
@@ -652,7 +650,7 @@ describe('Staking', () => {
     // process epoch 2
     const amountEpochTwo = [50, 100, 100, 300, 450];
     for (let i = 0; i < amountEpochTwo.length; i++) {
-      await addStakeAndJoinEpoch(accounts[i], amountEpochTwo[i], i + seekerIdOffset);
+      await addStakeAndJoinEpoch(accounts[i], amountEpochTwo[i], i);
     }
     await directory.addManager(owner);
     await directory.setCurrentDirectory(2);
