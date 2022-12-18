@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/futureversecom/seed:8618f90 AS builder
+FROM ghcr.io/futureversecom/seed:a6a04f1 AS builder
 
 WORKDIR /app
 RUN apt update
@@ -26,7 +26,7 @@ COPY docker/rootnet-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
 RUN bash deploy_contracts.sh
 
-FROM ghcr.io/futureversecom/seed:8618f90
+FROM ghcr.io/futureversecom/seed:a6a04f1
 
 WORKDIR /app
 COPY --from=builder /mnt/data /mnt/data
