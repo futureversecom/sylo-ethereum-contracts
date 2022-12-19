@@ -279,9 +279,9 @@ describe('Registries', () => {
   });
 
   it('registered node seeker id will be reset if a new node registers with the same seeker id', async () => {
-    const seekerAccount = accounts[3];
+    const seekerAccount = accounts[2];
 
-    const accountOne = accounts[2];
+    const accountOne = accounts[3];
     const accountAddressOne = await accountOne.getAddress();
 
     const accountTwo = accounts[4];
