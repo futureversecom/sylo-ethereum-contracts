@@ -53,7 +53,7 @@ contract Registries is Initializable, OwnableUpgradeable {
     mapping(address => Registry) public registries;
 
     /**
-     * @notice Tracks the node addresses that a seeker is registered with
+     * @notice Tracks the node address that each seeker id is registered with
      */
     mapping(uint256 => address) public seekerRegistration;
 

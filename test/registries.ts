@@ -278,27 +278,42 @@ describe('Registries', () => {
     );
   });
 
-  it("can't register a seeker using the same seeker ID", async() => {
+  it('registered node seeker id will be reset if a new node registers with the same seeker id', async () => {
     const seekerAccount = accounts[3];
-    
-    const account = accounts[2];
-    const accountAddress = await account.getAddress(); 
+
+    const accountOne = accounts[2];
+    const accountAddressOne = await accountOne.getAddress();
 
     const accountTwo = accounts[4];
     const accountAddressTwo = await accountTwo.getAddress();
 
     const tokenID = 100;
 
-    await utils.setSeekerRegistry(registries, seekers, account, seekerAccount, tokenID);
+    await utils.setSeekerRegistry(
+      registries,
+      seekers,
+      accountOne,
+      seekerAccount,
+      tokenID,
+    );
 
-    await utils.setSeekerRegistry(registries, seekers, accountTwo, seekerAccount, tokenID);
+    await utils.setSeekerRegistry(
+      registries,
+      seekers,
+      accountTwo,
+      seekerAccount,
+      tokenID,
+    );
 
-    const regoSeekerAccount = await registries.getRegistry(accountAddress);
-    const regoSeekerAccountTwo = await registries.getRegistry(accountAddressTwo);
+    const regoSeekerAccountOne = await registries.getRegistry(
+      accountAddressOne,
+    );
+    const regoSeekerAccountTwo = await registries.getRegistry(
+      accountAddressTwo,
+    );
 
     // tests that the registry for both seeker accounts don't have the same seekerID
-    expect(regoSeekerAccount.seekerId).not.equal(regoSeekerAccountTwo.seekerId);
-    expect(regoSeekerAccount.seekerId).to.equal(0);
-    expect(regoSeekerAccountTwo.seekerId).is.equal(100);
-  })
+    expect(regoSeekerAccountOne.seekerId).to.equal(0);
+    expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
+  });
 });

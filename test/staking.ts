@@ -700,7 +700,7 @@ describe('Staking', () => {
       point.toString(),
       2,
     );
-    
+
     // check epoch 3 - empty directory
     await checkScanWithEpochId(ethers.constants.AddressZero, '10000000', 4);
   });
