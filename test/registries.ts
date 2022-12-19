@@ -277,4 +277,43 @@ describe('Registries', () => {
       'Public endpoint can not be empty',
     );
   });
+
+  it('registered node seeker id will be reset if a new node registers with the same seeker id', async () => {
+    const seekerAccount = accounts[2];
+
+    const accountOne = accounts[3];
+    const accountAddressOne = await accountOne.getAddress();
+
+    const accountTwo = accounts[4];
+    const accountAddressTwo = await accountTwo.getAddress();
+
+    const tokenID = 100;
+
+    await utils.setSeekerRegistry(
+      registries,
+      seekers,
+      accountOne,
+      seekerAccount,
+      tokenID,
+    );
+
+    await utils.setSeekerRegistry(
+      registries,
+      seekers,
+      accountTwo,
+      seekerAccount,
+      tokenID,
+    );
+
+    const regoSeekerAccountOne = await registries.getRegistry(
+      accountAddressOne,
+    );
+    const regoSeekerAccountTwo = await registries.getRegistry(
+      accountAddressTwo,
+    );
+
+    // tests that the registry for both seeker accounts don't have the same seekerID
+    expect(regoSeekerAccountOne.seekerId).to.equal(0);
+    expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
+  });
 });

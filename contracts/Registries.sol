@@ -53,6 +53,11 @@ contract Registries is Initializable, OwnableUpgradeable {
     mapping(address => Registry) public registries;
 
     /**
+     * @notice Tracks the node address that each seeker id is registered with
+     */
+    mapping(uint256 => address) public seekerRegistration;
+
+    /**
      * @notice Tracks the address of every registered node.
      */
     address[] public nodes;
@@ -153,8 +158,12 @@ contract Registries is Initializable, OwnableUpgradeable {
 
         require(seekerAccount == owner, "Seeker account must own the specified seeker");
 
+        registries[seekerRegistration[seekerId]].seekerId = 0;
+
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
+
+        seekerRegistration[seekerId] = msg.sender;
     }
 
     function revokeSeekerAccount(address node) external {
@@ -166,6 +175,8 @@ contract Registries is Initializable, OwnableUpgradeable {
         );
 
         registry.seekerAccount = address(0);
+        seekerRegistration[registry.seekerId] = address(0);
+        registry.seekerId = 0;
     }
 
     /**
