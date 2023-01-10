@@ -273,11 +273,10 @@ calculating the distribution more efficient.
 Every Node must also have a `Registry` entry. The entry holds various network
 parameters which are configured by Nodes themselves.
 
-| Field             | Description                                                                                                                                                                                                          |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| multiAddr         | The libp2p multi address of the Node. This is needed for clients to connect to their Node. Nodes should take care to ensure this value is correct and up to date                                                     |
-| payoutPercentage  | Percentage of a redeemed tickets value that will be paid out to the Node's delegated stakers. **This value is currently unused and is superseded by the _defaultPayoutPercentage_ network parameter for phase two**. |
-| minDelegatedStake | The minimum amount of stake a delegated staker must put forth                                                                                                                                                        |
+| Field            | Description                                                                                                                                                                                                          |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| multiAddr        | The libp2p multi address of the Node. This is needed for clients to connect to their Node. Nodes should take care to ensure this value is correct and up to date                                                     |
+| payoutPercentage | Percentage of a redeemed tickets value that will be paid out to the Node's delegated stakers. **This value is currently unused and is superseded by the _defaultPayoutPercentage_ network parameter for phase two**. |
 
 ### Functions
 
@@ -293,10 +292,9 @@ lifetime of the Sylo Network.
 Nodes are required to set their `Registry` entry to be able to stake and redeem
 tickets.
 
-| Param             | Description                                   |
-| ----------------- | --------------------------------------------- |
-| multiAddr         | Sets the multi addr for the Node              |
-| minDelegatedStake | Sets the minimum delegated stake for the Node |
+| Param     | Description                      |
+| --------- | -------------------------------- |
+| multiAddr | Sets the multi addr for the Node |
 
 ---
 
