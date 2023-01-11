@@ -37,7 +37,17 @@ async function parseAbis() {
   return abis;
 }
 
-async function writePackageIndex(abis: ABI[]) {
+async function writePackageIndexTS(abis: ABI[]) {
+  let f = ``;
+
+  abis.map(a => {
+    f += `export const ${a.contract} = ${a.abi} as const;\n`;
+  });
+
+  await fs.writeFile(`${PKG_DIR}/index.ts`, f);
+}
+
+async function writePackageIndexJS(abis: ABI[]) {
   let f = ``;
 
   abis.map(a => {
@@ -58,7 +68,8 @@ async function writePackageIndex(abis: ABI[]) {
 
 async function main() {
   const abis = await parseAbis();
-  await writePackageIndex(abis);
+  await writePackageIndexTS(abis);
+  await writePackageIndexJS(abis);
 }
 
 main();
