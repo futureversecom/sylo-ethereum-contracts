@@ -176,7 +176,7 @@ async function setSeekerRegistry(
 
   const signature = await seekerAccount.signMessage(proofMessage);
 
-  await registries.connect(account).register('0.0.0.0/0', 1);
+  await registries.connect(account).register('0.0.0.0/0');
 
   await registries
     .connect(account)

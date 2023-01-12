@@ -36,9 +36,6 @@ contract Registries is Initializable, OwnableUpgradeable {
         // This value is currently locked to the default payout percentage
         // until epochs are implemented.
         uint16 payoutPercentage;
-        // The minimum amount of stake that is required to
-        // add delegated stake against this node
-        uint256 minDelegatedStake;
     }
 
     /**
@@ -114,10 +111,8 @@ contract Registries is Initializable, OwnableUpgradeable {
      * @param publicEndpoint The public endpoint of your Node. Essential for
      * clients to be able to retrieve additional information, such as
      * an address to establish a p2p connection.
-     * @param minDelegatedStake The minimum amount of stake in SOLO that
-     * a staker must add when calling StakingManager.addStake.
      */
-    function register(string memory publicEndpoint, uint256 minDelegatedStake) external {
+    function register(string memory publicEndpoint) external {
         require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
 
         // This is the nodes first registration
@@ -126,7 +121,6 @@ contract Registries is Initializable, OwnableUpgradeable {
         }
 
         registries[msg.sender].publicEndpoint = publicEndpoint;
-        registries[msg.sender].minDelegatedStake = minDelegatedStake;
     }
 
     function setSeekerAccount(
