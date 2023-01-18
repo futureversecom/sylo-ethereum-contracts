@@ -311,4 +311,24 @@ describe('Registries', () => {
     expect(regoSeekerAccountOne.seekerId).to.equal(0);
     expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
   });
+
+  it.only('Has the correct prefix message', async () => {
+    const account = accounts[0];
+
+    const seekerAccount = accounts[1];
+
+    const tokenID = 100; // Seeker ID
+
+    await utils.setSeekerRegistry(
+      registries,
+      seekers,
+      account,
+      seekerAccount,
+      tokenID,
+    );
+
+    const prefix = await registries.getPrefix();
+
+    console.log(prefix);
+  });
 });

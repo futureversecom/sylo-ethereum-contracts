@@ -16,8 +16,8 @@ import "./ECDSA.sol";
 contract Registries is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
-    string public constant SEEKER_OWNERSHIP_PREFIX =
-        "This message allows your seeker to be used to operate your node.";
+    // string public constant SEEKER_OWNERSHIP_PREFIX =
+    //     "This message allows your seeker to be used to operate your node.";
 
     struct Registry {
         // Public http/s endpoint to retrieve additional metadata
@@ -37,6 +37,13 @@ contract Registries is Initializable, OwnableUpgradeable {
         // until epochs are implemented.
         uint16 payoutPercentage;
     }
+
+    /**
+     * @notice Holds the seeker ownership message that includes
+     * the users seeker_id, node address, and block the message
+     * is to signed on
+     */
+    string private seeker_ownership_message;
 
     /**
      * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
@@ -158,6 +165,8 @@ contract Registries is Initializable, OwnableUpgradeable {
         registries[msg.sender].seekerId = seekerId;
 
         seekerRegistration[seekerId] = msg.sender;
+
+        updatePrefix();
     }
 
     function revokeSeekerAccount(address node) external {
@@ -227,11 +236,29 @@ contract Registries is Initializable, OwnableUpgradeable {
         return nodes.length;
     }
 
+    function updatePrefix() private {
+        string
+            memory prefixLineOne = unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
+        string memory prefixLineTwo = unicode"\n\n🆔 Your seeker id: ";
+        string memory prefixLineThree = unicode"\n\n📦 The block this message was signed: ";
+
+        seeker_ownership_message = string(
+            abi.encodePacked(
+                prefixLineOne,
+                Strings.toHexString(msg.sender),
+                prefixLineTwo,
+                Strings.toString(registries[msg.sender].seekerId),
+                prefixLineThree,
+                Strings.toString(block.number)
+            )
+        );
+    }
+
     /**
      * @notice Retrieves the prefix used for creating proofs.
      */
-    function getPrefix() public pure returns (string memory) {
-        return SEEKER_OWNERSHIP_PREFIX;
+    function getPrefix() public view returns (string memory) {
+        return seeker_ownership_message;
     }
 
     /**
@@ -246,10 +273,10 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint256 seekerId,
         address node,
         uint256 proofBlock
-    ) public pure returns (bytes memory) {
+    ) public view returns (bytes memory) {
         return
             abi.encodePacked(
-                SEEKER_OWNERSHIP_PREFIX,
+                seeker_ownership_message,
                 ":",
                 Strings.toString(seekerId),
                 ":",
