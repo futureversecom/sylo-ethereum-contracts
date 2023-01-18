@@ -312,7 +312,7 @@ describe('Registries', () => {
     expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
   });
 
-  it.only('Has the correct prefix message', async () => {
+  it('Has the correct prefix message', async () => {
     const account = accounts[0];
 
     const seekerAccount = accounts[1];
