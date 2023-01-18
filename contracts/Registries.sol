@@ -16,9 +16,6 @@ import "./ECDSA.sol";
 contract Registries is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
-    // string public constant SEEKER_OWNERSHIP_PREFIX =
-    //     "This message allows your seeker to be used to operate your node.";
-
     struct Registry {
         // Public http/s endpoint to retrieve additional metadata
         // about the node.
