@@ -129,7 +129,7 @@ contract Registries is Initializable, OwnableUpgradeable {
         require(block.number >= proofBlock, "Proof can not be set for a future block");
         require(block.number - proofBlock < proofDuration, "Proof is expired");
 
-        bytes memory proofMessage = bytes(getProofMessage(seekerId, msg.sender, proofBlock));
+        bytes memory proofMessage = getProofMessage(seekerId, msg.sender, proofBlock);
 
         bytes32 proof = keccak256(
             abi.encodePacked(
@@ -236,28 +236,15 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint256 seekerId,
         address node,
         uint256 proofBlock
-    ) public pure returns (string memory) {
-        string
-            memory PREFIXLINEONE = unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
-        string memory PREFIXLINETWO = unicode"\n\n🆔 Your seeker id: ";
-        string memory PREFIXLINETHREE = unicode"\n\n📦 The block this message was signed: ";
-
+    ) public pure returns (bytes memory) {
         return
-            string(
-                abi.encodePacked(
-                    PREFIXLINEONE,
-                    Strings.toHexString(uint256(uint160(node)), 20),
-                    PREFIXLINETWO,
-                    Strings.toString(seekerId),
-                    PREFIXLINETHREE,
-                    Strings.toString(proofBlock),
-                    ":",
-                    Strings.toString(seekerId),
-                    ":",
-                    Strings.toHexString(uint256(uint160(node)), 20),
-                    ":",
-                    Strings.toString(proofBlock)
-                )
+            abi.encodePacked(
+                unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ",
+                Strings.toHexString(uint256(uint160(node)), 20),
+                unicode"\n\n🆔 Your seeker id: ",
+                Strings.toString(seekerId),
+                unicode"\n\n📦 The block this message was signed: ",
+                Strings.toString(proofBlock)
             );
     }
 }

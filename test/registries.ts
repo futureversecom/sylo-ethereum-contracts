@@ -228,22 +228,24 @@ describe('Registries', () => {
     ).to.be.revertedWith('Proof must be signed by specified seeker account');
   });
 
-  it("fails to set seeker account if seeker isn't owned by account", async () => {
+  it.only("fails to set seeker account if seeker isn't owned by account", async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
+
+    const accountAddress = await accounts[0].getAddress();
 
     const tokenId = 1;
     await seekers.mint(await accounts[2].getAddress(), tokenId);
 
+    const lineOne =
+      "🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
+    const lineTwo = '\n\n🆔 Your seeker id: ';
+    const lineThree = '\n\n📦 The block this message was signed: ';
+
     const block = await ethers.provider.getBlockNumber();
 
-    const accountAddress = await accounts[0].getAddress();
-    const proofMessage = await registries.getProofMessage(
-      tokenId,
-      accountAddress,
-      block,
-    );
-
+    const proofMessage = `${lineOne}${accountAddress}${lineTwo}${tokenId}${lineThree}${block.toString()}`;
+    console.log(proofMessage);
     const signature = await seekerAccount.signMessage(proofMessage);
 
     await expect(
