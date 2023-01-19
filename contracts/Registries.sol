@@ -36,13 +36,6 @@ contract Registries is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Holds the seeker ownership message that includes
-     * the users seeker_id, node address, and block the message
-     * is to signed on
-     */
-    string private seeker_ownership_message;
-
-    /**
      * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
      * of a seeker.
      */
@@ -136,7 +129,7 @@ contract Registries is Initializable, OwnableUpgradeable {
         require(block.number >= proofBlock, "Proof can not be set for a future block");
         require(block.number - proofBlock < proofDuration, "Proof is expired");
 
-        bytes memory proofMessage = getProofMessage(seekerId, msg.sender, proofBlock);
+        bytes memory proofMessage = bytes(getProofMessage(seekerId, msg.sender, proofBlock));
 
         bytes32 proof = keccak256(
             abi.encodePacked(
@@ -162,8 +155,6 @@ contract Registries is Initializable, OwnableUpgradeable {
         registries[msg.sender].seekerId = seekerId;
 
         seekerRegistration[seekerId] = msg.sender;
-
-        updatePrefix();
     }
 
     function revokeSeekerAccount(address node) external {
@@ -233,31 +224,6 @@ contract Registries is Initializable, OwnableUpgradeable {
         return nodes.length;
     }
 
-    function updatePrefix() private {
-        string
-            memory prefixLineOne = unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
-        string memory prefixLineTwo = unicode"\n\n🆔 Your seeker id: ";
-        string memory prefixLineThree = unicode"\n\n📦 The block this message was signed: ";
-
-        seeker_ownership_message = string(
-            abi.encodePacked(
-                prefixLineOne,
-                Strings.toHexString(msg.sender),
-                prefixLineTwo,
-                Strings.toString(registries[msg.sender].seekerId),
-                prefixLineThree,
-                Strings.toString(block.number)
-            )
-        );
-    }
-
-    /**
-     * @notice Retrieves the prefix used for creating proofs.
-     */
-    function getPrefix() public view returns (string memory) {
-        return seeker_ownership_message;
-    }
-
     /**
      * @notice Helper function for deriving the proof message used to
      * validate seeker ownership.
@@ -270,16 +236,28 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint256 seekerId,
         address node,
         uint256 proofBlock
-    ) public view returns (bytes memory) {
+    ) public pure returns (string memory) {
+        string
+            memory PREFIXLINEONE = unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
+        string memory PREFIXLINETWO = unicode"\n\n🆔 Your seeker id: ";
+        string memory PREFIXLINETHREE = unicode"\n\n📦 The block this message was signed: ";
+
         return
-            abi.encodePacked(
-                seeker_ownership_message,
-                ":",
-                Strings.toString(seekerId),
-                ":",
-                Strings.toHexString(uint256(uint160(node)), 20),
-                ":",
-                Strings.toString(proofBlock)
+            string(
+                abi.encodePacked(
+                    PREFIXLINEONE,
+                    Strings.toHexString(uint256(uint160(node)), 20),
+                    PREFIXLINETWO,
+                    Strings.toString(seekerId),
+                    PREFIXLINETHREE,
+                    Strings.toString(proofBlock),
+                    ":",
+                    Strings.toString(seekerId),
+                    ":",
+                    Strings.toHexString(uint256(uint160(node)), 20),
+                    ":",
+                    Strings.toString(proofBlock)
+                )
             );
     }
 }

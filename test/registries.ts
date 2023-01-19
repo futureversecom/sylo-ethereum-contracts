@@ -172,25 +172,31 @@ describe('Registries', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await seekers.mint(seekerAddress, 1);
+    const tokenId = 1;
+    await seekers.mint(seekerAddress, tokenId);
 
     const block = await ethers.provider.getBlockNumber();
 
     const hash = ethers.utils.solidityKeccak256(
       ['string', 'uint256', 'address', 'uint256'],
-      [await registries.getPrefix(), 1, owner, block],
+      [
+        await registries.getProofMessage(tokenId, seekerAddress, block),
+        tokenId,
+        owner,
+        block,
+      ],
     );
     const proofMessage = ethers.utils.arrayify(hash);
     const proof = await seekerAccount.signMessage(proofMessage);
 
     await expect(
-      registries.setSeekerAccount(seekerAddress, 1, block + 1000, proof),
+      registries.setSeekerAccount(seekerAddress, tokenId, block + 1000, proof),
     ).to.be.revertedWith('Proof can not be set for a future block');
 
     await utils.advanceBlock(200);
 
     await expect(
-      registries.setSeekerAccount(seekerAddress, 1, block, proof),
+      registries.setSeekerAccount(seekerAddress, tokenId, block, proof),
     ).to.be.revertedWith('Proof is expired');
   });
 
@@ -198,21 +204,27 @@ describe('Registries', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await seekers.mint(seekerAddress, 1);
+    const tokenId = 1;
+    await seekers.mint(seekerAddress, tokenId);
 
     const block = await ethers.provider.getBlockNumber();
 
     const hash = ethers.utils.solidityKeccak256(
       ['string', 'uint256', 'address', 'uint256'],
-      [await registries.getPrefix(), 1, owner, block],
+      [
+        await registries.getProofMessage(tokenId, seekerAddress, block),
+        tokenId,
+        owner,
+        block,
+      ],
     );
     const proofMessage = ethers.utils.arrayify(hash);
 
     // sign proof with wrong account
-    const proof = await accounts[0].signMessage(proofMessage);
+    const proof = await seekerAccount.signMessage(proofMessage);
 
     await expect(
-      registries.setSeekerAccount(seekerAddress, 1, block, proof),
+      registries.setSeekerAccount(seekerAddress, tokenId, block, proof),
     ).to.be.revertedWith('Proof must be signed by specified seeker account');
   });
 
@@ -220,18 +232,22 @@ describe('Registries', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    await seekers.mint(await accounts[2].getAddress(), 1);
+    const tokenId = 1;
+    await seekers.mint(await accounts[2].getAddress(), tokenId);
 
     const block = await ethers.provider.getBlockNumber();
 
-    const prefix = await registries.getPrefix();
     const accountAddress = await accounts[0].getAddress();
-    const proofMessage = `${prefix}:${1}:${accountAddress.toLowerCase()}:${block.toString()}`;
+    const proofMessage = await registries.getProofMessage(
+      tokenId,
+      accountAddress,
+      block,
+    );
 
     const signature = await seekerAccount.signMessage(proofMessage);
 
     await expect(
-      registries.setSeekerAccount(seekerAddress, 1, block, signature),
+      registries.setSeekerAccount(seekerAddress, tokenId, block, signature),
     ).to.be.revertedWith('Seeker account must own the specified seeker');
   });
 
@@ -317,18 +333,23 @@ describe('Registries', () => {
 
     const seekerAccount = accounts[1];
 
-    const tokenID = 100; // Seeker ID
+    const tokenId = 100; // Seeker ID
+
+    const block = await ethers.provider.getBlockNumber();
 
     await utils.setSeekerRegistry(
       registries,
       seekers,
       account,
       seekerAccount,
-      tokenID,
+      tokenId,
     );
 
-    const prefix = await registries.getPrefix();
-
+    const prefix = await registries.getProofMessage(
+      tokenId,
+      await account.getAddress(),
+      block,
+    );
     console.log(prefix);
   });
 });
