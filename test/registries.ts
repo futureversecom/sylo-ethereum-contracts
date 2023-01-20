@@ -178,13 +178,8 @@ describe('Registries', () => {
     const block = await ethers.provider.getBlockNumber();
 
     const hash = ethers.utils.solidityKeccak256(
-      ['string', 'uint256', 'address', 'uint256'],
-      [
-        await registries.getProofMessage(tokenId, seekerAddress, block),
-        tokenId,
-        owner,
-        block,
-      ],
+      ['string'],
+      [await registries.getProofMessage(tokenId, seekerAddress, block)],
     );
     const proofMessage = ethers.utils.arrayify(hash);
     const proof = await seekerAccount.signMessage(proofMessage);
@@ -210,13 +205,8 @@ describe('Registries', () => {
     const block = await ethers.provider.getBlockNumber();
 
     const hash = ethers.utils.solidityKeccak256(
-      ['string', 'uint256', 'address', 'uint256'],
-      [
-        await registries.getProofMessage(tokenId, seekerAddress, block),
-        tokenId,
-        owner,
-        block,
-      ],
+      ['string'],
+      [await registries.getProofMessage(tokenId, seekerAddress, block)],
     );
     const proofMessage = ethers.utils.arrayify(hash);
 
@@ -228,7 +218,7 @@ describe('Registries', () => {
     ).to.be.revertedWith('Proof must be signed by specified seeker account');
   });
 
-  it.only("fails to set seeker account if seeker isn't owned by account", async () => {
+  it("fails to set seeker account if seeker isn't owned by account", async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
@@ -237,16 +227,16 @@ describe('Registries', () => {
     const tokenId = 1;
     await seekers.mint(await accounts[2].getAddress(), tokenId);
 
-    const lineOne =
-      "🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
-    const lineTwo = '\n\n🆔 Your seeker id: ';
-    const lineThree = '\n\n📦 The block this message was signed: ';
-
     const block = await ethers.provider.getBlockNumber();
+    const proofMessage = await registries.getProofMessage(
+      tokenId,
+      accountAddress,
+      block,
+    );
 
-    const proofMessage = `${lineOne}${accountAddress}${lineTwo}${tokenId}${lineThree}${block.toString()}`;
-    console.log(proofMessage);
-    const signature = await seekerAccount.signMessage(proofMessage);
+    const signature = await seekerAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
 
     await expect(
       registries.setSeekerAccount(seekerAddress, tokenId, block, signature),
@@ -331,27 +321,29 @@ describe('Registries', () => {
   });
 
   it('Has the correct prefix message', async () => {
+    const lineOne =
+      "🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
+    const lineTwo = '\n\n🆔 Your seeker id: ';
+    const lineThree = '\n\n📦 The block this message was signed: ';
+
     const account = accounts[0];
-
-    const seekerAccount = accounts[1];
-
-    const tokenId = 100; // Seeker ID
-
+    const accountAddress = await account.getAddress();
+    const tokenId = 100;
     const block = await ethers.provider.getBlockNumber();
 
-    await utils.setSeekerRegistry(
-      registries,
-      seekers,
-      account,
-      seekerAccount,
-      tokenId,
-    );
-
-    const prefix = await registries.getProofMessage(
+    const proofMessageHexString = await registries.getProofMessage(
       tokenId,
       await account.getAddress(),
       block,
     );
-    console.log(prefix);
+
+    const proofMessage = `${lineOne}${accountAddress.toLowerCase()}${lineTwo}${tokenId}${lineThree}${block.toString()}`;
+
+    const proofMessageString = Buffer.from(
+      proofMessageHexString.slice(2),
+      'hex',
+    ).toString('utf8');
+
+    expect(proofMessageString).to.equal(proofMessage);
   });
 });

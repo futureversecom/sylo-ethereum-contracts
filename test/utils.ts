@@ -171,13 +171,15 @@ async function setSeekerRegistry(
   const block = await ethers.provider.getBlockNumber();
 
   const accountAddress = await account.getAddress();
-  const proofMessage = registries.getProofMessage(
+  const proofMessage = await registries.getProofMessage(
     tokenId,
     accountAddress,
     block,
   );
 
-  const signature = await seekerAccount.signMessage(await proofMessage);
+  const signature = await seekerAccount.signMessage(
+    Buffer.from(proofMessage.slice(2), 'hex'),
+  );
 
   await registries.connect(account).register('0.0.0.0/0');
 
