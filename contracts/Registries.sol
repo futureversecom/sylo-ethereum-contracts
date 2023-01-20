@@ -16,9 +16,6 @@ import "./ECDSA.sol";
 contract Registries is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
-    string public constant SEEKER_OWNERSHIP_PREFIX =
-        "This message allows your seeker to be used to operate your node.";
-
     struct Registry {
         // Public http/s endpoint to retrieve additional metadata
         // about the node.
@@ -228,13 +225,6 @@ contract Registries is Initializable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Retrieves the prefix used for creating proofs.
-     */
-    function getPrefix() public pure returns (string memory) {
-        return SEEKER_OWNERSHIP_PREFIX;
-    }
-
-    /**
      * @notice Helper function for deriving the proof message used to
      * validate seeker ownership.
      * @param seekerId The tokenId of the seeker used for operation.
@@ -249,12 +239,11 @@ contract Registries is Initializable, OwnableUpgradeable {
     ) public pure returns (bytes memory) {
         return
             abi.encodePacked(
-                SEEKER_OWNERSHIP_PREFIX,
-                ":",
-                Strings.toString(seekerId),
-                ":",
+                unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ",
                 Strings.toHexString(uint256(uint160(node)), 20),
-                ":",
+                unicode"\n\n🆔 Your seeker id: ",
+                Strings.toString(seekerId),
+                unicode"\n\n📦 The block this message was signed: ",
                 Strings.toString(proofBlock)
             );
     }
