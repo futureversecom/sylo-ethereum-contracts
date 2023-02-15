@@ -434,20 +434,18 @@ describe('Ticketing', () => {
     ).to.be.revertedWith("Ticket's associated epoch does not exist");
   });
 
-  it('can not redeem ticket if not generated during associated epoch', async () => {
+  it('can not redeem ticket if generated for a future block', async () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
     const { ticket, senderRand, redeemerRand, signature } =
       await createWinningTicket(alice, owner);
 
-    const updatedTicket = { ...ticket, generationBlock: 1 };
+    const updatedTicket = { ...ticket, generationBlock: 100000 };
 
     await expect(
       ticketing.redeem(updatedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith(
-      "This ticket was not generated during it's associated epoch",
-    );
+    ).to.be.revertedWith('The ticket cannot be generated for a future block');
   });
 
   it('can not calculate winning probablility if not generated during associated epoch', async () => {
