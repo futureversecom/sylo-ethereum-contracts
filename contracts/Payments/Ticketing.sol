@@ -169,7 +169,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Deposit storage deposit = getDeposit(msg.sender);
         require(deposit.unlockAt != 0, "Not unlocking, cannot lock");
 
-        deposit.unlockAt = 0;
+        delete deposit.unlockAt;
     }
 
     /**
@@ -188,18 +188,14 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * transferred to.
      */
     function withdrawTo(address account) public {
-        Deposit storage deposit = getDeposit(msg.sender);
+        Deposit memory deposit = getDeposit(msg.sender);
         require(deposit.unlockAt > 0, "Deposits not unlocked");
         require(deposit.unlockAt < block.number, "Unlock period not complete");
 
         uint256 amount = deposit.escrow + deposit.penalty;
 
-        // Set values to 0
-        deposit.escrow = 0;
-        deposit.penalty = 0;
-
-        // Re-lock so if more funds are deposited they must be unlocked again
-        deposit.unlockAt = 0;
+        // Reset deposit values to 0
+        delete deposits[msg.sender];
 
         SafeERC20.safeTransfer(_token, account, amount);
     }
@@ -272,7 +268,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
                 deposit.penalty
             );
 
-            deposit.penalty = 0;
+            delete deposit.penalty;
         } else {
             amount = epoch.faceValue;
             incrementRewardPool(ticket.redeemer, deposit, amount);

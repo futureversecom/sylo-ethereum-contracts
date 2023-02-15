@@ -365,7 +365,8 @@ contract RewardsManager is Initializable, Manageable {
         int128 initialStake = toFixedPointSYLO(stakeEntry.amount);
 
         return
-            claim + fromFixedPointSYLO(
+            claim +
+            fromFixedPointSYLO(
                 ABDKMath64x64.mul(
                     initialStake,
                     ABDKMath64x64.sub(finalCumulativeRewardFactor, initialCumulativeRewardFactor)
@@ -497,7 +498,7 @@ contract RewardsManager is Initializable, Manageable {
 
         require(totalClaim > 0, "Nothing to claim");
 
-        unclaimedStakingRewards[getStakerKey(stakee, msg.sender)] = 0;
+        delete unclaimedStakingRewards[getStakerKey(stakee, msg.sender)];
         pendingRewards[stakee] -= pendingReward;
 
         updateLastClaim(stakee, msg.sender);

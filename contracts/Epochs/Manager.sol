@@ -85,7 +85,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         _registries = registries;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
-        currentIteration = 0;
     }
 
     /**
