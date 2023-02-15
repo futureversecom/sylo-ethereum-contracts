@@ -318,6 +318,34 @@ possible, to maximize their income from performing the service. It similarly
 incentivizes them to invest in throughput and uptime improvements, so that they
 can claim tickets as soon as possible, and earn more from the work that they do.
 
+## The Seekers ###########################################
+
+In order to run a SYLO node, the user must own a Seeker. This requirement stems from the gamification
+ of the network - the Seeker personifies the Node. The user can "activate their Seeker" by associating 
+ it with a Node, allowing that Seeker to provide communications services and receive rewards.
+
+In general, the user's wallet that contains the Seeker, and the user's wallet that runs the Node, 
+will not be the same, because the user will not want to give their main wallet's key to the Node.
+
+To address this limitation, a Node's wallet can claim indirect ownership of the Seeker by providing 
+a proof of association. This proof is signed by the Seeker's wallet, and attests that the Node is 
+allowed to use that Seeker to run. This fact is stored in the node's registry.
+
+It is expected that users will trade/transfer ownership of the Seeker that is being used to run a 
+Node before revoking the link between the Seeker and the Node in the Node's registry entry. This cannot 
+easily be prevented because Seeker trades/transfers are initiated by the Seeker wallet, while registry
+edits are made by the Node's wallet, which does not know of the transfer when it happens.
+
+As a result, the Node is only required to have a Seeker in the registry when it joins an epoch, after which 
+the Node can continue to participate during that epoch even after that Seeker has been transfered to another 
+wallet. This ensures that:
+1) The node can continue to claim rewards on work performed during the epoch, giving it an incentive to continue 
+performing the service rather than leaving some relays unfulfilled.
+2) The stake directory is static for the duration of the epoch, so that each receiver maps to the same node 
+for the entire epoch.
+However, the Node will be unable to join the following epoch until it registers another Seeker.
+
+
 ## Future Work
 
 ### Stake Redistribution
