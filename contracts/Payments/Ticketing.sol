@@ -215,10 +215,10 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      * @param sig The signature of the sender of the ticket.
      */
     function redeem(
-        Ticket memory ticket,
+        Ticket calldata ticket,
         uint256 senderRand,
         uint256 redeemerRand,
-        bytes memory sig
+        bytes calldata sig
     ) external {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         require(

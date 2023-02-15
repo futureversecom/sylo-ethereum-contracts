@@ -105,7 +105,7 @@ contract Registries is Initializable, OwnableUpgradeable {
      * clients to be able to retrieve additional information, such as
      * an address to establish a p2p connection.
      */
-    function register(string memory publicEndpoint) external {
+    function register(string calldata publicEndpoint) external {
         require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
 
         // This is the nodes first registration
@@ -120,7 +120,7 @@ contract Registries is Initializable, OwnableUpgradeable {
         address seekerAccount,
         uint256 seekerId,
         bytes32 nonce,
-        bytes memory signature
+        bytes calldata signature
     ) external {
         require(signatureNonces[nonce] == address(0), "Nonce for signature can not be re-used");
 
@@ -191,11 +191,10 @@ contract Registries is Initializable, OwnableUpgradeable {
      * @param end The end index which is exclusive.
      * @return An array of Registries.
      */
-    function getRegistries(uint256 start, uint256 end)
-        external
-        view
-        returns (address[] memory, Registry[] memory)
-    {
+    function getRegistries(
+        uint256 start,
+        uint256 end
+    ) external view returns (address[] memory, Registry[] memory) {
         require(end > start, "End index must be greater than start index");
         require(
             end <= nodes.length,
