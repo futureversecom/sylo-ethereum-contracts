@@ -350,10 +350,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         uint256 totalMaxStake = (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
             minimumStakeProportion;
 
-        require(
-            totalMaxStake >= stake.totalManagedStake,
-            "Can not add more delegated stake to this stakee"
-        );
+        require(totalMaxStake >= stake.totalManagedStake, "Stake capacity is reached");
 
         return totalMaxStake - stake.totalManagedStake;
     }

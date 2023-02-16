@@ -77,10 +77,7 @@ contract Registries is Initializable, OwnableUpgradeable {
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _rootSeekers = rootSeekers;
-        require(
-            _defaultPayoutPercentage <= 10000,
-            "The payout percentage can not exceed 100 percent"
-        );
+        require(_defaultPayoutPercentage <= 10000, "Percentage cannot exceed 100");
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
@@ -91,10 +88,7 @@ contract Registries is Initializable, OwnableUpgradeable {
      * denominator is 10000.
      */
     function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) external onlyOwner {
-        require(
-            _defaultPayoutPercentage <= 10000,
-            "The payout percentage can not exceed 100 percent"
-        );
+        require(_defaultPayoutPercentage <= 10000, "Percentage cannot exceed 100");
         defaultPayoutPercentage = _defaultPayoutPercentage;
         emit DefaultPayoutPercentageUpdated(_defaultPayoutPercentage);
     }
@@ -106,7 +100,7 @@ contract Registries is Initializable, OwnableUpgradeable {
      * an address to establish a p2p connection.
      */
     function register(string calldata publicEndpoint) external {
-        require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
+        require(bytes(publicEndpoint).length != 0, "Public endpoint cannot be empty");
 
         // This is the nodes first registration
         if (bytes(registries[msg.sender].publicEndpoint).length == 0) {
@@ -157,10 +151,7 @@ contract Registries is Initializable, OwnableUpgradeable {
     function revokeSeekerAccount(address node) external {
         Registry storage registry = registries[node];
 
-        require(
-            registry.seekerAccount == msg.sender,
-            "Seeker account and msg.sender must be equal"
-        );
+        require(registry.seekerAccount == msg.sender, "Seeker account is not msg.sender");
 
         delete registry.seekerAccount;
         delete seekerRegistration[registry.seekerId];
@@ -195,11 +186,8 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint256 start,
         uint256 end
     ) external view returns (address[] memory, Registry[] memory) {
-        require(end > start, "End index must be greater than start index");
-        require(
-            end <= nodes.length,
-            "End index cannot be greater than total number of registered nodes"
-        );
+        require(end > start, "End must be greater than start");
+        require(end <= nodes.length, "End cannot greater than total node length");
 
         address[] memory _nodes = new address[](end - start);
         Registry[] memory _registries = new Registry[](_nodes.length);

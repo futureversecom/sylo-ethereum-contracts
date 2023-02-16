@@ -245,13 +245,10 @@ contract RewardsManager is Initializable, Manageable {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
         RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
-        require(
-            nextRewardPool.initializedAt == 0,
-            "The next reward pool has already been initialized"
-        );
+        require(nextRewardPool.initializedAt == 0, "Next reward pool already exists");
 
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-        require(totalStake > 0, "Must have stake to initialize a reward pool");
+        require(totalStake > 0, "No stake to init reward pool");
         nextRewardPool.totalActiveStake = totalStake;
 
         nextRewardPool.initializedAt = block.number;
@@ -273,10 +270,7 @@ contract RewardsManager is Initializable, Manageable {
 
         RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
 
-        require(
-            rewardPool.totalActiveStake > 0,
-            "Reward pool has not been initialized for the current epoch"
-        );
+        require(rewardPool.totalActiveStake > 0, "Reward pool not exists in current epoch");
 
         // Update the latest active reward pool for the node to be this pool
         if (latestActiveRewardPools[stakee] < epochId) {

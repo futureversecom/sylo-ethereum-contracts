@@ -34,7 +34,7 @@ describe('Registries', () => {
     registries = await Registries.deploy();
     await expect(
       registries.initialize(seekers.address, 10001),
-    ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
+    ).to.be.revertedWith('Percentage cannot exceed 100');
   });
 
   it('can allow owner to set default payout percentage', async () => {
@@ -137,18 +137,18 @@ describe('Registries', () => {
     }
 
     await expect(registries.getRegistries(8, 5)).to.be.revertedWith(
-      'End index must be greater than start index',
+      'End must be greater than start',
     );
 
     await expect(registries.getRegistries(8, 21)).to.be.revertedWith(
-      'End index cannot be greater than total number of registered nodes',
+      'End cannot greater than total node length',
     );
   });
 
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
       registries.setDefaultPayoutPercentage(10001),
-    ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
+    ).to.be.revertedWith('Percentage cannot exceed 100');
   });
 
   it('can set seeker account with valid proof', async () => {
@@ -271,13 +271,13 @@ describe('Registries', () => {
     );
 
     await expect(registries.revokeSeekerAccount(owner)).to.be.revertedWith(
-      'Seeker account and msg.sender must be equal',
+      'Seeker account is not msg.sender',
     );
   });
 
   it('requires registry to not have empty public endpoint string', async () => {
     await expect(registries.register('')).to.be.revertedWith(
-      'Public endpoint can not be empty',
+      'Public endpoint cannot be empty',
     );
   });
 

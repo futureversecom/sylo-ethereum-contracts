@@ -153,17 +153,13 @@ describe('Ticketing', () => {
   it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.incrementRewardPool(owner, 10000),
-    ).to.be.revertedWith(
-      'Only managers of this contract can call this function',
-    );
+    ).to.be.revertedWith('Only managers can call function');
   });
 
   it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.initializeNextRewardPool(owner),
-    ).to.be.revertedWith(
-      'Only managers of this contract can call this function',
-    );
+    ).to.be.revertedWith('Only managers can call function');
   });
 
   it('can not set ticket duration to 0', async () => {
@@ -342,7 +338,7 @@ describe('Ticketing', () => {
     // initializing the reward pool again
     await setSeekerRegistry(accounts[0], accounts[1], 2);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'The next reward pool has already been initialized',
+      'Next reward pool already exists',
     );
   });
 
@@ -352,14 +348,14 @@ describe('Ticketing', () => {
     await epochsManager.joinNextEpoch();
 
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Seeker has already joined the next epoch',
+      'Seeker already joined next epoch',
     );
   });
 
   it('should not be able to initialize next reward pool without stake', async () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Must have stake to initialize a reward pool',
+      'No stake to init reward pool',
     );
   });
 
@@ -392,7 +388,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith("Hash of senderRand doesn't match senderRandHash");
+    ).to.be.revertedWith('SenderRand hash unmatches senderCommit');
   });
 
   it('can not redeem ticket with invalid redeemer rand', async () => {
@@ -408,7 +404,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith("Hash of redeemerRand doesn't match redeemerRandHash");
+    ).to.be.revertedWith('RedeemerRand hash unmatches redeemerRandHash');
   });
 
   it('can not redeem ticket if associated epoch does not exist', async () => {
@@ -418,7 +414,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith("Ticket's associated epoch does not exist");
+    ).to.be.revertedWith('Ticket epoch id does not existt');
   });
 
   it('can not calculate winning probability if associated epoch does not exist', async () => {
@@ -429,7 +425,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.calculateWinningProbability(ticket),
-    ).to.be.revertedWith("Ticket's associated epoch does not exist");
+    ).to.be.revertedWith('Ticket epoch id does not existt');
   });
 
   it('can not redeem ticket if generated for a future block', async () => {
@@ -456,9 +452,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.calculateWinningProbability(updatedTicket),
-    ).to.be.revertedWith(
-      "This ticket was not generated during it's associated epoch",
-    );
+    ).to.be.revertedWith('Ticket not created in the epoch');
   });
 
   it('can not redeem ticket if node has not joined directory', async () => {
@@ -475,9 +469,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith(
-      'Ticket redeemer must have joined the directory for this epoch',
-    );
+    ).to.be.revertedWith('Redeemer did not join this epoch');
   });
 
   it('can not redeem ticket if node has not initialized reward pool', async () => {
@@ -498,9 +490,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith(
-      'Reward pool has not been initialized for the current epoch',
-    );
+    ).to.be.revertedWith('Reward pool not exists in current epoch');
   });
 
   it('can not redeem invalid ticket', async () => {
@@ -534,20 +524,20 @@ describe('Ticketing', () => {
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith("Hash of senderRand doesn't match senderRandHash");
+    ).to.be.revertedWith('SenderRand hash unmatches senderCommit');
 
     malformedTicket = { ...ticket };
     malformedTicket.redeemerCommit =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith("Hash of redeemerRand doesn't match redeemerRandHash");
+    ).to.be.revertedWith('RedeemerRand hash unmatches redeemerRandHash');
 
     const malformedSig =
       '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, malformedSig),
-    ).to.be.revertedWith("Ticket doesn't have a valid signature");
+    ).to.be.revertedWith('Ticket signature is invalid');
   });
 
   it('rejects non winning ticket', async () => {

@@ -171,7 +171,7 @@ describe('Staking', () => {
 
     await expect(
       stakingManager.calculateMaxAdditionalDelegatedStake(owner),
-    ).to.be.revertedWith('Can not add more delegated stake to this stakee');
+    ).to.be.revertedWith('Stake capacity is reached');
   });
 
   it('should not able to add stake to zero address', async () => {
@@ -343,7 +343,7 @@ describe('Staking', () => {
   it('should not allow directory to be joined with no stake', async () => {
     await directory.addManager(owner);
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Can not join directory for next epoch without any stake',
+      'No stake to join epoch',
     );
   });
 
@@ -354,7 +354,7 @@ describe('Staking', () => {
     await directory.addManager(owner);
 
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Can not join directory for next epoch without any stake',
+      'No stake to join epoch',
     );
   });
 
@@ -394,7 +394,7 @@ describe('Staking', () => {
     await directory.addManager(owner);
 
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Can not join directory for next epoch without any stake',
+      'Joining stake not greater than 0',
     );
   });
 
@@ -448,13 +448,13 @@ describe('Staking', () => {
   it('should not be able to join directory without stake', async () => {
     await setSeekeRegistry(accounts[0], accounts[1], 1);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Must have stake to initialize a reward pool',
+      'No stake to init reward pool',
     );
   });
 
   it('should not be able to join directory without setting seeker account', async () => {
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Node must have a valid seeker account to join an epoch',
+      'Seeker account cannot be zero',
     );
   });
 
@@ -471,7 +471,7 @@ describe('Staking', () => {
       );
 
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      "Node's seeker account does not match the current seeker owner",
+      "Node's seeker account unmatches current seeker owner",
     );
   });
 
@@ -480,7 +480,7 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.joinNextDirectory(owner);
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Can only join the directory once per epoch',
+      'Node already joined next epoch',
     );
   });
 
@@ -707,7 +707,7 @@ describe('Staking', () => {
 
   it('can not call functions that onlyManager constraint', async () => {
     await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Only managers of this contract can call this function',
+      'Only managers can call function',
     );
   });
 

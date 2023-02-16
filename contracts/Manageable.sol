@@ -41,7 +41,7 @@ abstract contract Manageable is OwnableUpgradeable {
      * special privileges to call restricted functions.
      */
     modifier onlyManager() {
-        require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
+        require(managers[msg.sender] > 0, "Only managers can call function");
         _;
     }
 

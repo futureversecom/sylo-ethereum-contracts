@@ -227,10 +227,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             ticket.epochId,
             ticket.redeemer
         );
-        require(
-            directoryStake > 0,
-            "Ticket redeemer must have joined the directory for this epoch"
-        );
+        require(directoryStake > 0, "Redeemer did not join this epoch");
 
         usedTickets[ticketHash] = true;
 
@@ -307,19 +304,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // the redeemer
         require(
             createCommit(ticket.generationBlock, senderRand) == ticket.senderCommit,
-            "Hash of senderRand doesn't match senderRandHash"
+            "SenderRand hash unmatches senderCommit"
         );
 
         // validate the redeemer has knowledge of the redeemer rand
         require(
             createCommit(ticket.generationBlock, redeemerRand) == ticket.redeemerCommit,
-            "Hash of redeemerRand doesn't match redeemerRandHash"
+            "RedeemerRand hash unmatches redeemerRandHash"
         );
 
-        require(
-            isValidTicketSig(sig, ticket.sender, ticketHash),
-            "Ticket doesn't have a valid signature"
-        );
+        require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket signature is invalid");
 
         require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
     }
@@ -371,11 +365,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function calculateWinningProbability(Ticket memory ticket) public view returns (uint128) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
-        require(epoch.startBlock > 0, "Ticket's associated epoch does not exist");
+        require(epoch.startBlock > 0, "Ticket epoch id does not existt");
         require(
             ticket.generationBlock >= epoch.startBlock &&
                 (epoch.endBlock > 0 ? ticket.generationBlock < epoch.endBlock : true),
-            "This ticket was not generated during it's associated epoch"
+            "Ticket not created in the epoch"
         );
 
         uint256 elapsedDuration = block.number - ticket.generationBlock;

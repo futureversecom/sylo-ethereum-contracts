@@ -159,23 +159,20 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Registries.Registry memory registry = _registries.getRegistry(msg.sender);
 
         // validate the node's seeker ownership
-        require(
-            registry.seekerAccount != address(0),
-            "Node must have a valid seeker account to join an epoch"
-        );
+        require(registry.seekerAccount != address(0), "Seeker account cannot be zero");
 
         address owner = _rootSeekers.ownerOf(registry.seekerId);
 
         require(
             registry.seekerAccount == owner,
-            "Node's seeker account does not match the current seeker owner"
+            "Node's seeker account unmatches current seeker owner"
         );
 
         uint256 nextEpoch = getNextEpochId();
 
         require(
             activeSeekers[nextEpoch][registry.seekerId] == address(0),
-            "Seeker has already joined the next epoch"
+            "Seeker already joined next epoch"
         );
 
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
