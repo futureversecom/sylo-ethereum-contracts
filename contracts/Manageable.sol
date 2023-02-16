@@ -44,4 +44,7 @@ abstract contract Manageable is OwnableUpgradeable {
         require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
         _;
     }
+
+    // Reserve storage slots for future variables
+    uint256[49] private __gap;
 }

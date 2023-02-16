@@ -18,7 +18,7 @@ import "abdk-libraries-solidity/ABDKMath64x64.sol";
  * @dev After deployment, the SyloTicketing contract should be
  * set up as a manager to be able to call certain restricted functions.
  */
-contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
+contract RewardsManager is Initializable, Manageable {
     uint256 internal constant ONE_SYLO = 1 ether;
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
