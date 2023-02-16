@@ -186,8 +186,6 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function unlockStake(uint256 amount, address stakee) external returns (uint256) {
-        Stake storage stake = stakes[stakee];
-
         uint256 currentStake = getCurrentStakerAmount(stakee, msg.sender);
 
         require(currentStake > 0, "Nothing to unstake");
@@ -198,6 +196,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         _rewardsManager.updatePendingRewards(stakee, msg.sender);
 
         uint256 currentEpochId = _epochsManager.currentIteration();
+
+        Stake storage stake = stakes[stakee];
 
         stake.stakeEntries[msg.sender] = StakeEntry(
             currentStake - amount,

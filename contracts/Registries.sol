@@ -202,7 +202,7 @@ contract Registries is Initializable, OwnableUpgradeable {
         );
 
         address[] memory _nodes = new address[](end - start);
-        Registry[] memory _registries = new Registry[](end - start);
+        Registry[] memory _registries = new Registry[](_nodes.length);
 
         for (uint256 i = start; i < end; i++) {
             _nodes[i - start] = nodes[i];

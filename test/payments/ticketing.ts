@@ -1741,10 +1741,7 @@ describe('Ticketing', () => {
     const senderCommit = createCommit(generationBlock, senderRand);
     const nodeCommit = createCommit(generationBlock, nodeRand);
 
-    const epochId = await epochsManager
-      .getCurrentActiveEpoch()
-      .then(e => e.iteration);
-
+    const epochId = await epochsManager.currentIteration();
     // create the ticket to be given to the node
     const ticket = {
       epochId,

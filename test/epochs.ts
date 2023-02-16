@@ -77,14 +77,16 @@ describe('Epochs', () => {
 
     await epochsManager.initializeEpoch();
 
-    const epoch = await epochsManager.getCurrentActiveEpoch();
+    const epochInfo = await epochsManager.getCurrentActiveEpoch();
+
+    assert.equal(epochInfo[0].toNumber(), 2, 'Expected epoch id to be 2');
 
     assert.equal(
-      epoch.faceValue.toNumber(),
+      epochInfo[1].faceValue.toNumber(),
       2222,
       'Expected face value to change',
     );
 
-    assert.equal(epoch.decayRate, 1111, 'Expected decay rate to change');
+    assert.equal(epochInfo[1].decayRate, 1111, 'Expected decay rate to change');
   });
 });

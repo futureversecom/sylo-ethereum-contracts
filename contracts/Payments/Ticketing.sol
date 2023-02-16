@@ -251,13 +251,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
     }
 
-    function rewardRedeemer(EpochsManager.Epoch memory epoch, Ticket memory ticket)
-        internal
-        returns (uint256)
-    {
+    function rewardRedeemer(
+        EpochsManager.Epoch memory epoch,
+        Ticket memory ticket
+    ) internal returns (uint256) {
         Deposit storage deposit = getDeposit(ticket.sender);
 
-        uint256 amount = 0;
+        uint256 amount;
 
         if (epoch.faceValue > deposit.escrow) {
             amount = deposit.escrow;
@@ -330,11 +330,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
     }
 
-    function createCommit(uint256 generationBlock, uint256 rand)
-        public
-        pure
-        returns (bytes32)
-    {
+    function createCommit(uint256 generationBlock, uint256 rand) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(keccak256(abi.encodePacked(generationBlock, rand))));
     }
 

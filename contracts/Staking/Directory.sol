@@ -105,7 +105,7 @@ contract Directory is Initializable, Manageable {
 
         uint16 minimumStakeProportion = _stakingManager.minimumStakeProportion();
 
-        uint256 joiningStake = 0;
+        uint256 joiningStake;
         if (ownedStakeProportion >= minimumStakeProportion) {
             joiningStake = totalStake;
         } else {
@@ -169,15 +169,19 @@ contract Directory is Initializable, Manageable {
         // a uint128 cannot overflow a uint256.
         uint256 expectedVal = (directories[epochId].totalStake * uint256(point)) >> 128;
 
-        uint256 left = 0;
+        uint256 left;
         uint256 right = directories[epochId].entries.length - 1;
 
         // perform a binary search through the directory
-        while (left <= right) {
-            uint256 index = (left + right) / 2;
+        uint256 lower;
+        uint256 upper;
+        uint256 index;
 
-            uint256 lower = index == 0 ? 0 : directories[epochId].entries[index - 1].boundary;
-            uint256 upper = directories[epochId].entries[index].boundary;
+        while (left <= right) {
+            index = (left + right) >> 1;
+
+            lower = index == 0 ? 0 : directories[epochId].entries[index - 1].boundary;
+            upper = directories[epochId].entries[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
                 return directories[epochId].entries[index].stakee;
@@ -223,8 +227,10 @@ contract Directory is Initializable, Manageable {
     ) external view returns (address[] memory, uint256[] memory) {
         address[] memory stakees = new address[](directories[epochId].entries.length);
         uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);
-        for (uint256 i = 0; i < directories[epochId].entries.length; i++) {
-            DirectoryEntry memory entry = directories[epochId].entries[i];
+
+        DirectoryEntry memory entry;
+        for (uint256 i; i < directories[epochId].entries.length; i++) {
+            entry = directories[epochId].entries[i];
             stakees[i] = entry.stakee;
             boundaries[i] = entry.boundary;
         }

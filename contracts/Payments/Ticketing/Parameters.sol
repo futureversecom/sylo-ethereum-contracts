@@ -121,4 +121,26 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
         ticketDuration = _ticketDuration;
         emit TicketDurationUpdated(_ticketDuration);
     }
+
+    /**
+     * @notice Retrieve the current ticketing parameters.
+     * @return faceValue The face value of a ticket in SOLO.
+     * @return baseLiveWinProb The base live win probability of a ticket.
+     * @return expiredWinProb The expired win probability of a ticket.
+     * @return decayRate The decay rate of a ticket.
+     * @return ticketDuration The duration of a ticket in number of blocks.
+     */
+    function getTicketingParameters()
+        external
+        view
+        returns (
+            uint256,
+            uint128,
+            uint128,
+            uint256,
+            uint16
+        )
+    {
+        return (faceValue, baseLiveWinProb, expiredWinProb, ticketDuration, decayRate);
+    }
 }

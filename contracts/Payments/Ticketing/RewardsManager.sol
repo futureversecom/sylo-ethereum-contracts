@@ -272,10 +272,10 @@ contract RewardsManager is Initializable, Manageable {
      * @param amount The face value of the ticket in SOLO.
      */
     function incrementRewardPool(address stakee, uint256 amount) external onlyManager {
-        EpochsManager.Epoch memory currentEpoch = _epochsManager.getCurrentActiveEpoch();
-        RewardPool storage rewardPool = rewardPools[
-            getRewardPoolKey(currentEpoch.iteration, stakee)
-        ];
+        (uint256 epochId, EpochsManager.Epoch memory currentEpoch) = _epochsManager
+            .getCurrentActiveEpoch();
+
+        RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
 
         require(
             rewardPool.totalActiveStake > 0,
@@ -283,8 +283,8 @@ contract RewardsManager is Initializable, Manageable {
         );
 
         // Update the latest active reward pool for the node to be this pool
-        if (latestActiveRewardPools[stakee] < currentEpoch.iteration) {
-            latestActiveRewardPools[stakee] = currentEpoch.iteration;
+        if (latestActiveRewardPools[stakee] < epochId) {
+            latestActiveRewardPools[stakee] = epochId;
         }
 
         uint256 stakersReward = SyloUtils.percOf(
@@ -314,38 +314,35 @@ contract RewardsManager is Initializable, Manageable {
             )
         );
 
-        totalEpochRewards[currentEpoch.iteration] += amount;
-        totalEpochStakingRewards[currentEpoch.iteration] += stakersReward;
+        totalEpochRewards[epochId] += amount;
+        totalEpochStakingRewards[epochId] += stakersReward;
     }
 
     /**
      * @dev This function utilizes the cumulative reward factors, and the staker's
      * value in stake to calculate the staker's share of the pending reward.
      */
-    function calculatePendingClaim(address stakee, address staker)
-        internal
-        view
-        returns (uint256)
-    {
-        StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
-            stakee,
-            staker
-        );
-
-        uint256 claim = calculateInitialClaim(stakee, staker);
+    function calculatePendingClaim(
+        bytes32 stakerKey,
+        address stakee,
+        address staker
+    ) internal view returns (uint256) {
+        uint256 claim = calculateInitialClaim(stakerKey, stakee);
 
         // find the first reward pool where their stake was active and had
         // generated rewards
-        uint256 activeAt = 0;
+        uint256 activeAt;
+        RewardPool memory initialActivePool;
+
         for (
-            uint256 i = lastClaims[getStakerKey(stakee, staker)].claimedAt + 1;
+            uint256 i = lastClaims[stakerKey].claimedAt + 1;
             i < _epochsManager.currentIteration();
             i++
         ) {
-            RewardPool memory rewardPool = rewardPools[getRewardPoolKey(i, stakee)];
+            initialActivePool = rewardPools[getRewardPoolKey(i, stakee)];
             // check if node initialized a reward pool for this epoch and
             // gained rewards
-            if (rewardPool.initializedAt > 0 && rewardPool.stakersRewardTotal > 0) {
+            if (initialActivePool.initializedAt > 0 && initialActivePool.stakersRewardTotal > 0) {
                 activeAt = i;
                 break;
             }
@@ -355,14 +352,18 @@ contract RewardsManager is Initializable, Manageable {
             return claim;
         }
 
-        RewardPool memory initialActivePool = rewardPools[getRewardPoolKey(activeAt, stakee)];
-        int128 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
-
-        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(stakee);
+        StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
+            stakee,
+            staker
+        );
 
         // We convert the staker amount to SYLO as the maximum uint256 value that
         // can be used for the fixed point representation is 2^64-1.
         int128 initialStake = toFixedPointSYLO(stakeEntry.amount);
+
+        int128 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
+
+        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(stakee);
 
         return
             claim +
@@ -379,12 +380,12 @@ contract RewardsManager is Initializable, Manageable {
      * made for. This manual calculation is necessary as claims are only made up
      * to the previous epoch.
      */
-    function calculateInitialClaim(address stakee, address staker)
+    function calculateInitialClaim(bytes32 stakerKey, address stakee)
         internal
         view
         returns (uint256)
     {
-        LastClaim memory lastClaim = lastClaims[getStakerKey(stakee, staker)];
+        LastClaim memory lastClaim = lastClaims[stakerKey];
 
         // if we have already made a claim up to the previous epoch, then
         // there is no need to calculate the initial claim
@@ -413,18 +414,14 @@ contract RewardsManager is Initializable, Manageable {
      * the staker last made their claim.
      */
     function getFinalCumulativeRewardFactor(address stakee) internal view returns (int128) {
-        uint256 currentEpoch = _epochsManager.currentIteration();
+        uint256 currentEpochId = _epochsManager.currentIteration();
 
-        RewardPool storage latestRewardPool = rewardPools[
-            getRewardPoolKey(latestActiveRewardPools[stakee], stakee)
-        ];
-
-        int128 finalCumulativeRewardFactor = 0;
+        int128 finalCumulativeRewardFactor;
 
         // Get the cumulative reward factor for the Node
         // for the start of this epoch, since we only perform
         // calculations up to the end of the previous epoch.
-        if (latestActiveRewardPools[stakee] < currentEpoch) {
+        if (latestActiveRewardPools[stakee] < currentEpochId) {
             // If the Node has not been active, then the final
             // cumulative reward factor will just be the current one.
             finalCumulativeRewardFactor = cumulativeRewardFactors[stakee];
@@ -432,6 +429,9 @@ contract RewardsManager is Initializable, Manageable {
             // We are calculating the claim for an active epoch, the
             // final cumulative reward factor will be taken from the start of this
             // epoch (end of previous epoch).
+            RewardPool storage latestRewardPool = rewardPools[
+                getRewardPoolKey(latestActiveRewardPools[stakee], stakee)
+            ];
             finalCumulativeRewardFactor = latestRewardPool.initialCumulativeRewardFactor;
         }
 
@@ -450,9 +450,10 @@ contract RewardsManager is Initializable, Manageable {
      * @return The value of the reward owed to the staker in SOLO.
      */
     function calculateStakerClaim(address stakee, address staker) public view returns (uint256) {
-        uint256 pendingClaim = calculatePendingClaim(stakee, staker);
+        bytes32 stakerKey = getStakerKey(stakee, staker);
+        uint256 pendingClaim = calculatePendingClaim(stakerKey, stakee, staker);
 
-        return pendingClaim + unclaimedStakingRewards[getStakerKey(stakee, staker)];
+        return pendingClaim + unclaimedStakingRewards[stakerKey];
     }
 
     /**
@@ -491,14 +492,13 @@ contract RewardsManager is Initializable, Manageable {
      * @param stakee The address of the Node to claim against.
      */
     function claimStakingRewards(address stakee) external returns (uint256) {
-        uint256 pendingReward = calculatePendingClaim(stakee, msg.sender);
+        bytes32 stakerKey = getStakerKey(stakee, msg.sender);
+        uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, msg.sender);
 
-        uint256 totalClaim = pendingReward +
-            unclaimedStakingRewards[getStakerKey(stakee, msg.sender)];
-
+        uint256 totalClaim = pendingReward + unclaimedStakingRewards[stakerKey];
         require(totalClaim > 0, "Nothing to claim");
 
-        delete unclaimedStakingRewards[getStakerKey(stakee, msg.sender)];
+        delete unclaimedStakingRewards[stakerKey];
         pendingRewards[stakee] -= pendingReward;
 
         updateLastClaim(stakee, msg.sender);
@@ -514,11 +514,12 @@ contract RewardsManager is Initializable, Manageable {
      * needs to be updated whenever stake changes.
      */
     function updatePendingRewards(address stakee, address staker) external onlyManager {
-        uint256 pendingReward = calculatePendingClaim(stakee, staker);
+        bytes32 stakerKey = getStakerKey(stakee, staker);
+        uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, staker);
 
         pendingRewards[stakee] -= pendingReward;
 
-        unclaimedStakingRewards[getStakerKey(stakee, staker)] += pendingReward;
+        unclaimedStakingRewards[stakerKey] += pendingReward;
 
         updateLastClaim(stakee, staker);
     }

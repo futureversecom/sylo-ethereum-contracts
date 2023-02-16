@@ -183,7 +183,6 @@ Network parameters for the current epoch are saved into this structure by the
 
 | Field                   | Description                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| iteration               | A numerical value which is incremented when a new epoch is initialized. Also used as the epoch's identifier |
 | startBlock              | The block the epoch started                                                                                 |
 | duration                | The duration in blocks the epoch will last for                                                              |
 | endBlock                | The block the epoch ended. Initially set to 0 but will be updated when the next epoch is initialized        |
