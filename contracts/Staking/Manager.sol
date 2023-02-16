@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -141,7 +142,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
      */
     function addStake(uint256 amount, address stakee) external {
         addStake_(amount, stakee);
-        _token.transferFrom(msg.sender, address(this), amount);
+        SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }
 
     function addStake_(uint256 amount, address stakee) internal {
@@ -238,7 +239,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         delete unlockings[key];
 
-        _token.transfer(msg.sender, amount);
+        SafeERC20.safeTransfer(_token, msg.sender, amount);
     }
 
     /**
