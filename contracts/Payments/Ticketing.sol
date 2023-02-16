@@ -119,7 +119,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
-        deposit.escrow += amount;
+        deposit.escrow = deposit.escrow + amount;
 
         SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }
@@ -135,7 +135,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         Deposit storage deposit = getDeposit(account);
         require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
 
-        deposit.penalty += amount;
+        deposit.penalty = deposit.penalty + amount;
 
         SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }

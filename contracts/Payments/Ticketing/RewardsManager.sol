@@ -293,10 +293,12 @@ contract RewardsManager is Initializable, Manageable {
         );
 
         // transfer the node's fee reward to it's unclaimed reward value
-        unclaimedStakingRewards[getStakerKey(stakee, stakee)] += (amount - stakersReward);
+        unclaimedStakingRewards[getStakerKey(stakee, stakee)] =
+            unclaimedStakingRewards[getStakerKey(stakee, stakee)] +
+            (amount - stakersReward);
 
         // update the value of the reward owed to the stakers
-        pendingRewards[stakee] += stakersReward;
+        pendingRewards[stakee] = pendingRewards[stakee] + stakersReward;
 
         // if this is the first ticket redeemed for this reward, set the initial
         // CRF value for this pool
@@ -304,7 +306,7 @@ contract RewardsManager is Initializable, Manageable {
             rewardPool.initialCumulativeRewardFactor = cumulativeRewardFactors[stakee];
         }
 
-        rewardPool.stakersRewardTotal += stakersReward;
+        rewardPool.stakersRewardTotal = rewardPool.stakersRewardTotal + stakersReward;
 
         cumulativeRewardFactors[stakee] = ABDKMath64x64.add(
             cumulativeRewardFactors[stakee],
@@ -314,8 +316,8 @@ contract RewardsManager is Initializable, Manageable {
             )
         );
 
-        totalEpochRewards[epochId] += amount;
-        totalEpochStakingRewards[epochId] += stakersReward;
+        totalEpochRewards[epochId] = totalEpochRewards[epochId] + amount;
+        totalEpochStakingRewards[epochId] = totalEpochStakingRewards[epochId] + stakersReward;
     }
 
     /**
@@ -499,7 +501,7 @@ contract RewardsManager is Initializable, Manageable {
         require(totalClaim > 0, "Nothing to claim");
 
         delete unclaimedStakingRewards[stakerKey];
-        pendingRewards[stakee] -= pendingReward;
+        pendingRewards[stakee] = pendingRewards[stakee] - pendingReward;
 
         updateLastClaim(stakee, msg.sender);
 
@@ -517,9 +519,9 @@ contract RewardsManager is Initializable, Manageable {
         bytes32 stakerKey = getStakerKey(stakee, staker);
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, staker);
 
-        pendingRewards[stakee] -= pendingReward;
+        pendingRewards[stakee] = pendingRewards[stakee] - pendingReward;
 
-        unclaimedStakingRewards[stakerKey] += pendingReward;
+        unclaimedStakingRewards[stakerKey] = unclaimedStakingRewards[stakerKey] + pendingReward;
 
         updateLastClaim(stakee, staker);
     }

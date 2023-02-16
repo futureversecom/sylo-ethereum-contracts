@@ -63,7 +63,7 @@ library ECDSA {
 
         // Version of signature should be 27 or 28, but 0 and 1 are also possible versions
         if (v < 27) {
-            v += 27;
+            v = v + 27;
         }
 
         if (v != 27 && v != 28) {

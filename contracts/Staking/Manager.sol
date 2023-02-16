@@ -165,8 +165,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
             currentEpochId
         );
 
-        stake.totalManagedStake += amount;
-        totalManagedStake += amount;
+        stake.totalManagedStake = stake.totalManagedStake + amount;
+        totalManagedStake = totalManagedStake + amount;
     }
 
     /**
@@ -205,8 +205,8 @@ contract StakingManager is Initializable, OwnableUpgradeable {
             currentEpochId
         );
 
-        stake.totalManagedStake -= amount;
-        totalManagedStake -= amount;
+        stake.totalManagedStake = stake.totalManagedStake - amount;
+        totalManagedStake = totalManagedStake - amount;
 
         bytes32 key = getKey(stakee, msg.sender);
 
@@ -218,7 +218,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
             unlock.unlockAt = unlockAt;
         }
 
-        unlock.amount += amount;
+        unlock.amount = unlock.amount + amount;
 
         return unlockAt;
     }
@@ -260,7 +260,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
             amount = unlock.amount;
             delete unlockings[key];
         } else {
-            unlock.amount -= amount;
+            unlock.amount = unlock.amount - amount;
         }
 
         addStake_(amount, stakee);
