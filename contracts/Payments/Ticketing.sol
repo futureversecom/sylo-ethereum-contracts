@@ -20,12 +20,6 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * Event Relay service.
  */
 contract SyloTicketing is Initializable, OwnableUpgradeable {
-    /**
-     * The maximum probability value, where probability is represented
-     * as an integer between 0 to 2^128 - 1.
-     */
-    uint128 internal constant MAX_PROB = type(uint128).max;
-
     struct Deposit {
         uint256 escrow; // Balance of users escrow
         uint256 penalty; // Balance of users penalty
