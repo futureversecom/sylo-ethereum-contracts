@@ -1737,13 +1737,11 @@ describe('Ticketing', () => {
     const nodeRand = crypto.randomBytes(32);
     const senderRand = crypto.randomBytes(32);
 
+    const generationBlock = (await ethers.provider.getBlockNumber()) + 1;
+
     // create commits from those random numbers
-    const senderCommit = keccak256(
-      ethers.utils.defaultAbiCoder.encode(['uint256'], [senderRand]),
-    );
-    const nodeCommit = keccak256(
-      ethers.utils.defaultAbiCoder.encode(['uint256'], [nodeRand]),
-    );
+    const senderCommit = createCommit(generationBlock, senderRand);
+    const nodeCommit = createCommit(generationBlock, nodeRand);
 
     const epochId = await epochsManager
       .getCurrentActiveEpoch()
@@ -1754,7 +1752,7 @@ describe('Ticketing', () => {
       epochId,
       sender: sender.address,
       redeemer: node,
-      generationBlock: (await ethers.provider.getBlockNumber()) + 1,
+      generationBlock,
       senderCommit,
       redeemerCommit: nodeCommit,
     };
@@ -1874,23 +1872,19 @@ describe('Ticketing', () => {
     redeemer: string,
     epochId?: number,
   ) {
+    const generationBlock = (await ethers.provider.getBlockNumber()) + 1;
+
     const senderRand = 1;
-    const senderCommit = keccak256(
-      ethers.utils.defaultAbiCoder.encode(['uint256'], [senderRand]),
-    );
+    const senderCommit = createCommit(generationBlock, senderRand);
 
     const redeemerRand = 1;
-    const redeemerCommit = keccak256(
-      ethers.utils.defaultAbiCoder.encode(['uint256'], [redeemerRand]),
-    );
-
-    const generationBlock = await ethers.provider.getBlockNumber();
+    const redeemerCommit = createCommit(generationBlock, redeemerRand);
 
     const ticket = {
       epochId: epochId ?? (await epochsManager.currentIteration()),
       sender: sender.address,
       redeemer,
-      generationBlock: BigNumber.from(generationBlock + 1),
+      generationBlock,
       senderCommit: '0x' + senderCommit.toString('hex'),
       redeemerCommit: '0x' + redeemerCommit.toString('hex'),
     };
@@ -1914,5 +1908,24 @@ describe('Ticketing', () => {
       signature: Buffer.concat([signature, new Uint8Array([recid])]),
       ticketHash,
     };
+  }
+
+  function createCommit(
+    generationBlock: BigNumberish,
+    rand: BigNumberish,
+  ): Buffer {
+    return keccak256(
+      ethers.utils.defaultAbiCoder.encode(
+        ['bytes32'],
+        [
+          keccak256(
+            ethers.utils.defaultAbiCoder.encode(
+              ['uint256', 'uint256'],
+              [generationBlock, rand],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 });

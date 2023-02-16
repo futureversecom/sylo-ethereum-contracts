@@ -312,13 +312,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // validate that the sender's random number has been revealed to
         // the redeemer
         require(
-            keccak256(abi.encodePacked(senderRand)) == ticket.senderCommit,
+            createCommit(ticket.generationBlock, senderRand) == ticket.senderCommit,
             "Hash of senderRand doesn't match senderRandHash"
         );
 
         // validate the redeemer has knowledge of the redeemer rand
         require(
-            keccak256(abi.encodePacked(redeemerRand)) == ticket.redeemerCommit,
+            createCommit(ticket.generationBlock, redeemerRand) == ticket.redeemerCommit,
             "Hash of redeemerRand doesn't match redeemerRandHash"
         );
 
@@ -328,6 +328,14 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
 
         require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
+    }
+
+    function createCommit(uint256 generationBlock, uint256 rand)
+        public
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(keccak256(abi.encodePacked(generationBlock, rand))));
     }
 
     function getDeposit(address account) private view returns (Deposit storage) {
