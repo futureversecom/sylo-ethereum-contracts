@@ -35,6 +35,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
 
     event EpochJoined(uint256 epochId, address node, uint256 seekerId);
 
+    event EpochDurationUpdated(uint256 epochDuration);
+
     Directory public _directory;
 
     Registries public _registries;
@@ -137,6 +139,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      */
     function setEpochDuration(uint256 _epochDuration) external onlyOwner {
         epochDuration = _epochDuration;
+        emit EpochDurationUpdated(epochDuration);
     }
 
     /**
