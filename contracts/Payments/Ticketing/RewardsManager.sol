@@ -332,11 +332,9 @@ contract RewardsManager is Initializable, Manageable {
         uint256 activeAt;
         RewardPool memory initialActivePool;
 
-        for (
-            uint256 i = lastClaims[stakerKey].claimedAt + 1;
-            i < _epochsManager.currentIteration();
-            i++
-        ) {
+        uint256 currentEpochId = _epochsManager.currentIteration();
+
+        for (uint256 i = lastClaims[stakerKey].claimedAt + 1; i < currentEpochId; ++i) {
             initialActivePool = rewardPools[getRewardPoolKey(i, stakee)];
             // check if node initialized a reward pool for this epoch and
             // gained rewards
@@ -361,7 +359,10 @@ contract RewardsManager is Initializable, Manageable {
 
         int128 initialCumulativeRewardFactor = initialActivePool.initialCumulativeRewardFactor;
 
-        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(stakee);
+        int128 finalCumulativeRewardFactor = getFinalCumulativeRewardFactor(
+            stakee,
+            currentEpochId
+        );
 
         return
             claim +
@@ -410,9 +411,10 @@ contract RewardsManager is Initializable, Manageable {
      * CRF will depend on when the Node last initialized a reward pool, and also when
      * the staker last made their claim.
      */
-    function getFinalCumulativeRewardFactor(address stakee) internal view returns (int128) {
-        uint256 currentEpochId = _epochsManager.currentIteration();
-
+    function getFinalCumulativeRewardFactor(
+        address stakee,
+        uint256 currentEpochId
+    ) internal view returns (int128) {
         int128 finalCumulativeRewardFactor;
 
         // Get the cumulative reward factor for the Node

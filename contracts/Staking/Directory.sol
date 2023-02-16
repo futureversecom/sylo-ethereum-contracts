@@ -235,7 +235,7 @@ contract Directory is Initializable, Manageable {
         DirectoryEntry memory entry;
         DirectoryEntry[] memory entries = directories[epochId].entries;
 
-        for (uint256 i; i < entryLength; i++) {
+        for (uint256 i; i < entryLength; ++i) {
             entry = entries[i];
             stakees[i] = entry.stakee;
             boundaries[i] = entry.boundary;
