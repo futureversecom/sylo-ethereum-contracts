@@ -17,6 +17,11 @@ contract Registries is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
     struct Registry {
+        // Percentage of a tickets value that will be rewarded to
+        // delegated stakers expressed as a fraction of 10000.
+        // This value is currently locked to the default payout percentage
+        // until epochs are implemented.
+        uint16 payoutPercentage;
         // Public http/s endpoint to retrieve additional metadata
         // about the node.
         // The current metadata schema is as follows:
@@ -28,11 +33,6 @@ contract Registries is Initializable, OwnableUpgradeable {
         // The id of the seeker used to operate the node. The owner
         // of this id should be the seeker account.
         uint256 seekerId;
-        // Percentage of a tickets value that will be rewarded to
-        // delegated stakers expressed as a fraction of 10000.
-        // This value is currently locked to the default payout percentage
-        // until epochs are implemented.
-        uint16 payoutPercentage;
     }
 
     /**

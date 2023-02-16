@@ -25,11 +25,11 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         // registry variables
         uint16 defaultPayoutPercentage;
         // ticketing variables
+        uint16 decayRate;
         uint256 faceValue;
         uint128 baseLiveWinProb;
         uint128 expiredWinProb;
         uint256 ticketDuration;
-        uint16 decayRate;
     }
 
     event EpochJoined(uint256 epochId, address node, uint256 seekerId);
@@ -116,11 +116,11 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
             epochDuration,
             0,
             _registries.defaultPayoutPercentage(),
+            decayRate,
             faceValue,
             baseLiveWinProb,
             expiredWinProb,
-            ticketDuration,
-            decayRate
+            ticketDuration
         );
 
         current.endBlock = block.number;
