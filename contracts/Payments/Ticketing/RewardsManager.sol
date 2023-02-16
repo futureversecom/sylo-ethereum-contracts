@@ -126,7 +126,7 @@ contract RewardsManager is Initializable, Manageable {
         StakingManager stakingManager,
         EpochsManager epochsManager
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
         _token = token;
         _epochsManager = epochsManager;
         _stakingManager = stakingManager;

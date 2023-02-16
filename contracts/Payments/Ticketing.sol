@@ -105,7 +105,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         RewardsManager rewardsManager,
         uint256 _unlockDuration
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        OwnableUpgradeable.__Ownable_init();();
         _token = token;
         _registries = registries;
         _stakingManager = stakingManager;
