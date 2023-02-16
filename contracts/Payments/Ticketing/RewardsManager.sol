@@ -156,11 +156,10 @@ contract RewardsManager is Initializable, Manageable {
      * @param stakee The address of the Node.
      * @return The reward pool.
      */
-    function getRewardPool(uint256 epochId, address stakee)
-        external
-        view
-        returns (RewardPool memory)
-    {
+    function getRewardPool(
+        uint256 epochId,
+        address stakee
+    ) external view returns (RewardPool memory) {
         return rewardPools[getRewardPoolKey(epochId, stakee)];
     }
 
@@ -171,11 +170,10 @@ contract RewardsManager is Initializable, Manageable {
      * @param stakee The address of the Node.
      * @return The total accumulated staker reward in SOLO.
      */
-    function getRewardPoolStakersTotal(uint256 epochId, address stakee)
-        external
-        view
-        returns (uint256)
-    {
+    function getRewardPoolStakersTotal(
+        uint256 epochId,
+        address stakee
+    ) external view returns (uint256) {
         return rewardPools[getRewardPoolKey(epochId, stakee)].stakersRewardTotal;
     }
 
@@ -186,11 +184,10 @@ contract RewardsManager is Initializable, Manageable {
      * @param stakee The address of the Node.
      * @return The total active stake for that reward pool in SOLO.
      */
-    function getRewardPoolActiveStake(uint256 epochId, address stakee)
-        external
-        view
-        returns (uint256)
-    {
+    function getRewardPoolActiveStake(
+        uint256 epochId,
+        address stakee
+    ) external view returns (uint256) {
         return rewardPools[getRewardPoolKey(epochId, stakee)].totalActiveStake;
     }
 
@@ -211,11 +208,10 @@ contract RewardsManager is Initializable, Manageable {
      * @param staker The address of the staker.
      * @return The ID of the epoch.
      */
-    function getLastClaim(address stakee, address staker)
-        external
-        view
-        returns (LastClaim memory)
-    {
+    function getLastClaim(
+        address stakee,
+        address staker
+    ) external view returns (LastClaim memory) {
         return lastClaims[getStakerKey(stakee, staker)];
     }
 
@@ -382,11 +378,10 @@ contract RewardsManager is Initializable, Manageable {
      * made for. This manual calculation is necessary as claims are only made up
      * to the previous epoch.
      */
-    function calculateInitialClaim(bytes32 stakerKey, address stakee)
-        internal
-        view
-        returns (uint256)
-    {
+    function calculateInitialClaim(
+        bytes32 stakerKey,
+        address stakee
+    ) internal view returns (uint256) {
         LastClaim memory lastClaim = lastClaims[stakerKey];
 
         // if we have already made a claim up to the previous epoch, then

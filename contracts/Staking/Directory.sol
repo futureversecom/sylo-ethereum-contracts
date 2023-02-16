@@ -161,7 +161,9 @@ contract Directory is Initializable, Manageable {
      * @param epochId The epoch id associated with the directory to scan.
      */
     function _scan(uint128 point, uint256 epochId) internal view returns (address stakee) {
-        if (directories[epochId].entries.length == 0) {
+        uint256 entryLength = directories[epochId].entries.length;
+
+        if (entryLength == 0) {
             return address(0);
         }
 
@@ -170,7 +172,7 @@ contract Directory is Initializable, Manageable {
         uint256 expectedVal = (directories[epochId].totalStake * uint256(point)) >> 128;
 
         uint256 left;
-        uint256 right = directories[epochId].entries.length - 1;
+        uint256 right = entryLength - 1;
 
         // perform a binary search through the directory
         uint256 lower;
@@ -225,12 +227,16 @@ contract Directory is Initializable, Manageable {
     function getEntries(
         uint256 epochId
     ) external view returns (address[] memory, uint256[] memory) {
-        address[] memory stakees = new address[](directories[epochId].entries.length);
-        uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);
+        uint256 entryLength = directories[epochId].entries.length;
+
+        address[] memory stakees = new address[](entryLength);
+        uint256[] memory boundaries = new uint256[](entryLength);
 
         DirectoryEntry memory entry;
-        for (uint256 i; i < directories[epochId].entries.length; i++) {
-            entry = directories[epochId].entries[i];
+        DirectoryEntry[] memory entries = directories[epochId].entries;
+
+        for (uint256 i; i < entryLength; i++) {
+            entry = entries[i];
             stakees[i] = entry.stakee;
             boundaries[i] = entry.boundary;
         }
