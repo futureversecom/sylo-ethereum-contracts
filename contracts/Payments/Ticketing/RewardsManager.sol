@@ -8,6 +8,7 @@ import "../../Utils.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
 /**
@@ -287,7 +288,7 @@ contract RewardsManager is Initializable, OwnableUpgradeable, Manageable {
         }
 
         uint256 stakersReward = SyloUtils.percOf(
-            uint128(amount),
+            SafeCast.toUint128(amount),
             currentEpoch.defaultPayoutPercentage
         );
 

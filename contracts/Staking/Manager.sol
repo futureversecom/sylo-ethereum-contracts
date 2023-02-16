@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "../Token.sol";
 import "../Payments/Ticketing/RewardsManager.sol";
 import "../Epochs/Manager.sol";
@@ -327,7 +328,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
         uint16 ownedStakeProportion = SyloUtils.asPerc(
-            uint128(currentlyOwnedStake),
+            SafeCast.toUint128(currentlyOwnedStake),
             stake.totalManagedStake
         );
 

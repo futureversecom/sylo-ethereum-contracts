@@ -8,6 +8,7 @@ import "../Manageable.sol";
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @notice The Directory contract constructs and manages a structure holding the current stakes,
@@ -98,7 +99,7 @@ contract Directory is Initializable, OwnableUpgradeable, Manageable {
 
         uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
         uint16 ownedStakeProportion = SyloUtils.asPerc(
-            uint128(currentStake),
+            SafeCast.toUint128(currentStake),
             totalStake
         );
 
