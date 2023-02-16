@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { Registries, TestSeekers } from '../typechain';
+import { Registries, TestSeekers } from '../typechain-types';
 import { assert, expect } from 'chai';
 import utils from './utils';
 import { randomBytes } from 'crypto';

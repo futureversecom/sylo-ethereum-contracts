@@ -8,7 +8,7 @@ import {
   StakingManager,
   SyloToken,
   TestSeekers,
-} from '../typechain';
+} from '../typechain-types';
 import utils from './utils';
 import { assert, expect } from 'chai';
 // Chi Squared goodness of fit test

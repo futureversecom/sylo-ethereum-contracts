@@ -2,7 +2,7 @@ node_modules
 artifacts
 cache
 coverage
-typechain
+typechain-types
 abi
 scripts
 */**/*.json

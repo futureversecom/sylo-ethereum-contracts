@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { EpochsManager, SyloToken } from '../typechain';
+import { EpochsManager, SyloToken } from '../typechain-types';
 import utils, { Contracts } from './utils';
 import { assert, expect } from 'chai';
 

@@ -10,7 +10,7 @@ import {
   SyloTicketing,
   TicketingParameters,
   TestSeekers,
-} from '../typechain';
+} from '../typechain-types';
 import { randomBytes } from 'crypto';
 
 type Options = {

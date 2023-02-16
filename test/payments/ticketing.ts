@@ -10,7 +10,7 @@ import {
   SyloToken,
   TicketingParameters,
   TestSeekers,
-} from '../../typechain';
+} from '../../typechain-types';
 import crypto from 'crypto';
 import sodium from 'libsodium-wrappers-sumo';
 import keccak256 from 'keccak256';
@@ -1830,7 +1830,7 @@ describe('Ticketing', () => {
 
       const expectedBalance = await token
         .balanceOf(address)
-        .then(b => b.add(claim));
+        .then((b: BigNumber) => b.add(claim));
 
       await rewardsManager.connect(t.account).claimStakingRewards(owner);
 

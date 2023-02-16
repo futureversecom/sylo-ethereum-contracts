@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { TestSeekers__factory } from '../typechain';
+import { TestSeekers__factory } from '../typechain-types';
 
 const args = require('minimist')(process.argv.slice(2), {
   string: ['account_pk', 'seeker_contract', 'evm'],

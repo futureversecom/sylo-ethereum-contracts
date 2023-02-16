@@ -11,7 +11,7 @@
   "include": [
     "scripts/**/*.ts",
     "test/**/*.ts",
-    "typechain/**/*.ts",
+    "typechain-types/**/*.ts",
     "deploy/**/*.ts"
   ],
   "files": ["./hardhat.config.ts"]
