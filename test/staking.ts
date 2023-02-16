@@ -169,21 +169,24 @@ describe('Staking', () => {
 
     await stakingManager.unlockStake(80, owner);
 
-    await expect(
-      stakingManager.calculateMaxAdditionalDelegatedStake(owner),
-    ).to.be.revertedWith('Stake capacity is reached');
+    await expect(stakingManager.calculateMaxAdditionalDelegatedStake(owner))
+      .to.be.revertedWithCustomError(stakingManager, 'StakeCapacityReached')
+      .withArgs(BigNumber.from(100), BigNumber.from(120));
   });
 
   it('should not able to add stake to zero address', async () => {
     await expect(
       stakingManager.addStake(100, ethers.constants.AddressZero),
-    ).to.be.revertedWith('Address is null');
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'StakeeCannotBeZeroAddress',
+    );
   });
 
   it('should not be able to add 0 stake', async () => {
-    await expect(stakingManager.addStake(0, owner)).to.be.revertedWith(
-      'Stake amount must be more than 0',
-    );
+    await expect(
+      stakingManager.addStake(0, owner),
+    ).to.be.revertedWithCustomError(stakingManager, 'CannotStakeZeroAmount');
   });
 
   it('should be able to unlock stake', async () => {
@@ -200,23 +203,26 @@ describe('Staking', () => {
   });
 
   it('can not unlock no stake', async () => {
-    await expect(stakingManager.unlockStake(100, owner)).to.be.revertedWith(
-      'Nothing to unstake',
-    );
+    await expect(
+      stakingManager.unlockStake(100, owner),
+    ).to.be.revertedWithCustomError(stakingManager, 'NoStakeToUnlock');
   });
 
   it('can not unlock zero stake', async () => {
     await stakingManager.addStake(100, owner);
-    await expect(stakingManager.unlockStake(0, owner)).to.be.revertedWith(
-      'Cannot unlock with zero amount',
-    );
+    await expect(
+      stakingManager.unlockStake(0, owner),
+    ).to.be.revertedWithCustomError(stakingManager, 'CannotUnlockZeroAmount');
   });
 
   it('can not unlock more stake than exists', async () => {
     await stakingManager.addStake(100, owner);
-    await expect(stakingManager.unlockStake(101, owner)).to.be.revertedWith(
-      'Cannot unlock more than staked',
-    );
+    await expect(stakingManager.unlockStake(101, owner))
+      .to.be.revertedWithCustomError(
+        stakingManager,
+        'CannotUnlockMoreThanStaked',
+      )
+      .withArgs(BigNumber.from(100), BigNumber.from(101));
   });
 
   it('should update unlocking state when unlocking more stake', async () => {
@@ -284,9 +290,9 @@ describe('Staking', () => {
   it("should not be able to withdraw stake that hasn't unlocked", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
-    await expect(stakingManager.withdrawStake(owner)).to.be.revertedWith(
-      'Stake not yet unlocked',
-    );
+    await expect(
+      stakingManager.withdrawStake(owner),
+    ).to.be.revertedWithCustomError(stakingManager, 'StakeNotYetUnlocked');
   });
 
   it('should be able to cancel unlocking', async () => {
@@ -342,9 +348,9 @@ describe('Staking', () => {
 
   it('should not allow directory to be joined with no stake', async () => {
     await directory.addManager(owner);
-    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'No stake to join epoch',
-    );
+    await expect(
+      directory.joinNextDirectory(owner),
+    ).to.be.revertedWithCustomError(directory, 'NoStakeToJoinEpoch');
   });
 
   it('can not join directory after unlocking all stake', async () => {
@@ -353,9 +359,9 @@ describe('Staking', () => {
 
     await directory.addManager(owner);
 
-    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'No stake to join epoch',
-    );
+    await expect(
+      directory.joinNextDirectory(owner),
+    ).to.be.revertedWithCustomError(directory, 'NoStakeToJoinEpoch');
   });
 
   it('should reduce stake when joining directory with less than minimum stake', async () => {
@@ -393,9 +399,9 @@ describe('Staking', () => {
 
     await directory.addManager(owner);
 
-    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Joining stake not greater than 0',
-    );
+    await expect(
+      directory.joinNextDirectory(owner),
+    ).to.be.revertedWithCustomError(directory, 'NoJoiningStakeToJoinEpoch');
   });
 
   it('should be able to get total stake for a stakee', async () => {
@@ -447,14 +453,16 @@ describe('Staking', () => {
 
   it('should not be able to join directory without stake', async () => {
     await setSeekeRegistry(accounts[0], accounts[1], 1);
-    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'No stake to init reward pool',
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
+      rewardsManager,
+      'NoStakeToCreateRewardPool',
     );
   });
 
   it('should not be able to join directory without setting seeker account', async () => {
-    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Seeker account cannot be zero',
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
+      epochsManager,
+      'SeekerAcountCannotBeZeroAddress',
     );
   });
 
@@ -470,8 +478,9 @@ describe('Staking', () => {
         1,
       );
 
-    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      "Node's seeker account unmatches current seeker owner",
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
+      epochsManager,
+      'SeekerOwnerMismatch',
     );
   });
 
@@ -479,9 +488,10 @@ describe('Staking', () => {
     await stakingManager.addStake(1, owner);
     await directory.addManager(owner);
     await directory.joinNextDirectory(owner);
-    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Node already joined next epoch',
-    );
+
+    await expect(
+      directory.joinNextDirectory(owner),
+    ).to.be.revertedWithCustomError(directory, 'StakeeAlreadyJoinedEpoch');
   });
 
   it('should be able to scan after joining directory', async () => {
@@ -706,9 +716,9 @@ describe('Staking', () => {
   });
 
   it('can not call functions that onlyManager constraint', async () => {
-    await expect(directory.joinNextDirectory(owner)).to.be.revertedWith(
-      'Only managers can call function',
-    );
+    await expect(
+      directory.joinNextDirectory(owner),
+    ).to.be.revertedWithCustomError(directory, 'OnlyManagers');
   });
 
   it('should distribute scan results amongst stakees proportionally - all equal [ @skip-on-coverage ]', async () => {

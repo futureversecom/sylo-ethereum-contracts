@@ -14,6 +14,23 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+error TicketNotWinning();
+error TicketAlreadyUsed();
+error NoEsrowAndPenalty();
+error UnlockingInProcess();
+error TicketEpochNotFound();
+error UnlockingNotInProcess();
+error UnlockingNotCompleted();
+error TicketAlreadyRedeemed();
+error InvalidTicketSignature();
+error TicketNotCreatedInTheEpoch();
+error TicketSenderCannotBeZeroAddress();
+error TicketRedeemerCannotBeZeroAddress();
+error TicketCannotBeFromFutureBlock();
+error RedeemerMustHaveJoinedEpoch(uint256 epochId);
+error SenderCommitMismatch();
+error RedeemerCommitMismatch();
+
 /**
  * @notice The SyloTicketing contract manages the Probabilistic
  * Micro-Payment Ticketing system that pays Nodes for providing the
@@ -117,7 +134,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function depositEscrow(uint256 amount, address account) external {
         Deposit storage deposit = getDeposit(account);
-        require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
+        if (deposit.unlockAt != 0) {
+            revert UnlockingInProcess();
+        }
 
         deposit.escrow = deposit.escrow + amount;
 
@@ -133,7 +152,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function depositPenalty(uint256 amount, address account) external {
         Deposit storage deposit = getDeposit(account);
-        require(deposit.unlockAt == 0, "Cannot deposit while unlocking");
+        if (deposit.unlockAt != 0) {
+            revert UnlockingInProcess();
+        }
 
         deposit.penalty = deposit.penalty + amount;
 
@@ -147,8 +168,13 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function unlockDeposits() external returns (uint256) {
         Deposit storage deposit = getDeposit(msg.sender);
-        require(deposit.escrow > 0 || deposit.penalty > 0, "Nothing to withdraw");
-        require(deposit.unlockAt == 0, "Unlock already in progress");
+
+        if (deposit.escrow == 0 && deposit.penalty == 0) {
+            revert NoEsrowAndPenalty();
+        }
+        if (deposit.unlockAt != 0) {
+            revert UnlockingInProcess();
+        }
 
         deposit.unlockAt = block.number + unlockDuration;
 
@@ -161,7 +187,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function lockDeposits() external {
         Deposit storage deposit = getDeposit(msg.sender);
-        require(deposit.unlockAt != 0, "Not unlocking, cannot lock");
+        if (deposit.unlockAt == 0) {
+            revert UnlockingNotInProcess();
+        }
 
         delete deposit.unlockAt;
     }
@@ -183,8 +211,12 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function withdrawTo(address account) public {
         Deposit memory deposit = getDeposit(msg.sender);
-        require(deposit.unlockAt > 0, "Deposits not unlocked");
-        require(deposit.unlockAt < block.number, "Unlock period not complete");
+        if (deposit.unlockAt == 0) {
+            revert UnlockingNotInProcess();
+        }
+        if (deposit.unlockAt >= block.number) {
+            revert UnlockingNotCompleted();
+        }
 
         uint256 amount = deposit.escrow + deposit.penalty;
 
@@ -215,10 +247,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         bytes calldata sig
     ) external {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
-        require(
-            ticket.generationBlock <= block.number,
-            "The ticket cannot be generated for a future block"
-        );
+        if (ticket.generationBlock > block.number) {
+            revert TicketCannotBeFromFutureBlock();
+        }
 
         bytes32 ticketHash = getTicketHash(ticket);
         requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
@@ -227,7 +258,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             ticket.epochId,
             ticket.redeemer
         );
-        require(directoryStake > 0, "Redeemer did not join this epoch");
+        if (directoryStake == 0) {
+            revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
+        }
 
         usedTickets[ticketHash] = true;
 
@@ -295,27 +328,35 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         uint256 redeemerRand,
         bytes memory sig
     ) public view {
-        require(ticket.sender != address(0), "Ticket sender is null");
-        require(ticket.redeemer != address(0), "Ticket redeemer is null");
+        if (ticket.sender == address(0)) {
+            revert TicketSenderCannotBeZeroAddress();
+        }
+        if (ticket.redeemer == address(0)) {
+            revert TicketRedeemerCannotBeZeroAddress();
+        }
 
-        require(!usedTickets[ticketHash], "Ticket already redeemed");
+        if (usedTickets[ticketHash]) {
+            revert TicketAlreadyRedeemed();
+        }
 
         // validate that the sender's random number has been revealed to
         // the redeemer
-        require(
-            createCommit(ticket.generationBlock, senderRand) == ticket.senderCommit,
-            "SenderRand hash unmatches senderCommit"
-        );
+        if (createCommit(ticket.generationBlock, senderRand) != ticket.senderCommit) {
+            revert SenderCommitMismatch();
+        }
 
         // validate the redeemer has knowledge of the redeemer rand
-        require(
-            createCommit(ticket.generationBlock, redeemerRand) == ticket.redeemerCommit,
-            "RedeemerRand hash unmatches redeemerRandHash"
-        );
+        if (createCommit(ticket.generationBlock, redeemerRand) != ticket.redeemerCommit) {
+            revert RedeemerCommitMismatch();
+        }
 
-        require(isValidTicketSig(sig, ticket.sender, ticketHash), "Ticket signature is invalid");
+        if (!isValidTicketSig(sig, ticket.sender, ticketHash)) {
+            revert InvalidTicketSignature();
+        }
 
-        require(isWinningTicket(sig, ticket, senderRand, redeemerRand), "Ticket is not a winner");
+        if (!isWinningTicket(sig, ticket, senderRand, redeemerRand)) {
+            revert TicketNotWinning();
+        }
     }
 
     function createCommit(uint256 generationBlock, uint256 rand) public pure returns (bytes32) {
@@ -365,12 +406,16 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
      */
     function calculateWinningProbability(Ticket memory ticket) public view returns (uint128) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
-        require(epoch.startBlock > 0, "Ticket epoch id does not existt");
-        require(
-            ticket.generationBlock >= epoch.startBlock &&
-                (epoch.endBlock > 0 ? ticket.generationBlock < epoch.endBlock : true),
-            "Ticket not created in the epoch"
-        );
+        if (epoch.startBlock == 0) {
+            revert TicketEpochNotFound();
+        }
+
+        if (
+            ticket.generationBlock < epoch.startBlock ||
+            (epoch.endBlock > 0 && ticket.generationBlock >= epoch.endBlock)
+        ) {
+            revert TicketNotCreatedInTheEpoch();
+        }
 
         uint256 elapsedDuration = block.number - ticket.generationBlock;
 

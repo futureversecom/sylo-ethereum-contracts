@@ -7,6 +7,16 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "./ECDSA.sol";
+import "./Utils.sol";
+
+error NonceCannotBeReused();
+error EndMustBeGreaterThanStart();
+error PercentageCannotExceed10000();
+error PublicEndpointCannotBeEmpty();
+error SeekerAccountMustOwnSeekerId();
+error SeekerAccountMustBeMsgSender();
+error ProofNotSignedBySeekerAccount();
+error EndCannotExceedNumberOfNodes(uint256 nodeLength);
 
 /**
  * @notice This contract manages Registries for Nodes. A Registry is a
@@ -76,8 +86,12 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint16 _defaultPayoutPercentage
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
+
+        if (_defaultPayoutPercentage > 10000) {
+            revert PercentageCannotExceed10000();
+        }
+
         _rootSeekers = rootSeekers;
-        require(_defaultPayoutPercentage <= 10000, "Percentage cannot exceed 100");
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
@@ -88,7 +102,10 @@ contract Registries is Initializable, OwnableUpgradeable {
      * denominator is 10000.
      */
     function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) external onlyOwner {
-        require(_defaultPayoutPercentage <= 10000, "Percentage cannot exceed 100");
+        if (_defaultPayoutPercentage > 10000) {
+            revert PercentageCannotExceed10000();
+        }
+
         defaultPayoutPercentage = _defaultPayoutPercentage;
         emit DefaultPayoutPercentageUpdated(_defaultPayoutPercentage);
     }
@@ -100,7 +117,9 @@ contract Registries is Initializable, OwnableUpgradeable {
      * an address to establish a p2p connection.
      */
     function register(string calldata publicEndpoint) external {
-        require(bytes(publicEndpoint).length != 0, "Public endpoint cannot be empty");
+        if (bytes(publicEndpoint).length == 0) {
+            revert PublicEndpointCannotBeEmpty();
+        }
 
         // This is the nodes first registration
         if (bytes(registries[msg.sender].publicEndpoint).length == 0) {
@@ -116,7 +135,9 @@ contract Registries is Initializable, OwnableUpgradeable {
         bytes32 nonce,
         bytes calldata signature
     ) external {
-        require(signatureNonces[nonce] == address(0), "Nonce for signature can not be re-used");
+        if (signatureNonces[nonce] != address(0)) {
+            revert NonceCannotBeReused();
+        }
 
         bytes memory proofMessage = getProofMessage(seekerId, msg.sender, nonce);
 
@@ -128,15 +149,16 @@ contract Registries is Initializable, OwnableUpgradeable {
             )
         );
 
-        require(
-            ECDSA.recover(proof, signature) == seekerAccount,
-            "Proof must be signed by specified seeker account"
-        );
+        if (ECDSA.recover(proof, signature) != seekerAccount) {
+            revert ProofNotSignedBySeekerAccount();
+        }
 
         // Now verify the seeker account actually owns the seeker
         address owner = _rootSeekers.ownerOf(seekerId);
 
-        require(seekerAccount == owner, "Seeker account must own the specified seeker");
+        if (seekerAccount != owner) {
+            revert SeekerAccountMustOwnSeekerId();
+        }
 
         delete registries[seekerRegistration[seekerId]].seekerId;
 
@@ -151,7 +173,9 @@ contract Registries is Initializable, OwnableUpgradeable {
     function revokeSeekerAccount(address node) external {
         Registry storage registry = registries[node];
 
-        require(registry.seekerAccount == msg.sender, "Seeker account is not msg.sender");
+        if (registry.seekerAccount != msg.sender) {
+            revert SeekerAccountMustBeMsgSender();
+        }
 
         delete registry.seekerAccount;
         delete seekerRegistration[registry.seekerId];
@@ -186,8 +210,14 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint256 start,
         uint256 end
     ) external view returns (address[] memory, Registry[] memory) {
-        require(end > start, "End must be greater than start");
-        require(end <= nodes.length, "End cannot greater than total node length");
+        uint256 nodesLength = nodes.length;
+
+        if (end <= start) {
+            revert EndMustBeGreaterThanStart();
+        }
+        if (end > nodesLength) {
+            revert EndCannotExceedNumberOfNodes(nodesLength);
+        }
 
         address[] memory _nodes = new address[](end - start);
         Registry[] memory _registries = new Registry[](_nodes.length);

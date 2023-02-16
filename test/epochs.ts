@@ -62,9 +62,9 @@ describe('Epochs', () => {
 
   it('can not initialize next epoch before current one had ended', async () => {
     await epochsManager.initializeEpoch();
-    await expect(epochsManager.initializeEpoch()).to.be.revertedWith(
-      'Current epoch has not yet ended',
-    );
+    await expect(epochsManager.initializeEpoch())
+      .to.be.revertedWithCustomError(epochsManager, 'EpochHasNotEnded')
+      .withArgs(1);
   });
 
   it('correctly updates the epoch parameters every epoch', async () => {

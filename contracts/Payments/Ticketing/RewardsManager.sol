@@ -11,6 +11,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
+error NoRewardToClaim();
+error RewardPoolNotExist();
+error RewardPoolAlreadyExist();
+error NoStakeToCreateRewardPool();
+
 /**
  * @notice Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
@@ -245,10 +250,15 @@ contract RewardsManager is Initializable, Manageable {
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
         RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
-        require(nextRewardPool.initializedAt == 0, "Next reward pool already exists");
+        if (nextRewardPool.initializedAt != 0) {
+            revert RewardPoolAlreadyExist();
+        }
 
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-        require(totalStake > 0, "No stake to init reward pool");
+        if (totalStake == 0) {
+            revert NoStakeToCreateRewardPool();
+        }
+
         nextRewardPool.totalActiveStake = totalStake;
 
         nextRewardPool.initializedAt = block.number;
@@ -269,8 +279,9 @@ contract RewardsManager is Initializable, Manageable {
             .getCurrentActiveEpoch();
 
         RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
-
-        require(rewardPool.totalActiveStake > 0, "Reward pool not exists in current epoch");
+        if (rewardPool.initializedAt == 0) {
+            revert RewardPoolNotExist();
+        }
 
         // Update the latest active reward pool for the node to be this pool
         if (latestActiveRewardPools[stakee] < epochId) {
@@ -489,7 +500,9 @@ contract RewardsManager is Initializable, Manageable {
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, msg.sender);
 
         uint256 totalClaim = pendingReward + unclaimedStakingRewards[stakerKey];
-        require(totalClaim > 0, "Nothing to claim");
+        if (totalClaim == 0) {
+            revert NoRewardToClaim();
+        }
 
         delete unclaimedStakingRewards[stakerKey];
         pendingRewards[stakee] = pendingRewards[stakee] - pendingReward;

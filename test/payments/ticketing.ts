@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat';
+import { assert, expect } from 'chai';
 import { BigNumber, BigNumberish, Signer, Wallet } from 'ethers';
 import {
   Directory,
@@ -17,7 +18,6 @@ import keccak256 from 'keccak256';
 import * as secp256k1 from 'secp256k1';
 import web3 from 'web3';
 import utils from '../utils';
-import { assert, expect } from 'chai';
 
 describe('Ticketing', () => {
   let accounts: Signer[];
@@ -73,7 +73,10 @@ describe('Ticketing', () => {
       ticketingParameters.initialize(1, 1, 1, 1, 0, {
         from: owner,
       }),
-    ).to.be.revertedWith('Ticket duration cannot be 0');
+    ).to.be.revertedWithCustomError(
+      ticketingParameters,
+      'TicketDurationCannotBeZero',
+    );
   });
 
   it('should be able to set parameters after initialization', async () => {
@@ -153,18 +156,21 @@ describe('Ticketing', () => {
   it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.incrementRewardPool(owner, 10000),
-    ).to.be.revertedWith('Only managers can call function');
+    ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
   it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.initializeNextRewardPool(owner),
-    ).to.be.revertedWith('Only managers can call function');
+    ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
   it('can not set ticket duration to 0', async () => {
-    await expect(ticketingParameters.setTicketDuration(0)).to.be.revertedWith(
-      'Ticket duration cannot be 0',
+    await expect(
+      ticketingParameters.setTicketDuration(0),
+    ).to.be.revertedWithCustomError(
+      ticketingParameters,
+      'TicketDurationCannotBeZero',
     );
   });
 
@@ -204,14 +210,16 @@ describe('Ticketing', () => {
 
   it('should fail to withdraw without unlocking', async () => {
     await ticketing.depositEscrow(50, owner);
-    await expect(ticketing.withdraw()).to.be.revertedWith(
-      'Deposits not unlocked',
+    await expect(ticketing.withdraw()).to.be.revertedWithCustomError(
+      ticketing,
+      'UnlockingNotInProcess',
     );
   });
 
   it('should fail to unlock without deposit', async () => {
-    await expect(ticketing.unlockDeposits()).to.be.revertedWith(
-      'Nothing to withdraw',
+    await expect(ticketing.unlockDeposits()).to.be.revertedWithCustomError(
+      ticketing,
+      'NoEsrowAndPenalty',
     );
   });
 
@@ -231,15 +239,17 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(50, owner);
     await ticketing.unlockDeposits();
 
-    await expect(ticketing.unlockDeposits()).to.be.revertedWith(
-      'Unlock already in progress',
+    await expect(ticketing.unlockDeposits()).to.be.revertedWithCustomError(
+      ticketing,
+      'UnlockingInProcess',
     );
   });
 
   it('should fail to lock if already locked', async () => {
     await ticketing.depositEscrow(50, owner);
-    await expect(ticketing.lockDeposits()).to.be.revertedWith(
-      'Not unlocking, cannot lock',
+    await expect(ticketing.lockDeposits()).to.be.revertedWithCustomError(
+      ticketing,
+      'UnlockingNotInProcess',
     );
   });
 
@@ -261,12 +271,12 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(50, owner);
     await ticketing.unlockDeposits();
 
-    await expect(ticketing.depositEscrow(10, owner)).to.be.revertedWith(
-      'Cannot deposit while unlocking',
-    );
-    await expect(ticketing.depositPenalty(10, owner)).to.be.revertedWith(
-      'Cannot deposit while unlocking',
-    );
+    await expect(
+      ticketing.depositEscrow(10, owner),
+    ).to.be.revertedWithCustomError(ticketing, 'UnlockingInProcess');
+    await expect(
+      ticketing.depositPenalty(10, owner),
+    ).to.be.revertedWithCustomError(ticketing, 'UnlockingInProcess');
   });
 
   it('should be able to withdraw after unlocking phase has completed', async () => {
@@ -289,8 +299,9 @@ describe('Ticketing', () => {
 
   it('should fail to withdraw if deposits not unlocked', async () => {
     await ticketing.depositEscrow(50, owner);
-    await expect(ticketing.withdraw()).to.be.revertedWith(
-      'Deposits not unlocked',
+    await expect(ticketing.withdraw()).to.be.revertedWithCustomError(
+      ticketing,
+      'UnlockingNotInProcess',
     );
   });
 
@@ -298,8 +309,9 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(50, owner);
     await ticketing.unlockDeposits();
 
-    await expect(ticketing.withdraw()).to.be.revertedWith(
-      'Unlock period not complete',
+    await expect(ticketing.withdraw()).to.be.revertedWithCustomError(
+      ticketing,
+      'UnlockingNotCompleted',
     );
   });
 
@@ -337,8 +349,9 @@ describe('Ticketing', () => {
     // change the seeker but node should still be prevented from
     // initializing the reward pool again
     await setSeekerRegistry(accounts[0], accounts[1], 2);
-    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Next reward pool already exists',
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
+      rewardsManager,
+      'RewardPoolAlreadyExist',
     );
   });
 
@@ -347,15 +360,16 @@ describe('Ticketing', () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
 
-    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'Seeker already joined next epoch',
-    );
+    await expect(epochsManager.joinNextEpoch())
+      .to.be.revertedWithCustomError(epochsManager, 'SeekerAlreadyJoinedEpoch')
+      .withArgs(BigNumber.from(1), BigNumber.from(1));
   });
 
   it('should not be able to initialize next reward pool without stake', async () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
-    await expect(epochsManager.joinNextEpoch()).to.be.revertedWith(
-      'No stake to init reward pool',
+    await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
+      rewardsManager,
+      'NoStakeToCreateRewardPool',
     );
   });
 
@@ -372,7 +386,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('ECDSA: invalid signature length');
+    ).to.be.revertedWithCustomError(ticketing, 'ECDSAInvalidSignatureLength');
   });
 
   it('can not redeem ticket with invalid sender rand', async () => {
@@ -388,7 +402,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('SenderRand hash unmatches senderCommit');
+    ).to.be.revertedWithCustomError(ticketing, 'SenderCommitMismatch');
   });
 
   it('can not redeem ticket with invalid redeemer rand', async () => {
@@ -404,7 +418,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('RedeemerRand hash unmatches redeemerRandHash');
+    ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
   });
 
   it('can not redeem ticket if associated epoch does not exist', async () => {
@@ -414,7 +428,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket epoch id does not existt');
+    ).to.be.revertedWithCustomError(ticketing, 'TicketEpochNotFound');
   });
 
   it('can not calculate winning probability if associated epoch does not exist', async () => {
@@ -425,7 +439,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.calculateWinningProbability(ticket),
-    ).to.be.revertedWith('Ticket epoch id does not existt');
+    ).to.be.revertedWithCustomError(ticketing, 'TicketEpochNotFound');
   });
 
   it('can not redeem ticket if generated for a future block', async () => {
@@ -439,7 +453,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(updatedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('The ticket cannot be generated for a future block');
+    ).to.be.revertedWithCustomError(ticketing, 'TicketCannotBeFromFutureBlock');
   });
 
   it('can not calculate winning probablility if not generated during associated epoch', async () => {
@@ -452,7 +466,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.calculateWinningProbability(updatedTicket),
-    ).to.be.revertedWith('Ticket not created in the epoch');
+    ).to.be.revertedWithCustomError(ticketing, 'TicketNotCreatedInTheEpoch');
   });
 
   it('can not redeem ticket if node has not joined directory', async () => {
@@ -469,7 +483,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Redeemer did not join this epoch');
+    ).to.be.revertedWithCustomError(ticketing, 'RedeemerMustHaveJoinedEpoch');
   });
 
   it('can not redeem ticket if node has not initialized reward pool', async () => {
@@ -490,7 +504,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Reward pool not exists in current epoch');
+    ).to.be.revertedWithCustomError(rewardsManager, 'RewardPoolNotExist');
   });
 
   it('can not redeem invalid ticket', async () => {
@@ -511,33 +525,39 @@ describe('Ticketing', () => {
     malformedTicket.sender = ethers.constants.AddressZero;
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket sender is null');
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'TicketSenderCannotBeZeroAddress',
+    );
 
     malformedTicket = { ...ticket };
     malformedTicket.redeemer = ethers.constants.AddressZero;
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket redeemer is null');
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'TicketRedeemerCannotBeZeroAddress',
+    );
 
     malformedTicket = { ...ticket };
     malformedTicket.senderCommit =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('SenderRand hash unmatches senderCommit');
+    ).to.be.revertedWithCustomError(ticketing, 'SenderCommitMismatch');
 
     malformedTicket = { ...ticket };
     malformedTicket.redeemerCommit =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     await expect(
       ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('RedeemerRand hash unmatches redeemerRandHash');
+    ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
 
     const malformedSig =
       '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, malformedSig),
-    ).to.be.revertedWith('Ticket signature is invalid');
+    ).to.be.revertedWithCustomError(ticketing, 'InvalidTicketSignature');
   });
 
   it('rejects non winning ticket', async () => {
@@ -574,7 +594,7 @@ describe('Ticketing', () => {
 
     await expect(
       contracts.ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket is not a winner');
+    ).to.be.revertedWithCustomError(ticketing, 'TicketNotWinning');
   });
 
   it('can redeem winning ticket', async () => {
@@ -631,7 +651,7 @@ describe('Ticketing', () => {
     await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket already redeemed');
+    ).to.be.revertedWithCustomError(ticketing, 'TicketAlreadyRedeemed');
   });
 
   it('burns penalty on insufficient escrow', async () => {
@@ -690,9 +710,9 @@ describe('Ticketing', () => {
   });
 
   it('fails to to claim non existent rewards', async () => {
-    await expect(rewardsManager.claimStakingRewards(owner)).to.be.revertedWith(
-      'Nothing to claim',
-    );
+    await expect(
+      rewardsManager.claimStakingRewards(owner),
+    ).to.be.revertedWithCustomError(rewardsManager, 'NoRewardToClaim');
   });
 
   it('can claim ticketing rewards', async () => {
@@ -918,9 +938,9 @@ describe('Ticketing', () => {
     const lastClaim = await rewardsManager.getLastClaim(owner, owner);
     expect(lastClaim.claimedAt).to.be.above(0);
 
-    await expect(rewardsManager.claimStakingRewards(owner)).to.be.revertedWith(
-      'Nothing to claim',
-    );
+    await expect(
+      rewardsManager.claimStakingRewards(owner),
+    ).to.be.revertedWithCustomError(rewardsManager, 'NoRewardToClaim');
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake is the same', async () => {
@@ -1435,7 +1455,7 @@ describe('Ticketing', () => {
 
     await expect(
       rewardsManager.connect(accounts[1]).claimStakingRewards(owner),
-    ).to.be.revertedWith('Nothing to claim');
+    ).to.be.revertedWithCustomError(rewardsManager, 'NoRewardToClaim');
   });
 
   it('can claim staking rewards again after previous ended', async () => {

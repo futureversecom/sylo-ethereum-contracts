@@ -7,6 +7,11 @@ pragma solidity ^0.8.13;
  * https://gist.github.com/BjornvdLaan/e41d292339bbdebb831d0b976e1804e8
  */
 
+error ECDSAInvalidSignatureLength();
+error ECDSAInvalidSValue();
+error ECDSAInvalidVValue();
+error ECDSAInvalidSignature();
+
 /**
  * @dev Elliptic Curve Digital Signature Algorithm (ECDSA) operations.
  *
@@ -31,7 +36,7 @@ library ECDSA {
     function recover(bytes32 hash, bytes memory signature) internal pure returns (address) {
         // Check the signature length
         if (signature.length != 65) {
-            revert("ECDSA: invalid signature length");
+            revert ECDSAInvalidSignatureLength();
         }
 
         // Divide the signature in r, s and v variables
@@ -58,7 +63,7 @@ library ECDSA {
         // vice versa. If your library also generates signatures with 0/1 for v instead 27/28, add 27 to v to accept
         // these malleable signatures as well.
         if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
-            revert("ECDSA: invalid signature 's' value");
+            revert ECDSAInvalidSValue();
         }
 
         // Version of signature should be 27 or 28, but 0 and 1 are also possible versions
@@ -67,12 +72,14 @@ library ECDSA {
         }
 
         if (v != 27 && v != 28) {
-            revert("ECDSA: invalid signature 'v' value");
+            revert ECDSAInvalidVValue();
         }
 
         // If the signature is valid (and not malleable), return the signer address
         address signer = ecrecover(hash, v, r, s);
-        require(signer != address(0), "ECDSA: invalid signature");
+        if (signer == address(0)) {
+            revert ECDSAInvalidSignature();
+        }
 
         return signer;
     }

@@ -34,7 +34,7 @@ describe('Registries', () => {
     registries = await Registries.deploy();
     await expect(
       registries.initialize(seekers.address, 10001),
-    ).to.be.revertedWith('Percentage cannot exceed 100');
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
   });
 
   it('can allow owner to set default payout percentage', async () => {
@@ -136,19 +136,20 @@ describe('Registries', () => {
       );
     }
 
-    await expect(registries.getRegistries(8, 5)).to.be.revertedWith(
-      'End must be greater than start',
+    await expect(registries.getRegistries(8, 5)).to.be.revertedWithCustomError(
+      registries,
+      'EndMustBeGreaterThanStart',
     );
 
-    await expect(registries.getRegistries(8, 21)).to.be.revertedWith(
-      'End cannot greater than total node length',
-    );
+    await expect(registries.getRegistries(8, 21))
+      .to.be.revertedWithCustomError(registries, 'EndCannotExceedNumberOfNodes')
+      .withArgs(20);
   });
 
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
       registries.setDefaultPayoutPercentage(10001),
-    ).to.be.revertedWith('Percentage cannot exceed 100');
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
   });
 
   it('can set seeker account with valid proof', async () => {
@@ -195,7 +196,7 @@ describe('Registries', () => {
     // second attempt should fail due to nonce reuse
     await expect(
       registries.setSeekerAccount(seekerAddress, 1, nonce, signature),
-    ).to.be.revertedWith('Nonce for signature can not be re-used');
+    ).to.be.revertedWithCustomError(registries, 'NonceCannotBeReused');
   });
 
   it('fails to set seeker account with invalid proof', async () => {
@@ -217,7 +218,10 @@ describe('Registries', () => {
 
     await expect(
       registries.setSeekerAccount(seekerAddress, tokenId, nonce, proof),
-    ).to.be.revertedWith('Proof must be signed by specified seeker account');
+    ).to.be.revertedWithCustomError(
+      registries,
+      'ProofNotSignedBySeekerAccount',
+    );
   });
 
   it("fails to set seeker account if seeker isn't owned by account", async () => {
@@ -240,7 +244,7 @@ describe('Registries', () => {
 
     await expect(
       registries.setSeekerAccount(seekerAddress, tokenId, nonce, signature),
-    ).to.be.revertedWith('Seeker account must own the specified seeker');
+    ).to.be.revertedWithCustomError(registries, 'SeekerAccountMustOwnSeekerId');
   });
 
   it('can revoke seeker account', async () => {
@@ -270,14 +274,15 @@ describe('Registries', () => {
       1,
     );
 
-    await expect(registries.revokeSeekerAccount(owner)).to.be.revertedWith(
-      'Seeker account is not msg.sender',
-    );
+    await expect(
+      registries.revokeSeekerAccount(owner),
+    ).to.be.revertedWithCustomError(registries, 'SeekerAccountMustBeMsgSender');
   });
 
   it('requires registry to not have empty public endpoint string', async () => {
-    await expect(registries.register('')).to.be.revertedWith(
-      'Public endpoint cannot be empty',
+    await expect(registries.register('')).to.be.revertedWithCustomError(
+      registries,
+      'PublicEndpointCannotBeEmpty',
     );
   });
 

@@ -10,6 +10,10 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+error NoStakeToJoinEpoch();
+error StakeeAlreadyJoinedEpoch();
+error NoJoiningStakeToJoinEpoch();
+
 /**
  * @notice The Directory contract constructs and manages a structure holding the current stakes,
  * which is queried against using the scan function. The scan function allows submitting
@@ -94,8 +98,12 @@ contract Directory is Initializable, Manageable {
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
     function joinNextDirectory(address stakee) external onlyManager {
+        uint256 nextEpochId = currentDirectory + 1;
+
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-        require(totalStake > 0, "No stake to join epoch");
+        if (totalStake == 0) {
+            revert NoStakeToJoinEpoch();
+        }
 
         uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
         uint16 ownedStakeProportion = SyloUtils.asPerc(
@@ -113,17 +121,19 @@ contract Directory is Initializable, Manageable {
             // the stake used to join the epoch proportionally
             joiningStake = (totalStake * ownedStakeProportion) / minimumStakeProportion;
         }
-        require(joiningStake > 0, "Joining stake not greater than 0");
+        if (joiningStake == 0) {
+            revert NoJoiningStakeToJoinEpoch();
+        }
 
-        uint256 epochId = currentDirectory + 1;
+        if (directories[nextEpochId].stakes[stakee] > 0) {
+            revert StakeeAlreadyJoinedEpoch();
+        }
 
-        require(directories[epochId].stakes[stakee] == 0, "Node already joined next epoch");
+        uint256 nextBoundary = directories[nextEpochId].totalStake + joiningStake;
 
-        uint256 nextBoundary = directories[epochId].totalStake + joiningStake;
-
-        directories[epochId].entries.push(DirectoryEntry(stakee, nextBoundary));
-        directories[epochId].stakes[stakee] = joiningStake;
-        directories[epochId].totalStake = nextBoundary;
+        directories[nextEpochId].entries.push(DirectoryEntry(stakee, nextBoundary));
+        directories[nextEpochId].stakes[stakee] = joiningStake;
+        directories[nextEpochId].totalStake = nextBoundary;
     }
 
     /**

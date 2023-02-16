@@ -9,6 +9,11 @@ import "../Payments/Ticketing/Parameters.sol";
 import "../Registries.sol";
 import "../Staking/Directory.sol";
 
+error EpochHasNotEnded(uint256 epochId);
+error SeekerAcountCannotBeZeroAddress();
+error SeekerOwnerMismatch();
+error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
+
 contract EpochsManager is Initializable, OwnableUpgradeable {
     /**
      * @dev This struct will hold all network parameters that will be static
@@ -97,7 +102,9 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Epoch storage current = epochs[currentIteration];
 
         uint256 end = current.startBlock + current.duration;
-        require(end <= block.number, "Current epoch has not yet ended");
+        if (end > block.number) {
+            revert EpochHasNotEnded(currentIteration);
+        }
 
         (
             uint256 faceValue,
@@ -159,26 +166,26 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Registries.Registry memory registry = _registries.getRegistry(msg.sender);
 
         // validate the node's seeker ownership
-        require(registry.seekerAccount != address(0), "Seeker account cannot be zero");
+        if (registry.seekerAccount == address(0)) {
+            revert SeekerAcountCannotBeZeroAddress();
+        }
 
-        address owner = _rootSeekers.ownerOf(registry.seekerId);
+        uint256 seekerId = registry.seekerId;
 
-        require(
-            registry.seekerAccount == owner,
-            "Node's seeker account unmatches current seeker owner"
-        );
+        address owner = _rootSeekers.ownerOf(seekerId);
+        if (registry.seekerAccount != owner) {
+            revert SeekerOwnerMismatch();
+        }
 
         uint256 nextEpoch = getNextEpochId();
-
-        require(
-            activeSeekers[nextEpoch][registry.seekerId] == address(0),
-            "Seeker already joined next epoch"
-        );
+        if (activeSeekers[nextEpoch][seekerId] != address(0)) {
+            revert SeekerAlreadyJoinedEpoch(nextEpoch, seekerId);
+        }
 
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
-        activeSeekers[nextEpoch][registry.seekerId] = msg.sender;
-        emit EpochJoined(nextEpoch, msg.sender, registry.seekerId);
+        activeSeekers[nextEpoch][seekerId] = msg.sender;
+        emit EpochJoined(nextEpoch, msg.sender, seekerId);
     }
 
     /**
