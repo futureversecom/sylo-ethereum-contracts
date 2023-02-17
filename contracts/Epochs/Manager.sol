@@ -118,8 +118,6 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
 
         uint256 nextEpochId = getNextEpochId();
 
-        _directory.setCurrentDirectory(nextEpochId);
-
         epochs[nextEpochId] = Epoch(
             block.number,
             epochDuration,
@@ -135,6 +133,8 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
         current.endBlock = block.number;
 
         currentIteration = nextEpochId;
+
+        _directory.setCurrentDirectory(nextEpochId);
 
         emit NewEpoch(nextEpochId);
 
@@ -185,9 +185,11 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
             revert SeekerAlreadyJoinedEpoch(nextEpoch, seekerId);
         }
 
+        activeSeekers[nextEpoch][seekerId] = msg.sender;
+
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
-        activeSeekers[nextEpoch][seekerId] = msg.sender;
+
         emit EpochJoined(nextEpoch, msg.sender, seekerId);
     }
 
