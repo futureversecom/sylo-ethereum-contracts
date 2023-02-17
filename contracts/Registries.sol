@@ -5,8 +5,8 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "./ECDSA.sol";
 import "./Utils.sol";
 
 error NonceCannotBeReused();
@@ -140,16 +140,9 @@ contract Registries is Initializable, Ownable2StepUpgradeable {
         }
 
         bytes memory proofMessage = getProofMessage(seekerId, msg.sender, nonce);
+        bytes32 ethProof = ECDSA.toEthSignedMessageHash(proofMessage);
 
-        bytes32 proof = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n",
-                Strings.toString(proofMessage.length),
-                proofMessage
-            )
-        );
-
-        if (ECDSA.recover(proof, signature) != seekerAccount) {
+        if (ECDSA.recover(ethProof, signature) != seekerAccount) {
             revert ProofNotSignedBySeekerAccount();
         }
 
