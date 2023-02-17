@@ -42,9 +42,9 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     }
 
     event Redemption(
-        uint256 epochId,
-        address sender,
-        address redeemer,
+        uint256 indexed epochId,
+        address indexed sender,
+        address indexed redeemer,
         uint256 generationBlock,
         uint256 amount
     );
