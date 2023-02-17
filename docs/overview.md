@@ -3,27 +3,24 @@
 **Protocol and Economic Incentives For Decentralized Communications
 Infrastructure**
 
-Paul Freeman            <paul@sylo.io> </br>
-John Carlo San Pedro    <john@sylo.io> </br>
-Joshua Dawes            <josh@sylo.io> </br>
+Paul Freeman <paul@sylo.io> </br> John Carlo San Pedro <john@sylo.io> </br>
+Joshua Dawes <josh@sylo.io> </br>
 
-## Table of Contents ###########################################
+## Table of Contents
 
-* [Introduction and Background](#introduction-and-background)
-* [Probabilistic Micropayments](#probabilistic-micropayments)
-  * [Micropayment Tickets](#micropayment-tickets)
-* [The Event Relay Protocol](#the-event-relay-protocol)
-  * [Nodes](#nodes)
-* [Staking](#staking)
-  * [Delegated Staking](#delegated-staking)
-  * [Scanning for a node](#scanning-for-a-node)
-* [Epochs](#epochs)
-* [Rewards](#rewards)
-* [Ticket decay with time](#ticket-decay-with-time)
+- [Introduction and Background](#introduction-and-background)
+- [Probabilistic Micropayments](#probabilistic-micropayments)
+  - [Micropayment Tickets](#micropayment-tickets)
+- [The Event Relay Protocol](#the-event-relay-protocol)
+  - [Nodes](#nodes)
+- [Staking](#staking)
+  - [Delegated Staking](#delegated-staking)
+  - [Scanning for a node](#scanning-for-a-node)
+- [Epochs](#epochs)
+- [Rewards](#rewards)
+- [Ticket decay with time](#ticket-decay-with-time)
 
-
-
-## Introduction and Background ###########################################
+## Introduction and Background
 
 Sylo Nodes are an application that anyone can run, to help provide network
 services to Sylo users in a truly private, fully decentralised way.
@@ -43,8 +40,7 @@ on-chain blocks.
 The Sylo Network is currently in [phase two](spec.md#phase-two) of its
 deployment.
 
-
-## Probabilistic Micropayments ###########################################
+## Probabilistic Micropayments
 
 Sylo Tickets are probabilistic micropayments used for rewarding Sylo Nodes for
 their work. Because Sylo Nodes can be run by anybody, they need a financial
@@ -55,8 +51,6 @@ A single relay is so inexpensive that the blockchain transaction costs
 associated with paying per message would be unreasonably high. Because of this,
 we need a way to exchange value for every relay performed, without relying on an
 on-chain transaction each time.
-
-
 
 ### Micropayment Tickets
 
@@ -86,8 +80,7 @@ paid out if it wins, multiplied by its probability of winning. By choosing
 values of these two parameters, these probabilistic micropayment Tickets can be
 used to pay for arbitrarily small units of work in a gas-efficient way.
 
-## The Event Relay Protocol ###########################################
-
+## The Event Relay Protocol
 
 ### Asynchronous Event Relay
 
@@ -109,7 +102,6 @@ Alice also needs a way to release payment to Bob's node only once Bob has
 received the relay packet. This is the difficult part, because Alice may never
 have the opportunity to learn anything more about the outcome of her relay
 request.
-
 
 In reality, only two actors know when the relay packet has been delivered - Bob,
 and Bob's node.
@@ -138,7 +130,6 @@ relay request with Bob's node, it contains a secret from Alice that is encrypted
 for Bob. Once Bob receives the relay, he decrypts the secret and passes it back
 to the node, allowing the node to claim payment.
 
-
 Blacklisting also prevents abuse in the case where Alice and Bob are the same
 financial entity, with shared cost incentives. The goal in this case is to limit
 the amount of free relay that Alice and Bob are able to extract from the
@@ -163,7 +154,6 @@ cost. This gas cost puts an effective price on the “free” relay obtainable t
 way, and makes the strategy of repeatedly spinning up new sending peers worse
 than just paying for relay in the first place.
 
-
 ### Nodes
 
 Sylo Nodes are an application that anyone can run on their own server, to help
@@ -177,7 +167,8 @@ is set each epoch.
 
 Sylo Nodes require Stake before they are eligible to receive work to do.
 
-## Staking ###########################################
+## Staking
+
 In order to be allocated work on the Sylo Network, Sylo Nodes must have SYLO
 Tokens staked against them on-chain. These tokens are still owned by the person
 who staked them, but are locked in a smart contract for a period of time.
@@ -201,19 +192,20 @@ speculators cannot take short-term control of the network’s services in order 
 manipulate them for profit.
 
 Staking against a node does two things:
+
 - It increases the amount of traffic that the node receives from the network,
   increasing that node’s income.
 - It entitles the owner of the stake to a portion of the payout from each
   winning ticket that the node redeems.
 
-
 ### Delegated staking
 
 A node can be staked by the Node’s owner, or by other holders of the SYLO token
+
 - the latter is known as delegated staking.
 
 - A percentage of every winning ticket is paid to the node owner first - the
-  remaining payment is then shared among all stakers, delegated or not,  in
+  remaining payment is then shared among all stakers, delegated or not, in
   proportion to the amount they have staked.
 
 ### Scanning for a node
@@ -229,7 +221,6 @@ Any peer with access to the blockchain can see the full list of staked Sylo
 Nodes, and use the stake directory to determine which node they are assigned to
 for the current epoch, by a process known as scanning.
 
-
 When a peer wants to identify their Sylo Node, they query the blockchain using a
 “scan” function. This function takes the peer ID as input, and pseudo-randomly
 assigns them a Sylo Node.
@@ -238,22 +229,21 @@ assigns them a Sylo Node.
 
 The scan function does this using the following steps:
 
-- Compute the hash of the peer ID of the recipient, concatenated with
-  the current epoch number and the peer’s on-chain channel number.
-  This hash can be mapped to a pseudo-random number between 0 and 1. It is
-  unique to each peer, and changes each epoch.
+- Compute the hash of the peer ID of the recipient, concatenated with the
+  current epoch number and the peer’s on-chain channel number. This hash can be
+  mapped to a pseudo-random number between 0 and 1. It is unique to each peer,
+  and changes each epoch.
 - Multiply the total amount of stake in the stake tree by this random number, to
   produce a number between 0 and total_staked.
 - Binary search the stake directory to find which node is associated with the
   number produced above, returning that node.
-
 
 This scan function allows anyone who knows your peer ID to efficiently identify
 your node for a given Epoch, and therefore identify which Sylo Node will accept
 a relay message for you.
 
 It also ensures that Sylo Nodes are able to tell when a relay message is
-unlikely to be collected.  If the recipient scans to a different Sylo Node, then
+unlikely to be collected. If the recipient scans to a different Sylo Node, then
 it is unlikely that the recipient will come to this Node to collect it. This
 incentivizes nodes to only provide services to peers that “scan” to them, and
 incentivizes peers to only use their assigned node.
@@ -269,7 +259,7 @@ randomized each epoch. This provides additional security against traffic
 analysis, and ensures that nodes receive work in proportion to their stake over
 the long run, regardless of epoch-by-epoch traffic variation.
 
-## Epochs ###########################################
+## Epochs
 
 An epoch is the main unit of time in the Sylo Network, measured as a number of
 on-chain blocks. At the start of each epoch, the stake directory is updated
@@ -282,11 +272,10 @@ Epochs have several benefits:
   In particular it allows for an [optimization of the reward distribution
   calculation](spec.md#reward-calculation-and-cumulative-reward-factor).
 - It also provides a predictable time for changes to come into effect,
-  simplifying the process of peers monitoring the network for changes - e.g.
-  has my Node changed?
+  simplifying the process of peers monitoring the network for changes - e.g. has
+  my Node changed?
 
-
-## Rewards ###########################################
+## Rewards
 
 Rewards gained from redeeming tickets are held in escrow, and will continue to
 accumulate until either the Node or a delegated staker withdraws their rewards.
@@ -300,7 +289,7 @@ Further detail of the staking rewards are calculated over multiple epochs can be
 found in the [technical
 specification](spec.md#reward-calculation-and-cumulative-reward-factor).
 
-## Ticket decay with time ###########################################
+## Ticket decay with time
 
 To incentivize relays to be delivered as soon as possible, the mechanism that
 pays out winning Sylo Tickets is modified, so that the [probability of a Ticket
@@ -318,61 +307,67 @@ possible, to maximize their income from performing the service. It similarly
 incentivizes them to invest in throughput and uptime improvements, so that they
 can claim tickets as soon as possible, and earn more from the work that they do.
 
-## The Seekers ###########################################
+## The Seekers
 
-In order to run a SYLO node, the user must own a Seeker. This requirement stems from the gamification
- of the network - the Seeker personifies the Node. The user can "activate their Seeker" by associating 
- it with a Node, allowing that Seeker to provide communications services and receive rewards.
+In order to run a SYLO node, the user must own a Seeker. This requirement stems
+from the gamification of the network - the Seeker personifies the Node. The user
+can "activate their Seeker" by associating it with a Node, allowing that Seeker
+to provide communications services and receive rewards.
 
-In general, the user's wallet that contains the Seeker, and the user's wallet that runs the Node, 
-will not be the same, because the user will not want to give their main wallet's key to the Node.
+In general, the user's wallet that contains the Seeker, and the user's wallet
+that runs the Node, will not be the same, because the user will not want to give
+their main wallet's key to the Node.
 
-To address this limitation, a Node's wallet can claim indirect ownership of the Seeker by providing 
-a proof of association. This proof is signed by the Seeker's wallet, and attests that the Node is 
-allowed to use that Seeker to run. This fact is stored in the node's registry.
+To address this limitation, a Node's wallet can claim indirect ownership of the
+Seeker by providing a proof of association. This proof is signed by the Seeker's
+wallet, and attests that the Node is allowed to use that Seeker to run. This
+fact is stored in the node's registry.
 
-It is expected that users will trade/transfer ownership of the Seeker that is being used to run a 
-Node before revoking the link between the Seeker and the Node in the Node's registry entry. This cannot 
-easily be prevented because Seeker trades/transfers are initiated by the Seeker wallet, while registry
-edits are made by the Node's wallet, which does not know of the transfer when it happens.
+It is expected that users will trade/transfer ownership of the Seeker that is
+being used to run a Node before revoking the link between the Seeker and the
+Node in the Node's registry entry. This cannot easily be prevented because
+Seeker trades/transfers are initiated by the Seeker wallet, while registry edits
+are made by the Node's wallet, which does not know of the transfer when it
+happens.
 
-As a result, the Node is only required to have a Seeker in the registry when it joins an epoch, after which 
-the Node can continue to participate during that epoch even after that Seeker has been transfered to another 
-wallet. This ensures that:
-1) The node can continue to claim rewards on work performed during the epoch, giving it an incentive to continue 
-performing the service rather than leaving some relays unfulfilled.
-2) The stake directory is static for the duration of the epoch, so that each receiver maps to the same node 
-for the entire epoch.
-However, the Node will be unable to join the following epoch until it registers another Seeker.
+As a result, the Node is only required to have a Seeker in the registry when it
+joins an epoch, after which the Node can continue to participate during that
+epoch even after that Seeker has been transferred to another wallet. This ensures
+that:
 
+1. The node can continue to claim rewards on work performed during the epoch,
+   giving it an incentive to continue performing the service rather than leaving
+   some relays unfulfilled.
+2. The stake directory is static for the duration of the epoch, so that each
+   receiver maps to the same node for the entire epoch. However, the Node will
+   be unable to join the following epoch until it registers another Seeker.
 
 ## Future Work
 
 ### Stake Redistribution
 
 To further incentivize the performance of Nodes, a stake redistribution
-mechanism will be introduced that punishes Nodes for failing to deliver
-event relays.
+mechanism will be introduced that punishes Nodes for failing to deliver event
+relays.
 
 Nodes that perform relay accumulate evidence of completing those relays, in the
 form of cryptographically signed "receipts" from sending peers, which they keep
-until the end of the epoch. These "receipts" can submitted to the blockchain
-as proof of servicing relay requests. The number of receipts that must be
-submitted will be proportional to the total stake against the Node, as more
-stake indicates that the Node should be receiving more traffic. Failing to
-submit sufficient evidence will result in the Node's stake being redistributed
-to other high performing Nodes.
+until the end of the epoch. These "receipts" can submitted to the blockchain as
+proof of servicing relay requests. The number of receipts that must be submitted
+will be proportional to the total stake against the Node, as more stake
+indicates that the Node should be receiving more traffic. Failing to submit
+sufficient evidence will result in the Node's stake being redistributed to other
+high performing Nodes.
 
-This mechanism is still a work in progress and will not be implemented for
-phase two as the network traffic will not involve real users.
+This mechanism is still a work in progress and will not be implemented for phase
+two as the network traffic will not involve real users.
 
 ### Channels
 
-Economic incentives should generally prevent any one Node from offering
-a substandard relay service. However, in the case that a user wishes to
-switch service providers, the user can set an on-chain integer value
-known as a `channel`. Senders can retrieve the `channel` value for a user,
-and include that value when computing the hash used in the
-[scanning process](#scanning-process). The default channel value would be
-0, but any non-zero value would result in a different Node being returned
-from the scan output.
+Economic incentives should generally prevent any one Node from offering a
+substandard relay service. However, in the case that a user wishes to switch
+service providers, the user can set an on-chain integer value known as a
+`channel`. Senders can retrieve the `channel` value for a user, and include that
+value when computing the hash used in the [scanning process](#scanning-process).
+The default channel value would be 0, but any non-zero value would result in a
+different Node being returned from the scan output.
