@@ -465,27 +465,6 @@ describe('Ticketing', () => {
     );
   });
 
-  it('can not redeem ticket if node does not have a valid seeker account', async () => {
-    await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
-
-    await epochsManager.joinNextEpoch();
-    await epochsManager.initializeEpoch();
-
-    const alice = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
-
-    await registries.connect(accounts[1]).revokeSeekerAccount(owner);
-
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
-
-    await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWith('Ticket redeemer must have a valid seeker account');
-  });
-
   it('can not redeem ticket if node has not joined directory', async () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 

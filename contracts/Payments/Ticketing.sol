@@ -231,16 +231,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         );
 
         bytes32 ticketHash = getTicketHash(ticket);
-
         requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
-
-        Registries.Registry memory registry = _registries.getRegistry(ticket.redeemer);
-        require(
-            registry.seekerAccount != address(0),
-            "Ticket redeemer must have a valid seeker account"
-        );
-
-        usedTickets[ticketHash] = true;
 
         uint256 directoryStake = _directory.getTotalStakeForStakee(
             ticket.epochId,
@@ -250,6 +241,8 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
             directoryStake > 0,
             "Ticket redeemer must have joined the directory for this epoch"
         );
+
+        usedTickets[ticketHash] = true;
 
         uint256 rewardAmount = rewardRedeemer(epoch, ticket);
 
