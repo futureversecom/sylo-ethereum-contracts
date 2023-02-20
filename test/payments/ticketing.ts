@@ -63,6 +63,38 @@ describe('Ticketing', () => {
     await token.approve(ticketing.address, toSOLOs(10000000));
   });
 
+  it('ticketing cannot be initialized twice', async () => {
+    await expect(
+      ticketing.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
+  it('ticketing parameters cannot be initialized twice', async () => {
+    await expect(
+      ticketingParameters.initialize(1, 1, 1, 1, 1, {
+        from: owner,
+      }),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
+  it('rewards manager cannot be initialized twice', async () => {
+    await expect(
+      rewardsManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+      ),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
   it('cannot be initialize ticketing parameter when ticket duration less than or equal 0', async () => {
     const TicketingParameters = await ethers.getContractFactory(
       'TicketingParameters',
@@ -141,6 +173,34 @@ describe('Ticketing', () => {
       3333,
       'Expected unlock duration to be correctly set',
     );
+  });
+
+  it('not owner cannot set parameters', async () => {
+    const notOwner = accounts[1];
+
+    await expect(
+      ticketingParameters.connect(notOwner).setFaceValue(777),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
+      ticketingParameters.connect(notOwner).setBaseLiveWinProb(888),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
+      ticketingParameters.connect(notOwner).setExpiredWinProb(999),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
+      ticketingParameters.connect(notOwner).setDecayRate(1111),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
+      ticketingParameters.connect(notOwner).setTicketDuration(2222),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
+      ticketing.connect(notOwner).setUnlockDuration(3333),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
   it('can remove managers from rewards manager', async () => {
@@ -469,6 +529,38 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'TicketNotCreatedInTheEpoch');
   });
 
+  it('cannot calculate winning probability if generated after epoch end block', async () => {
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const { ticket } = await createWinningTicket(alice, owner);
+
+    await epochsManager.initializeEpoch();
+
+    const updatedTicket = {
+      ...ticket,
+      generationBlock: 10000000,
+    };
+
+    await expect(
+      ticketing.calculateWinningProbability(updatedTicket),
+    ).to.be.revertedWithCustomError(ticketing, 'TicketNotCreatedInTheEpoch');
+  });
+
+  it('calculate winning ticket panic for invalid ticket', async () => {
+    await epochsManager.initializeEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const { ticket } = await createWinningTicket(alice, owner);
+
+    const updatedTicket = { ...ticket, generationBlock: 10000 };
+
+    await expect(
+      ticketing.calculateWinningProbability(updatedTicket),
+    ).to.be.revertedWithPanic(0x11); // Overflow: Arithmetic operation underflowed or overflowed
+  });
+
   it('can not redeem ticket if node has not joined directory', async () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
@@ -652,6 +744,12 @@ describe('Ticketing', () => {
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
     ).to.be.revertedWithCustomError(ticketing, 'TicketAlreadyRedeemed');
+  });
+
+  it('not manager cannot update pending rewards', async () => {
+    await expect(
+      rewardsManager.connect(accounts[1]).updatePendingRewards(owner, owner),
+    ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
   it('burns penalty on insufficient escrow', async () => {

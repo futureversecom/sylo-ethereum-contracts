@@ -27,6 +27,18 @@ describe('Epochs', () => {
     await contracts.directory.transferOwnership(epochsManager.address);
   });
 
+  it('epoch manager cannot be intialized twice', async () => {
+    await expect(
+      epochsManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
   it('can set epoch duration', async () => {
     await epochsManager.setEpochDuration(777);
     const epochDuration = await epochsManager.epochDuration();
@@ -35,6 +47,12 @@ describe('Epochs', () => {
       777,
       'Expected epoch duration to be updated',
     );
+  });
+
+  it('not owner cannot set epoch duration', async () => {
+    await expect(
+      epochsManager.connect(accounts[1]).setEpochDuration(777),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
   it('can initialize next epoch', async () => {

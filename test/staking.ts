@@ -52,7 +52,48 @@ describe('Staking', () => {
     await token.approve(stakingManager.address, 100000);
   });
 
-  it('should be able to set parameters after initialization', async () => {
+  it('staking manager cannot be intialized twice', async () => {
+    await expect(
+      stakingManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
+  it('directory cannot be intialized twice', async () => {
+    await expect(
+      directory.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+      ),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
+  it('not owner cannot add manager', async () => {
+    await expect(
+      rewardsManager
+        .connect(accounts[1])
+        .addManager(await accounts[1].getAddress()),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('can remove owner as manager', async () => {
+    await rewardsManager.removeManager(owner);
+  });
+
+  it('not owner cannot remove manager', async () => {
+    await expect(
+      rewardsManager
+        .connect(accounts[1])
+        .removeManager(await accounts[1].getAddress()),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('staking manager should be able to set parameters after initialization', async () => {
     await expect(stakingManager.setUnlockDuration(100))
       .to.emit(stakingManager, 'UnlockDurationUpdated')
       .withArgs(100);
@@ -75,6 +116,25 @@ describe('Staking', () => {
       3000,
       'Expected minimum node stake to be correctly set',
     );
+  });
+
+  it('staking manager should not be able to set parameters before initialization', async () => {
+    const StakingManager = await ethers.getContractFactory('StakingManager');
+    const stakingManager = await StakingManager.deploy();
+
+    await expect(stakingManager.setUnlockDuration(100)).to.be.revertedWith(
+      'Ownable: caller is not the owner',
+    );
+
+    await expect(
+      stakingManager.setMinimumStakeProportion(3000),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('not manager cannot set current directory', async () => {
+    await expect(
+      directory.connect(accounts[1]).setCurrentDirectory(100),
+    ).to.be.revertedWithCustomError(directory, 'OnlyManagers');
   });
 
   it('should be able to join the next epoch and directory at once', async () => {

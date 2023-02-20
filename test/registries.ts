@@ -29,6 +29,12 @@ describe('Registries', () => {
     seekers = contracts.seekers;
   });
 
+  it('registries cannot initialize twice', async () => {
+    await expect(
+      registries.initialize(seekers.address, 5000),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
   it('requires default payout percentage to not exceed 100% when initializing', async () => {
     const Registries = await ethers.getContractFactory('Registries');
     registries = await Registries.deploy();
@@ -50,6 +56,12 @@ describe('Registries', () => {
     );
   });
 
+  it('not owner cannot set default payout percentage', async () => {
+    await expect(
+      registries.connect(accounts[1]).setDefaultPayoutPercentage(2000),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
   it('can set registry', async () => {
     await registries.register('http://api');
 
@@ -58,6 +70,19 @@ describe('Registries', () => {
     assert.equal(
       registry.publicEndpoint,
       'http://api',
+      'Expected registries to have correct address',
+    );
+  });
+
+  it('can set registry twice', async () => {
+    await registries.register('http://api');
+    await registries.register('http://api2');
+
+    const registry = await registries.getRegistry(owner);
+
+    assert.equal(
+      registry.publicEndpoint,
+      'http://api2',
       'Expected registries to have correct address',
     );
   });
