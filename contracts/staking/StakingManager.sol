@@ -3,20 +3,11 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "../Token.sol";
-import "../Payments/Ticketing/RewardsManager.sol";
-import "../Epochs/Manager.sol";
-import "../Utils.sol";
 
-error NoStakeToUnlock();
-error StakeNotYetUnlocked();
-error CannotStakeZeroAmount();
-error CannotUnlockZeroAmount();
-error StakeeCannotBeZeroAddress();
-error CannotUnlockMoreThanStaked(uint256 stakeAmount, uint256 unlockAmount);
-error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
+import "../SyloToken.sol";
+import "../libraries/SyloUtils.sol";
+import "../epochs/EpochsManager.sol";
+import "../payments/ticketing/RewardsManager.sol";
 
 /**
  * @notice Manages stakes and delegated stakes for Nodes. Holding
@@ -25,17 +16,6 @@ error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
  * and delegated stakers are rewarded on a pro-rata basis.
  */
 contract StakingManager is Initializable, Ownable2StepUpgradeable {
-    /** ERC 20 compatible token we are dealing with */
-    IERC20 public _token;
-
-    /**
-     * @notice Rewards Manager contract. Any changes to stake will automatically
-     * trigger a claim to any outstanding rewards.
-     */
-    RewardsManager public _rewardsManager;
-
-    EpochsManager public _epochsManager;
-
     /**
      * For every Node, there will be a mapping of the staker to a
      * StakeEntry. The stake entry tracks the amount of stake in SOLO,
@@ -71,6 +51,17 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
         uint256 unlockAt; // Block number the stake becomes withdrawable
     }
 
+    /** ERC 20 compatible token we are dealing with */
+    IERC20 public _token;
+
+    /**
+     * @notice Rewards Manager contract. Any changes to stake will automatically
+     * trigger a claim to any outstanding rewards.
+     */
+    RewardsManager public _rewardsManager;
+
+    EpochsManager public _epochsManager;
+
     /**
      * @notice Tracks the managed stake for every Node.
      */
@@ -86,9 +77,6 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      */
     mapping(bytes32 => Unlock) public unlockings;
 
-    event UnlockDurationUpdated(uint256 unlockDuration);
-    event MinimumStakeProportionUpdated(uint256 minimumStakeProportion);
-
     /**
      * @notice The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their stake
@@ -102,6 +90,17 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * the value is a ratio of 10000.
      */
     uint16 public minimumStakeProportion;
+
+    event UnlockDurationUpdated(uint256 unlockDuration);
+    event MinimumStakeProportionUpdated(uint256 minimumStakeProportion);
+
+    error NoStakeToUnlock();
+    error StakeNotYetUnlocked();
+    error CannotStakeZeroAmount();
+    error CannotUnlockZeroAmount();
+    error StakeeCannotBeZeroAddress();
+    error CannotUnlockMoreThanStaked(uint256 stakeAmount, uint256 unlockAmount);
+    error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
 
     function initialize(
         IERC20 token,
@@ -149,11 +148,11 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function addStake(uint256 amount, address stakee) external {
-        addStake_(amount, stakee);
+        _addStake(amount, stakee);
         SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }
 
-    function addStake_(uint256 amount, address stakee) internal {
+    function _addStake(uint256 amount, address stakee) internal {
         if (stakee == address(0)) {
             revert StakeeCannotBeZeroAddress();
         }
@@ -283,7 +282,28 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
             unlock.amount = unlock.amount - amount;
         }
 
-        addStake_(amount, stakee);
+        _addStake(amount, stakee);
+    }
+
+    /**
+     * @notice This function should be called by clients to determine how much
+     * additional delegated stake can be allocated to a Node via an addStake or
+     * cancelUnlocking call. This is useful to avoid a revert due to
+     * the minimum stake proportion requirement not being met from the additional stake.
+     * @param stakee The address of the staked Node.
+     */
+    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
+        Stake storage stake = stakes[stakee];
+
+        uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
+        uint256 totalMaxStake = (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
+            minimumStakeProportion;
+
+        if (totalMaxStake < stake.totalManagedStake) {
+            revert StakeCapacityReached(totalMaxStake, stake.totalManagedStake);
+        }
+
+        return totalMaxStake - stake.totalManagedStake;
     }
 
     /**
@@ -319,17 +339,6 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
     }
 
     /**
-     * @notice Retrieve the current amount of SOLO staked against a Node by
-     * a specified staker.
-     * @param stakee The address of the staked Node.
-     * @param staker The address of the staker.
-     * @return The amount of staked SOLO.
-     */
-    function getCurrentStakerAmount(address stakee, address staker) public view returns (uint256) {
-        return stakes[stakee].stakeEntries[staker].amount;
-    }
-
-    /**
      * @notice Retrieve the total amount of SOLO staked against a Node.
      * @param stakee The address of the staked Node.
      * @return The amount of staked SOLO.
@@ -356,23 +365,13 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
     }
 
     /**
-     * @notice This function should be called by clients to determine how much
-     * additional delegated stake can be allocated to a Node via an addStake or
-     * cancelUnlocking call. This is useful to avoid a revert due to
-     * the minimum stake proportion requirement not being met from the additional stake.
+     * @notice Retrieve the current amount of SOLO staked against a Node by
+     * a specified staker.
      * @param stakee The address of the staked Node.
+     * @param staker The address of the staker.
+     * @return The amount of staked SOLO.
      */
-    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
-        Stake storage stake = stakes[stakee];
-
-        uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        uint256 totalMaxStake = (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
-            minimumStakeProportion;
-
-        if (totalMaxStake < stake.totalManagedStake) {
-            revert StakeCapacityReached(totalMaxStake, stake.totalManagedStake);
-        }
-
-        return totalMaxStake - stake.totalManagedStake;
+    function getCurrentStakerAmount(address stakee, address staker) public view returns (uint256) {
+        return stakes[stakee].stakeEntries[staker].amount;
     }
 }

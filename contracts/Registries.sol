@@ -1,22 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
-import "./Utils.sol";
-
-error NonceCannotBeReused();
-error EndMustBeGreaterThanStart();
-error PercentageCannotExceed10000();
-error PublicEndpointCannotBeEmpty();
-error SeekerAccountMustOwnSeekerId();
-error SeekerAccountMustBeMsgSender();
-error ProofNotSignedBySeekerAccount();
-error EndCannotExceedNumberOfNodes(uint256 nodeLength);
+import "./libraries/SyloUtils.sol";
 
 /**
  * @notice This contract manages Registries for Nodes. A Registry is a
@@ -72,14 +63,31 @@ contract Registries is Initializable, Ownable2StepUpgradeable {
      */
     mapping(bytes32 => address) private signatureNonces;
 
-    event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
-
     /**
      * @notice Payout percentage refers to the portion of a tickets reward
      * that will be allocated to the Node's stakers. This is global, and is
      * currently set for all Nodes.
      */
     uint16 public defaultPayoutPercentage;
+
+    /**
+     * @notice Proof duration states the duration in blocks that the
+     * proof used to validate seeker ownership will be valid for. The
+     * `setSeekerAccount` transaction will revert if the proof message
+     * was signed too many blocks ago.
+     */
+    uint16 public proofDuration;
+
+    event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
+
+    error NonceCannotBeReused();
+    error EndMustBeGreaterThanStart();
+    error PercentageCannotExceed10000();
+    error PublicEndpointCannotBeEmpty();
+    error SeekerAccountMustOwnSeekerId();
+    error SeekerAccountMustBeMsgSender();
+    error ProofNotSignedBySeekerAccount();
+    error EndCannotExceedNumberOfNodes(uint256 nodeLength);
 
     function initialize(
         IERC721 rootSeekers,

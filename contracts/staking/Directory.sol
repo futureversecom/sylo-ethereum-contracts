@@ -1,17 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-import "./Manager.sol";
-import "../Payments/Ticketing/RewardsManager.sol";
-import "../Utils.sol";
-import "../Manageable.sol";
-
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-
-error NoStakeToJoinEpoch();
-error StakeeAlreadyJoinedEpoch();
-error NoJoiningStakeToJoinEpoch();
+import "../libraries/Manageable.sol";
+import "./StakingManager.sol";
+import "../libraries/SyloUtils.sol";
+import "../payments/ticketing/RewardsManager.sol";
 
 /**
  * @notice The Directory contract constructs and manages a structure holding the current stakes,
@@ -19,29 +12,34 @@ error NoJoiningStakeToJoinEpoch();
  * random points which will return a staked node's address in proportion to the stake it has.
  */
 contract Directory is Initializable, Manageable {
-    /** Sylo Staking Manager contract */
-    StakingManager public _stakingManager;
-
-    /** Sylo Rewards Manager contract */
-    RewardsManager public _rewardsManager;
-
+    /**
+     * @dev A DirectoryEntry will be stored for every node that joins the
+     * network in a specific epoch. The entry will contain the stakee's
+     * address, and a boundary value which is a sum of the current directory's
+     * total stake, and the current stakee's total stake.
+     */
     struct DirectoryEntry {
         address stakee;
         uint256 boundary;
     }
 
     /**
-     * @dev A Directory will be stored for every epoch. The directory will be
-     * constructed piece by piece as Nodes join, each adding their own
-     * directory entry based on their current stake value.
+     * @dev An EpochDirectory will be stored for every epoch. The
+     * directory will be constructed piece by piece as Nodes join,
+     * each adding their own directory entry based on their current
+     * stake value.
      */
-    struct Directory {
+    struct EpochDirectory {
         DirectoryEntry[] entries;
         mapping(address => uint256) stakes;
         uint256 totalStake;
     }
 
-    event CurrentDirectoryUpdated(uint256 indexed currentDirectory);
+    /** Sylo Staking Manager contract */
+    StakingManager public _stakingManager;
+
+    /** Sylo Rewards Manager contract */
+    RewardsManager public _rewardsManager;
 
     /**
      * @notice The epoch ID of the current directory.
@@ -51,7 +49,13 @@ contract Directory is Initializable, Manageable {
     /**
      * @notice Tracks every directory, which will be indexed by an epoch ID
      */
-    mapping(uint256 => Directory) public directories;
+    mapping(uint256 => EpochDirectory) public directories;
+
+    event CurrentDirectoryUpdated(uint256 indexed currentDirectory);
+
+    error NoStakeToJoinEpoch();
+    error StakeeAlreadyJoinedEpoch();
+    error NoJoiningStakeToJoinEpoch();
 
     function initialize(
         StakingManager stakingManager,
@@ -91,7 +95,7 @@ contract Directory is Initializable, Manageable {
      * Stakes: [ Alice/20, Bob/10, Carl/40, Dave/25 ]
      * TotalStake: 95
      *
-     * Directory:
+     * EpochDirectory:
      *
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95

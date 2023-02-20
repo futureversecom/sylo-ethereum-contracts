@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-import "../Payments/Ticketing/Parameters.sol";
 import "../Registries.sol";
-import "../Staking/Directory.sol";
-
-error EpochHasNotEnded(uint256 epochId);
-error SeekerAcountCannotBeZeroAddress();
-error SeekerOwnerMismatch();
-error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
+import "../staking/Directory.sol";
+import "../payments/ticketing/TicketingParameters.sol";
 
 contract EpochsManager is Initializable, Ownable2StepUpgradeable {
     /**
@@ -37,8 +32,6 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
         uint256 ticketDuration;
     }
 
-    event EpochJoined(uint256 indexed epochId, address indexed node, uint256 indexed seekerId);
-
     Directory public _directory;
 
     Registries public _registries;
@@ -58,6 +51,11 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
     // new epoch.
 
     /**
+     * @notice A mapping of all epochs that have been initialized.
+     */
+    mapping(uint256 => Epoch) public epochs;
+
+    /**
      * @notice The duration in blocks an epoch will last for.
      */
     uint256 public epochDuration;
@@ -69,12 +67,13 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
      */
     uint256 public currentIteration;
 
-    /**
-     * @notice A mapping of all epochs that have been initialized.
-     */
-    mapping(uint256 => Epoch) public epochs;
-
     event NewEpoch(uint256 indexed epochId);
+    event EpochJoined(uint256 indexed epochId, address indexed node, uint256 indexed seekerId);
+
+    error SeekerOwnerMismatch();
+    error EpochHasNotEnded(uint256 epochId);
+    error SeekerAcountCannotBeZeroAddress();
+    error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
 
     event EpochDurationUpdated(uint256 epochDuration);
 
@@ -194,20 +193,20 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
     }
 
     /**
-     * @notice Retrieve the integer value that will be used for the
-     * next epoch id.
-     * @return The next epoch id identifier.
-     */
-    function getNextEpochId() public view returns (uint256) {
-        return currentIteration + 1;
-    }
-
-    /**
      * @notice Retrieve the epoch parameter for the given id.
      * @param epochId The id of the epoch to retrieve.
      * @return The epoch parameters associated with the id.
      */
     function getEpoch(uint256 epochId) external view returns (Epoch memory) {
         return epochs[epochId];
+    }
+
+    /**
+     * @notice Retrieve the integer value that will be used for the
+     * next epoch id.
+     * @return The next epoch id identifier.
+     */
+    function getNextEpochId() public view returns (uint256) {
+        return currentIteration + 1;
     }
 }
