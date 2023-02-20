@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * which is queried against using the scan function. The scan function allows submitting
  * random points which will return a staked node's address in proportion to the stake it has.
  */
-contract Directory is Initializable, OwnableUpgradeable, Manageable {
+contract Directory is Initializable, Manageable {
     /** Sylo Staking Manager contract */
     StakingManager public _stakingManager;
 
