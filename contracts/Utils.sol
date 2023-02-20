@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 library SyloUtils {
     /**
      * @dev Percentages are expressed as a ratio where 10000 is the denominator.
@@ -27,6 +29,6 @@ library SyloUtils {
      * @return The percentage, as a ratio of 10000.
      */
     function asPerc(uint128 numerator, uint256 denominator) internal pure returns (uint16) {
-        return uint16((uint256(numerator) * PERCENTAGE_DENOMINATOR) / denominator);
+        return SafeCast.toUint16((uint256(numerator) * PERCENTAGE_DENOMINATOR) / denominator);
     }
 }

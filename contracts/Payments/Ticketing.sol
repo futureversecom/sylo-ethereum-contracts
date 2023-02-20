@@ -11,6 +11,7 @@ import "./Ticketing/RewardsManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @notice The SyloTicketing contract manages the Probabilistic
@@ -395,7 +396,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         // calculate the remaining probability by subtracting the decayed probability
         // from the base
-        return epoch.baseLiveWinProb - uint128(decayedProbability);
+        return epoch.baseLiveWinProb - SafeCast.toUint128(decayedProbability);
     }
 
     /**
