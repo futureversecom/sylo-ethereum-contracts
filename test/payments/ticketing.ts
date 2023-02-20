@@ -414,9 +414,7 @@ describe('Ticketing', () => {
   it('can not redeem ticket if associated epoch does not exist', async () => {
     const alice = Wallet.createRandom();
     const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
-
-    ticket.epochId = 1;
+      await createWinningTicket(alice, owner, 1);
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
