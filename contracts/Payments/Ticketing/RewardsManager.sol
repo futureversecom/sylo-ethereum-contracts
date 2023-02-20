@@ -6,7 +6,7 @@ import "../../Staking/Manager.sol";
 import "../../Epochs/Manager.sol";
 import "../../Utils.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
@@ -502,7 +502,7 @@ contract RewardsManager is Initializable, Manageable {
 
         updateLastClaim(stakee, msg.sender);
 
-        _token.transfer(msg.sender, totalClaim);
+        SafeERC20.safeTransfer(_token, msg.sender, totalClaim);
 
         return totalClaim;
     }

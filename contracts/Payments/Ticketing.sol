@@ -9,6 +9,7 @@ import "../Utils.sol";
 import "../Epochs/Manager.sol";
 import "./Ticketing/RewardsManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -126,7 +127,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         deposit.escrow += amount;
 
-        _token.transferFrom(msg.sender, address(this), amount);
+        SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }
 
     /**
@@ -142,7 +143,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
 
         deposit.penalty += amount;
 
-        _token.transferFrom(msg.sender, address(this), amount);
+        SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }
 
     /**
@@ -200,7 +201,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         // Re-lock so if more funds are deposited they must be unlocked again
         deposit.unlockAt = 0;
 
-        _token.transfer(account, amount);
+        SafeERC20.safeTransfer(_token, account, amount);
     }
 
     /**
@@ -265,7 +266,11 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         if (epoch.faceValue > deposit.escrow) {
             amount = deposit.escrow;
             incrementRewardPool(ticket.redeemer, deposit, amount);
-            _token.transfer(address(0x000000000000000000000000000000000000dEaD), deposit.penalty);
+            SafeERC20.safeTransfer(
+                _token,
+                address(0x000000000000000000000000000000000000dEaD),
+                deposit.penalty
+            );
 
             deposit.penalty = 0;
         } else {
@@ -433,7 +438,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
     ) internal {
         deposit.escrow = deposit.escrow - amount;
 
-        _token.transfer(address(_rewardsManager), amount);
+        SafeERC20.safeTransfer(_token, address(_rewardsManager), amount);
         _rewardsManager.incrementRewardPool(stakee, amount);
     }
 }
