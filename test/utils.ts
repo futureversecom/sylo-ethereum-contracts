@@ -11,6 +11,7 @@ import {
   TicketingParameters,
   TestSeekers,
 } from '../typechain';
+import { randomBytes } from 'crypto';
 
 type Options = {
   faceValue?: BigNumberish;
@@ -60,7 +61,7 @@ const initializeContracts = async function (
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = await RegistriesFactory.deploy();
-  await registries.initialize(seekers.address, payoutPercentage, 100, {
+  await registries.initialize(seekers.address, payoutPercentage, {
     from: deployer,
   });
 
@@ -168,13 +169,13 @@ async function setSeekerRegistry(
     await seekers.mint(await seekerAccount.getAddress(), tokenId);
   }
 
-  const block = await ethers.provider.getBlockNumber();
+  const nonce = randomBytes(32);
 
   const accountAddress = await account.getAddress();
   const proofMessage = await registries.getProofMessage(
     tokenId,
     accountAddress,
-    block,
+    nonce,
   );
 
   const signature = await seekerAccount.signMessage(
@@ -188,7 +189,7 @@ async function setSeekerRegistry(
     .setSeekerAccount(
       await seekerAccount.getAddress(),
       tokenId,
-      block,
+      nonce,
       signature,
     );
 }

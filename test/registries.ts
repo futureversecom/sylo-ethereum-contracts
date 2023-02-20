@@ -3,6 +3,7 @@ import { Signer } from 'ethers';
 import { Registries, TestSeekers } from '../typechain';
 import { assert, expect } from 'chai';
 import utils from './utils';
+import { randomBytes } from 'crypto';
 
 describe('Registries', () => {
   let accounts: Signer[];
@@ -32,7 +33,7 @@ describe('Registries', () => {
     const Registries = await ethers.getContractFactory('Registries');
     registries = await Registries.deploy();
     await expect(
-      registries.initialize(seekers.address, 10001, 100),
+      registries.initialize(seekers.address, 10001),
     ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
   });
 
@@ -168,31 +169,33 @@ describe('Registries', () => {
     expect(registry.seekerId).to.equal(1);
   });
 
-  it('fails to set seeker account with invalid blocks for proof', async () => {
+  it('fails to set seeker account when reusing signature', async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
     const tokenId = 1;
     await seekers.mint(seekerAddress, tokenId);
 
-    const block = await ethers.provider.getBlockNumber();
-
-    const hash = ethers.utils.solidityKeccak256(
-      ['string'],
-      [await registries.getProofMessage(tokenId, seekerAddress, block)],
+    const nonce = randomBytes(32);
+    const proofMessage = await registries.getProofMessage(
+      tokenId,
+      await accounts[0].getAddress(),
+      nonce,
     );
-    const proofMessage = ethers.utils.arrayify(hash);
-    const proof = await seekerAccount.signMessage(proofMessage);
 
+    const signature = await seekerAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await registries.connect(accounts[0]).register('0.0.0.0/0');
+
+    // first attempt should be valid
+    await registries.setSeekerAccount(seekerAddress, 1, nonce, signature);
+
+    // second attempt should fail due to nonce reuse
     await expect(
-      registries.setSeekerAccount(seekerAddress, tokenId, block + 1000, proof),
-    ).to.be.revertedWith('Proof can not be set for a future block');
-
-    await utils.advanceBlock(200);
-
-    await expect(
-      registries.setSeekerAccount(seekerAddress, tokenId, block, proof),
-    ).to.be.revertedWith('Proof is expired');
+      registries.setSeekerAccount(seekerAddress, 1, nonce, signature),
+    ).to.be.revertedWith('Nonce for signature can not be re-used');
   });
 
   it('fails to set seeker account with invalid proof', async () => {
@@ -202,19 +205,18 @@ describe('Registries', () => {
     const tokenId = 1;
     await seekers.mint(seekerAddress, tokenId);
 
-    const block = await ethers.provider.getBlockNumber();
-
-    const hash = ethers.utils.solidityKeccak256(
-      ['string'],
-      [await registries.getProofMessage(tokenId, seekerAddress, block)],
+    const nonce = randomBytes(32);
+    const proofMessage = await registries.getProofMessage(
+      tokenId,
+      await accounts[0].getAddress(),
+      nonce,
     );
-    const proofMessage = ethers.utils.arrayify(hash);
 
     // sign proof with wrong account
-    const proof = await seekerAccount.signMessage(proofMessage);
+    const proof = await accounts[2].signMessage(proofMessage);
 
     await expect(
-      registries.setSeekerAccount(seekerAddress, tokenId, block, proof),
+      registries.setSeekerAccount(seekerAddress, tokenId, nonce, proof),
     ).to.be.revertedWith('Proof must be signed by specified seeker account');
   });
 
@@ -222,16 +224,14 @@ describe('Registries', () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
 
-    const accountAddress = await accounts[0].getAddress();
-
     const tokenId = 1;
     await seekers.mint(await accounts[2].getAddress(), tokenId);
 
-    const block = await ethers.provider.getBlockNumber();
+    const nonce = randomBytes(32);
     const proofMessage = await registries.getProofMessage(
       tokenId,
-      accountAddress,
-      block,
+      await accounts[0].getAddress(),
+      nonce,
     );
 
     const signature = await seekerAccount.signMessage(
@@ -239,7 +239,7 @@ describe('Registries', () => {
     );
 
     await expect(
-      registries.setSeekerAccount(seekerAddress, tokenId, block, signature),
+      registries.setSeekerAccount(seekerAddress, tokenId, nonce, signature),
     ).to.be.revertedWith('Seeker account must own the specified seeker');
   });
 
@@ -324,20 +324,23 @@ describe('Registries', () => {
     const lineOne =
       "🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
     const lineTwo = '\n\n🆔 Your seeker id: ';
-    const lineThree = '\n\n📦 The block this message was signed: ';
+    const lineThree =
+      '\n\n📦 A unique random value which secures this message: ';
 
     const account = accounts[0];
     const accountAddress = await account.getAddress();
     const tokenId = 100;
-    const block = await ethers.provider.getBlockNumber();
+    const nonce = randomBytes(32);
 
     const proofMessageHexString = await registries.getProofMessage(
       tokenId,
       await account.getAddress(),
-      block,
+      nonce,
     );
 
-    const proofMessage = `${lineOne}${accountAddress.toLowerCase()}${lineTwo}${tokenId}${lineThree}${block.toString()}`;
+    const proofMessage = `${lineOne}${accountAddress.toLowerCase()}${lineTwo}${tokenId}${lineThree}${
+      '0x' + nonce.toString('hex')
+    }`;
 
     const proofMessageString = Buffer.from(
       proofMessageHexString.slice(2),

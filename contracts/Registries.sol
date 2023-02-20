@@ -56,6 +56,12 @@ contract Registries is Initializable, OwnableUpgradeable {
      */
     address[] public nodes;
 
+    /**
+     * @notice Tracks nonces used when registering the seeker account
+     * to prevent signature re-use.
+     */
+    mapping(bytes32 => address) private signatureNonces;
+
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
     /**
@@ -65,18 +71,9 @@ contract Registries is Initializable, OwnableUpgradeable {
      */
     uint16 public defaultPayoutPercentage;
 
-    /**
-     * @notice Proof duration states the duration in blocks that the
-     * proof used to validate seeker ownership will be valid for. The
-     * `setSeekerAccount` transaction will revert if the proof message
-     * was signed too many blocks ago.
-     */
-    uint16 public proofDuration;
-
     function initialize(
         IERC721 rootSeekers,
-        uint16 _defaultPayoutPercentage,
-        uint16 _proofDuration
+        uint16 _defaultPayoutPercentage
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _rootSeekers = rootSeekers;
@@ -85,7 +82,6 @@ contract Registries is Initializable, OwnableUpgradeable {
             "The payout percentage can not exceed 100 percent"
         );
         defaultPayoutPercentage = _defaultPayoutPercentage;
-        proofDuration = _proofDuration;
     }
 
     /**
@@ -123,13 +119,12 @@ contract Registries is Initializable, OwnableUpgradeable {
     function setSeekerAccount(
         address seekerAccount,
         uint256 seekerId,
-        uint256 proofBlock,
+        bytes32 nonce,
         bytes memory signature
     ) external {
-        require(block.number >= proofBlock, "Proof can not be set for a future block");
-        require(block.number - proofBlock < proofDuration, "Proof is expired");
+        require(signatureNonces[nonce] == address(0), "Nonce for signature can not be re-used");
 
-        bytes memory proofMessage = getProofMessage(seekerId, msg.sender, proofBlock);
+        bytes memory proofMessage = getProofMessage(seekerId, msg.sender, nonce);
 
         bytes32 proof = keccak256(
             abi.encodePacked(
@@ -155,6 +150,8 @@ contract Registries is Initializable, OwnableUpgradeable {
         registries[msg.sender].seekerId = seekerId;
 
         seekerRegistration[seekerId] = msg.sender;
+
+        signatureNonces[nonce] = seekerAccount;
     }
 
     function revokeSeekerAccount(address node) external {
@@ -230,12 +227,12 @@ contract Registries is Initializable, OwnableUpgradeable {
      * @param seekerId The tokenId of the seeker used for operation.
      * @param node The address of the node which that will be operated
      * by the specified seeker.
-     * @param proofBlock The block the proof was generated in.
+     * @param nonce The nonce used for this message.
      */
     function getProofMessage(
         uint256 seekerId,
         address node,
-        uint256 proofBlock
+        bytes32 nonce
     ) public pure returns (bytes memory) {
         return
             abi.encodePacked(
@@ -243,8 +240,8 @@ contract Registries is Initializable, OwnableUpgradeable {
                 Strings.toHexString(uint256(uint160(node)), 20),
                 unicode"\n\n🆔 Your seeker id: ",
                 Strings.toString(seekerId),
-                unicode"\n\n📦 The block this message was signed: ",
-                Strings.toString(proofBlock)
+                unicode"\n\n📦 A unique random value which secures this message: ",
+                Strings.toHexString(uint256(nonce), 32)
             );
     }
 }
