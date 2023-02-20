@@ -122,11 +122,7 @@ async function deployPhaseTwoContracts(
   logDeployment('Directory', directory.address);
 
   await registries
-    .initialize(
-      config.Seekers,
-      config.Registries.defaultPayoutPercentage,
-      config.Registries.proofDuration,
-    )
+    .initialize(config.Seekers, config.Registries.defaultPayoutPercentage)
     .then(tx => tx.wait());
 
   console.log('Initialized registries');

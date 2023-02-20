@@ -14,7 +14,6 @@ type ContractParameters = {
 
   Registries: {
     defaultPayoutPercentage: number;
-    proofDuration: number;
   };
 
   TicketingParameters: {
@@ -60,7 +59,6 @@ const GenesisParameters: ContractParameters = {
 
   Registries: {
     defaultPayoutPercentage: 5000,
-    proofDuration: 100,
   },
 
   TicketingParameters: {
