@@ -58,6 +58,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     mapping(bytes32 => bool) public usedTickets;
 
     event UnlockDurationUpdated(uint256 unlockDuration);
+    event SenderPenaltyBurnt(address sender);
     event Redemption(
         uint256 indexed epochId,
         address indexed sender,
@@ -230,10 +231,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (deposit.escrow == 0 && deposit.penalty == 0) {
             revert NoEsrowAndPenalty();
         }
-        if (deposit.unlockAt != 0) {
+        if (deposit.unlockAt != 0 || deposit.callUnlockAt != 0) {
             revert UnlockingInProcess();
         }
 
+        deposit.callUnlockAt = block.number;
         deposit.unlockAt = block.number + unlockDuration;
 
         return deposit.unlockAt;
@@ -245,10 +247,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
      */
     function lockDeposits() external {
         Deposit storage deposit = getDeposit(msg.sender);
-        if (deposit.unlockAt == 0) {
+        if (deposit.unlockAt == 0 || deposit.callUnlockAt == 0) {
             revert UnlockingNotInProcess();
         }
 
+        delete deposit.callUnlockAt;
         delete deposit.unlockAt;
     }
 
@@ -269,7 +272,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
      */
     function withdrawTo(address account) public {
         Deposit memory deposit = getDeposit(msg.sender);
-        if (deposit.unlockAt == 0) {
+        if (deposit.unlockAt == 0 || deposit.callUnlockAt == 0) {
             revert UnlockingNotInProcess();
         }
         if (deposit.unlockAt >= block.number) {
@@ -350,6 +353,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             );
 
             delete deposit.penalty;
+            emit SenderPenaltyBurnt(ticket.sender);
+
         } else {
             amount = epoch.faceValue;
             incrementRewardPool(ticket.redeemer, deposit, amount);

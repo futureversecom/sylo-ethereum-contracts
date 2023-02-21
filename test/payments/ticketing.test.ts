@@ -430,6 +430,11 @@ describe('Ticketing', () => {
       0,
       'Expected deposit to go into unlocking phase',
     );
+    assert.isAbove(
+        deposit.callUnlockAt.toNumber(),
+        0,
+        'Expected deposit to go into unlocking phase',
+    );
   });
 
   it('should fail to unlock if already unlocking', async () => {
@@ -461,6 +466,11 @@ describe('Ticketing', () => {
       deposit.unlockAt.toString(),
       '0',
       'Expected deposit to move out of unlocking phase',
+    );
+    assert.equal(
+        deposit.callUnlockAt.toString(),
+        '0',
+        'Expected deposit to move out of unlocking phase',
     );
   });
 
@@ -905,7 +915,9 @@ describe('Ticketing', () => {
 
     const initialTicketingBalance = await token.balanceOf(ticketing.address);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+        .to.emit(ticketing, 'SenderPenaltyBurnt')
+        .withArgs(alice.address)
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(
