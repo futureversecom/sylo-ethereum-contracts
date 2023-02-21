@@ -26,9 +26,9 @@ If not applicable to this PR, the item can be checked, crossed out, or removed.
 ### Local Build
 
 - [ ] Removed references to any local packages in build files
-- [ ] Ran `npm install` and no changes were made to `package-lock.json`
-- [ ] Ran `npm test` with no failures
-- [ ] Ran `npm coverage` and validated coverage has not decreased
+- [ ] Ran `yarn` and no changes were made to `package-lock.json`
+- [ ] Ran `yarn test` with no failures
+- [ ] Ran `yarn coverage` and validated coverage has not decreased
 
 ### GitHub
 

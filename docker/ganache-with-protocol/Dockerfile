@@ -17,7 +17,7 @@ COPY tsconfig.json .
 COPY hardhat.config.ts .
 
 # install npm modules
-RUN npm install
+RUN yarn install
 
 # deploy the contracts to a local ganache network
 RUN mkdir ganache-data
