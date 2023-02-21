@@ -7,6 +7,16 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "./ECDSA.sol";
+import "./Utils.sol";
+
+error NonceCannotBeReused();
+error EndMustBeGreaterThanStart();
+error PercentageCannotExceed10000();
+error PublicEndpointCannotBeEmpty();
+error SeekerAccountMustOwnSeekerId();
+error SeekerAccountMustBeMsgSender();
+error ProofNotSignedBySeekerAccount();
+error EndCannotExceedNumberOfNodes(uint256 nodeLength);
 
 /**
  * @notice This contract manages Registries for Nodes. A Registry is a
@@ -17,6 +27,11 @@ contract Registries is Initializable, OwnableUpgradeable {
     using ECDSA for bytes32;
 
     struct Registry {
+        // Percentage of a tickets value that will be rewarded to
+        // delegated stakers expressed as a fraction of 10000.
+        // This value is currently locked to the default payout percentage
+        // until epochs are implemented.
+        uint16 payoutPercentage;
         // Public http/s endpoint to retrieve additional metadata
         // about the node.
         // The current metadata schema is as follows:
@@ -28,11 +43,6 @@ contract Registries is Initializable, OwnableUpgradeable {
         // The id of the seeker used to operate the node. The owner
         // of this id should be the seeker account.
         uint256 seekerId;
-        // Percentage of a tickets value that will be rewarded to
-        // delegated stakers expressed as a fraction of 10000.
-        // This value is currently locked to the default payout percentage
-        // until epochs are implemented.
-        uint16 payoutPercentage;
     }
 
     /**
@@ -76,11 +86,12 @@ contract Registries is Initializable, OwnableUpgradeable {
         uint16 _defaultPayoutPercentage
     ) external initializer {
         OwnableUpgradeable.__Ownable_init();
+
+        if (_defaultPayoutPercentage > 10000) {
+            revert PercentageCannotExceed10000();
+        }
+
         _rootSeekers = rootSeekers;
-        require(
-            _defaultPayoutPercentage <= 10000,
-            "The payout percentage can not exceed 100 percent"
-        );
         defaultPayoutPercentage = _defaultPayoutPercentage;
     }
 
@@ -91,10 +102,10 @@ contract Registries is Initializable, OwnableUpgradeable {
      * denominator is 10000.
      */
     function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) external onlyOwner {
-        require(
-            _defaultPayoutPercentage <= 10000,
-            "The payout percentage can not exceed 100 percent"
-        );
+        if (_defaultPayoutPercentage > 10000) {
+            revert PercentageCannotExceed10000();
+        }
+
         defaultPayoutPercentage = _defaultPayoutPercentage;
         emit DefaultPayoutPercentageUpdated(_defaultPayoutPercentage);
     }
@@ -105,8 +116,10 @@ contract Registries is Initializable, OwnableUpgradeable {
      * clients to be able to retrieve additional information, such as
      * an address to establish a p2p connection.
      */
-    function register(string memory publicEndpoint) external {
-        require(bytes(publicEndpoint).length != 0, "Public endpoint can not be empty");
+    function register(string calldata publicEndpoint) external {
+        if (bytes(publicEndpoint).length == 0) {
+            revert PublicEndpointCannotBeEmpty();
+        }
 
         // This is the nodes first registration
         if (bytes(registries[msg.sender].publicEndpoint).length == 0) {
@@ -120,9 +133,11 @@ contract Registries is Initializable, OwnableUpgradeable {
         address seekerAccount,
         uint256 seekerId,
         bytes32 nonce,
-        bytes memory signature
+        bytes calldata signature
     ) external {
-        require(signatureNonces[nonce] == address(0), "Nonce for signature can not be re-used");
+        if (signatureNonces[nonce] != address(0)) {
+            revert NonceCannotBeReused();
+        }
 
         bytes memory proofMessage = getProofMessage(seekerId, msg.sender, nonce);
 
@@ -134,17 +149,18 @@ contract Registries is Initializable, OwnableUpgradeable {
             )
         );
 
-        require(
-            ECDSA.recover(proof, signature) == seekerAccount,
-            "Proof must be signed by specified seeker account"
-        );
+        if (ECDSA.recover(proof, signature) != seekerAccount) {
+            revert ProofNotSignedBySeekerAccount();
+        }
 
         // Now verify the seeker account actually owns the seeker
         address owner = _rootSeekers.ownerOf(seekerId);
 
-        require(seekerAccount == owner, "Seeker account must own the specified seeker");
+        if (seekerAccount != owner) {
+            revert SeekerAccountMustOwnSeekerId();
+        }
 
-        registries[seekerRegistration[seekerId]].seekerId = 0;
+        delete registries[seekerRegistration[seekerId]].seekerId;
 
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
@@ -157,14 +173,13 @@ contract Registries is Initializable, OwnableUpgradeable {
     function revokeSeekerAccount(address node) external {
         Registry storage registry = registries[node];
 
-        require(
-            registry.seekerAccount == msg.sender,
-            "Seeker account and msg.sender must be equal"
-        );
+        if (registry.seekerAccount != msg.sender) {
+            revert SeekerAccountMustBeMsgSender();
+        }
 
-        registry.seekerAccount = address(0);
-        seekerRegistration[registry.seekerId] = address(0);
-        registry.seekerId = 0;
+        delete registry.seekerAccount;
+        delete seekerRegistration[registry.seekerId];
+        delete registry.seekerId;
     }
 
     /**
@@ -191,21 +206,23 @@ contract Registries is Initializable, OwnableUpgradeable {
      * @param end The end index which is exclusive.
      * @return An array of Registries.
      */
-    function getRegistries(uint256 start, uint256 end)
-        external
-        view
-        returns (address[] memory, Registry[] memory)
-    {
-        require(end > start, "End index must be greater than start index");
-        require(
-            end <= nodes.length,
-            "End index cannot be greater than total number of registered nodes"
-        );
+    function getRegistries(
+        uint256 start,
+        uint256 end
+    ) external view returns (address[] memory, Registry[] memory) {
+        uint256 nodesLength = nodes.length;
+
+        if (end <= start) {
+            revert EndMustBeGreaterThanStart();
+        }
+        if (end > nodesLength) {
+            revert EndCannotExceedNumberOfNodes(nodesLength);
+        }
 
         address[] memory _nodes = new address[](end - start);
-        Registry[] memory _registries = new Registry[](end - start);
+        Registry[] memory _registries = new Registry[](_nodes.length);
 
-        for (uint256 i = start; i < end; i++) {
+        for (uint256 i = start; i < end; ++i) {
             _nodes[i - start] = nodes[i];
             _registries[i - start] = registries[nodes[i]];
         }

@@ -114,6 +114,6 @@ go-eth/deploy
 coverage.json
 gasReport.txt
 
-typechain/
+typechain-types/
 cache/
 artifacts/

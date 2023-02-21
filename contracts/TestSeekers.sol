@@ -7,13 +7,13 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 // Useful for mimicking the Seekers ERC721 contract for testing
 // purposes.
 contract TestSeekers is ERC721 {
-  constructor() ERC721("Seekers", "SEEKERS") {}
+    constructor() ERC721("Seekers", "SEEKERS") {}
 
-  function mint(address to, uint256 tokenId) external {
-    _safeMint(to, tokenId);
-  }
+    function mint(address to, uint256 tokenId) external {
+        _safeMint(to, tokenId);
+    }
 
-  function exists(uint256 tokenId) external view returns (bool) {
-    return _exists(tokenId);
-  }
+    function exists(uint256 tokenId) external view returns (bool) {
+        return _exists(tokenId);
+    }
 }

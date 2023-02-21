@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { Registries, TestSeekers } from '../typechain';
+import { Registries, TestSeekers } from '../typechain-types';
 import { assert, expect } from 'chai';
 import utils from './utils';
 import { randomBytes } from 'crypto';
@@ -29,12 +29,18 @@ describe('Registries', () => {
     seekers = contracts.seekers;
   });
 
+  it('registries cannot initialize twice', async () => {
+    await expect(
+      registries.initialize(seekers.address, 5000),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
   it('requires default payout percentage to not exceed 100% when initializing', async () => {
     const Registries = await ethers.getContractFactory('Registries');
     registries = await Registries.deploy();
     await expect(
       registries.initialize(seekers.address, 10001),
-    ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
   });
 
   it('can allow owner to set default payout percentage', async () => {
@@ -50,6 +56,12 @@ describe('Registries', () => {
     );
   });
 
+  it('not owner cannot set default payout percentage', async () => {
+    await expect(
+      registries.connect(accounts[1]).setDefaultPayoutPercentage(2000),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
   it('can set registry', async () => {
     await registries.register('http://api');
 
@@ -58,6 +70,19 @@ describe('Registries', () => {
     assert.equal(
       registry.publicEndpoint,
       'http://api',
+      'Expected registries to have correct address',
+    );
+  });
+
+  it('can set registry twice', async () => {
+    await registries.register('http://api');
+    await registries.register('http://api2');
+
+    const registry = await registries.getRegistry(owner);
+
+    assert.equal(
+      registry.publicEndpoint,
+      'http://api2',
       'Expected registries to have correct address',
     );
   });
@@ -136,19 +161,20 @@ describe('Registries', () => {
       );
     }
 
-    await expect(registries.getRegistries(8, 5)).to.be.revertedWith(
-      'End index must be greater than start index',
+    await expect(registries.getRegistries(8, 5)).to.be.revertedWithCustomError(
+      registries,
+      'EndMustBeGreaterThanStart',
     );
 
-    await expect(registries.getRegistries(8, 21)).to.be.revertedWith(
-      'End index cannot be greater than total number of registered nodes',
-    );
+    await expect(registries.getRegistries(8, 21))
+      .to.be.revertedWithCustomError(registries, 'EndCannotExceedNumberOfNodes')
+      .withArgs(20);
   });
 
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
       registries.setDefaultPayoutPercentage(10001),
-    ).to.be.revertedWith('The payout percentage can not exceed 100 percent');
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
   });
 
   it('can set seeker account with valid proof', async () => {
@@ -195,7 +221,7 @@ describe('Registries', () => {
     // second attempt should fail due to nonce reuse
     await expect(
       registries.setSeekerAccount(seekerAddress, 1, nonce, signature),
-    ).to.be.revertedWith('Nonce for signature can not be re-used');
+    ).to.be.revertedWithCustomError(registries, 'NonceCannotBeReused');
   });
 
   it('fails to set seeker account with invalid proof', async () => {
@@ -217,7 +243,10 @@ describe('Registries', () => {
 
     await expect(
       registries.setSeekerAccount(seekerAddress, tokenId, nonce, proof),
-    ).to.be.revertedWith('Proof must be signed by specified seeker account');
+    ).to.be.revertedWithCustomError(
+      registries,
+      'ProofNotSignedBySeekerAccount',
+    );
   });
 
   it("fails to set seeker account if seeker isn't owned by account", async () => {
@@ -240,7 +269,7 @@ describe('Registries', () => {
 
     await expect(
       registries.setSeekerAccount(seekerAddress, tokenId, nonce, signature),
-    ).to.be.revertedWith('Seeker account must own the specified seeker');
+    ).to.be.revertedWithCustomError(registries, 'SeekerAccountMustOwnSeekerId');
   });
 
   it('can revoke seeker account', async () => {
@@ -270,14 +299,15 @@ describe('Registries', () => {
       1,
     );
 
-    await expect(registries.revokeSeekerAccount(owner)).to.be.revertedWith(
-      'Seeker account and msg.sender must be equal',
-    );
+    await expect(
+      registries.revokeSeekerAccount(owner),
+    ).to.be.revertedWithCustomError(registries, 'SeekerAccountMustBeMsgSender');
   });
 
   it('requires registry to not have empty public endpoint string', async () => {
-    await expect(registries.register('')).to.be.revertedWith(
-      'Public endpoint can not be empty',
+    await expect(registries.register('')).to.be.revertedWithCustomError(
+      registries,
+      'PublicEndpointCannotBeEmpty',
     );
   });
 

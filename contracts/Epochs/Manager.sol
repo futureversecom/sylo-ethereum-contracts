@@ -9,14 +9,18 @@ import "../Payments/Ticketing/Parameters.sol";
 import "../Registries.sol";
 import "../Staking/Directory.sol";
 
+error EpochHasNotEnded(uint256 epochId);
+error SeekerAcountCannotBeZeroAddress();
+error SeekerOwnerMismatch();
+error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
+
 contract EpochsManager is Initializable, OwnableUpgradeable {
     /**
      * @dev This struct will hold all network parameters that will be static
      * for the entire epoch. This value will be stored in a mapping, where the
-     * key is also the epoch's iteration value.
+     * key is the current epoch id.
      */
     struct Epoch {
-        uint256 iteration;
         // time related variables
         uint256 startBlock; // Block the epoch was initialized
         uint256 duration; // Minimum time epoch will be alive measured in number of blocks
@@ -26,11 +30,11 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         // registry variables
         uint16 defaultPayoutPercentage;
         // ticketing variables
+        uint16 decayRate;
         uint256 faceValue;
         uint128 baseLiveWinProb;
         uint128 expiredWinProb;
         uint256 ticketDuration;
-        uint16 decayRate;
     }
 
     event EpochJoined(uint256 epochId, address node, uint256 seekerId);
@@ -85,7 +89,6 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         _registries = registries;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
-        currentIteration = 0;
     }
 
     /**
@@ -99,35 +102,41 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Epoch storage current = epochs[currentIteration];
 
         uint256 end = current.startBlock + current.duration;
-        require(end <= block.number, "Current epoch has not yet ended");
+        if (end > block.number) {
+            revert EpochHasNotEnded(currentIteration);
+        }
 
-        uint256 nextIteration = currentIteration + 1;
+        (
+            uint256 faceValue,
+            uint128 baseLiveWinProb,
+            uint128 expiredWinProb,
+            uint256 ticketDuration,
+            uint16 decayRate
+        ) = _ticketingParameters.getTicketingParameters();
 
-        Epoch memory nextEpoch = Epoch(
-            nextIteration,
+        uint256 nextEpochId = getNextEpochId();
+
+        _directory.setCurrentDirectory(nextEpochId);
+
+        epochs[nextEpochId] = Epoch(
             block.number,
             epochDuration,
             0,
             _registries.defaultPayoutPercentage(),
-            _ticketingParameters.faceValue(),
-            _ticketingParameters.baseLiveWinProb(),
-            _ticketingParameters.expiredWinProb(),
-            _ticketingParameters.ticketDuration(),
-            _ticketingParameters.decayRate()
+            decayRate,
+            faceValue,
+            baseLiveWinProb,
+            expiredWinProb,
+            ticketDuration
         );
 
-        uint256 epochId = getNextEpochId();
-
-        _directory.setCurrentDirectory(epochId);
-
-        epochs[epochId] = nextEpoch;
         current.endBlock = block.number;
 
-        currentIteration = nextIteration;
+        currentIteration = nextEpochId;
 
-        emit NewEpoch(epochId);
+        emit NewEpoch(nextEpochId);
 
-        return epochId;
+        return nextEpochId;
     }
 
     /**
@@ -143,8 +152,8 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
      * @notice Retrieve the parameters for the current epoch.
      * @return The current Epoch parameters.
      */
-    function getCurrentActiveEpoch() external view returns (Epoch memory) {
-        return epochs[currentIteration];
+    function getCurrentActiveEpoch() external view returns (uint256, Epoch memory) {
+        return (currentIteration, epochs[currentIteration]);
     }
 
     /**
@@ -157,29 +166,26 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         Registries.Registry memory registry = _registries.getRegistry(msg.sender);
 
         // validate the node's seeker ownership
-        require(
-            registry.seekerAccount != address(0),
-            "Node must have a valid seeker account to join an epoch"
-        );
+        if (registry.seekerAccount == address(0)) {
+            revert SeekerAcountCannotBeZeroAddress();
+        }
 
-        address owner = _rootSeekers.ownerOf(registry.seekerId);
+        uint256 seekerId = registry.seekerId;
 
-        require(
-            registry.seekerAccount == owner,
-            "Node's seeker account does not match the current seeker owner"
-        );
+        address owner = _rootSeekers.ownerOf(seekerId);
+        if (registry.seekerAccount != owner) {
+            revert SeekerOwnerMismatch();
+        }
 
         uint256 nextEpoch = getNextEpochId();
-
-        require(
-            activeSeekers[nextEpoch][registry.seekerId] == address(0),
-            "Seeker has already joined the next epoch"
-        );
+        if (activeSeekers[nextEpoch][seekerId] != address(0)) {
+            revert SeekerAlreadyJoinedEpoch(nextEpoch, seekerId);
+        }
 
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
         _directory.joinNextDirectory(msg.sender);
-        activeSeekers[nextEpoch][registry.seekerId] = msg.sender;
-        emit EpochJoined(currentIteration + 1, msg.sender, registry.seekerId);
+        activeSeekers[nextEpoch][seekerId] = msg.sender;
+        emit EpochJoined(nextEpoch, msg.sender, seekerId);
     }
 
     /**

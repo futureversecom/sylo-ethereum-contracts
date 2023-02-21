@@ -3,6 +3,9 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "../../Utils.sol";
+
+error TicketDurationCannotBeZero();
 
 /**
  * @dev Persists the parameters for the ticketing mechanism. This contract is
@@ -64,7 +67,9 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
         expiredWinProb = _expiredWinProb;
         decayRate = _decayRate;
 
-        require(_ticketDuration > 0, "Ticket duration cannot be 0");
+        if (_ticketDuration == 0) {
+            revert TicketDurationCannotBeZero();
+        }
         ticketDuration = _ticketDuration;
     }
 
@@ -117,8 +122,26 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
      * @param _ticketDuration The duration of a ticket in number of blocks.
      */
     function setTicketDuration(uint256 _ticketDuration) external onlyOwner {
-        require(_ticketDuration > 0, "Ticket duration cannot be 0");
+        if (_ticketDuration == 0) {
+            revert TicketDurationCannotBeZero();
+        }
         ticketDuration = _ticketDuration;
         emit TicketDurationUpdated(_ticketDuration);
+    }
+
+    /**
+     * @notice Retrieve the current ticketing parameters.
+     * @return faceValue The face value of a ticket in SOLO.
+     * @return baseLiveWinProb The base live win probability of a ticket.
+     * @return expiredWinProb The expired win probability of a ticket.
+     * @return decayRate The decay rate of a ticket.
+     * @return ticketDuration The duration of a ticket in number of blocks.
+     */
+    function getTicketingParameters()
+        external
+        view
+        returns (uint256, uint128, uint128, uint256, uint16)
+    {
+        return (faceValue, baseLiveWinProb, expiredWinProb, ticketDuration, decayRate);
     }
 }

@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { EpochsManager, SyloToken } from '../typechain';
+import { EpochsManager, SyloToken } from '../typechain-types';
 import utils, { Contracts } from './utils';
 import { assert, expect } from 'chai';
 
@@ -27,6 +27,18 @@ describe('Epochs', () => {
     await contracts.directory.transferOwnership(epochsManager.address);
   });
 
+  it('epoch manager cannot be intialized twice', async () => {
+    await expect(
+      epochsManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
   it('can set epoch duration', async () => {
     await epochsManager.setEpochDuration(777);
     const epochDuration = await epochsManager.epochDuration();
@@ -35,6 +47,12 @@ describe('Epochs', () => {
       777,
       'Expected epoch duration to be updated',
     );
+  });
+
+  it('not owner cannot set epoch duration', async () => {
+    await expect(
+      epochsManager.connect(accounts[1]).setEpochDuration(777),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
   it('can initialize next epoch', async () => {
@@ -62,9 +80,9 @@ describe('Epochs', () => {
 
   it('can not initialize next epoch before current one had ended', async () => {
     await epochsManager.initializeEpoch();
-    await expect(epochsManager.initializeEpoch()).to.be.revertedWith(
-      'Current epoch has not yet ended',
-    );
+    await expect(epochsManager.initializeEpoch())
+      .to.be.revertedWithCustomError(epochsManager, 'EpochHasNotEnded')
+      .withArgs(1);
   });
 
   it('correctly updates the epoch parameters every epoch', async () => {
@@ -77,14 +95,16 @@ describe('Epochs', () => {
 
     await epochsManager.initializeEpoch();
 
-    const epoch = await epochsManager.getCurrentActiveEpoch();
+    const epochInfo = await epochsManager.getCurrentActiveEpoch();
+
+    assert.equal(epochInfo[0].toNumber(), 2, 'Expected epoch id to be 2');
 
     assert.equal(
-      epoch.faceValue.toNumber(),
+      epochInfo[1].faceValue.toNumber(),
       2222,
       'Expected face value to change',
     );
 
-    assert.equal(epoch.decayRate, 1111, 'Expected decay rate to change');
+    assert.equal(epochInfo[1].decayRate, 1111, 'Expected decay rate to change');
   });
 });

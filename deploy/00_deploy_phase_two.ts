@@ -8,7 +8,7 @@ import {
   StakingManager,
   SyloTicketing,
   TicketingParameters,
-} from '../typechain';
+} from '../typechain-types';
 import * as fs from 'fs/promises';
 
 type PhaseTwoContracts = {

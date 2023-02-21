@@ -10,6 +10,10 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+error NoStakeToJoinEpoch();
+error StakeeAlreadyJoinedEpoch();
+error NoJoiningStakeToJoinEpoch();
+
 /**
  * @notice The Directory contract constructs and manages a structure holding the current stakes,
  * which is queried against using the scan function. The scan function allows submitting
@@ -50,10 +54,10 @@ contract Directory is Initializable, Manageable {
      */
     mapping(uint256 => Directory) public directories;
 
-    function initialize(StakingManager stakingManager, RewardsManager rewardsManager)
-        external
-        initializer
-    {
+    function initialize(
+        StakingManager stakingManager,
+        RewardsManager rewardsManager
+    ) external initializer {
         OwnableUpgradeable.__Ownable_init();
         _stakingManager = stakingManager;
         _rewardsManager = rewardsManager;
@@ -94,8 +98,12 @@ contract Directory is Initializable, Manageable {
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
     function joinNextDirectory(address stakee) external onlyManager {
+        uint256 nextEpochId = currentDirectory + 1;
+
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
-        require(totalStake > 0, "Can not join directory for next epoch without any stake");
+        if (totalStake == 0) {
+            revert NoStakeToJoinEpoch();
+        }
 
         uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
         uint16 ownedStakeProportion = SyloUtils.asPerc(
@@ -105,28 +113,27 @@ contract Directory is Initializable, Manageable {
 
         uint16 minimumStakeProportion = _stakingManager.minimumStakeProportion();
 
-        uint256 joiningStake = 0;
+        uint256 joiningStake;
         if (ownedStakeProportion >= minimumStakeProportion) {
             joiningStake = totalStake;
         } else {
             // if the node is below the minimum stake proportion, then we reduce
             // the stake used to join the epoch proportionally
-            joiningStake = totalStake * ownedStakeProportion / minimumStakeProportion;
+            joiningStake = (totalStake * ownedStakeProportion) / minimumStakeProportion;
         }
-        require(joiningStake > 0, "Can not join directory for next epoch without any stake");
+        if (joiningStake == 0) {
+            revert NoJoiningStakeToJoinEpoch();
+        }
 
-        uint256 epochId = currentDirectory + 1;
+        if (directories[nextEpochId].stakes[stakee] > 0) {
+            revert StakeeAlreadyJoinedEpoch();
+        }
 
-        require(
-            directories[epochId].stakes[stakee] == 0,
-            "Can only join the directory once per epoch"
-        );
+        uint256 nextBoundary = directories[nextEpochId].totalStake + joiningStake;
 
-        uint256 nextBoundary = directories[epochId].totalStake + joiningStake;
-
-        directories[epochId].entries.push(DirectoryEntry(stakee, nextBoundary));
-        directories[epochId].stakes[stakee] = joiningStake;
-        directories[epochId].totalStake = nextBoundary;
+        directories[nextEpochId].entries.push(DirectoryEntry(stakee, nextBoundary));
+        directories[nextEpochId].stakes[stakee] = joiningStake;
+        directories[nextEpochId].totalStake = nextBoundary;
     }
 
     /**
@@ -144,11 +151,10 @@ contract Directory is Initializable, Manageable {
      * @param point The point, which will usually be a hash of a public key.
      * @param epochId The epoch id associated with the directory to scan.
      */
-    function scanWithEpochId(uint128 point, uint256 epochId)
-        external
-        view
-        returns (address stakee)
-    {
+    function scanWithEpochId(
+        uint128 point,
+        uint256 epochId
+    ) external view returns (address stakee) {
         return _scan(point, epochId);
     }
 
@@ -162,7 +168,9 @@ contract Directory is Initializable, Manageable {
      * @param epochId The epoch id associated with the directory to scan.
      */
     function _scan(uint128 point, uint256 epochId) internal view returns (address stakee) {
-        if (directories[epochId].entries.length == 0) {
+        uint256 entryLength = directories[epochId].entries.length;
+
+        if (entryLength == 0) {
             return address(0);
         }
 
@@ -170,15 +178,19 @@ contract Directory is Initializable, Manageable {
         // a uint128 cannot overflow a uint256.
         uint256 expectedVal = (directories[epochId].totalStake * uint256(point)) >> 128;
 
-        uint256 left = 0;
-        uint256 right = directories[epochId].entries.length - 1;
+        uint256 left;
+        uint256 right = entryLength - 1;
 
         // perform a binary search through the directory
-        while (left <= right) {
-            uint256 index = (left + right) / 2;
+        uint256 lower;
+        uint256 upper;
+        uint256 index;
 
-            uint256 lower = index == 0 ? 0 : directories[epochId].entries[index - 1].boundary;
-            uint256 upper = directories[epochId].entries[index].boundary;
+        while (left <= right) {
+            index = (left + right) >> 1;
+
+            lower = index == 0 ? 0 : directories[epochId].entries[index - 1].boundary;
+            upper = directories[epochId].entries[index].boundary;
 
             if (expectedVal >= lower && expectedVal < upper) {
                 return directories[epochId].entries[index].stakee;
@@ -198,11 +210,10 @@ contract Directory is Initializable, Manageable {
      * @param stakee The address of the Node.
      * @return The amount of stake the Node has for the given directory in SOLO.
      */
-    function getTotalStakeForStakee(uint256 epochId, address stakee)
-        external
-        view
-        returns (uint256)
-    {
+    function getTotalStakeForStakee(
+        uint256 epochId,
+        address stakee
+    ) external view returns (uint256) {
         return directories[epochId].stakes[stakee];
     }
 
@@ -220,15 +231,19 @@ contract Directory is Initializable, Manageable {
      * @notice Retrieve all entries for a directory in a specified epoch.
      * @return An array of all the directory entries.
      */
-    function getEntries(uint256 epochId)
-        external
-        view
-        returns (address[] memory, uint256[] memory)
-    {
-        address[] memory stakees = new address[](directories[epochId].entries.length);
-        uint256[] memory boundaries = new uint256[](directories[epochId].entries.length);
-        for (uint256 i = 0; i < directories[epochId].entries.length; i++) {
-            DirectoryEntry memory entry = directories[epochId].entries[i];
+    function getEntries(
+        uint256 epochId
+    ) external view returns (address[] memory, uint256[] memory) {
+        uint256 entryLength = directories[epochId].entries.length;
+
+        address[] memory stakees = new address[](entryLength);
+        uint256[] memory boundaries = new uint256[](entryLength);
+
+        DirectoryEntry memory entry;
+        DirectoryEntry[] memory entries = directories[epochId].entries;
+
+        for (uint256 i; i < entryLength; ++i) {
+            entry = entries[i];
             stakees[i] = entry.stakee;
             boundaries[i] = entry.boundary;
         }

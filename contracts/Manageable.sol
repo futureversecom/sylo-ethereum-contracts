@@ -3,6 +3,8 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+error OnlyManagers();
+
 /**
  * @dev Contract module which provides a basic access control mechanism, where
  * there is an list of public managers who may be added or removed.
@@ -41,7 +43,9 @@ abstract contract Manageable is OwnableUpgradeable {
      * special privileges to call restricted functions.
      */
     modifier onlyManager() {
-        require(managers[msg.sender] > 0, "Only managers of this contract can call this function");
+        if (managers[msg.sender] == 0) {
+            revert OnlyManagers();
+        }
         _;
     }
 
