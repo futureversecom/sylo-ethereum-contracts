@@ -4,37 +4,22 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 import "./libraries/SyloUtils.sol";
+import "./interfaces/IRegistries.sol";
 
 /**
  * @notice This contract manages Registries for Nodes. A Registry is a
  * set of parameters configured by the Node itself. A Node is required
  * to have a valid Registry to be able to participate in the network.
  */
-contract Registries is Initializable, Ownable2StepUpgradeable {
+contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC165 {
     using ECDSA for bytes32;
 
-    struct Registry {
-        // Percentage of a tickets value that will be rewarded to
-        // delegated stakers expressed as a fraction of 10000.
-        // This value is currently locked to the default payout percentage
-        // until epochs are implemented.
-        uint16 payoutPercentage;
-        // Public http/s endpoint to retrieve additional metadata
-        // about the node.
-        // The current metadata schema is as follows:
-        //  { name: string, multiaddrs: string[] }
-        string publicEndpoint;
-        // The account which owns a seeker that will be used to
-        // operate the Node for this registry.
-        address seekerAccount;
-        // The id of the seeker used to operate the node. The owner
-        // of this id should be the seeker account.
-        uint256 seekerId;
-    }
+    uint256 private constant MAX_SEEKER_ID = 47894;
 
     /**
      * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
@@ -45,7 +30,7 @@ contract Registries is Initializable, Ownable2StepUpgradeable {
     /**
      * @notice Tracks each Node's registry.
      */
-    mapping(address => Registry) public registries;
+    mapping(address => IRegistries.Registry) public registries;
 
     /**
      * @notice Tracks the node address that each seeker id is registered with
@@ -80,6 +65,7 @@ contract Registries is Initializable, Ownable2StepUpgradeable {
 
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
+    error SeekerIdOutOfRange();
     error NonceCannotBeReused();
     error EndMustBeGreaterThanStart();
     error PercentageCannotExceed10000();
@@ -87,20 +73,35 @@ contract Registries is Initializable, Ownable2StepUpgradeable {
     error SeekerAccountMustOwnSeekerId();
     error SeekerAccountMustBeMsgSender();
     error ProofNotSignedBySeekerAccount();
+    error RootSeekersCannotBeZeroAddress();
+    error SeekerAccountCannotBeZeroAddress();
     error EndCannotExceedNumberOfNodes(uint256 nodeLength);
+
+    error Test(bytes4 id);
 
     function initialize(
         IERC721 rootSeekers,
         uint16 _defaultPayoutPercentage
     ) external initializer {
-        Ownable2StepUpgradeable.__Ownable2Step_init();
-
+        if (address(rootSeekers) == address(0)) {
+            revert RootSeekersCannotBeZeroAddress();
+        }
         if (_defaultPayoutPercentage > 10000) {
             revert PercentageCannotExceed10000();
         }
 
+        Ownable2StepUpgradeable.__Ownable2Step_init();
+
         _rootSeekers = rootSeekers;
         defaultPayoutPercentage = _defaultPayoutPercentage;
+    }
+
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IRegistries).interfaceId;
     }
 
     /**
@@ -143,6 +144,12 @@ contract Registries is Initializable, Ownable2StepUpgradeable {
         bytes32 nonce,
         bytes calldata signature
     ) external {
+        if (seekerAccount == address(0)) {
+            revert SeekerAccountCannotBeZeroAddress();
+        }
+        if (seekerId > MAX_SEEKER_ID) {
+            revert SeekerIdOutOfRange();
+        }
         if (signatureNonces[nonce] != address(0)) {
             revert NonceCannotBeReused();
         }

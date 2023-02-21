@@ -64,6 +64,49 @@ describe('Staking', () => {
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
+  it('staking manager cannot be intialized with arguments', async () => {
+    const StakingManager = await ethers.getContractFactory('StakingManager');
+    const stakingManager = await StakingManager.deploy();
+
+    await expect(
+      stakingManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    ).to.be.revertedWithCustomError(stakingManager, 'TokenCannotBeZeroAddress');
+
+    await expect(
+      stakingManager.initialize(
+        token.address,
+        epochsManager.address, // correct contract is rewards manager
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    )
+      .to.be.revertedWithCustomError(
+        stakingManager,
+        'TargetNotSupportInterface',
+      )
+      .withArgs('RewardsManager', '0x3db12b5a');
+
+    await expect(
+      stakingManager.initialize(
+        token.address,
+        rewardsManager.address,
+        epochsManager.address,
+        0,
+        0,
+      ),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'UnlockDurationCannotBeZero',
+    );
+  });
+
   it('directory cannot be intialized twice', async () => {
     await expect(
       directory.initialize(
@@ -79,6 +122,15 @@ describe('Staking', () => {
         .connect(accounts[1])
         .addManager(await accounts[1].getAddress()),
     ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('cannot add manager with zero address', async () => {
+    await expect(
+      rewardsManager.addManager(ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'ManagerCannotBeZeroAddress',
+    );
   });
 
   it('can remove owner as manager', async () => {
@@ -115,6 +167,15 @@ describe('Staking', () => {
       minimumStakeProportion,
       3000,
       'Expected minimum node stake to be correctly set',
+    );
+  });
+
+  it('staking manager should not be able to set unlock duration with zero value', async () => {
+    await expect(
+      stakingManager.setUnlockDuration(0),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'UnlockDurationCannotBeZero',
     );
   });
 
@@ -234,16 +295,25 @@ describe('Staking', () => {
       .withArgs(BigNumber.from(100), BigNumber.from(120));
   });
 
-  it('should not able to add stake to zero address', async () => {
+  it('cannot calculate remaining stake with invalid arguments', async () => {
     await expect(
-      stakingManager.addStake(100, ethers.constants.AddressZero),
+      stakingManager.calculateMaxAdditionalDelegatedStake(
+        ethers.constants.AddressZero,
+      ),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
     );
   });
 
-  it('should not be able to add 0 stake', async () => {
+  it('should not able to add stake invalid arguments', async () => {
+    await expect(
+      stakingManager.addStake(100, ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'StakeeCannotBeZeroAddress',
+    );
+
     await expect(
       stakingManager.addStake(0, owner),
     ).to.be.revertedWithCustomError(stakingManager, 'CannotStakeZeroAmount');
@@ -262,17 +332,23 @@ describe('Staking', () => {
     );
   });
 
-  it('can not unlock no stake', async () => {
+  it('can not unlock stake with invalid arguments', async () => {
     await expect(
-      stakingManager.unlockStake(100, owner),
-    ).to.be.revertedWithCustomError(stakingManager, 'NoStakeToUnlock');
-  });
+      stakingManager.unlockStake(100, ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'StakeeCannotBeZeroAddress',
+    );
 
-  it('can not unlock zero stake', async () => {
-    await stakingManager.addStake(100, owner);
     await expect(
       stakingManager.unlockStake(0, owner),
     ).to.be.revertedWithCustomError(stakingManager, 'CannotUnlockZeroAmount');
+  });
+
+  it('can not unlock if user has zero stake', async () => {
+    await expect(
+      stakingManager.unlockStake(100, owner),
+    ).to.be.revertedWithCustomError(stakingManager, 'NoStakeToUnlock');
   });
 
   it('can not unlock more stake than exists', async () => {
@@ -347,6 +423,15 @@ describe('Staking', () => {
     );
   });
 
+  it('cannot withdraw stake with invalid arguments', async () => {
+    await expect(
+      stakingManager.withdrawStake(ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'StakeeCannotBeZeroAddress',
+    );
+  });
+
   it("should not be able to withdraw stake that hasn't unlocked", async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
@@ -385,6 +470,22 @@ describe('Staking', () => {
     );
   });
 
+  it('cannot cancel unlocking with invalid arguments', async () => {
+    await expect(
+      stakingManager.cancelUnlocking(100, ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'StakeeCannotBeZeroAddress',
+    );
+
+    await expect(
+      stakingManager.cancelUnlocking(0, owner),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'CannotCancelUnlockZeroAmount',
+    );
+  });
+
   it('unlocking more than exists clears entire stake', async () => {
     await stakingManager.addStake(100, owner);
     await stakingManager.unlockStake(100, owner);
@@ -413,6 +514,13 @@ describe('Staking', () => {
     ).to.be.revertedWithCustomError(directory, 'NoStakeToJoinEpoch');
   });
 
+  it('cannot join directory with invalid arguments', async () => {
+    await directory.addManager(owner);
+    await expect(
+      directory.joinNextDirectory(ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(directory, 'StakeeCannotBeZeroAddress');
+  });
+
   it('can not join directory after unlocking all stake', async () => {
     await stakingManager.addStake(1, owner);
     await stakingManager.unlockStake(1, owner);
@@ -422,6 +530,15 @@ describe('Staking', () => {
     await expect(
       directory.joinNextDirectory(owner),
     ).to.be.revertedWithCustomError(directory, 'NoStakeToJoinEpoch');
+  });
+
+  it('cannot check min stake proportion with invalid arguments', async () => {
+    await expect(
+      stakingManager.checkMinimumStakeProportion(ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      stakingManager,
+      'StakeeCannotBeZeroAddress',
+    );
   });
 
   it('should reduce stake when joining directory with less than minimum stake', async () => {
@@ -981,4 +1098,47 @@ describe('Staking', () => {
 
     return points;
   }
+
+  it('can validate contract interface', async () => {
+    const TestSyloUtils = await ethers.getContractFactory('TestSyloUtils');
+    const testSyloUtils = await TestSyloUtils.deploy();
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        '',
+        rewardsManager.address,
+        '0x3db12b5a',
+      ),
+    ).to.be.revertedWithCustomError(testSyloUtils, 'ContractNameCannotBeEmpty');
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        'RewardsManager',
+        ethers.constants.AddressZero,
+        '0x3db12b5a',
+      ),
+    ).to.be.revertedWithCustomError(
+      testSyloUtils,
+      'TargetContractCannotBeZeroAddress',
+    );
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        'RewardsManager',
+        rewardsManager.address,
+        '0x00000000',
+      ),
+    ).to.be.revertedWithCustomError(
+      testSyloUtils,
+      'InterfaceIdCannotBeZeroBytes',
+    );
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        'RewardsManager',
+        rewardsManager.address,
+        '0x11111111',
+      ),
+    ).to.be.revertedWithCustomError(testSyloUtils, 'TargetNotSupportInterface');
+  });
 });

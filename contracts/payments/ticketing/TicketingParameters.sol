@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "../../libraries/SyloUtils.sol";
-
-error TicketDurationCannotBeZero();
+import "../../interfaces/payments/ticketing/ITicketingParameters.sol";
 
 /**
  * @dev Persists the parameters for the ticketing mechanism. This contract is
@@ -14,7 +14,12 @@ error TicketDurationCannotBeZero();
  * contract is necessary to avoid a cyclic dependency between the ticketing
  * and epoch contracts.
  */
-contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
+contract TicketingParameters is
+    ITicketingParameters,
+    Initializable,
+    Ownable2StepUpgradeable,
+    ERC165
+{
     /** @notice The value of a winning ticket in SOLO. */
     uint256 public faceValue;
 
@@ -55,6 +60,9 @@ contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
     event TicketDurationUpdated(uint256 ticketDuration);
     event DecayRateUpdated(uint16 decayRate);
 
+    error FaceValueCannotBeZero();
+    error TicketDurationCannotBeZero();
+
     function initialize(
         uint256 _faceValue,
         uint128 _baseLiveWinProb,
@@ -62,16 +70,28 @@ contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
         uint16 _decayRate,
         uint256 _ticketDuration
     ) external initializer {
+        if (_faceValue == 0) {
+            revert FaceValueCannotBeZero();
+        }
+        if (_ticketDuration == 0) {
+            revert TicketDurationCannotBeZero();
+        }
+
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
         faceValue = _faceValue;
         baseLiveWinProb = _baseLiveWinProb;
         expiredWinProb = _expiredWinProb;
         decayRate = _decayRate;
-
-        if (_ticketDuration == 0) {
-            revert TicketDurationCannotBeZero();
-        }
         ticketDuration = _ticketDuration;
+    }
+
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(ITicketingParameters).interfaceId;
     }
 
     /**
@@ -80,6 +100,10 @@ contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
      * @param _faceValue The face value to set in SOLO.
      */
     function setFaceValue(uint256 _faceValue) external onlyOwner {
+        if (_faceValue == 0) {
+            revert FaceValueCannotBeZero();
+        }
+
         faceValue = _faceValue;
         emit FaceValueUpdated(_faceValue);
     }
@@ -126,6 +150,7 @@ contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
         if (_ticketDuration == 0) {
             revert TicketDurationCannotBeZero();
         }
+
         ticketDuration = _ticketDuration;
         emit TicketDurationUpdated(_ticketDuration);
     }

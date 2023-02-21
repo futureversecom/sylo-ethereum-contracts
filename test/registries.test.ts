@@ -35,9 +35,17 @@ describe('Registries', () => {
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
-  it('requires default payout percentage to not exceed 100% when initializing', async () => {
+  it('registries cannot initialize with invalid arguments', async () => {
     const Registries = await ethers.getContractFactory('Registries');
     registries = await Registries.deploy();
+
+    await expect(
+      registries.initialize(ethers.constants.AddressZero, 5000),
+    ).to.be.revertedWithCustomError(
+      registries,
+      'RootSeekersCannotBeZeroAddress',
+    );
+
     await expect(
       registries.initialize(seekers.address, 10001),
     ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
@@ -195,6 +203,29 @@ describe('Registries', () => {
     expect(registry.seekerId).to.equal(1);
   });
 
+  it('fails to set seeker account when seekerAccount is zero address', async () => {
+    await expect(
+      registries.setSeekerAccount(
+        ethers.constants.AddressZero,
+        1,
+        randomBytes(32),
+        '0x',
+      ),
+    ).to.be.revertedWithCustomError(
+      registries,
+      'SeekerAccountCannotBeZeroAddress',
+    );
+  });
+
+  it('fails to set seeker account when seekerId greater than max seeker id', async () => {
+    const seekerAccount = accounts[1];
+    const seekerAddress = await seekerAccount.getAddress();
+
+    await expect(
+      registries.setSeekerAccount(seekerAddress, 50000, randomBytes(32), '0x'),
+    ).to.be.revertedWithCustomError(registries, 'SeekerIdOutOfRange');
+  });
+
   it('fails to set seeker account when reusing signature', async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
@@ -350,7 +381,7 @@ describe('Registries', () => {
     expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
   });
 
-  it('Has the correct prefix message', async () => {
+  it('has the correct prefix message', async () => {
     const lineOne =
       "🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
     const lineTwo = '\n\n🆔 Your seeker id: ';

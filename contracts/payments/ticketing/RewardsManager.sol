@@ -3,15 +3,19 @@ pragma solidity ^0.8.18;
 
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "abdk-libraries-solidity/ABDKMath64x64.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import "../../libraries/Manageable.sol";
 import "../../libraries/SyloUtils.sol";
-import "../../staking/StakingManager.sol";
+import "../../libraries/Manageable.sol";
 import "../../epochs/EpochsManager.sol";
+import "../../staking/StakingManager.sol";
+import "../../interfaces/epochs/IEpochsManager.sol";
+import "../../interfaces/staking/IStakingManager.sol";
+import "../../interfaces/payments/ticketing/IRewardsManager.sol";
 
 /**
  * @notice Handles epoch based reward pools that are incremented from redeeming tickets.
@@ -20,36 +24,7 @@ import "../../epochs/EpochsManager.sol";
  * @dev After deployment, the SyloTicketing contract should be
  * set up as a manager to be able to call certain restricted functions.
  */
-contract RewardsManager is Initializable, Manageable {
-    /**
-     * @dev This type will hold the necessary information for delegated stakers
-     * to make reward claims against their Node. Every Node will initialize
-     * and store a new Reward Pool for each epoch they participate in.
-     */
-    struct RewardPool {
-        // Tracks the balance of the reward pool owed to the stakers
-        uint256 stakersRewardTotal;
-        // Tracks the block number this reward pool was initialized
-        uint256 initializedAt;
-        // The total active stake for the node for will be the sum of the
-        // stakes owned by its delegators and the node's own stake.
-        uint256 totalActiveStake;
-        // track the cumulative reward factor as of the time the first ticket
-        // for this pool was redeemed
-        int128 initialCumulativeRewardFactor;
-    }
-
-    struct LastClaim {
-        // The epoch the claim was made.
-        uint256 claimedAt;
-        // The stake at the time the claim was made. This is tracked as
-        // rewards can only be claimed after an epoch has ended, but the
-        // user's stake may have changed by then. This field tracks the
-        // staking value before the change so the reward for that epoch
-        // can be manually calculated.
-        uint256 stake;
-    }
-
+contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     uint256 internal constant ONE_SYLO = 1 ether;
 
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
@@ -120,19 +95,50 @@ contract RewardsManager is Initializable, Manageable {
     mapping(bytes32 => RewardPool) public rewardPools;
 
     error NoRewardToClaim();
+    error AmountCannotBeZero();
     error RewardPoolNotExist();
     error RewardPoolAlreadyExist();
+    error DoNotAllowZeroAddress();
+    error TokenCannotBeZeroAddress();
     error NoStakeToCreateRewardPool();
+    error StakeeCannotBeZeroAddress();
+    error StakerCannotBeZeroAddress();
+    error StakerKeyCannotBeZeroBytes();
 
     function initialize(
         IERC20 token,
         StakingManager stakingManager,
         EpochsManager epochsManager
     ) external initializer {
+        if (address(token) == address(0)) {
+            revert TokenCannotBeZeroAddress();
+        }
+
+        SyloUtils.validateContractInterface(
+            "StakingManager",
+            address(stakingManager),
+            type(IStakingManager).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "EpochsManager",
+            address(epochsManager),
+            type(IEpochsManager).interfaceId
+        );
+
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
         _token = token;
         _epochsManager = epochsManager;
         _stakingManager = stakingManager;
+    }
+
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IRewardsManager).interfaceId;
     }
 
     /**
@@ -250,6 +256,10 @@ contract RewardsManager is Initializable, Manageable {
      * stake held by the RewardsManager contract.
      */
     function initializeNextRewardPool(address stakee) external onlyManager {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+
         uint256 nextEpochId = _epochsManager.getNextEpochId();
 
         RewardPool storage nextRewardPool = rewardPools[getRewardPoolKey(nextEpochId, stakee)];
@@ -278,7 +288,14 @@ contract RewardsManager is Initializable, Manageable {
      * @param amount The face value of the ticket in SOLO.
      */
     function incrementRewardPool(address stakee, uint256 amount) external onlyManager {
-        (uint256 epochId, EpochsManager.Epoch memory currentEpoch) = _epochsManager
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+        if (amount == 0) {
+            revert AmountCannotBeZero();
+        }
+
+        (uint256 epochId, IEpochsManager.Epoch memory currentEpoch) = _epochsManager
             .getCurrentActiveEpoch();
 
         RewardPool storage rewardPool = rewardPools[getRewardPoolKey(epochId, stakee)];
@@ -356,7 +373,7 @@ contract RewardsManager is Initializable, Manageable {
             return claim;
         }
 
-        StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
+        IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
             stakee,
             staker
         );
@@ -457,6 +474,13 @@ contract RewardsManager is Initializable, Manageable {
      * @return The value of the reward owed to the staker in SOLO.
      */
     function calculateStakerClaim(address stakee, address staker) public view returns (uint256) {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+        if (staker == address(0)) {
+            revert StakerCannotBeZeroAddress();
+        }
+
         bytes32 stakerKey = getStakerKey(stakee, staker);
         uint256 pendingClaim = calculatePendingClaim(stakerKey, stakee, staker);
 
@@ -499,6 +523,10 @@ contract RewardsManager is Initializable, Manageable {
      * @param stakee The address of the Node to claim against.
      */
     function claimStakingRewards(address stakee) external returns (uint256) {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+
         bytes32 stakerKey = getStakerKey(stakee, msg.sender);
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, msg.sender);
 
@@ -534,7 +562,7 @@ contract RewardsManager is Initializable, Manageable {
     }
 
     function updateLastClaim(address stakee, address staker) internal {
-        StakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
+        IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
             stakee,
             staker
         );
