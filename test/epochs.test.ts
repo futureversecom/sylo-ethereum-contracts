@@ -39,6 +39,24 @@ describe('Epochs', () => {
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
+  it('epoch manager cannot be intialized with invalid arguments', async () => {
+    const EpochsManager = await ethers.getContractFactory('EpochsManager');
+    epochsManager = await EpochsManager.deploy();
+
+    await expect(
+      epochsManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        0,
+      ),
+    ).to.be.revertedWithCustomError(
+      epochsManager,
+      'RootSeekerCannotBeZeroAddress',
+    );
+  });
+
   it('can set epoch duration', async () => {
     await expect(epochsManager.setEpochDuration(777))
       .to.emit(epochsManager, 'EpochDurationUpdated')
@@ -50,6 +68,12 @@ describe('Epochs', () => {
       777,
       'Expected epoch duration to be updated',
     );
+  });
+
+  it('can not set epoch duration to zero', async () => {
+    await expect(
+      epochsManager.setEpochDuration(0),
+    ).to.be.revertedWithCustomError(epochsManager, 'EpochDurationCannotBeZero');
   });
 
   it('not owner cannot set epoch duration', async () => {

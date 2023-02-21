@@ -2,6 +2,12 @@
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+
+error ContractNameCannotBeEmpty();
+error InterfaceIdCannotBeZeroBytes();
+error TargetContractCannotBeZeroAddress(string name);
+error TargetNotSupportInterface(string name, bytes4 interfaceId);
 
 library SyloUtils {
     /**
@@ -30,5 +36,30 @@ library SyloUtils {
      */
     function asPerc(uint128 numerator, uint256 denominator) internal pure returns (uint16) {
         return SafeCast.toUint16((uint256(numerator) * PERCENTAGE_DENOMINATOR) / denominator);
+    }
+
+    /**
+     * @dev Validate that a contract implements a given interface.
+     * @param name The name of the contract, used in error messages.
+     * @param target The address of the contract.
+     * @param interfaceId The interface ID to check.
+     */
+    function validateContractInterface(
+        string memory name,
+        address target,
+        bytes4 interfaceId
+    ) internal view {
+        if (bytes(name).length == 0) {
+            revert ContractNameCannotBeEmpty();
+        }
+        if (target == address(0)) {
+            revert TargetContractCannotBeZeroAddress(name);
+        }
+        if (interfaceId == bytes4(0)) {
+            revert InterfaceIdCannotBeZeroBytes();
+        }
+        if (!ERC165(target).supportsInterface(interfaceId)) {
+            revert TargetNotSupportInterface(name, interfaceId);
+        }
     }
 }

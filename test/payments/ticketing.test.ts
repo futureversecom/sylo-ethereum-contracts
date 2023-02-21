@@ -76,12 +76,62 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
+  it('ticketing cannot be initialized with invalid parameters', async () => {
+    const Ticketing = await ethers.getContractFactory('SyloTicketing');
+    const ticketing = await Ticketing.deploy();
+
+    await expect(
+      ticketing.initialize(
+        ethers.constants.AddressZero,
+        registries.address,
+        stakingManager.address,
+        directory.address,
+        epochsManager.address,
+        rewardsManager.address,
+        0,
+      ),
+    ).to.be.revertedWithCustomError(ticketing, 'TokenCannotBeZeroAddress');
+
+    await expect(
+      ticketing.initialize(
+        token.address,
+        registries.address,
+        stakingManager.address,
+        directory.address,
+        epochsManager.address,
+        rewardsManager.address,
+        0,
+      ),
+    ).to.be.revertedWithCustomError(ticketing, 'UnlockDurationCannotBeZero');
+  });
+
   it('ticketing parameters cannot be initialized twice', async () => {
     await expect(
       ticketingParameters.initialize(1, 1, 1, 1, 1, {
         from: owner,
       }),
     ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
+  it('ticketing parameters cannot be initialized with invalid parameters', async () => {
+    const TicketingParameters = await ethers.getContractFactory(
+      'TicketingParameters',
+    );
+    const ticketingParameters = await TicketingParameters.deploy();
+
+    await expect(
+      ticketingParameters.initialize(0, 1, 1, 1, 1),
+    ).to.be.revertedWithCustomError(
+      ticketingParameters,
+      'FaceValueCannotBeZero',
+    );
+
+    await expect(
+      ticketingParameters.initialize(1, 1, 1, 1, 0),
+    ).to.be.revertedWithCustomError(
+      ticketingParameters,
+      'TicketDurationCannotBeZero',
+    );
   });
 
   it('rewards manager cannot be initialized twice', async () => {
@@ -94,20 +144,48 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
-  it('cannot be initialize ticketing parameter when ticket duration less than or equal 0', async () => {
-    const TicketingParameters = await ethers.getContractFactory(
-      'TicketingParameters',
-    );
-    const ticketingParameters = await TicketingParameters.deploy();
+  it('rewards manager cannot be initialized with invalid parameters', async () => {
+    const RewardsManager = await ethers.getContractFactory('RewardsManager');
+    const rewardsManager = await RewardsManager.deploy();
 
     await expect(
-      ticketingParameters.initialize(1, 1, 1, 1, 0, {
-        from: owner,
-      }),
-    ).to.be.revertedWithCustomError(
-      ticketingParameters,
-      'TicketDurationCannotBeZero',
-    );
+      rewardsManager.initialize(
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+      ),
+    ).to.be.revertedWithCustomError(rewardsManager, 'TokenCannotBeZeroAddress');
+
+    await expect(
+      rewardsManager.initialize(
+        token.address,
+        ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
+      ),
+    )
+      .to.be.revertedWithCustomError(
+        rewardsManager,
+        'TargetContractCannotBeZeroAddress',
+      )
+      .withArgs('StakingManager');
+
+    await expect(
+      rewardsManager.initialize(
+        token.address,
+        stakingManager.address,
+        ethers.constants.AddressZero,
+      ),
+    )
+      .to.be.revertedWithCustomError(
+        rewardsManager,
+        'TargetContractCannotBeZeroAddress',
+      )
+      .withArgs('EpochsManager');
+  });
+
+  it('ticketing can check for support interface', async () => {
+    const supportInterface = await ticketing.supportsInterface('0x4f9afa3f');
+    expect(supportInterface).to.be.true;
   });
 
   it('should be able to set parameters after initialization', async () => {
@@ -202,6 +280,29 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
+  it('tickeing cannot set parameters with invalid arguments', async () => {
+    await expect(ticketing.setUnlockDuration(0)).to.be.revertedWithCustomError(
+      ticketing,
+      'UnlockDurationCannotBeZero',
+    );
+  });
+
+  it('ticketing parameters cannot set parameters with invalid arguments', async () => {
+    await expect(
+      ticketingParameters.setFaceValue(0),
+    ).to.be.revertedWithCustomError(
+      ticketingParameters,
+      'FaceValueCannotBeZero',
+    );
+
+    await expect(
+      ticketingParameters.setTicketDuration(0),
+    ).to.be.revertedWithCustomError(
+      ticketingParameters,
+      'TicketDurationCannotBeZero',
+    );
+  });
+
   it('can remove managers from rewards manager', async () => {
     await rewardsManager.removeManager(stakingManager.address);
     const b = await rewardsManager.managers(stakingManager.address);
@@ -218,18 +319,35 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
+  it('cannot increament reward pool with invalid arguments', async () => {
+    await rewardsManager.addManager(owner);
+
+    await expect(
+      rewardsManager.incrementRewardPool(ethers.constants.AddressZero, 10000),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'StakeeCannotBeZeroAddress',
+    );
+
+    await expect(
+      rewardsManager.incrementRewardPool(owner, 0),
+    ).to.be.revertedWithCustomError(rewardsManager, 'AmountCannotBeZero');
+  });
+
   it('only managers can call functions with the onlyManager constraint', async () => {
     await expect(
       rewardsManager.initializeNextRewardPool(owner),
     ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
-  it('can not set ticket duration to 0', async () => {
+  it('cannot initialize next reward pool with invalid arguments', async () => {
+    await rewardsManager.addManager(owner);
+
     await expect(
-      ticketingParameters.setTicketDuration(0),
+      rewardsManager.initializeNextRewardPool(ethers.constants.AddressZero),
     ).to.be.revertedWithCustomError(
-      ticketingParameters,
-      'TicketDurationCannotBeZero',
+      rewardsManager,
+      'StakeeCannotBeZeroAddress',
     );
   });
 
@@ -241,12 +359,32 @@ describe('Ticketing', () => {
     assert.equal(deposit.escrow.toString(), '50', 'Expected 50 in escrow');
   });
 
+  it('should not be able to deposit escrow with invalid arguments', async () => {
+    await expect(
+      ticketing.depositEscrow(0, owner),
+    ).to.be.revertedWithCustomError(ticketing, 'EscrowAmountCannotBeZero');
+
+    await expect(
+      ticketing.depositEscrow(50, ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(ticketing, 'AccountCannotBeZeroAddress');
+  });
+
   it('should be able to deposit penalty', async () => {
     const alice = Wallet.createRandom();
     await ticketing.depositPenalty(50, alice.address);
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(deposit.penalty.toString(), '50', 'Expected 50 in escrow');
+  });
+
+  it('should not be able to deposit penalty with invalid arguments', async () => {
+    await expect(
+      ticketing.depositPenalty(0, owner),
+    ).to.be.revertedWithCustomError(ticketing, 'PenaltyAmountCannotBeZero');
+
+    await expect(
+      ticketing.depositPenalty(50, ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(ticketing, 'AccountCannotBeZeroAddress');
   });
 
   it('should be able to deposit escrow multiple times', async () => {
@@ -1012,6 +1150,22 @@ describe('Ticketing', () => {
     await calculateClaims();
   });
 
+  it('cannot calculate staker claim with invalid arguments)', async () => {
+    await expect(
+      rewardsManager.calculateStakerClaim(ethers.constants.AddressZero, owner),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'StakeeCannotBeZeroAddress',
+    );
+
+    await expect(
+      rewardsManager.calculateStakerClaim(owner, ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'StakerCannotBeZeroAddress',
+    );
+  });
+
   it('can not claim reward more than once for the same epoch', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
@@ -1712,6 +1866,15 @@ describe('Ticketing', () => {
         claim: proportions[3] * totalWinnings,
       },
     ]);
+  });
+
+  it('cannot claim staking rewards with invalid arguments', async () => {
+    await expect(
+      rewardsManager.claimStakingRewards(ethers.constants.AddressZero),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'StakeeCannotBeZeroAddress',
+    );
   });
 
   it('claim calculation returns 0 if no rewards redeemed for an epoch', async () => {

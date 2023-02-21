@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -14,28 +15,14 @@ import "../libraries/SyloUtils.sol";
 import "../epochs/EpochsManager.sol";
 import "../staking/StakingManager.sol";
 import "./ticketing/RewardsManager.sol";
+import "../interfaces/payments/ISyloTicketing.sol";
 
 /**
  * @notice The SyloTicketing contract manages the Probabilistic
  * Micro-Payment Ticketing system that pays Nodes for providing the
  * Event Relay service.
  */
-contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
-    struct Deposit {
-        uint256 escrow; // Balance of users escrow
-        uint256 penalty; // Balance of users penalty
-        uint256 unlockAt; // Block number a user can withdraw their balances
-    }
-
-    struct Ticket {
-        uint256 epochId; // The epoch this ticket is associated with
-        address sender; // Address of the ticket sender
-        address redeemer; // Address of the intended recipient
-        uint256 generationBlock; // Block number the ticket was generated
-        bytes32 senderCommit; // Hash of the secret random number of the sender
-        bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
-    }
-
+contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable, ERC165 {
     /** ERC20 Sylo token contract.*/
     IERC20 public _token;
 
@@ -79,17 +66,23 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
         uint256 amount
     );
 
-    error TicketNotWinning();
-    error TicketAlreadyUsed();
     error NoEsrowAndPenalty();
     error UnlockingInProcess();
-    error TicketEpochNotFound();
-    error SenderCommitMismatch();
     error UnlockingNotInProcess();
     error UnlockingNotCompleted();
+    error EscrowAmountCannotBeZero();
+    error PenaltyAmountCannotBeZero();
+    error UnlockDurationCannotBeZero();
+    error AccountCannotBeZeroAddress();
+
+    error TicketNotWinning();
+    error TicketAlreadyUsed();
+    error TicketEpochNotFound();
     error TicketAlreadyRedeemed();
-    error InvalidTicketSignature();
+    error SenderCommitMismatch();
     error RedeemerCommitMismatch();
+    error InvalidTicketSignature();
+    error TokenCannotBeZeroAddress();
     error TicketNotCreatedInTheEpoch();
     error TicketCannotBeFromFutureBlock();
     error TicketSenderCannotBeZeroAddress();
@@ -105,7 +98,46 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
         RewardsManager rewardsManager,
         uint256 _unlockDuration
     ) external initializer {
+        if (address(token) == address(0)) {
+            revert TokenCannotBeZeroAddress();
+        }
+
+        SyloUtils.validateContractInterface(
+            "Registries",
+            address(registries),
+            type(IRegistries).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "StakingManager",
+            address(stakingManager),
+            type(IStakingManager).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "Directory",
+            address(directory),
+            type(IDirectory).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "EpochsManager",
+            address(epochsManager),
+            type(IEpochsManager).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "RewardsManager",
+            address(rewardsManager),
+            type(IRewardsManager).interfaceId
+        );
+
+        if (_unlockDuration == 0) {
+            revert UnlockDurationCannotBeZero();
+        }
+
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
         _token = token;
         _registries = registries;
         _stakingManager = stakingManager;
@@ -116,11 +148,23 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
     }
 
     /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(ISyloTicketing).interfaceId;
+    }
+
+    /**
      * @notice Set the unlock duration for deposits. Only callable
      * by the owner.
      * @param _unlockDuration The unlock duration in blocks.
      */
     function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
+        if (_unlockDuration == 0) {
+            revert UnlockDurationCannotBeZero();
+        }
+
         unlockDuration = _unlockDuration;
         emit UnlockDurationUpdated(_unlockDuration);
     }
@@ -133,6 +177,13 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
      * @param account The address of the account holding the escrow.
      */
     function depositEscrow(uint256 amount, address account) external {
+        if (amount == 0) {
+            revert EscrowAmountCannotBeZero();
+        }
+        if (account == address(0)) {
+            revert AccountCannotBeZeroAddress();
+        }
+
         Deposit storage deposit = getDeposit(account);
         if (deposit.unlockAt != 0) {
             revert UnlockingInProcess();
@@ -151,6 +202,13 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
      * @param account The address of the account holding the penalty.
      */
     function depositPenalty(uint256 amount, address account) external {
+        if (amount == 0) {
+            revert PenaltyAmountCannotBeZero();
+        }
+        if (account == address(0)) {
+            revert AccountCannotBeZeroAddress();
+        }
+
         Deposit storage deposit = getDeposit(account);
         if (deposit.unlockAt != 0) {
             revert UnlockingInProcess();
@@ -251,8 +309,7 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
             revert TicketCannotBeFromFutureBlock();
         }
 
-        bytes32 ticketHash = getTicketHash(ticket);
-        requireValidWinningTicket(ticket, ticketHash, senderRand, redeemerRand, sig);
+        bytes32 ticketHash = requireValidWinningTicket(ticket, senderRand, redeemerRand, sig);
 
         uint256 directoryStake = _directory.getTotalStakeForStakee(
             ticket.epochId,
@@ -313,21 +370,20 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
      *        in the ticket.
      *      - The signature is invalid.
      * @param ticket The ticket issued by the sender.
-     * @param ticketHash The hash of the ticket. Should match the hash generated
-     * by `getTicketHash`.
      * @param senderRand The sender random value, revealed on completing an event
      * relay.
      * @param redeemerRand The redeemer random value, generated by the Node prior
      * to performing the event relay.
      * @param sig The signature of the sender of the ticket.
+     * @return ticketHash The hash of the ticket. Should match the hash generated
+     * by `getTicketHash`.
      */
     function requireValidWinningTicket(
         Ticket memory ticket,
-        bytes32 ticketHash,
         uint256 senderRand,
         uint256 redeemerRand,
         bytes memory sig
-    ) public view {
+    ) public view returns (bytes32 ticketHash) {
         if (ticket.sender == address(0)) {
             revert TicketSenderCannotBeZeroAddress();
         }
@@ -335,6 +391,7 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
             revert TicketRedeemerCannotBeZeroAddress();
         }
 
+        ticketHash = getTicketHash(ticket);
         if (usedTickets[ticketHash]) {
             revert TicketAlreadyRedeemed();
         }

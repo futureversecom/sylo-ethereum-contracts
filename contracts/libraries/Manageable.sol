@@ -21,12 +21,16 @@ abstract contract Manageable is Ownable2StepUpgradeable {
     mapping(address => uint256) public managers;
 
     error OnlyManagers();
+    error ManagerCannotBeZeroAddress();
 
     /**
      * @notice Adds a manager to this contract. Only callable by the owner.
      * @param manager The address of the manager contract.
      */
     function addManager(address manager) external onlyOwner {
+        if (manager == address(0)) {
+            revert ManagerCannotBeZeroAddress();
+        }
         managers[manager] = block.number;
     }
 

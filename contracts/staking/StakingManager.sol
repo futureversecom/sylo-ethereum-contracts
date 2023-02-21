@@ -8,6 +8,7 @@ import "../SyloToken.sol";
 import "../libraries/SyloUtils.sol";
 import "../epochs/EpochsManager.sol";
 import "../payments/ticketing/RewardsManager.sol";
+import "../interfaces/staking/IStakingManager.sol";
 
 /**
  * @notice Manages stakes and delegated stakes for Nodes. Holding
@@ -15,42 +16,7 @@ import "../payments/ticketing/RewardsManager.sol";
  * Sylo Network. The stake is used in stake-weighted scan function,
  * and delegated stakers are rewarded on a pro-rata basis.
  */
-contract StakingManager is Initializable, Ownable2StepUpgradeable {
-    /**
-     * For every Node, there will be a mapping of the staker to a
-     * StakeEntry. The stake entry tracks the amount of stake in SOLO,
-     * and also when the stake was updated.
-     */
-    struct StakeEntry {
-        uint256 amount;
-        // Block number this entry was updated at
-        uint256 updatedAt;
-        // Epoch this entry was updated. The stake will become active
-        // in the following epoch
-        uint256 epochId;
-    }
-
-    /**
-     * Every Node must have stake in order to participate in the Epoch.
-     * Stake can be provided by the Node itself or by other accounts in
-     * the network.
-     */
-    struct Stake {
-        // Track each stake entry associated to a node
-        mapping(address => StakeEntry) stakeEntries;
-        // The total stake held by this contract for a node,
-        // which will be the sum of all addStake and unlockStake calls
-        uint256 totalManagedStake;
-    }
-
-    /**
-     * This struct will track stake that is in the process of unlocking.
-     */
-    struct Unlock {
-        uint256 amount; // Amount of stake unlocking
-        uint256 unlockAt; // Block number the stake becomes withdrawable
-    }
-
+contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeable, ERC165 {
     /** ERC 20 compatible token we are dealing with */
     IERC20 public _token;
 
@@ -98,7 +64,10 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
     error StakeNotYetUnlocked();
     error CannotStakeZeroAmount();
     error CannotUnlockZeroAmount();
+    error TokenCannotBeZeroAddress();
     error StakeeCannotBeZeroAddress();
+    error UnlockDurationCannotBeZero();
+    error CannotCancelUnlockZeroAmount();
     error CannotUnlockMoreThanStaked(uint256 stakeAmount, uint256 unlockAmount);
     error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
 
@@ -109,7 +78,28 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
         uint256 _unlockDuration,
         uint16 _minimumStakeProportion
     ) external initializer {
+        if (address(token) == address(0)) {
+            revert TokenCannotBeZeroAddress();
+        }
+
+        SyloUtils.validateContractInterface(
+            "RewardsManager",
+            address(rewardsManager),
+            type(IRewardsManager).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "EpochsManager",
+            address(epochsManager),
+            type(IEpochsManager).interfaceId
+        );
+
+        if (_unlockDuration == 0) {
+            revert UnlockDurationCannotBeZero();
+        }
+
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
         _token = token;
         _rewardsManager = rewardsManager;
         _epochsManager = epochsManager;
@@ -118,11 +108,23 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
     }
 
     /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IStakingManager).interfaceId;
+    }
+
+    /**
      * @notice Sets the unlock duration for stakes. Only callable by
      * the owner.
      * @param _unlockDuration The unlock duration in number of blocks.
      */
     function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
+        if (_unlockDuration == 0) {
+            revert UnlockDurationCannotBeZero();
+        }
+
         unlockDuration = _unlockDuration;
         emit UnlockDurationUpdated(_unlockDuration);
     }
@@ -148,19 +150,18 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function addStake(uint256 amount, address stakee) external {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+        if (amount == 0) {
+            revert CannotStakeZeroAmount();
+        }
+
         _addStake(amount, stakee);
         SafeERC20.safeTransferFrom(_token, msg.sender, address(this), amount);
     }
 
     function _addStake(uint256 amount, address stakee) internal {
-        if (stakee == address(0)) {
-            revert StakeeCannotBeZeroAddress();
-        }
-
-        if (amount == 0) {
-            revert CannotStakeZeroAmount();
-        }
-
         // automatically move any pending rewards generated by their existing stake
         _rewardsManager.updatePendingRewards(stakee, msg.sender);
 
@@ -197,13 +198,17 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function unlockStake(uint256 amount, address stakee) external returns (uint256) {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+        if (amount == 0) {
+            revert CannotUnlockZeroAmount();
+        }
+
         uint256 currentStake = getCurrentStakerAmount(stakee, msg.sender);
 
         if (currentStake == 0) {
             revert NoStakeToUnlock();
-        }
-        if (amount == 0) {
-            revert CannotUnlockZeroAmount();
         }
         if (currentStake < amount) {
             revert CannotUnlockMoreThanStaked(currentStake, amount);
@@ -246,6 +251,10 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function withdrawStake(address stakee) external {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+
         bytes32 key = getKey(stakee, msg.sender);
 
         Unlock storage unlock = unlockings[key];
@@ -271,6 +280,13 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function cancelUnlocking(uint256 amount, address stakee) external {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+        if (amount == 0) {
+            revert CannotCancelUnlockZeroAmount();
+        }
+
         bytes32 key = getKey(stakee, msg.sender);
 
         Unlock storage unlock = unlockings[key];
@@ -293,6 +309,10 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @param stakee The address of the staked Node.
      */
     function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
@@ -353,6 +373,10 @@ contract StakingManager is Initializable, Ownable2StepUpgradeable {
      * @return True if the Node is meeting minimum stake proportion requirement.
      */
     function checkMinimumStakeProportion(address stakee) public view returns (bool) {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;

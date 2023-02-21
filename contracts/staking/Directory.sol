@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-import "../libraries/Manageable.sol";
 import "./StakingManager.sol";
 import "../libraries/SyloUtils.sol";
+import "../libraries/Manageable.sol";
+import "../interfaces/staking/IDirectory.sol";
 import "../payments/ticketing/RewardsManager.sol";
 
 /**
@@ -11,30 +12,7 @@ import "../payments/ticketing/RewardsManager.sol";
  * which is queried against using the scan function. The scan function allows submitting
  * random points which will return a staked node's address in proportion to the stake it has.
  */
-contract Directory is Initializable, Manageable {
-    /**
-     * @dev A DirectoryEntry will be stored for every node that joins the
-     * network in a specific epoch. The entry will contain the stakee's
-     * address, and a boundary value which is a sum of the current directory's
-     * total stake, and the current stakee's total stake.
-     */
-    struct DirectoryEntry {
-        address stakee;
-        uint256 boundary;
-    }
-
-    /**
-     * @dev An EpochDirectory will be stored for every epoch. The
-     * directory will be constructed piece by piece as Nodes join,
-     * each adding their own directory entry based on their current
-     * stake value.
-     */
-    struct EpochDirectory {
-        DirectoryEntry[] entries;
-        mapping(address => uint256) stakes;
-        uint256 totalStake;
-    }
-
+contract Directory is IDirectory, Initializable, Manageable, IERC165 {
     /** Sylo Staking Manager contract */
     StakingManager public _stakingManager;
 
@@ -55,15 +33,37 @@ contract Directory is Initializable, Manageable {
 
     error NoStakeToJoinEpoch();
     error StakeeAlreadyJoinedEpoch();
+    error StakeeCannotBeZeroAddress();
     error NoJoiningStakeToJoinEpoch();
 
     function initialize(
         StakingManager stakingManager,
         RewardsManager rewardsManager
     ) external initializer {
+        SyloUtils.validateContractInterface(
+            "StakingManager",
+            address(stakingManager),
+            type(IStakingManager).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "RewardsManager",
+            address(rewardsManager),
+            type(IRewardsManager).interfaceId
+        );
+
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
         _stakingManager = stakingManager;
         _rewardsManager = rewardsManager;
+    }
+
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IDirectory).interfaceId;
     }
 
     /**
@@ -101,6 +101,10 @@ contract Directory is Initializable, Manageable {
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
     function joinNextDirectory(address stakee) external onlyManager {
+        if (stakee == address(0)) {
+            revert StakeeCannotBeZeroAddress();
+        }
+
         uint256 nextEpochId = currentDirectory + 1;
 
         uint256 totalStake = _stakingManager.getStakeeTotalManagedStake(stakee);
