@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../Utils.sol";
 
@@ -13,7 +13,7 @@ error TicketDurationCannotBeZero();
  * contract is necessary to avoid a cyclic dependency between the ticketing
  * and epoch contracts.
  */
-contract TicketingParameters is Initializable, OwnableUpgradeable {
+contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
     event FaceValueUpdated(uint256 faceValue);
     event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
     event ExpiredWinProbUpdated(uint128 expiredWinProb);
@@ -61,7 +61,7 @@ contract TicketingParameters is Initializable, OwnableUpgradeable {
         uint16 _decayRate,
         uint256 _ticketDuration
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
         faceValue = _faceValue;
         baseLiveWinProb = _baseLiveWinProb;
         expiredWinProb = _expiredWinProb;

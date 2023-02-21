@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -23,7 +23,7 @@ error EndCannotExceedNumberOfNodes(uint256 nodeLength);
  * set of parameters configured by the Node itself. A Node is required
  * to have a valid Registry to be able to participate in the network.
  */
-contract Registries is Initializable, OwnableUpgradeable {
+contract Registries is Initializable, Ownable2StepUpgradeable {
     using ECDSA for bytes32;
 
     struct Registry {
@@ -85,7 +85,7 @@ contract Registries is Initializable, OwnableUpgradeable {
         IERC721 rootSeekers,
         uint16 _defaultPayoutPercentage
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
 
         if (_defaultPayoutPercentage > 10000) {
             revert PercentageCannotExceed10000();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -14,7 +14,7 @@ error SeekerAcountCannotBeZeroAddress();
 error SeekerOwnerMismatch();
 error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
 
-contract EpochsManager is Initializable, OwnableUpgradeable {
+contract EpochsManager is Initializable, Ownable2StepUpgradeable {
     /**
      * @dev This struct will hold all network parameters that will be static
      * for the entire epoch. This value will be stored in a mapping, where the
@@ -83,7 +83,7 @@ contract EpochsManager is Initializable, OwnableUpgradeable {
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
         _rootSeekers = rootSeekers;
         _directory = directory;
         _registries = registries;

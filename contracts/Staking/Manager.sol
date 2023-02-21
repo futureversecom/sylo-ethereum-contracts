@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "../Token.sol";
@@ -24,7 +24,7 @@ error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
  * Sylo Network. The stake is used in stake-weighted scan function,
  * and delegated stakers are rewarded on a pro-rata basis.
  */
-contract StakingManager is Initializable, OwnableUpgradeable {
+contract StakingManager is Initializable, Ownable2StepUpgradeable {
     /** ERC 20 compatible token we are dealing with */
     IERC20 public _token;
 
@@ -110,7 +110,7 @@ contract StakingManager is Initializable, OwnableUpgradeable {
         uint256 _unlockDuration,
         uint16 _minimumStakeProportion
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
         _token = token;
         _rewardsManager = rewardsManager;
         _epochsManager = epochsManager;

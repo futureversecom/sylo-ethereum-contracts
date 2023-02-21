@@ -6,7 +6,6 @@ import "../Payments/Ticketing/RewardsManager.sol";
 import "../Utils.sol";
 import "../Manageable.sol";
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -58,7 +57,7 @@ contract Directory is Initializable, Manageable {
         StakingManager stakingManager,
         RewardsManager rewardsManager
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
         _stakingManager = stakingManager;
         _rewardsManager = rewardsManager;
     }

@@ -10,7 +10,7 @@ import "../Epochs/Manager.sol";
 import "./Ticketing/RewardsManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -36,7 +36,7 @@ error RedeemerCommitMismatch();
  * Micro-Payment Ticketing system that pays Nodes for providing the
  * Event Relay service.
  */
-contract SyloTicketing is Initializable, OwnableUpgradeable {
+contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
     struct Deposit {
         uint256 escrow; // Balance of users escrow
         uint256 penalty; // Balance of users penalty
@@ -105,7 +105,7 @@ contract SyloTicketing is Initializable, OwnableUpgradeable {
         RewardsManager rewardsManager,
         uint256 _unlockDuration
     ) external initializer {
-        OwnableUpgradeable.__Ownable_init();();
+        Ownable2StepUpgradeable.__Ownable2Step_init();
         _token = token;
         _registries = registries;
         _stakingManager = stakingManager;

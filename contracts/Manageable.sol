@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 error OnlyManagers();
 
@@ -13,7 +13,7 @@ error OnlyManagers();
  * `onlyManager`, which can be applied to your functions to restrict their use to
  * other contracts which have explicitly been added.
  */
-abstract contract Manageable is OwnableUpgradeable {
+abstract contract Manageable is Ownable2StepUpgradeable {
     /**
      * @dev Tracks the managers added to this contract, where they key is the
      * address of the managing contract, and the value is the block the manager was added in.
