@@ -19,8 +19,6 @@ import "./interfaces/IRegistries.sol";
 contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC165 {
     using ECDSA for bytes32;
 
-    uint256 private constant MAX_SEEKER_ID = 47894;
-
     /**
      * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
      * of a seeker.
@@ -65,7 +63,6 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
 
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
-    error SeekerIdOutOfRange();
     error NonceCannotBeReused();
     error EndMustBeGreaterThanStart();
     error PercentageCannotExceed10000();
@@ -76,8 +73,6 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
     error RootSeekersCannotBeZeroAddress();
     error SeekerAccountCannotBeZeroAddress();
     error EndCannotExceedNumberOfNodes(uint256 nodeLength);
-
-    error Test(bytes4 id);
 
     function initialize(
         IERC721 rootSeekers,
@@ -146,9 +141,6 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
     ) external {
         if (seekerAccount == address(0)) {
             revert SeekerAccountCannotBeZeroAddress();
-        }
-        if (seekerId > MAX_SEEKER_ID) {
-            revert SeekerIdOutOfRange();
         }
         if (signatureNonces[nonce] != address(0)) {
             revert NonceCannotBeReused();

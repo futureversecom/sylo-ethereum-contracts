@@ -217,15 +217,6 @@ describe('Registries', () => {
     );
   });
 
-  it('fails to set seeker account when seekerId greater than max seeker id', async () => {
-    const seekerAccount = accounts[1];
-    const seekerAddress = await seekerAccount.getAddress();
-
-    await expect(
-      registries.setSeekerAccount(seekerAddress, 50000, randomBytes(32), '0x'),
-    ).to.be.revertedWithCustomError(registries, 'SeekerIdOutOfRange');
-  });
-
   it('fails to set seeker account when reusing signature', async () => {
     const seekerAccount = accounts[1];
     const seekerAddress = await seekerAccount.getAddress();
