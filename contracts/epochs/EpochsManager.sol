@@ -2,36 +2,16 @@
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "../Registries.sol";
 import "../staking/Directory.sol";
+import "../interfaces/epochs/IEpochsManager.sol";
 import "../payments/ticketing/TicketingParameters.sol";
 
-contract EpochsManager is Initializable, Ownable2StepUpgradeable {
-    /**
-     * @dev This struct will hold all network parameters that will be static
-     * for the entire epoch. This value will be stored in a mapping, where the
-     * key is the current epoch id.
-     */
-    struct Epoch {
-        // time related variables
-        uint256 startBlock; // Block the epoch was initialized
-        uint256 duration; // Minimum time epoch will be alive measured in number of blocks
-        uint256 endBlock; // Block the epoch ended (and when the next epoch was initialized)
-        // Zero here represents the epoch has not yet ended.
-
-        // registry variables
-        uint16 defaultPayoutPercentage;
-        // ticketing variables
-        uint16 decayRate;
-        uint256 faceValue;
-        uint128 baseLiveWinProb;
-        uint128 expiredWinProb;
-        uint256 ticketDuration;
-    }
-
+contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable, ERC165 {
     Directory public _directory;
 
     Registries public _registries;
@@ -69,13 +49,17 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
 
     event NewEpoch(uint256 indexed epochId);
     event EpochJoined(uint256 indexed epochId, address indexed node, uint256 indexed seekerId);
+    event EpochDurationUpdated(uint256 epochDuration);
 
     error SeekerOwnerMismatch();
+    error EpochDurationCannotBeZero();
+    error DirectoryCannotBeZeroAddress();
+    error RegistriesCannotBeZeroAddress();
+    error RootSeekerCannotBeZeroAddress();
     error EpochHasNotEnded(uint256 epochId);
     error SeekerAcountCannotBeZeroAddress();
+    error TicketingParametersCannotBeZeroAddress();
     error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
-
-    event EpochDurationUpdated(uint256 epochDuration);
 
     function initialize(
         IERC721 rootSeekers,
@@ -84,12 +68,43 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
         TicketingParameters ticketingParameters,
         uint256 _epochDuration
     ) external initializer {
+        if (address(rootSeekers) == address(0)) {
+            revert RootSeekerCannotBeZeroAddress();
+        }
+
+        SyloUtils.validateContractInterface(
+            "Directory",
+            address(directory),
+            type(IDirectory).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "Registries",
+            address(registries),
+            type(IRegistries).interfaceId
+        );
+
+        SyloUtils.validateContractInterface(
+            "TicketingParameters",
+            address(ticketingParameters),
+            type(ITicketingParameters).interfaceId
+        );
+
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
         _rootSeekers = rootSeekers;
         _directory = directory;
         _registries = registries;
         _ticketingParameters = ticketingParameters;
         epochDuration = _epochDuration;
+    }
+
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IEpochsManager).interfaceId;
     }
 
     /**
@@ -146,6 +161,9 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
      * @param _epochDuration The epoch duration in number of blocks.
      */
     function setEpochDuration(uint256 _epochDuration) external onlyOwner {
+        if (_epochDuration == 0) {
+            revert EpochDurationCannotBeZero();
+        }
         epochDuration = _epochDuration;
         emit EpochDurationUpdated(epochDuration);
     }
