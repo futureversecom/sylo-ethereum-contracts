@@ -23,7 +23,7 @@ This project employs [Hardhat](https://hardhat.org/getting-started/) for develop
 
 ### Setup
 
-Ensure Node.js (>=v12.0) is installed.
+Ensure Node.js (>=v18.0) is installed.
 
 `yarn`
 

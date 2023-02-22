@@ -1,27 +1,28 @@
-version: 2
-
+version: 2.1
+orbs:
+  yarn: itinerisltd/yarn@2.1.1
 jobs:
   build:
     docker:
-      - image: circleci/node:17
+      - image: cimg/node:18.14.1
     working_directory: ~/sylo-ethereum-contracts
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "package-lock.json" }}
+          key: dependency-cache-{{ checksum "yarn.lock" }}
       - run:
-          name: npm-install
-          command: npm i
+          name: yarn install
+          command: yarn
       - save_cache:
-          key: dependency-cache-{{ checksum "package-lock.json" }}
+          key: dependency-cache-{{ checksum "yarn.lock" }}
           paths:
             - ./node_modules
       - run:
           name: build contracts
-          command: npm run build
+          command: yarn build
       - run:
           name: solidity lint
-          command: npm run solhint
+          command: yarn solhint
       - run:
           name: prepare artifacts
           command: npx ts-node scripts/parse_artifacts.ts
@@ -57,9 +58,9 @@ jobs:
             - v1-repo-{{ .Environment.CIRCLE_SHA1 }}
       - run:
           name: test contracts
-          command: npm run coverage
+          command: yarn coverage
       - store_artifacts:
-            path: ~/sylo-ethereum-contracts/coverage
+          path: ~/sylo-ethereum-contracts/coverage
 
 workflows:
   build-and-test:
