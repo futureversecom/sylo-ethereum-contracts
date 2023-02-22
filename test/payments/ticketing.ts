@@ -15,7 +15,6 @@ import {
 import crypto from 'crypto';
 import sodium from 'libsodium-wrappers-sumo';
 import keccak256 from 'keccak256';
-import * as secp256k1 from 'secp256k1';
 import web3 from 'web3';
 import utils from '../utils';
 
@@ -446,7 +445,7 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.redeem(ticket, senderRand, redeemerRand, signature),
-    ).to.be.revertedWithCustomError(ticketing, 'ECDSAInvalidSignatureLength');
+    ).to.be.revertedWith('ECDSA: invalid signature length');
   });
 
   it('can not redeem ticket with invalid sender rand', async () => {
@@ -1862,14 +1861,9 @@ describe('Ticketing', () => {
 
     // have sender sign the hash of the ticket
     const ticketHash = await ticketing.getTicketHash(ticket);
-    const sigObj = secp256k1.ecdsaSign(
-      Buffer.from(ticketHash.slice(2), 'hex'),
-      Buffer.from(sender.privateKey.slice(2), 'hex'),
+    const signature = await sender.signMessage(
+      ethers.utils.arrayify(ticketHash),
     );
-    const signature = Buffer.concat([
-      sigObj.signature,
-      new Uint8Array([sigObj.recid]),
-    ]);
 
     // establish the oracle
     const oracle = sodium.crypto_sign_keypair('uint8array');
@@ -1994,12 +1988,9 @@ describe('Ticketing', () => {
 
     const ticketHash = await ticketing.getTicketHash(ticket);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const { signature, recid } = secp256k1.ecdsaSign(
-      Buffer.from(ticketHash.slice(2), 'hex'),
-      Buffer.from(sender.privateKey.slice(2), 'hex'),
+    const signature = await sender.signMessage(
+      ethers.utils.arrayify(ticketHash),
     );
-
     if (!signature) {
       throw new Error('failed to derive signature for ticket');
     }
@@ -2008,7 +1999,7 @@ describe('Ticketing', () => {
       ticket,
       senderRand,
       redeemerRand,
-      signature: Buffer.concat([signature, new Uint8Array([recid])]),
+      signature: ethers.utils.arrayify(signature),
       ticketHash,
     };
   }
