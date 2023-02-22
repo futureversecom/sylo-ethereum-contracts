@@ -3,8 +3,6 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
-error OnlyManagers();
-
 /**
  * @dev Contract module which provides a basic access control mechanism, where
  * there is an list of public managers who may be added or removed.
@@ -21,6 +19,8 @@ abstract contract Manageable is Ownable2StepUpgradeable {
      * fashion to the onlyOwner construct.
      */
     mapping(address => uint256) public managers;
+
+    error OnlyManagers();
 
     /**
      * @notice Adds a manager to this contract. Only callable by the owner.

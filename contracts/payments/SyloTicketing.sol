@@ -9,28 +9,11 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "../Registries.sol";
-import "../Staking/Directory.sol";
-import "../Staking/Manager.sol";
-import "../Utils.sol";
-import "../Epochs/Manager.sol";
-import "./Ticketing/RewardsManager.sol";
-
-error TicketNotWinning();
-error TicketAlreadyUsed();
-error NoEsrowAndPenalty();
-error UnlockingInProcess();
-error TicketEpochNotFound();
-error UnlockingNotInProcess();
-error UnlockingNotCompleted();
-error TicketAlreadyRedeemed();
-error InvalidTicketSignature();
-error TicketNotCreatedInTheEpoch();
-error TicketSenderCannotBeZeroAddress();
-error TicketRedeemerCannotBeZeroAddress();
-error TicketCannotBeFromFutureBlock();
-error RedeemerMustHaveJoinedEpoch(uint256 epochId);
-error SenderCommitMismatch();
-error RedeemerCommitMismatch();
+import "../staking/Directory.sol";
+import "../libraries/SyloUtils.sol";
+import "../epochs/EpochsManager.sol";
+import "../staking/StakingManager.sol";
+import "./ticketing/RewardsManager.sol";
 
 /**
  * @notice The SyloTicketing contract manages the Probabilistic
@@ -52,14 +35,6 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
         bytes32 senderCommit; // Hash of the secret random number of the sender
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
-
-    event Redemption(
-        uint256 indexed epochId,
-        address indexed sender,
-        address indexed redeemer,
-        uint256 generationBlock,
-        uint256 amount
-    );
 
     /** ERC20 Sylo token contract.*/
     IERC20 public _token;
@@ -83,8 +58,6 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
      */
     EpochsManager public _epochsManager;
 
-    event UnlockDurationUpdated(uint256 unlockDuration);
-
     /**
      * @notice The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their funds.
@@ -96,6 +69,32 @@ contract SyloTicketing is Initializable, Ownable2StepUpgradeable {
 
     /** @notice Mapping of ticket hashes, used to check if a ticket has been redeemed */
     mapping(bytes32 => bool) public usedTickets;
+
+    event UnlockDurationUpdated(uint256 unlockDuration);
+    event Redemption(
+        uint256 indexed epochId,
+        address indexed sender,
+        address indexed redeemer,
+        uint256 generationBlock,
+        uint256 amount
+    );
+
+    error TicketNotWinning();
+    error TicketAlreadyUsed();
+    error NoEsrowAndPenalty();
+    error UnlockingInProcess();
+    error TicketEpochNotFound();
+    error SenderCommitMismatch();
+    error UnlockingNotInProcess();
+    error UnlockingNotCompleted();
+    error TicketAlreadyRedeemed();
+    error InvalidTicketSignature();
+    error RedeemerCommitMismatch();
+    error TicketNotCreatedInTheEpoch();
+    error TicketCannotBeFromFutureBlock();
+    error TicketSenderCannotBeZeroAddress();
+    error TicketRedeemerCannotBeZeroAddress();
+    error RedeemerMustHaveJoinedEpoch(uint256 epochId);
 
     function initialize(
         IERC20 token,

@@ -3,7 +3,8 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../Utils.sol";
+
+import "../../libraries/SyloUtils.sol";
 
 error TicketDurationCannotBeZero();
 
@@ -14,12 +15,6 @@ error TicketDurationCannotBeZero();
  * and epoch contracts.
  */
 contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
-    event FaceValueUpdated(uint256 faceValue);
-    event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
-    event ExpiredWinProbUpdated(uint128 expiredWinProb);
-    event TicketDurationUpdated(uint256 ticketDuration);
-    event DecayRateUpdated(uint16 decayRate);
-
     /** @notice The value of a winning ticket in SOLO. */
     uint256 public faceValue;
 
@@ -53,6 +48,12 @@ contract TicketingParameters is Initializable, Ownable2StepUpgradeable {
      * The value is expressed as a fraction of 10000.
      */
     uint16 public decayRate;
+
+    event FaceValueUpdated(uint256 faceValue);
+    event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
+    event ExpiredWinProbUpdated(uint128 expiredWinProb);
+    event TicketDurationUpdated(uint256 ticketDuration);
+    event DecayRateUpdated(uint16 decayRate);
 
     function initialize(
         uint256 _faceValue,

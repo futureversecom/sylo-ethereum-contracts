@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-import "../../Manageable.sol";
-import "../../Staking/Manager.sol";
-import "../../Epochs/Manager.sol";
-import "../../Utils.sol";
+import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
-error NoRewardToClaim();
-error RewardPoolNotExist();
-error RewardPoolAlreadyExist();
-error NoStakeToCreateRewardPool();
+import "../../libraries/Manageable.sol";
+import "../../libraries/SyloUtils.sol";
+import "../../staking/StakingManager.sol";
+import "../../epochs/EpochsManager.sol";
 
 /**
  * @notice Handles epoch based reward pools that are incremented from redeeming tickets.
@@ -24,7 +21,37 @@ error NoStakeToCreateRewardPool();
  * set up as a manager to be able to call certain restricted functions.
  */
 contract RewardsManager is Initializable, Manageable {
+    /**
+     * @dev This type will hold the necessary information for delegated stakers
+     * to make reward claims against their Node. Every Node will initialize
+     * and store a new Reward Pool for each epoch they participate in.
+     */
+    struct RewardPool {
+        // Tracks the balance of the reward pool owed to the stakers
+        uint256 stakersRewardTotal;
+        // Tracks the block number this reward pool was initialized
+        uint256 initializedAt;
+        // The total active stake for the node for will be the sum of the
+        // stakes owned by its delegators and the node's own stake.
+        uint256 totalActiveStake;
+        // track the cumulative reward factor as of the time the first ticket
+        // for this pool was redeemed
+        int128 initialCumulativeRewardFactor;
+    }
+
+    struct LastClaim {
+        // The epoch the claim was made.
+        uint256 claimedAt;
+        // The stake at the time the claim was made. This is tracked as
+        // rewards can only be claimed after an epoch has ended, but the
+        // user's stake may have changed by then. This field tracks the
+        // staking value before the change so the reward for that epoch
+        // can be manually calculated.
+        uint256 stake;
+    }
+
     uint256 internal constant ONE_SYLO = 1 ether;
+
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
@@ -47,17 +74,6 @@ contract RewardsManager is Initializable, Manageable {
      * The CRF is calculated as CRF = CRF + Reward / TotalStake.
      */
     mapping(address => int128) private cumulativeRewardFactors;
-
-    struct LastClaim {
-        // The epoch the claim was made.
-        uint256 claimedAt;
-        // The stake at the time the claim was made. This is tracked as
-        // rewards can only be claimed after an epoch has ended, but the
-        // user's stake may have changed by then. This field tracks the
-        // staking value before the change so the reward for that epoch
-        // can be manually calculated.
-        uint256 stake;
-    }
 
     /**
      * @notice Tracks the last epoch a delegated staker made a reward claim in.
@@ -98,28 +114,15 @@ contract RewardsManager is Initializable, Manageable {
     mapping(uint256 => uint256) public totalEpochStakingRewards;
 
     /**
-     * @dev This type will hold the necessary information for delegated stakers
-     * to make reward claims against their Node. Every Node will initialize
-     * and store a new Reward Pool for each epoch they participate in.
-     */
-    struct RewardPool {
-        // Tracks the balance of the reward pool owed to the stakers
-        uint256 stakersRewardTotal;
-        // Tracks the block number this reward pool was initialized
-        uint256 initializedAt;
-        // The total active stake for the node for will be the sum of the
-        // stakes owned by its delegators and the node's own stake.
-        uint256 totalActiveStake;
-        // track the cumulative reward factor as of the time the first ticket
-        // for this pool was redeemed
-        int128 initialCumulativeRewardFactor;
-    }
-
-    /**
      * @notice Tracks each reward pool initialized by a Node. The key to this map
      * is derived from the epochId and the Node's address.
      */
     mapping(bytes32 => RewardPool) public rewardPools;
+
+    error NoRewardToClaim();
+    error RewardPoolNotExist();
+    error RewardPoolAlreadyExist();
+    error NoStakeToCreateRewardPool();
 
     function initialize(
         IERC20 token,
