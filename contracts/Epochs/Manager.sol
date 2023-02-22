@@ -37,7 +37,7 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
         uint256 ticketDuration;
     }
 
-    event EpochJoined(uint256 epochId, address node, uint256 seekerId);
+    event EpochJoined(uint256 indexed epochId, address indexed node, uint256 indexed seekerId);
 
     Directory public _directory;
 
@@ -74,7 +74,7 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
      */
     mapping(uint256 => Epoch) public epochs;
 
-    event NewEpoch(uint256 epochId);
+    event NewEpoch(uint256 indexed epochId);
 
     function initialize(
         IERC721 rootSeekers,

@@ -41,7 +41,7 @@ contract Directory is Initializable, Manageable {
         uint256 totalStake;
     }
 
-    event CurrentDirectoryUpdated(uint256 currentDirectory);
+    event CurrentDirectoryUpdated(uint256 indexed currentDirectory);
 
     /**
      * @notice The epoch ID of the current directory.
