@@ -76,6 +76,8 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
 
     event NewEpoch(uint256 indexed epochId);
 
+    event EpochDurationUpdated(uint256 epochDuration);
+
     function initialize(
         IERC721 rootSeekers,
         Directory directory,
@@ -146,6 +148,7 @@ contract EpochsManager is Initializable, Ownable2StepUpgradeable {
      */
     function setEpochDuration(uint256 _epochDuration) external onlyOwner {
         epochDuration = _epochDuration;
+        emit EpochDurationUpdated(epochDuration);
     }
 
     /**

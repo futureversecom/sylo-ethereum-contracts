@@ -40,7 +40,10 @@ describe('Epochs', () => {
   });
 
   it('can set epoch duration', async () => {
-    await epochsManager.setEpochDuration(777);
+    await expect(epochsManager.setEpochDuration(777))
+      .to.emit(epochsManager, 'EpochDurationUpdated')
+      .withArgs(777);
+
     const epochDuration = await epochsManager.epochDuration();
     assert.equal(
       epochDuration.toNumber(),
