@@ -40,7 +40,7 @@ this repository.
 ## Build docker
 
 ```sh
-npm run docker-ganache
+yarn docker-ganache
 ```
 
 ## Run docker
