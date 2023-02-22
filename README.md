@@ -2,13 +2,14 @@
 
 Smart Contracts used for the Sylo Network Protocol. These contracts
 define the mechanisms for:
-  - The ERC21 Sylo Token
-  - Staking of Sylos against Sylo Node operators
-  - Stake-weighted scan function used to allocate business
+
+- The ERC21 Sylo Token
+- Staking of Sylos against Sylo Node operators
+- Stake-weighted scan function used to allocate business
   within the network
-  - Probabilistic Micro-payments for providing the Event Relay
+- Probabilistic Micro-payments for providing the Event Relay
   Service
-  - Epochs and various network parameters
+- Epochs and various network parameters
 
 ## Documentation
 
@@ -22,13 +23,13 @@ This project employs [Hardhat](https://hardhat.org/getting-started/) for develop
 
 ### Setup
 
-Ensure Node.js (>=v12.0) is installed.
+Ensure Node.js (>=v18.0) is installed.
 
-`npm install`
+`yarn`
 
 ### Build
 
-`npm run build`
+`yarn build`
 
 This will compile the contracts and create typechain typescript definitions.
 
@@ -36,14 +37,14 @@ This will compile the contracts and create typechain typescript definitions.
 
 Testing is done through a local hardhat network.
 
-`npm test`
+`yarn test`
 
 Running this will also compile a `gasReport.txt`, which show gas costs
 for each contract call.
 
 #### Coverage
 
-`npm run coverage`
+`yarn coverage`
 
 This project attempts to maintain 100% code coverage at all times.
 
