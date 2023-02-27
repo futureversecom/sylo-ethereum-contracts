@@ -20,7 +20,7 @@ COPY tsconfig.json .
 COPY hardhat.config.ts .
 
 # install npm modules
-RUN npm install
+RUN yarn install
 
 COPY docker/rootnet-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
