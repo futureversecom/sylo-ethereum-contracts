@@ -367,9 +367,15 @@ describe('Registries', () => {
       accountAddressTwo,
     );
 
-    // tests that the registry for both seeker accounts don't have the same seekerID
     expect(regoSeekerAccountOne.seekerId).to.equal(0);
+    expect(regoSeekerAccountOne.seekerAccount).to.equal(
+      ethers.constants.AddressZero,
+    );
+
     expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
+    expect(regoSeekerAccountTwo.seekerAccount).is.equal(
+      await seekerAccount.getAddress(),
+    );
   });
 
   it('has the correct prefix message', async () => {
