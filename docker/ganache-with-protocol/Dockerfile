@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM node:16.3.0-alpine AS node-builder
+FROM node:18-alpine AS node-builder
 RUN apk update && apk add bash
 
 WORKDIR /app
+
+RUN apk add g++ make py3-pip
 
 # install ganache-cli, typescript, ts-node
 RUN npm install -g ganache-cli typescript ts-node
