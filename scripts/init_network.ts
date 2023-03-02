@@ -144,10 +144,6 @@ async function setSeekerRegistry(
 
   await contracts.registries
     .connect(nodeAccount)
-    .register(`0.0.0.0/${endpoint}`);
-
-  await contracts.registries
-    .connect(nodeAccount)
     .setSeekerAccount(
       await seekerAccount.getAddress(),
       tokenId,
@@ -162,16 +158,16 @@ async function registerNodes(
 ): Promise<void> {
   await contracts.registries
     .connect(nodes.nodeAccountOne)
-    .register('http://0.0.0.0/29170');
+    .register('http://localhost/28901/public/metadata');
   await contracts.registries
     .connect(nodes.nodeAccountOne)
-    .register('http://0.0.0.0/29171');
+    .register('http://localhost/28903/public/metadata');
   await contracts.registries
     .connect(nodes.nodeAccountOne)
-    .register('http://0.0.0.0/29172');
+    .register('http://localhost/28905/public/metadata');
   await contracts.registries
     .connect(nodes.nodeAccountOne)
-    .register('http://0.0.0.0/29173');
+    .register('http://localhost/28907/public/metadata');
 }
 
 async function addStake(contracts: Contracts, nodes: Nodes): Promise<void> {

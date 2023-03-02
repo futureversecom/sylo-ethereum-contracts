@@ -11,7 +11,7 @@ RUN apk add g++ make py3-pip
 RUN npm install -g ganache-cli typescript ts-node
 
 # copy necessary files
-COPY ["package.json", "package-lock.json*", "./"]
+COPY ["package.json", "yarn.lock", "./"]
 COPY contracts contracts
 COPY deploy deploy
 COPY scripts scripts
