@@ -1,12 +1,14 @@
 #!/bin/bash
 
+set -e
+
 echo "starting local ganache node"
-ganache-cli \
-  --db ganache-data \
-  --deterministic \
-  --mnemonic "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" \
-  --blockTime 5 \
-  --account_keys_path ./deployment/accounts.json \
+ganache \
+  --host localhost \
+  --database.dbPath ganache-data \
+  --wallet.mnemonic "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" \
+  --miner.blockTime 5 \
+  --wallet.accountKeysPath ./deployment/accounts.json \
   &>/dev/null &
 
 ganache_pid=`echo $!`

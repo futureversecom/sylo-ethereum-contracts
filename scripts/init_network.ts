@@ -13,7 +13,7 @@ type Nodes = {
   nodeAccountOne: ethers.Wallet;
   nodeAccountTwo: ethers.Wallet;
   nodeAccountThree: ethers.Wallet;
-  nodeAccountFour: ethers.Wallet;
+  nodeAccountFive: ethers.Wallet;
 };
 
 type Contracts = {
@@ -67,7 +67,7 @@ async function main() {
   );
   await setSeekerRegistry(
     contracts,
-    nodes.nodeAccountFour,
+    nodes.nodeAccountFive,
     nodes.deployerAccount,
     4,
     4,
@@ -75,10 +75,11 @@ async function main() {
 
   await setNetworkIncentives(contracts, nodes);
 
+  await contracts.epochsManager.connect(nodes.deployerAccount).joinNextEpoch();
   await contracts.epochsManager.connect(nodes.nodeAccountOne).joinNextEpoch();
   await contracts.epochsManager.connect(nodes.nodeAccountTwo).joinNextEpoch();
   await contracts.epochsManager.connect(nodes.nodeAccountThree).joinNextEpoch();
-  await contracts.epochsManager.connect(nodes.nodeAccountFour).joinNextEpoch();
+  await contracts.epochsManager.connect(nodes.nodeAccountFive).joinNextEpoch();
 
   await initEpoch(contracts, nodes);
 }
@@ -171,6 +172,13 @@ async function registerNodes(
 }
 
 async function addStake(contracts: Contracts, nodes: Nodes): Promise<void> {
+  await contracts.token
+    .connect(nodes.deployerAccount)
+    .approve(contractAddress.stakingManager, 90000000000000);
+  await contracts.stakingManager
+    .connect(nodes.deployerAccount)
+    .addStake(100000, nodes.deployerAccount.address);
+
   // Approve and add stake Node one
   await contracts.token
     .connect(nodes.deployerAccount)
@@ -207,13 +215,13 @@ async function addStake(contracts: Contracts, nodes: Nodes): Promise<void> {
   // Approve and add stake Node four
   await contracts.token
     .connect(nodes.deployerAccount)
-    .transfer(nodes.nodeAccountFour.address, 1100000);
+    .transfer(nodes.nodeAccountFive.address, 1100000);
   await contracts.token
-    .connect(nodes.nodeAccountFour)
+    .connect(nodes.nodeAccountFive)
     .approve(contractAddress.stakingManager, 90000000000000);
   await contracts.stakingManager
-    .connect(nodes.nodeAccountFour)
-    .addStake(100000, nodes.nodeAccountFour.address);
+    .connect(nodes.nodeAccountFive)
+    .addStake(100000, nodes.nodeAccountFive.address);
 }
 
 async function conectContracts(provider: ethers.providers.JsonRpcProvider) {
@@ -285,8 +293,8 @@ async function connectNodeAccounts(provider: ethers.providers.JsonRpcProvider) {
     provider,
   );
 
-  const nodeAccountFour = connectSigner(
-    new ethers.Wallet(NodePK.node4),
+  const nodeAccountFive = connectSigner(
+    new ethers.Wallet(NodePK.node5),
     provider,
   );
 
@@ -301,7 +309,7 @@ async function connectNodeAccounts(provider: ethers.providers.JsonRpcProvider) {
     nodeAccountOne,
     nodeAccountTwo,
     nodeAccountThree,
-    nodeAccountFour,
+    nodeAccountFive,
   } as Nodes;
 }
 

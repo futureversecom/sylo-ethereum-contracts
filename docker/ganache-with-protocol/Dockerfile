@@ -7,11 +7,11 @@ WORKDIR /app
 
 RUN apk add g++ make py3-pip
 
-# install ganache-cli, typescript, ts-node
-RUN npm install -g ganache-cli typescript ts-node
+# install ganache, typescript, ts-node
+RUN npm install -g ganache typescript ts-node
 
 # copy necessary files
-COPY ["package.json", "yarn.lock", "./"]
+COPY ["package.json", "package-lock.json*", "./"]
 COPY contracts contracts
 COPY deploy deploy
 COPY scripts scripts
@@ -31,7 +31,7 @@ COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
 RUN bash deploy_contracts.sh
 
-FROM trufflesuite/ganache-cli:v6.12.2
+FROM trufflesuite/ganache:v7.7.6
 
 WORKDIR /app
 COPY --from=node-builder /app/ganache-data /app/ganache-data
@@ -39,4 +39,4 @@ COPY --from=node-builder /app/deployment /app/deployment
 
 EXPOSE 8545
 
-ENTRYPOINT ["node", "/app/ganache-core.docker.cli.js"]
+ENTRYPOINT ["node" "/app/dist/node/cli.js"]
