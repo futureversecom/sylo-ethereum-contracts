@@ -4,7 +4,6 @@ set -e
 
 echo "starting local ganache node"
 ganache \
-  --host localhost \
   --database.dbPath ganache-data \
   --wallet.mnemonic "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" \
   --miner.blockTime 5 \
