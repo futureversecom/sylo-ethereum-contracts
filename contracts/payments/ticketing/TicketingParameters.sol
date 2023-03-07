@@ -160,8 +160,8 @@ contract TicketingParameters is
      * @return faceValue The face value of a ticket in SOLO.
      * @return baseLiveWinProb The base live win probability of a ticket.
      * @return expiredWinProb The expired win probability of a ticket.
-     * @return decayRate The decay rate of a ticket.
      * @return ticketDuration The duration of a ticket in number of blocks.
+     * @return decayRate The decay rate of a ticket.
      */
     function getTicketingParameters()
         external
