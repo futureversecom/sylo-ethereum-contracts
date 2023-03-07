@@ -161,6 +161,7 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
         }
 
         delete registries[seekerRegistration[seekerId]].seekerId;
+        delete registries[seekerRegistration[seekerId]].seekerAccount;
 
         registries[msg.sender].seekerAccount = seekerAccount;
         registries[msg.sender].seekerId = seekerId;
