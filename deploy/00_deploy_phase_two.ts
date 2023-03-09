@@ -253,7 +253,7 @@ async function main() {
   };
 
   await fs.writeFile(
-    `${__dirname}/${network.name}_deployment_phase_two.json`,
+    `${__dirname}/ganache_deployment_phase_two.json`,
     Buffer.from(JSON.stringify(deployedJson, null, ' '), 'utf8'),
   );
 }

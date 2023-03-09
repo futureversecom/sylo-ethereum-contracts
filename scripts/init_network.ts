@@ -4,7 +4,7 @@ import contractAddress from '../deploy/ganache_deployment_phase_two.json';
 import Nodes from './nodes.json';
 import * as utils from './utils';
 
-var WINNING_PROBABILITY = ethers.BigNumber.from(2).pow(128).sub(1);
+const WINNING_PROBABILITY = ethers.BigNumber.from(2).pow(128).sub(1);
 
 type Node = {
   signer: ethers.Signer;
@@ -21,7 +21,7 @@ async function main() {
 
   const provider = new ethers.providers.JsonRpcProvider('http://0.0.0.0:8545');
 
-  const contracts = await utils.conectContracts(provider);
+  const contracts = await utils.conectContracts(contractAddress, provider);
 
   const deployerAccount = connectSigner(
     new ethers.Wallet(Nodes.deployerPK),
@@ -33,10 +33,8 @@ async function main() {
     provider,
   );
 
-  var i = 0;
   for (const nodeConfig of Nodes.relayNodes) {
-    nodeList[i] = await createNode(provider, nodeConfig);
-    i++;
+    nodeList.push(await createNode(provider, nodeConfig));
   }
 
   for (let i = 0; i < Nodes.relayNodes.length; i++) {
@@ -179,7 +177,9 @@ async function initNetwork(
   await contracts.ticketingParameters
     .connect(deployer)
     .setBaseLiveWinProb(WINNING_PROBABILITY);
-  await contracts.ticketingParameters.connect(deployer).setFaceValue(10000);
+  await contracts.ticketingParameters
+    .connect(deployer)
+    .setFaceValue(ethers.utils.parseEther('10000'));
   await contracts.ticketingParameters.connect(deployer).setTicketDuration(20);
   await contracts.epochsManager.connect(deployer).setEpochDuration(20);
   await contracts.epochsManager.connect(deployer).initializeEpoch();
