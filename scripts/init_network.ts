@@ -1,7 +1,4 @@
 import { ethers } from 'ethers';
-import { ethers as hardhatEthers } from 'hardhat';
-import * as factories from '../typechain-types';
-import * as fs from 'fs/promises';
 import { randomBytes } from 'crypto';
 import contractAddress from '../deploy/ganache_deployment_phase_two.json';
 import Nodes from './nodes.json';
@@ -19,63 +16,28 @@ type NodeConfig = {
   publicEndpoint: string;
 };
 
-// const nodeConfigs: NodeConfig[] = [
-//   {
-//     privateKey: NodeData.incentNode,
-//     publicEndpoint: NodeData.incentNodePublicEndPoint,
-//   },
-//   {
-//     privateKey: NodeData.deployer,
-//     publicEndpoint: '',
-//   },
-//   {
-//     privateKey: NodeData.nodeOnePK,
-//     publicEndpoint: NodeData.nodeOnePublicEndPoint,
-//   },
-//   {
-//     privateKey: NodeData.nodeTwoPK,
-//     publicEndpoint: NodeData.nodeTwoPublicEndPoint,
-//   },
-//   {
-//     privateKey: NodeData.nodeThreePK,
-//     publicEndpoint: NodeData.nodeThreePublicEndPoint,
-//   },
-//   {
-//     privateKey: NodeData.nodeFivePK,
-//     publicEndpoint: NodeData.nodeFivePublicEndPoint,
-//   },
-// ];
-
 async function main() {
   let nodeList: Node[] = [];
 
   const provider = new ethers.providers.JsonRpcProvider('http://0.0.0.0:8545');
 
   const contracts = await utils.conectContracts(provider);
-  console.log('here1');
-  var i = 0;
-  for (const nodeConfig of Nodes.relayNodes) {
-    nodeList[i] = await createNode(provider, nodeConfig);
-    console.log((await nodeList[i].signer.getAddress()).toString());
-    i++;
-  }
-  console.log('here2');
-  //const [deployerAccount] = await hardhatEthers.getSigners();
-  const deployerAccount = new ethers.Wallet(Nodes.deployerPK).connect(provider);
 
-  const incentivisedNode = new ethers.Wallet(Nodes.incentiveNodePK).connect(
+  const deployerAccount = connectSigner(
+    new ethers.Wallet(Nodes.deployerPK),
     provider,
   );
 
-  // const deployerAccount = connectSigner(
-  //   new ethers.Wallet(Nodes.deployerPK),
-  //   provider,
-  // );
+  const incentivisedNode = connectSigner(
+    new ethers.Wallet(Nodes.incentiveNodePK),
+    provider,
+  );
 
-  // const incentivisedNode = connectSigner(
-  //   new ethers.Wallet(Nodes.incentiveNodePK),
-  //   provider,
-  // );
+  var i = 0;
+  for (const nodeConfig of Nodes.relayNodes) {
+    nodeList[i] = await createNode(provider, nodeConfig);
+    i++;
+  }
 
   for (let i = 0; i < Nodes.relayNodes.length; i++) {
     await addStake(contracts, nodeList[i].signer, deployerAccount);
@@ -89,7 +51,6 @@ async function main() {
     await setSeekerRegistry(contracts, nodeList[i].signer, deployerAccount, i);
   }
 
-  console.log('here6');
   await contracts.token
     .connect(deployerAccount)
     .transfer(
@@ -129,12 +90,14 @@ async function addStake(
   await contracts.token
     .connect(deployer)
     .transfer(nodes.getAddress(), ethers.utils.parseEther('110000'));
+
   await contracts.token
     .connect(nodes)
     .approve(
       contractAddress.stakingManager,
       ethers.utils.parseEther('1000000'),
     );
+
   await contracts.stakingManager
     .connect(nodes)
     .addStake(ethers.utils.parseEther('100000'), nodes.getAddress());
@@ -231,7 +194,6 @@ export function connectSigner(
   const sendTx = s.sendTransaction.bind(s);
 
   s.sendTransaction = async t => {
-    t.gasLimit = 500000;
     const tx = await sendTx(t);
     await tx.wait(1);
     return tx;
