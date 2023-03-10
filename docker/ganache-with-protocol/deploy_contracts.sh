@@ -17,7 +17,7 @@ sleep 5
 
 echo "deploying contracts to local node"
 npx hardhat --network localhost run ./deploy/00_deploy_phase_two.ts
-cp ./deploy/ganache_deployment_phase_two.json deployment/addresses.json
+mv ./deploy/localhost_deployment_phase_two.json deployment/addresses.json
 
 echo "Initialsing nodes"
 npx hardhat --network localhost run scripts/init_network.ts
