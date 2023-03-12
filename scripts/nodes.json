@@ -1,0 +1,22 @@
+{
+  "deployerPK": "0x150934096e7bcd0485d154edd771b4466680038a068ccca8e8b483dce8527245",
+  "incentiveNodePK": "0x22194c49f4362a63de672f60ea4b5f5166f55a4a231c10c2895f32241b7d4585",
+  "relayNodes": [
+    {
+      "privateKey": "0x98bf857054c6aa0e92ddb6b98a3b63c603261be18b9ca7e882e7a95f297d3edb",
+      "publicEndpoint": "http://localhost/28901/public/metadata"
+    },
+    {
+      "privateKey": "0x17bb9893a53d58f4ea4f5d5f1248711d5e722be96c1f81ac562f815af078ecd0",
+      "publicEndpoint": "http://localhost/28903/public/metadata"
+    },
+    {
+      "privateKey": "0x2e445c0c320c158d9e3b40e8a419c7960dfe44225dc248eeb5b3bb7ac1a575e8",
+      "publicEndpoint": "http://localhost/28905/public/metadata"
+    },
+    {
+      "privateKey": "0x01a1b704b2efb0be843e9918b523da88baea76fcaf6e2b23ac1e3220b6b3523c",
+      "publicEndpoint": "http://localhost/28907/public/metadata"
+    }
+  ]
+}
