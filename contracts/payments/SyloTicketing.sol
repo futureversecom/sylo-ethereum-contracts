@@ -311,6 +311,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
 
         bytes32 ticketHash = requireValidWinningTicket(ticket, senderRand, redeemerRand, sig);
 
+        usedTickets[ticketHash] = true;
+
         uint256 directoryStake = _directory.getTotalStakeForStakee(
             ticket.epochId,
             ticket.redeemer
@@ -318,8 +320,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (directoryStake == 0) {
             revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
         }
-
-        usedTickets[ticketHash] = true;
 
         uint256 rewardAmount = rewardRedeemer(epoch, ticket);
 
