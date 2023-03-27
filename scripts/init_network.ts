@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { randomBytes } from 'crypto';
 import contractAddress from '../deploy/ganache_deployment_phase_two.json';
-import Nodes from './nodes.json';
+import nodesConfig from './nodes.json';
 import * as utils from './utils';
 
 const WINNING_PROBABILITY = ethers.BigNumber.from(2).pow(128).sub(1);
@@ -17,52 +17,50 @@ type NodeConfig = {
 };
 
 async function main() {
-  let nodeList: Node[] = [];
-
   const provider = new ethers.providers.JsonRpcProvider('http://0.0.0.0:8545');
 
-  const contracts = await utils.conectContracts(contractAddress, provider);
+  const contracts = utils.conectContracts(contractAddress, provider);
 
-  const deployerAccount = connectSigner(
-    new ethers.Wallet(Nodes.deployerPK),
+  const deployer = connectSigner(
+    new ethers.Wallet(nodesConfig.deployerPK),
     provider,
   );
 
-  const incentivisedNode = connectSigner(
-    new ethers.Wallet(Nodes.incentiveNodePK),
-    provider,
-  );
+  await setNetworkParams(contracts, deployer);
+  console.log('Network params are set');
 
-  for (const nodeConfig of Nodes.relayNodes) {
-    nodeList.push(await createNode(provider, nodeConfig));
+  // process incentivising nodes
+  for (let i = 0; i < nodesConfig.incentivisingNodes.length; i++) {
+    const node = await createNode(provider, nodesConfig.incentivisingNodes[i]);
+
+    await contracts.token
+      .connect(deployer)
+      .transfer(
+        node.signer.getAddress(),
+        ethers.utils.parseEther('1000000000'),
+      );
+
+    await registerNodes(contracts, node);
+    await depositTicketing(contracts, node.signer);
+
+    console.log('Incentivising node', i, 'is ready');
   }
 
-  for (let i = 0; i < Nodes.relayNodes.length; i++) {
-    await addStake(contracts, nodeList[i].signer, deployerAccount);
+  // process relay nodes
+  for (let i = 0; i < nodesConfig.relayNodes.length; i++) {
+    const node = await createNode(provider, nodesConfig.relayNodes[i]);
+
+    await contracts.token
+      .connect(deployer)
+      .transfer(node.signer.getAddress(), ethers.utils.parseEther('110000'));
+
+    await addStake(contracts, node.signer);
+    await registerNodes(contracts, node);
+    await setSeekerRegistry(contracts, node.signer, deployer, i);
+    await contracts.epochsManager.connect(node.signer).joinNextEpoch();
+
+    console.log('Relay node', i, 'is ready');
   }
-
-  for (let i = 0; i < Nodes.relayNodes.length; i++) {
-    await registerNodes(contracts, nodeList[i]);
-  }
-
-  for (let i = 0; i < Nodes.relayNodes.length; i++) {
-    await setSeekerRegistry(contracts, nodeList[i].signer, deployerAccount, i);
-  }
-
-  await contracts.token
-    .connect(deployerAccount)
-    .transfer(
-      incentivisedNode.getAddress(),
-      ethers.utils.parseEther('1000000000'),
-    );
-
-  await setNetworkIncentives(contracts, incentivisedNode);
-
-  for (let i = 1; i < Nodes.relayNodes.length; i++) {
-    await contracts.epochsManager.connect(nodeList[i].signer).joinNextEpoch();
-  }
-
-  await initNetwork(contracts, deployerAccount);
 }
 
 async function createNode(
@@ -82,23 +80,18 @@ async function createNode(
 
 async function addStake(
   contracts: utils.Contracts,
-  nodes: ethers.Signer,
-  deployer: ethers.Signer,
+  node: ethers.Signer,
 ): Promise<void> {
   await contracts.token
-    .connect(deployer)
-    .transfer(nodes.getAddress(), ethers.utils.parseEther('110000'));
-
-  await contracts.token
-    .connect(nodes)
+    .connect(node)
     .approve(
       contractAddress.stakingManager,
       ethers.utils.parseEther('1000000'),
     );
 
   await contracts.stakingManager
-    .connect(nodes)
-    .addStake(ethers.utils.parseEther('100000'), nodes.getAddress());
+    .connect(node)
+    .addStake(ethers.utils.parseEther('100000'), node.getAddress());
 }
 
 async function registerNodes(
@@ -147,7 +140,7 @@ async function setSeekerRegistry(
     );
 }
 
-async function setNetworkIncentives(
+async function depositTicketing(
   contracts: utils.Contracts,
   incentivisedNode: ethers.Signer,
 ) {
@@ -170,18 +163,25 @@ async function setNetworkIncentives(
     );
 }
 
-async function initNetwork(
+async function setNetworkParams(
   contracts: utils.Contracts,
   deployer: ethers.Signer,
 ) {
   await contracts.ticketingParameters
     .connect(deployer)
     .setBaseLiveWinProb(WINNING_PROBABILITY);
+
   await contracts.ticketingParameters
     .connect(deployer)
     .setFaceValue(ethers.utils.parseEther('10000'));
-  await contracts.ticketingParameters.connect(deployer).setTicketDuration(20);
-  await contracts.epochsManager.connect(deployer).setEpochDuration(20);
+
+  await contracts.ticketingParameters
+    .connect(deployer)
+    .setTicketDuration(1_000_000);
+
+  await contracts.ticketing.connect(deployer).setUnlockDuration(5);
+  await contracts.stakingManager.connect(deployer).setUnlockDuration(5);
+  await contracts.epochsManager.connect(deployer).setEpochDuration(10);
   await contracts.epochsManager.connect(deployer).initializeEpoch();
 }
 
