@@ -53,14 +53,6 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
      */
     uint16 public defaultPayoutPercentage;
 
-    /**
-     * @notice Proof duration states the duration in blocks that the
-     * proof used to validate seeker ownership will be valid for. The
-     * `setSeekerAccount` transaction will revert if the proof message
-     * was signed too many blocks ago.
-     */
-    uint16 public proofDuration;
-
     event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
 
     error NonceCannotBeReused();
