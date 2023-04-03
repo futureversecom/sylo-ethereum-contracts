@@ -28,12 +28,19 @@ COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
 RUN bash deploy_contracts.sh
 
+COPY docker/ganache-with-protocol/start_network.sh .
+RUN chmod +x start_network.sh
+
 FROM trufflesuite/ganache:v7.7.6
 
 WORKDIR /app
 COPY --from=node-builder /app/ganache-data /app/ganache-data
 COPY --from=node-builder /app/deployment /app/deployment
+COPY --from=node-builder /app/start_network.sh /app/start_network.sh
+
+#install curl package
+RUN apt-get update && apt-get install -y curl
 
 EXPOSE 8545
 
-ENTRYPOINT ["node", "/app/dist/node/cli.js"]
+ENTRYPOINT ["/bin/bash", "/app/start_network.sh"]
