@@ -5,7 +5,6 @@ interface ISyloTicketing {
     struct Deposit {
         uint256 escrow; // Balance of users escrow
         uint256 penalty; // Balance of users penalty
-        uint256 callUnlockAt; // Block number a user call unlock process
         uint256 unlockAt; // Block number a user can withdraw their balances
     }
 
