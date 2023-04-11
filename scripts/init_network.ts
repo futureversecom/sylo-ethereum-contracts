@@ -58,10 +58,11 @@ async function main() {
 
     await registerNodes(contracts, node);
     await depositTicketing(contracts, node.signer);
-    await contracts.epochsManager.connect(node.signer).initializeEpoch();
-
     console.log('Incentivising node', i, 'is ready');
   }
+
+  // initialize next epoch
+  await contracts.epochsManager.connect(deployer).initializeEpoch();
 }
 
 async function createNode(
