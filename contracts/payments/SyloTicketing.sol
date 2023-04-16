@@ -58,6 +58,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     mapping(bytes32 => bool) public usedTickets;
 
     event UnlockDurationUpdated(uint256 unlockDuration);
+    event SenderPenaltyBurnt(address sender);
     event Redemption(
         uint256 indexed epochId,
         address indexed sender,
@@ -350,6 +351,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             );
 
             delete deposit.penalty;
+            emit SenderPenaltyBurnt(ticket.sender);
+
         } else {
             amount = epoch.faceValue;
             incrementRewardPool(ticket.redeemer, deposit, amount);

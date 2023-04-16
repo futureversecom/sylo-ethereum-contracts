@@ -905,7 +905,9 @@ describe('Ticketing', () => {
 
     const initialTicketingBalance = await token.balanceOf(ticketing.address);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+        .to.emit(ticketing, 'SenderPenaltyBurnt')
+        .withArgs(alice.address)
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(
