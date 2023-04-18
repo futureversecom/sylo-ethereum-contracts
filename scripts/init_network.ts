@@ -29,23 +29,6 @@ async function main() {
   await setNetworkParams(contracts, deployer);
   console.log('Network params are set');
 
-  // process incentivising nodes
-  for (let i = 0; i < nodesConfig.incentivisingNodes.length; i++) {
-    const node = await createNode(provider, nodesConfig.incentivisingNodes[i]);
-
-    await contracts.token
-      .connect(deployer)
-      .transfer(
-        node.signer.getAddress(),
-        ethers.utils.parseEther('1000000000'),
-      );
-
-    await registerNodes(contracts, node);
-    await depositTicketing(contracts, node.signer);
-
-    console.log('Incentivising node', i, 'is ready');
-  }
-
   // process relay nodes
   for (let i = 0; i < nodesConfig.relayNodes.length; i++) {
     const node = await createNode(provider, nodesConfig.relayNodes[i]);
@@ -61,6 +44,25 @@ async function main() {
 
     console.log('Relay node', i, 'is ready');
   }
+
+  // process incentivising nodes
+  for (let i = 0; i < nodesConfig.incentivisingNodes.length; i++) {
+    const node = await createNode(provider, nodesConfig.incentivisingNodes[i]);
+
+    await contracts.token
+        .connect(deployer)
+        .transfer(
+            node.signer.getAddress(),
+            ethers.utils.parseEther('1000000000'),
+        );
+
+    await registerNodes(contracts, node);
+    await depositTicketing(contracts, node.signer);
+    console.log('Incentivising node', i, 'is ready');
+  }
+
+  // initialize next epoch
+  await contracts.epochsManager.connect(deployer).initializeEpoch();
 }
 
 async function createNode(
@@ -173,7 +175,7 @@ async function setNetworkParams(
 
   await contracts.ticketingParameters
     .connect(deployer)
-    .setFaceValue(ethers.utils.parseEther('10000'));
+    .setFaceValue(ethers.utils.parseEther('100'));
 
   await contracts.ticketingParameters
     .connect(deployer)
@@ -182,7 +184,6 @@ async function setNetworkParams(
   await contracts.ticketing.connect(deployer).setUnlockDuration(5);
   await contracts.stakingManager.connect(deployer).setUnlockDuration(5);
   await contracts.epochsManager.connect(deployer).setEpochDuration(10);
-  await contracts.epochsManager.connect(deployer).initializeEpoch();
 }
 
 export function connectSigner(
