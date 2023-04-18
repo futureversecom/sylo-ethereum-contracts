@@ -175,7 +175,7 @@ async function setNetworkParams(
 
   await contracts.ticketingParameters
     .connect(deployer)
-    .setFaceValue(ethers.utils.parseEther('10000'));
+    .setFaceValue(ethers.utils.parseEther('100'));
 
   await contracts.ticketingParameters
     .connect(deployer)
