@@ -1,7 +1,8 @@
 # Ganache Docker Image
 
 This docker image runs a local ganache node with the contracts
-already deployed, and 10 seekers minted for the deployer.
+already deployed, 10 seekers minted to the deployer, and other
+network params set to be ready for ticket redemption.
 
 When the image is built, an `accounts.json`
 used for the network and an `addresses.json` is stored in
