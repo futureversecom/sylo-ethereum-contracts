@@ -50,11 +50,11 @@ async function main() {
     const node = await createNode(provider, nodesConfig.incentivisingNodes[i]);
 
     await contracts.token
-        .connect(deployer)
-        .transfer(
-            node.signer.getAddress(),
-            ethers.utils.parseEther('1000000000'),
-        );
+      .connect(deployer)
+      .transfer(
+        node.signer.getAddress(),
+        ethers.utils.parseEther('1000000000'),
+      );
 
     await registerNodes(contracts, node);
     await depositTicketing(contracts, node.signer);

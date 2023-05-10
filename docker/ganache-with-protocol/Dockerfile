@@ -28,7 +28,7 @@ COPY docker/ganache-with-protocol/deploy_contracts.sh .
 RUN chmod +x deploy_contracts.sh
 RUN bash deploy_contracts.sh
 
-FROM trufflesuite/ganache:v7.7.6
+FROM trufflesuite/ganache:v7.8.0
 
 WORKDIR /app
 COPY --from=node-builder /app/ganache-data /app/ganache-data

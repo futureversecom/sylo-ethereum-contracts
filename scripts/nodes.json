@@ -2,14 +2,14 @@
   "deployerPK": "0x150934096e7bcd0485d154edd771b4466680038a068ccca8e8b483dce8527245",
   "incentivisingNodes": [
     {
-      "privateKey": "0x22194c49f4362a63de672f60ea4b5f5166f55a4a231c10c2895f32241b7d4585",
+      "privateKey": "0x01a1b704b2efb0be843e9918b523da88baea76fcaf6e2b23ac1e3220b6b3523c",
       "publicEndpoint": "http://sylo-incentivising-node-docker:28901/public/metadata"
     }
   ],
   "relayNodes": [
     {
       "privateKey": "0x98bf857054c6aa0e92ddb6b98a3b63c603261be18b9ca7e882e7a95f297d3edb",
-      "publicEndpoint": "http://sylo-node-one-docker:28901/public/metadata"
+      "publicEndpoint": "https://sylo-node-one-docker/public/metadata"
     },
     {
       "privateKey": "0x17bb9893a53d58f4ea4f5d5f1248711d5e722be96c1f81ac562f815af078ecd0",
@@ -20,7 +20,7 @@
       "publicEndpoint": "http://sylo-node-three-docker:28901/public/metadata"
     },
     {
-      "privateKey": "0x01a1b704b2efb0be843e9918b523da88baea76fcaf6e2b23ac1e3220b6b3523c",
+      "privateKey": "0x22194c49f4362a63de672f60ea4b5f5166f55a4a231c10c2895f32241b7d4585",
       "publicEndpoint": "http://sylo-node-four-docker:28901/public/metadata"
     }
   ]
