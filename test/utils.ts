@@ -10,6 +10,7 @@ import {
   SyloTicketing,
   TicketingParameters,
   TestSeekers,
+  AuthorizedAccount,
 } from '../typechain-types';
 import { randomBytes } from 'crypto';
 
@@ -34,6 +35,7 @@ export type Contracts = {
   epochsManager: EpochsManager;
   stakingManager: StakingManager;
   seekers: TestSeekers;
+  authorizedAccount: AuthorizedAccount;
 };
 
 const initializeContracts = async function (
@@ -94,6 +96,11 @@ const initializeContracts = async function (
   const DirectoryFactory = await ethers.getContractFactory('Directory');
   const directory = await DirectoryFactory.deploy();
 
+  const AuthorizedAccountFactory = await ethers.getContractFactory(
+    'AuthorizedAccount',
+  );
+  const authorizedAccount = await AuthorizedAccountFactory.deploy();
+
   await stakingManager.initialize(
     tokenAddress,
     rewardsManager.address,
@@ -119,6 +126,7 @@ const initializeContracts = async function (
     epochDuration,
     { from: deployer },
   );
+  await authorizedAccount.initialize({ from: deployer });
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
   const ticketing = await TicketingFactory.deploy();
@@ -129,6 +137,7 @@ const initializeContracts = async function (
     directory.address,
     epochsManager.address,
     rewardsManager.address,
+    authorizedAccount.address,
     unlockDuration,
     { from: deployer },
   );
@@ -148,6 +157,7 @@ const initializeContracts = async function (
     epochsManager,
     stakingManager,
     seekers,
+    authorizedAccount,
   };
 };
 

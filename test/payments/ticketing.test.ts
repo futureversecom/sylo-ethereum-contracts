@@ -2,6 +2,7 @@ import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
 import { BigNumber, BigNumberish, Signer, Wallet } from 'ethers';
 import {
+  AuthorizedAccount,
   Directory,
   EpochsManager,
   Registries,
@@ -9,8 +10,8 @@ import {
   StakingManager,
   SyloTicketing,
   SyloToken,
-  TicketingParameters,
   TestSeekers,
+  TicketingParameters,
 } from '../../typechain-types';
 import crypto from 'crypto';
 import sodium from 'libsodium-wrappers-sumo';
@@ -34,6 +35,11 @@ describe('Ticketing', () => {
   let registries: Registries;
   let stakingManager: StakingManager;
   let seekers: TestSeekers;
+  let authorizedAccount: AuthorizedAccount;
+
+  enum Permission {
+    DepositWithdrawal,
+  }
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -57,6 +63,7 @@ describe('Ticketing', () => {
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
     seekers = contracts.seekers;
+    authorizedAccount = contracts.authorizedAccount;
 
     await token.approve(stakingManager.address, toSOLOs(10000000));
     await token.approve(ticketing.address, toSOLOs(10000000));
@@ -65,6 +72,7 @@ describe('Ticketing', () => {
   it('ticketing cannot be initialized twice', async () => {
     await expect(
       ticketing.initialize(
+        ethers.constants.AddressZero,
         ethers.constants.AddressZero,
         ethers.constants.AddressZero,
         ethers.constants.AddressZero,
@@ -88,6 +96,7 @@ describe('Ticketing', () => {
         directory.address,
         epochsManager.address,
         rewardsManager.address,
+        authorizedAccount.address,
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'TokenCannotBeZeroAddress');
@@ -100,6 +109,7 @@ describe('Ticketing', () => {
         directory.address,
         epochsManager.address,
         rewardsManager.address,
+        authorizedAccount.address,
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'UnlockDurationCannotBeZero');
@@ -184,7 +194,7 @@ describe('Ticketing', () => {
   });
 
   it('ticketing can check for support interface', async () => {
-    const supportInterface = await ticketing.supportsInterface('0x4f9afa3f');
+    const supportInterface = await ticketing.supportsInterface('0x26dae50f');
     expect(supportInterface).to.be.true;
   });
 
@@ -280,7 +290,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
-  it('tickeing cannot set parameters with invalid arguments', async () => {
+  it('ticketing cannot set parameters with invalid arguments', async () => {
     await expect(ticketing.setUnlockDuration(0)).to.be.revertedWithCustomError(
       ticketing,
       'UnlockDurationCannotBeZero',
@@ -653,6 +663,91 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'TicketCannotBeFromFutureBlock');
   });
 
+  it('can redeem ticket using authorized account to sign with valid permission', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account with permission to withdraw deposit
+    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const provider = ethers.provider;
+    const aliceConnected = alice.connect(provider);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner, undefined, delegatedWallet);
+
+    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+
+    const deposit = await ticketing.deposits(alice.address);
+    assert.equal(
+      deposit.escrow.toString(),
+      toSOLOs(1000),
+      'Expected ticket payout to be substracted from escrow',
+    );
+    assert.equal(
+      deposit.penalty.toString(),
+      toSOLOs(50),
+      'Expected penalty to not be changed',
+    );
+
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
+
+    assert.equal(
+      pendingReward.toString(),
+      toSOLOs(500),
+      'Expected balance of pending rewards to have added the ticket face value',
+    );
+  });
+
+  it('cannot redeem ticket using authorized account to sign without permission', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account without permission to withdraw deposit
+    const permission: Permission[] = [];
+    const provider = ethers.provider;
+    const aliceConnected = alice.connect(provider);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+
+    const { ticket, senderRand, redeemerRand, signature } =
+      await createWinningTicket(alice, owner, undefined, delegatedWallet);
+
+    await expect(
+      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'DelegatedAccountDoesNotHaveWithdrawalPermission',
+    );
+  });
+
   it('can not calculate winning probablility if not generated during associated epoch', async () => {
     await epochsManager.initializeEpoch();
 
@@ -906,8 +1001,8 @@ describe('Ticketing', () => {
     const initialTicketingBalance = await token.balanceOf(ticketing.address);
 
     await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
-        .to.emit(ticketing, 'SenderPenaltyBurnt')
-        .withArgs(alice.address)
+      .to.emit(ticketing, 'SenderPenaltyBurnt')
+      .withArgs(alice.address);
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(
@@ -2018,6 +2113,7 @@ describe('Ticketing', () => {
     const ticket = {
       epochId,
       sender: sender.address,
+      delegatedSender: ethers.constants.AddressZero,
       redeemer: node,
       generationBlock,
       senderCommit,
@@ -2133,6 +2229,7 @@ describe('Ticketing', () => {
     sender: Wallet,
     redeemer: string,
     epochId?: number,
+    delegatedWallet?: Wallet,
   ) {
     const generationBlock = (await ethers.provider.getBlockNumber()) + 1;
 
@@ -2142,9 +2239,17 @@ describe('Ticketing', () => {
     const redeemerRand = 1;
     const redeemerCommit = createCommit(generationBlock, redeemerRand);
 
+    let delegatedWalletAddress = '';
+    if (delegatedWallet) {
+      delegatedWalletAddress = delegatedWallet.address;
+    } else {
+      delegatedWalletAddress = ethers.constants.AddressZero;
+    }
+
     const ticket = {
       epochId: epochId ?? (await epochsManager.currentIteration()),
       sender: sender.address,
+      delegatedSender: delegatedWalletAddress,
       redeemer,
       generationBlock,
       senderCommit: '0x' + senderCommit.toString('hex'),
@@ -2152,10 +2257,15 @@ describe('Ticketing', () => {
     };
 
     const ticketHash = await ticketing.getTicketHash(ticket);
+    let signature = '';
+    if (ticket.delegatedSender == ethers.constants.AddressZero) {
+      signature = await sender.signMessage(ethers.utils.arrayify(ticketHash));
+    } else {
+      signature = await delegatedWallet.signMessage(
+        ethers.utils.arrayify(ticketHash),
+      );
+    }
 
-    const signature = await sender.signMessage(
-      ethers.utils.arrayify(ticketHash),
-    );
     if (!signature) {
       throw new Error('failed to derive signature for ticket');
     }

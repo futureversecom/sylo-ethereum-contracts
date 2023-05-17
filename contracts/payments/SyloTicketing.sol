@@ -15,6 +15,7 @@ import "../libraries/SyloUtils.sol";
 import "../epochs/EpochsManager.sol";
 import "../staking/StakingManager.sol";
 import "./ticketing/RewardsManager.sol";
+import "../AuthorizedAccount.sol";
 import "../interfaces/payments/ISyloTicketing.sol";
 
 /**
@@ -46,6 +47,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     EpochsManager public _epochsManager;
 
     /**
+     * @notice Sylo Authorized Account.
+     */
+    AuthorizedAccount public _authorizedAccount;
+
+    /**
      * @notice The number of blocks a user must wait after calling "unlock"
      * before they can withdraw their funds.
      */
@@ -75,6 +81,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     error PenaltyAmountCannotBeZero();
     error UnlockDurationCannotBeZero();
     error AccountCannotBeZeroAddress();
+    error DelegatedAccountDoesNotHaveWithdrawalPermission();
 
     error TicketNotWinning();
     error TicketAlreadyUsed();
@@ -97,6 +104,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         Directory directory,
         EpochsManager epochsManager,
         RewardsManager rewardsManager,
+        AuthorizedAccount authorizedAccount,
         uint256 _unlockDuration
     ) external initializer {
         if (address(token) == address(0)) {
@@ -133,6 +141,12 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             type(IRewardsManager).interfaceId
         );
 
+        SyloUtils.validateContractInterface(
+            "AuthorizedAccount",
+            address(authorizedAccount),
+            type(IAuthorizedAccount).interfaceId
+        );
+
         if (_unlockDuration == 0) {
             revert UnlockDurationCannotBeZero();
         }
@@ -145,6 +159,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         _directory = directory;
         _epochsManager = epochsManager;
         _rewardsManager = rewardsManager;
+        _authorizedAccount = authorizedAccount;
         unlockDuration = _unlockDuration;
     }
 
@@ -337,6 +352,20 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         EpochsManager.Epoch memory epoch,
         Ticket memory ticket
     ) internal returns (uint256) {
+        if (ticket.delegatedSender != address(0)) {
+            IAuthorizedAccount.Permission permission = IAuthorizedAccount
+                .Permission
+                .DepositWithdrawal;
+            bool hasAuthorization = false;
+            hasAuthorization = _authorizedAccount.validatePermission(
+                ticket.sender,
+                ticket.delegatedSender,
+                permission
+            );
+            if (!hasAuthorization) {
+                revert DelegatedAccountDoesNotHaveWithdrawalPermission();
+            }
+        }
         Deposit storage deposit = getDeposit(ticket.sender);
 
         uint256 amount;
@@ -352,7 +381,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
 
             delete deposit.penalty;
             emit SenderPenaltyBurnt(ticket.sender);
-
         } else {
             amount = epoch.faceValue;
             incrementRewardPool(ticket.redeemer, deposit, amount);
@@ -410,7 +438,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (!isValidTicketSig(sig, ticket.sender, ticketHash)) {
+        if (!isValidTicketSig(sig, ticket.sender, ticket.delegatedSender, ticketHash)) {
             revert InvalidTicketSignature();
         }
 
@@ -430,10 +458,17 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     function isValidTicketSig(
         bytes memory sig,
         address sender,
+        address delegatedAccount,
         bytes32 ticketHash
     ) internal pure returns (bool) {
+        address signer = address(0);
+        if (delegatedAccount != address(0)) {
+            signer = delegatedAccount;
+        } else {
+            signer = sender;
+        }
         bytes32 ethHash = ECDSA.toEthSignedMessageHash(ticketHash);
-        return ECDSA.recover(ethHash, sig) == sender;
+        return ECDSA.recover(ethHash, sig) == signer;
     }
 
     /**
