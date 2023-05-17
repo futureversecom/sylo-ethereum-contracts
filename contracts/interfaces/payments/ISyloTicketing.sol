@@ -11,7 +11,9 @@ interface ISyloTicketing {
     struct Ticket {
         uint256 epochId; // The epoch this ticket is associated with
         address sender; // Address of the ticket sender
-        address delegatedSender; // Address of the ticket's signer if not the original sender (optional)
+        address senderDelegatedAccount; // Address of the ticket's signer if not the original sender (optional)
+        address receiver; // Address of the ticket receiver
+        address receiverDelegatedAccount; // Address of the ticket's signer if not the original receiver (optional)
         address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 senderCommit; // Hash of the secret random number of the sender
@@ -34,6 +36,7 @@ interface ISyloTicketing {
         Ticket calldata ticket,
         uint256 senderRand,
         uint256 redeemerRand,
-        bytes calldata sig
+        bytes calldata senderSig,
+        bytes calldata receiverSig
     ) external;
 }

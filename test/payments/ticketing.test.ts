@@ -12,6 +12,7 @@ import {
   SyloToken,
   TestSeekers,
   TicketingParameters,
+  ISyloTicketing__factory,
 } from '../../typechain-types';
 import crypto from 'crypto';
 import sodium from 'libsodium-wrappers-sumo';
@@ -194,7 +195,17 @@ describe('Ticketing', () => {
   });
 
   it('ticketing can check for support interface', async () => {
-    const supportInterface = await ticketing.supportsInterface('0x26dae50f');
+    const iTicketing = ISyloTicketing__factory.createInterface();
+
+    let interfaceId = ethers.constants.Zero;
+    const functions: string[] = Object.keys(iTicketing.functions);
+    for (let i = 0; i < functions.length; i++) {
+      interfaceId = interfaceId.xor(iTicketing.getSighash(functions[i]));
+    }
+
+    const supportInterface = await ticketing.supportsInterface(
+      interfaceId.toHexString(),
+    );
     expect(supportInterface).to.be.true;
   });
 
@@ -586,13 +597,21 @@ describe('Ticketing', () => {
     const alice = Wallet.createRandom();
     const { ticket, senderRand, redeemerRand } = await createWinningTicket(
       alice,
+      alice,
       owner,
     );
 
-    const signature = '0x00';
+    const senderSig = '0x00';
+    const receiverSig = '0x00';
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWith('ECDSA: invalid signature length');
   });
 
@@ -600,15 +619,19 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const { ticket, redeemerRand, signature } = await createWinningTicket(
-      alice,
-      owner,
-    );
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     const senderRand = 999;
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'SenderCommitMismatch');
   });
 
@@ -616,31 +639,41 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const { ticket, senderRand, signature } = await createWinningTicket(
-      alice,
-      owner,
-    );
+    const { ticket, senderRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     const redeemerRand = 999;
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
   });
 
   it('can not redeem ticket if associated epoch does not exist', async () => {
     const alice = Wallet.createRandom();
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner, 1);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner, 1);
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'TicketEpochNotFound');
   });
 
   it('can not calculate winning probability if associated epoch does not exist', async () => {
     const alice = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, owner);
+    const { ticket } = await createWinningTicket(alice, alice, owner);
 
     ticket.epochId = 1;
 
@@ -653,13 +686,19 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     const updatedTicket = { ...ticket, generationBlock: 100000 };
 
     await expect(
-      ticketing.redeem(updatedTicket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        updatedTicket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'TicketCannotBeFromFutureBlock');
   });
 
@@ -687,10 +726,22 @@ describe('Ticketing', () => {
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner, undefined, delegatedWallet);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        alice,
+        alice,
+        owner,
+        undefined,
+        delegatedWallet,
+      );
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await ticketing.redeem(
+      ticket,
+      senderRand,
+      redeemerRand,
+      senderSig,
+      receiverSig,
+    );
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(
@@ -713,7 +764,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it('cannot redeem ticket using authorized account to sign without permission', async () => {
+  it('cannot redeem ticket using sender delegated account to sign without permission', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
@@ -721,7 +772,51 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
+
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        alice,
+        bob,
+        owner,
+        1,
+        delegatedWallet,
+        delegatedWallet,
+      );
+
+    await expect(
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'SenderDelegatedAccountDoesNotHaveWithdrawalPermission',
+    );
+  });
+
+  it('cannot redeem ticket using receiver delegated account to sign without permission', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
@@ -737,14 +832,34 @@ describe('Ticketing', () => {
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner, undefined, delegatedWallet);
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        alice,
+        bob,
+        owner,
+        1,
+        delegatedWallet,
+        delegatedWallet,
+      );
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(
       ticketing,
-      'DelegatedAccountDoesNotHaveWithdrawalPermission',
+      'ReceiverDelegatedAccountDoesNotHaveWithdrawalPermission',
     );
   });
 
@@ -752,7 +867,7 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, owner);
+    const { ticket } = await createWinningTicket(alice, alice, owner);
 
     const updatedTicket = { ...ticket, generationBlock: 1 };
 
@@ -765,7 +880,7 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, owner);
+    const { ticket } = await createWinningTicket(alice, alice, owner);
 
     await epochsManager.initializeEpoch();
 
@@ -784,7 +899,7 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, owner);
+    const { ticket } = await createWinningTicket(alice, alice, owner);
 
     const updatedTicket = { ...ticket, generationBlock: 10000 };
 
@@ -802,11 +917,17 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'RedeemerMustHaveJoinedEpoch');
   });
 
@@ -823,11 +944,17 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(rewardsManager, 'RewardPoolNotExist');
   });
 
@@ -842,22 +969,49 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     let malformedTicket = { ...ticket };
     malformedTicket.sender = ethers.constants.AddressZero;
     await expect(
-      ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        malformedTicket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(
       ticketing,
       'TicketSenderCannotBeZeroAddress',
     );
 
     malformedTicket = { ...ticket };
+    malformedTicket.receiver = ethers.constants.AddressZero;
+    await expect(
+      ticketing.redeem(
+        malformedTicket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'TicketReceiverCannotBeZeroAddress',
+    );
+
+    malformedTicket = { ...ticket };
     malformedTicket.redeemer = ethers.constants.AddressZero;
     await expect(
-      ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        malformedTicket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(
       ticketing,
       'TicketRedeemerCannotBeZeroAddress',
@@ -867,21 +1021,49 @@ describe('Ticketing', () => {
     malformedTicket.senderCommit =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     await expect(
-      ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        malformedTicket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'SenderCommitMismatch');
 
     malformedTicket = { ...ticket };
     malformedTicket.redeemerCommit =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     await expect(
-      ticketing.redeem(malformedTicket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        malformedTicket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
 
     const malformedSig =
       '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, malformedSig),
-    ).to.be.revertedWithCustomError(ticketing, 'InvalidTicketSignature');
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        malformedSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(ticketing, 'InvalidSenderSignature');
+
+    await expect(
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        malformedSig,
+      ),
+    ).to.be.revertedWithCustomError(ticketing, 'InvalidReceiverSignature');
   });
 
   it('rejects non winning ticket', async () => {
@@ -911,13 +1093,19 @@ describe('Ticketing', () => {
     await contracts.ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await contracts.ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner, 1);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner, 1);
 
     await utils.advanceBlock(5);
 
     await expect(
-      contracts.ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      contracts.ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'TicketNotWinning');
   });
 
@@ -929,13 +1117,20 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, bob, owner);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await ticketing.redeem(
+      ticket,
+      senderRand,
+      redeemerRand,
+      senderSig,
+      receiverSig,
+    );
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(
@@ -969,12 +1164,24 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await ticketing.redeem(
+      ticket,
+      senderRand,
+      redeemerRand,
+      senderSig,
+      receiverSig,
+    );
     await expect(
-      ticketing.redeem(ticket, senderRand, redeemerRand, signature),
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
     ).to.be.revertedWithCustomError(ticketing, 'TicketAlreadyRedeemed');
   });
 
@@ -995,12 +1202,20 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(5), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
     const initialTicketingBalance = await token.balanceOf(ticketing.address);
 
-    await expect(ticketing.redeem(ticket, senderRand, redeemerRand, signature))
+    await expect(
+      ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
+    )
       .to.emit(ticketing, 'SenderPenaltyBurnt')
       .withArgs(alice.address);
 
@@ -1059,10 +1274,16 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.initializeEpoch();
@@ -1110,10 +1331,16 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     const totalWinnings = 5000;
@@ -1149,10 +1376,16 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.joinNextEpoch();
@@ -1183,10 +1416,16 @@ describe('Ticketing', () => {
     await rewardsManager.connect(accounts[2]).claimStakingRewards(owner);
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.joinNextEpoch();
@@ -1274,10 +1513,16 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(50000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket, senderRand, redeemerRand, signature } =
-      await createWinningTicket(alice, owner);
+    const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, alice, owner);
 
-    await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+    await ticketing.redeem(
+      ticket,
+      senderRand,
+      redeemerRand,
+      senderSig,
+      receiverSig,
+    );
 
     await epochsManager.initializeEpoch();
 
@@ -1312,10 +1557,16 @@ describe('Ticketing', () => {
 
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
       for (let i = 0; i < 6; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1356,10 +1607,16 @@ describe('Ticketing', () => {
     for (let runs = 0; runs < 10; runs++) {
       // 250 is added to the delegated stakers reward total on each redemption
       for (let i = 0; i < 5; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
 
       await epochsManager.joinNextEpoch();
@@ -1415,10 +1672,16 @@ describe('Ticketing', () => {
 
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
       for (let i = 0; i < 6; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1503,10 +1766,16 @@ describe('Ticketing', () => {
       await epochsManager.initializeEpoch();
 
       for (let i = 0; i < 6; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1578,10 +1847,16 @@ describe('Ticketing', () => {
     const iterations = 450;
 
     for (let i = 0; i < iterations; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.initializeEpoch();
@@ -1632,7 +1907,7 @@ describe('Ticketing', () => {
     await ticketing.depositEscrow(toSOLOs(5000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket } = await createWinningTicket(alice, owner);
+    const { ticket } = await createWinningTicket(alice, alice, owner);
 
     // advance the block halfway to ticket expiry
     await utils.advanceBlock(51);
@@ -1678,10 +1953,16 @@ describe('Ticketing', () => {
 
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
       for (let i = 0; i < 6; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1719,10 +2000,16 @@ describe('Ticketing', () => {
 
     for (let j = 0; j < 3; j++) {
       for (let i = 0; i < 10; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
 
       if (j != 2) {
@@ -1765,10 +2052,16 @@ describe('Ticketing', () => {
 
     for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 10; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
 
       await epochsManager.joinNextEpoch();
@@ -1787,10 +2080,16 @@ describe('Ticketing', () => {
 
     // generate rewards for the current epoch
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     // confirm claim is still 0
@@ -1820,10 +2119,16 @@ describe('Ticketing', () => {
     const initialBalance = await token.balanceOf(owner);
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.joinNextEpoch();
@@ -1832,10 +2137,16 @@ describe('Ticketing', () => {
     await rewardsManager.claimStakingRewards(owner);
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.initializeEpoch();
@@ -1868,10 +2179,16 @@ describe('Ticketing', () => {
       await epochsManager.initializeEpoch();
 
       for (let i = 0; i < 10; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1934,10 +2251,16 @@ describe('Ticketing', () => {
       await epochsManager.initializeEpoch();
 
       for (let i = 0; i < 10; i++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1998,10 +2321,16 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     for (let i = 0; i < 10; i++) {
-      const { ticket, senderRand, redeemerRand, signature } =
-        await createWinningTicket(alice, owner);
+      const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+        await createWinningTicket(alice, alice, owner);
 
-      await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+      await ticketing.redeem(
+        ticket,
+        senderRand,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      );
     }
 
     await epochsManager.joinNextEpoch();
@@ -2038,10 +2367,16 @@ describe('Ticketing', () => {
       await epochsManager.initializeEpoch();
 
       for (let j = 0; j < 3 * (i + 1); j++) {
-        const { ticket, senderRand, redeemerRand, signature } =
-          await createWinningTicket(alice, owner);
+        const { ticket, senderRand, redeemerRand, senderSig, receiverSig } =
+          await createWinningTicket(alice, alice, owner);
 
-        await ticketing.redeem(ticket, senderRand, redeemerRand, signature);
+        await ticketing.redeem(
+          ticket,
+          senderRand,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -2070,10 +2405,11 @@ describe('Ticketing', () => {
     await registries.register('0.0.0.0/0');
 
     const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
 
     await epochsManager.initializeEpoch();
 
-    const { ticket } = await createWinningTicket(alice, owner);
+    const { ticket } = await createWinningTicket(alice, bob, owner);
 
     // advance the block all the way to ticket expiry
     await utils.advanceBlock(21);
@@ -2085,6 +2421,7 @@ describe('Ticketing', () => {
 
   it('simulates scenario between sender, node, and oracle', async () => {
     const sender = Wallet.createRandom();
+    const receiver = Wallet.createRandom();
     const node = owner;
 
     // set up the node's stake and registry
@@ -2114,6 +2451,8 @@ describe('Ticketing', () => {
       epochId,
       sender: sender.address,
       delegatedSender: ethers.constants.AddressZero,
+      receiver: receiver.address,
+      delegatedReceiver: ethers.constants.AddressZero,
       redeemer: node,
       generationBlock,
       senderCommit,
@@ -2122,7 +2461,10 @@ describe('Ticketing', () => {
 
     // have sender sign the hash of the ticket
     const ticketHash = await ticketing.getTicketHash(ticket);
-    const signature = await sender.signMessage(
+    const senderSig = await sender.signMessage(
+      ethers.utils.arrayify(ticketHash),
+    );
+    const receiverSig = await receiver.signMessage(
       ethers.utils.arrayify(ticketHash),
     );
 
@@ -2145,9 +2487,16 @@ describe('Ticketing', () => {
     );
 
     // once secret has been revealed, the node can now redeem the ticket
-    await ticketing.redeem(ticket, revealedSenderRand, nodeRand, signature, {
-      from: node,
-    });
+    await ticketing.redeem(
+      ticket,
+      revealedSenderRand,
+      nodeRand,
+      senderSig,
+      receiverSig,
+      {
+        from: node,
+      },
+    );
   });
 
   // This test suite relies on confirming that updated stakes and rewards are correctly
@@ -2227,9 +2576,11 @@ describe('Ticketing', () => {
 
   async function createWinningTicket(
     sender: Wallet,
+    receiver: Wallet,
     redeemer: string,
     epochId?: number,
-    delegatedWallet?: Wallet,
+    senderDelegatedWallet?: Wallet,
+    receiverDelegatedWallet?: Wallet,
   ) {
     const generationBlock = (await ethers.provider.getBlockNumber()) + 1;
 
@@ -2239,17 +2590,22 @@ describe('Ticketing', () => {
     const redeemerRand = 1;
     const redeemerCommit = createCommit(generationBlock, redeemerRand);
 
-    let delegatedWalletAddress = '';
-    if (delegatedWallet) {
-      delegatedWalletAddress = delegatedWallet.address;
-    } else {
-      delegatedWalletAddress = ethers.constants.AddressZero;
+    let senderDelegatedAccount = ethers.constants.AddressZero;
+    if (senderDelegatedWallet) {
+      senderDelegatedAccount = senderDelegatedWallet.address;
+    }
+
+    let receiverDelegatedAccount = ethers.constants.AddressZero;
+    if (receiverDelegatedWallet) {
+      receiverDelegatedAccount = receiverDelegatedWallet.address;
     }
 
     const ticket = {
       epochId: epochId ?? (await epochsManager.currentIteration()),
       sender: sender.address,
-      delegatedSender: delegatedWalletAddress,
+      senderDelegatedAccount,
+      receiver: receiver.address,
+      delegatedReceiver: receiverDelegatedAccount,
       redeemer,
       generationBlock,
       senderCommit: '0x' + senderCommit.toString('hex'),
@@ -2257,24 +2613,35 @@ describe('Ticketing', () => {
     };
 
     const ticketHash = await ticketing.getTicketHash(ticket);
-    let signature = '';
-    if (ticket.delegatedSender == ethers.constants.AddressZero) {
-      signature = await sender.signMessage(ethers.utils.arrayify(ticketHash));
-    } else {
-      signature = await delegatedWallet.signMessage(
+    let senderSig = await sender.signMessage(ethers.utils.arrayify(ticketHash));
+    if (senderDelegatedWallet) {
+      senderSig = await senderDelegatedWallet.signMessage(
         ethers.utils.arrayify(ticketHash),
       );
     }
+    if (!senderSig) {
+      throw new Error('failed to derive sender signature for ticket');
+    }
 
-    if (!signature) {
-      throw new Error('failed to derive signature for ticket');
+    let receiverSig = await receiver.signMessage(
+      ethers.utils.arrayify(ticketHash),
+    );
+    if (receiverDelegatedWallet) {
+      receiverSig = await receiverDelegatedWallet.signMessage(
+        ethers.utils.arrayify(ticketHash),
+      );
+    }
+    if (!receiverSig) {
+      throw new Error('failed to derive receiver signature for ticket');
     }
 
     return {
       ticket,
       senderRand,
+      receiver,
       redeemerRand,
-      signature: ethers.utils.arrayify(signature),
+      senderSig: ethers.utils.arrayify(senderSig),
+      receiverSig: ethers.utils.arrayify(receiverSig),
       ticketHash,
     };
   }
