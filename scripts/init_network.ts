@@ -40,7 +40,9 @@ async function main() {
     await addStake(contracts, node.signer);
     await registerNodes(contracts, node);
     await setSeekerRegistry(contracts, node.signer, deployer, i);
-    await contracts.epochsManager.connect(node.signer).joinNextEpoch();
+    await contracts.epochsManager
+      .connect(node.signer)
+      .joinNextEpoch({ gasLimit: 1_000_000 });
 
     console.log('Relay node', i, 'is ready');
   }
@@ -50,11 +52,11 @@ async function main() {
     const node = await createNode(provider, nodesConfig.incentivisingNodes[i]);
 
     await contracts.token
-        .connect(deployer)
-        .transfer(
-            node.signer.getAddress(),
-            ethers.utils.parseEther('1000000000'),
-        );
+      .connect(deployer)
+      .transfer(
+        node.signer.getAddress(),
+        ethers.utils.parseEther('1000000000'),
+      );
 
     await registerNodes(contracts, node);
     await depositTicketing(contracts, node.signer);
@@ -62,7 +64,9 @@ async function main() {
   }
 
   // initialize next epoch
-  await contracts.epochsManager.connect(deployer).initializeEpoch();
+  await contracts.epochsManager
+    .connect(deployer)
+    .initializeEpoch({ gasLimit: 1_000_000 });
 }
 
 async function createNode(
@@ -89,11 +93,14 @@ async function addStake(
     .approve(
       contractAddress.stakingManager,
       ethers.utils.parseEther('1000000'),
+      { gasLimit: 1_000_000 },
     );
 
   await contracts.stakingManager
     .connect(node)
-    .addStake(ethers.utils.parseEther('100000'), node.getAddress());
+    .addStake(ethers.utils.parseEther('100000'), node.getAddress(), {
+      gasLimit: 1_000_000,
+    });
 }
 
 async function registerNodes(
@@ -103,7 +110,7 @@ async function registerNodes(
   if (nodes.publicEndPoint != '') {
     await contracts.registries
       .connect(nodes.signer)
-      .register(nodes.publicEndPoint);
+      .register(nodes.publicEndPoint, { gasLimit: 1_000_000 });
   }
 }
 
@@ -116,7 +123,7 @@ async function setSeekerRegistry(
   if (!(await contracts.seekers.exists(tokenId))) {
     await contracts.seekers
       .connect(seekerAccount)
-      .mint(await seekerAccount.getAddress(), tokenId);
+      .mint(await seekerAccount.getAddress(), tokenId, { gasLimit: 1_000_000 });
   }
 
   const nonce = randomBytes(32);
@@ -139,6 +146,7 @@ async function setSeekerRegistry(
       tokenId,
       nonce,
       signature,
+      { gasLimit: 1_000_000 },
     );
 }
 
@@ -148,13 +156,16 @@ async function depositTicketing(
 ) {
   await contracts.token
     .connect(incentivisedNode)
-    .approve(contractAddress.ticketing, ethers.utils.parseEther('1000000000'));
+    .approve(contractAddress.ticketing, ethers.utils.parseEther('1000000000'), {
+      gasLimit: 1_000_000,
+    });
 
   await contracts.ticketing
     .connect(incentivisedNode)
     .depositEscrow(
       ethers.utils.parseEther('1000000'),
       incentivisedNode.getAddress(),
+      { gasLimit: 1_000_000 },
     );
 
   await contracts.ticketing
@@ -162,6 +173,7 @@ async function depositTicketing(
     .depositPenalty(
       ethers.utils.parseEther('100000'),
       incentivisedNode.getAddress(),
+      { gasLimit: 1_000_000 },
     );
 }
 
@@ -171,19 +183,27 @@ async function setNetworkParams(
 ) {
   await contracts.ticketingParameters
     .connect(deployer)
-    .setBaseLiveWinProb(WINNING_PROBABILITY);
+    .setBaseLiveWinProb(WINNING_PROBABILITY, { gasLimit: 1_000_000 });
 
   await contracts.ticketingParameters
     .connect(deployer)
-    .setFaceValue(ethers.utils.parseEther('100'));
+    .setFaceValue(ethers.utils.parseEther('100'), { gasLimit: 1_000_000 });
 
   await contracts.ticketingParameters
     .connect(deployer)
-    .setTicketDuration(1_000_000);
+    .setTicketDuration(1_000_000, { gasLimit: 1_000_000 });
 
-  await contracts.ticketing.connect(deployer).setUnlockDuration(5);
-  await contracts.stakingManager.connect(deployer).setUnlockDuration(5);
-  await contracts.epochsManager.connect(deployer).setEpochDuration(10);
+  await contracts.ticketing
+    .connect(deployer)
+    .setUnlockDuration(5, { gasLimit: 1_000_000 });
+
+  await contracts.stakingManager
+    .connect(deployer)
+    .setUnlockDuration(5, { gasLimit: 1_000_000 });
+
+  await contracts.epochsManager
+    .connect(deployer)
+    .setEpochDuration(10, { gasLimit: 1_000_000 });
 }
 
 export function connectSigner(

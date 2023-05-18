@@ -1,6 +1,7 @@
 import { ethers, upgrades, network } from 'hardhat';
 import Config from './genesis.config';
 import {
+  AuthorizedAccount,
   Directory,
   EpochsManager,
   Registries,
@@ -15,6 +16,7 @@ type PhaseTwoContracts = {
   token: string;
   directory: Directory;
   epochsManager: EpochsManager;
+  authorizedAccount: AuthorizedAccount;
   registries: Registries;
   rewardsManager: RewardsManager;
   stakingManager: StakingManager;
@@ -52,6 +54,20 @@ async function deployPhaseTwoContracts(
     config.Seekers = seekers.address;
     logDeployment('Seekers', seekers.address);
   }
+
+  const AuthorizedAccountFactory = await ethers.getContractFactory(
+    'AuthorizedAccount',
+  );
+  const authorizeAccount = (await upgrades.deployProxy(
+    AuthorizedAccountFactory,
+    undefined,
+    {
+      initializer: false,
+    },
+  )) as AuthorizedAccount;
+  await authorizeAccount.deployed();
+
+  logDeployment('AuthorizedAccount', authorizeAccount.address);
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = (await upgrades.deployProxy(RegistriesFactory, undefined, {
@@ -127,6 +143,10 @@ async function deployPhaseTwoContracts(
 
   console.log('Initialized registries');
 
+  await authorizeAccount.initialize().then(tx => tx.wait());
+
+  console.log('Initialized authorized account');
+
   await ticketingParameters
     .initialize(
       config.TicketingParameters.faceValue,
@@ -191,6 +211,7 @@ async function deployPhaseTwoContracts(
       directory.address,
       epochsManager.address,
       rewardsManager.address,
+      authorizeAccount.address,
       config.Ticketing.unlockDuration,
     )
     .then(tx => tx.wait());
@@ -217,6 +238,7 @@ async function deployPhaseTwoContracts(
 
   return {
     token: config.SyloToken,
+    authorizeAccount,
     registries,
     ticketing,
     ticketingParameters,
@@ -242,6 +264,7 @@ async function main() {
   const deployedJson = {
     deployer: deployer.address,
     token: contracts.token,
+    authorizedAccount: contracts.authorizeAccount.address,
     registries: contracts.registries.address,
     ticketing: contracts.ticketing.address,
     ticketingParameters: contracts.ticketingParameters.address,
