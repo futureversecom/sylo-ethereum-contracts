@@ -8,15 +8,17 @@ interface ISyloTicketing {
         uint256 unlockAt; // Block number a user can withdraw their balances
     }
 
+    struct User {
+        address main; // Main address of the ticket sender or receiver
+        address delegated; // Delegated address used to sign and redeem tickets
+    }
+
     struct Ticket {
         uint256 epochId; // The epoch this ticket is associated with
-        address sender; // Address of the ticket sender
-        address senderDelegatedAccount; // Address of the ticket's signer if not the original sender (optional)
-        address receiver; // Address of the ticket receiver
-        address receiverDelegatedAccount; // Address of the ticket's signer if not the original receiver (optional)
+        User sender; // Ticket sender's main and delegated addresses
+        User receiver; // Ticket receiver's main and delegated addresses
         address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
-        bytes32 senderCommit; // Hash of the secret random number of the sender
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
@@ -34,7 +36,6 @@ interface ISyloTicketing {
 
     function redeem(
         Ticket calldata ticket,
-        uint256 senderRand,
         uint256 redeemerRand,
         bytes calldata senderSig,
         bytes calldata receiverSig
