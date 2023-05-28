@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 interface IAuthorizedAccount {
     enum Permission {
-        DepositWithdrawal
+        TicketSigning
     }
 
     struct AuthorizedAccount {

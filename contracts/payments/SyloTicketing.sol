@@ -82,8 +82,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     error PenaltyAmountCannotBeZero();
     error UnlockDurationCannotBeZero();
     error AccountCannotBeZeroAddress();
-    error SenderDelegatedAccountDoesNotHaveWithdrawalPermission();
-    error ReceiverDelegatedAccountDoesNotHaveWithdrawalPermission();
+    error InvalidSenderTicketSigningPermission();
+    error InvalidReceiverTicketSigningPermission();
 
     error TicketNotWinning();
     error TicketAlreadyUsed();
@@ -429,26 +429,16 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         }
 
         if (!hasValidDepositPermission(ticket.sender)) {
-            revert SenderDelegatedAccountDoesNotHaveWithdrawalPermission();
+            revert InvalidSenderTicketSigningPermission();
         }
         if (!hasValidDepositPermission(ticket.receiver)) {
-            revert ReceiverDelegatedAccountDoesNotHaveWithdrawalPermission();
+            revert InvalidReceiverTicketSigningPermission();
         }
 
-        if (
-            !isValidTicketSig(senderSig, ticket.sender.main, ticket.sender.delegated, ticketHash)
-        ) {
+        if (!isValidTicketSig(ticket.sender, senderSig, ticketHash)) {
             revert InvalidSenderSignature();
         }
-
-        if (
-            !isValidTicketSig(
-                receiverSig,
-                ticket.receiver.main,
-                ticket.receiver.delegated,
-                ticketHash
-            )
-        ) {
+        if (!isValidTicketSig(ticket.receiver, receiverSig, ticketHash)) {
             revert InvalidReceiverSignature();
         }
 
@@ -462,7 +452,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             return true;
         }
 
-        IAuthorizedAccount.Permission permission = IAuthorizedAccount.Permission.DepositWithdrawal;
+        IAuthorizedAccount.Permission permission = IAuthorizedAccount.Permission.TicketSigning;
         return _authorizedAccount.validatePermission(user.main, user.delegated, permission);
     }
 
@@ -475,16 +465,15 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     }
 
     function isValidTicketSig(
+        User memory user,
         bytes memory sig,
-        address sender,
-        address delegatedAccount,
         bytes32 ticketHash
     ) internal pure returns (bool) {
         address signer = address(0);
-        if (delegatedAccount != address(0)) {
-            signer = delegatedAccount;
+        if (user.delegated != address(0)) {
+            signer = user.delegated;
         } else {
-            signer = sender;
+            signer = user.main;
         }
         bytes32 ethHash = ECDSA.toEthSignedMessageHash(ticketHash);
         return ECDSA.recover(ethHash, sig) == signer;

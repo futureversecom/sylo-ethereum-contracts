@@ -18,7 +18,7 @@ describe('Authorized Account', () => {
   let contracts: Contracts;
 
   enum Permission {
-    DepositWithdrawal,
+    TicketSigning,
   }
 
   before(async () => {
@@ -46,7 +46,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot add zero authorized account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await expect(
       authorizedAccount
         .connect(mainAccount)
@@ -58,7 +58,7 @@ describe('Authorized Account', () => {
   });
 
   it('can add unexisted authorized account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -70,7 +70,7 @@ describe('Authorized Account', () => {
   });
 
   it('can add multiple unexisted authorized account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -86,7 +86,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot add existed authorized account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -117,7 +117,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot unauthorize unexisted account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -129,7 +129,7 @@ describe('Authorized Account', () => {
   });
 
   it('can unauthorize existed account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -159,7 +159,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot add permission for invalid delegated account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await expect(
       authorizedAccount
         .connect(mainAccount)
@@ -171,7 +171,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot add permission for unexisted delegated account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount2, permission);
@@ -184,7 +184,7 @@ describe('Authorized Account', () => {
 
   it('can add permission for existed delegated account', async () => {
     const permission: Permission[] = [];
-    const newPermission: Permission[] = [Permission.DepositWithdrawal];
+    const newPermission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -198,13 +198,14 @@ describe('Authorized Account', () => {
       .connect(mainAccount)
       .getAuthorizedAccounts(mainAccountAddress);
     assert.equal(accounts[0].permissions.length, 1);
+    assert.equal(accounts[0].permissions[0], Permission.TicketSigning);
   });
 
   it('can add multiple permissions (with duplicated permissions) for existed delegated account', async () => {
     const permission: Permission[] = [];
     const newPermissions: Permission[] = [
-      Permission.DepositWithdrawal,
-      Permission.DepositWithdrawal,
+      Permission.TicketSigning,
+      Permission.TicketSigning,
     ];
     await authorizedAccount
       .connect(mainAccount)
@@ -219,7 +220,7 @@ describe('Authorized Account', () => {
   });
 
   it('can add existed permission for current delegated account but permissions will not be duplicated', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -233,13 +234,13 @@ describe('Authorized Account', () => {
   });
 
   it('can remove multiple permissions (with duplicated permissions) for existed delegated account', async () => {
-    const permissionsToAdd: Permission[] = [Permission.DepositWithdrawal];
+    const permissionsToAdd: Permission[] = [Permission.TicketSigning];
     const permissionsToRemove: Permission[] = [
-      Permission.DepositWithdrawal,
-      Permission.DepositWithdrawal,
+      Permission.TicketSigning,
+      Permission.TicketSigning,
     ];
     const emptyPermissions: Permission[] = [];
-    const permission2: Permission[] = [Permission.DepositWithdrawal];
+    const permission2: Permission[] = [Permission.TicketSigning];
 
     await authorizedAccount
       .connect(mainAccount)
@@ -273,7 +274,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot remove permission for unexisted delegated account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount2, permission);
@@ -285,7 +286,7 @@ describe('Authorized Account', () => {
   });
 
   it('cannot remove permission with zero authorized account', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     const authorizedAddress = ethers.constants.AddressZero;
     await expect(
       authorizedAccount
@@ -298,7 +299,7 @@ describe('Authorized Account', () => {
   });
 
   it('can remove permission', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -330,7 +331,7 @@ describe('Authorized Account', () => {
 
   it('cannot validate permission with invalid main address ', async () => {
     const main = ethers.constants.AddressZero;
-    const permission = Permission.DepositWithdrawal;
+    const permission = Permission.TicketSigning;
     await expect(
       authorizedAccount
         .connect(mainAccount)
@@ -343,7 +344,7 @@ describe('Authorized Account', () => {
 
   it('cannot validate permission with invalid authorized address ', async () => {
     const authorizedAddress = ethers.constants.AddressZero;
-    const permission = Permission.DepositWithdrawal;
+    const permission = Permission.TicketSigning;
     await expect(
       authorizedAccount
         .connect(mainAccount)
@@ -355,7 +356,7 @@ describe('Authorized Account', () => {
   });
 
   it('return false when validating permission with unavailable authorized account ', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -364,7 +365,7 @@ describe('Authorized Account', () => {
       .validatePermission(
         mainAccountAddress,
         delegatedAccount2,
-        Permission.DepositWithdrawal,
+        Permission.TicketSigning,
       );
     assert.equal(validate, false);
   });
@@ -379,13 +380,13 @@ describe('Authorized Account', () => {
       .validatePermission(
         mainAccountAddress,
         delegatedAccount1,
-        Permission.DepositWithdrawal,
+        Permission.TicketSigning,
       );
     assert.equal(validate, false);
   });
 
   it('return true if authorized account has valid permission', async () => {
-    const permission: Permission[] = [Permission.DepositWithdrawal];
+    const permission: Permission[] = [Permission.TicketSigning];
     await authorizedAccount
       .connect(mainAccount)
       .authorizeAccount(delegatedAccount1, permission);
@@ -394,7 +395,7 @@ describe('Authorized Account', () => {
       .validatePermission(
         mainAccountAddress,
         delegatedAccount1,
-        Permission.DepositWithdrawal,
+        Permission.TicketSigning,
       );
     assert.equal(validate, true);
   });
