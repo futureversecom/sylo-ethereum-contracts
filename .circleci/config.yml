@@ -59,6 +59,9 @@ jobs:
       - run:
           name: test contracts
           command: yarn coverage
+      - run:
+          name: check coverage
+          command: npx istanbul check-coverage --statements 100 --functions 100 --lines 100
       - store_artifacts:
           path: ~/sylo-ethereum-contracts/coverage
 
