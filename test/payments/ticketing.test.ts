@@ -46,6 +46,16 @@ describe('Ticketing', () => {
     // first account is implicitly used as deployer of contracts in hardhat
     owner = await accounts[0].getAddress();
 
+    // add more fund to owner account so it can fund main wallets
+    // to authorize accounts and add permissions
+    // account 10 to 15 are unused so we can get ETH from them
+    for (let i = 10; i <= 15; i++) {
+      await accounts[i].sendTransaction({
+        to: owner,
+        value: ethers.utils.parseEther('5000.0'),
+      });
+    }
+
     const Token = await ethers.getContractFactory('SyloToken');
     token = await Token.deploy();
   });
@@ -373,7 +383,6 @@ describe('Ticketing', () => {
 
   it('should be able to deposit escrow', async () => {
     const alice = Wallet.createRandom();
-    const bob = Wallet.createRandom();
     await ticketing.depositEscrow(50, alice.address);
 
     const deposit = await ticketing.deposits(alice.address);
@@ -392,7 +401,6 @@ describe('Ticketing', () => {
 
   it('should be able to deposit penalty', async () => {
     const alice = Wallet.createRandom();
-    const bob = Wallet.createRandom();
     await ticketing.depositPenalty(50, alice.address);
 
     const deposit = await ticketing.deposits(alice.address);
@@ -592,7 +600,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it('can not redeem ticket with invalid signature', async () => {
+  it('cannot redeem ticket with invalid signature', async () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
@@ -611,7 +619,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('ECDSA: invalid signature length');
   });
 
-  it('can not redeem ticket with invalid redeemer rand', async () => {
+  it('cannot redeem ticket with invalid redeemer rand', async () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
@@ -629,7 +637,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
   });
 
-  it('can not redeem ticket if associated epoch does not exist', async () => {
+  it('cannot redeem ticket if associated epoch does not exist', async () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     const { ticket, redeemerRand, senderSig, receiverSig } =
@@ -652,7 +660,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'TicketEpochNotFound');
   });
 
-  it('can not redeem ticket if generated for a future block', async () => {
+  it('cannot redeem ticket if generated for a future block', async () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
@@ -665,63 +673,6 @@ describe('Ticketing', () => {
     await expect(
       ticketing.redeem(updatedTicket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(ticketing, 'TicketCannotBeFromFutureBlock');
-  });
-
-  it('can redeem ticket using authorized account to sign with valid permission', async () => {
-    await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
-
-    await epochsManager.joinNextEpoch();
-    await epochsManager.initializeEpoch();
-
-    const alice = Wallet.createRandom();
-    const bob = Wallet.createRandom();
-    const delegatedWallet = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
-    await accounts[0].sendTransaction({
-      to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
-    });
-
-    // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
-    const provider = ethers.provider;
-    const aliceConnected = alice.connect(provider);
-    await authorizedAccount
-      .connect(aliceConnected)
-      .authorizeAccount(delegatedWallet.address, permission);
-
-    const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, undefined, delegatedWallet);
-
-    await ticketing.redeem(
-      ticket,
-
-      redeemerRand,
-      senderSig,
-      receiverSig,
-    );
-
-    const deposit = await ticketing.deposits(alice.address);
-    assert.equal(
-      deposit.escrow.toString(),
-      toSOLOs(1000),
-      'Expected ticket payout to be substracted from escrow',
-    );
-    assert.equal(
-      deposit.penalty.toString(),
-      toSOLOs(50),
-      'Expected penalty to not be changed',
-    );
-
-    const pendingReward = await rewardsManager.getPendingRewards(owner);
-
-    assert.equal(
-      pendingReward.toString(),
-      toSOLOs(500),
-      'Expected balance of pending rewards to have added the ticket face value',
-    );
   });
 
   it('cannot redeem ticket using sender delegated account to sign without permission', async () => {
@@ -737,10 +688,6 @@ describe('Ticketing', () => {
 
     await ticketing.depositEscrow(toSOLOs(2000), alice.address);
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
-    await accounts[0].sendTransaction({
-      to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
-    });
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(
@@ -811,6 +758,227 @@ describe('Ticketing', () => {
     );
   });
 
+  it('cannot redeem ticket using sender delegated account to sign after unauthorizing account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account with permission to withdraw deposit
+    const permission: Permission[] = [Permission.TicketSigning];
+    const provider = ethers.provider;
+    const aliceConnected = alice.connect(provider);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .unauthorizeAccount(delegatedWallet.address);
+
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
+
+    await expect(
+      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'InvalidSenderTicketSigningPermission',
+    );
+
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .removePermissions(delegatedWallet.address, [Permission.TicketSigning]);
+
+    await expect(
+      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(
+      ticketing,
+      'InvalidSenderTicketSigningPermission',
+    );
+  });
+
+  it('can redeem ticket using sender delegated account if removing permission is called after creating ticket', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account with permission to withdraw deposit
+    const permission: Permission[] = [Permission.TicketSigning];
+    const provider = ethers.provider;
+    const aliceConnected = alice.connect(provider);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
+
+    await authorizedAccount
+      .connect(aliceConnected)
+      .removePermissions(delegatedWallet.address, permission);
+
+    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+
+    await checkAfterRedeem(alice, 1000, 50, 500);
+  });
+
+  it('can redeem ticket using sender delegated account if unauthorizing account is called after creating ticket', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account with permission to withdraw deposit
+    const permission: Permission[] = [Permission.TicketSigning];
+    const provider = ethers.provider;
+    const aliceConnected = alice.connect(provider);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
+
+    await authorizedAccount
+      .connect(aliceConnected)
+      .unauthorizeAccount(delegatedWallet.address);
+
+    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+
+    await checkAfterRedeem(alice, 1000, 50, 500);
+  });
+
+  it('can redeem ticket using sender authorized account to sign with valid permission', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account with permission to withdraw deposit
+    const permission: Permission[] = [Permission.TicketSigning];
+    const provider = ethers.provider;
+    const aliceConnected = alice.connect(provider);
+    await authorizedAccount
+      .connect(aliceConnected)
+      .authorizeAccount(delegatedWallet.address, permission);
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(alice, bob, owner, undefined, delegatedWallet);
+
+    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+
+    await checkAfterRedeem(alice, 1000, 50, 500);
+  });
+
+  it('can redeem ticket using sender and receiver authorized accounts to sign with valid permission', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+
+    const aliceDelegatedWallet = Wallet.createRandom();
+    const bobDelegatedWallet = Wallet.createRandom();
+
+    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
+    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+    await accounts[0].sendTransaction({
+      to: bob.address,
+      value: ethers.utils.parseEther('2000.0'),
+    });
+
+    // alice adds this account as delegated account with permission to withdraw deposit
+    const permission: Permission[] = [Permission.TicketSigning];
+    await authorizedAccount
+      .connect(alice.connect(ethers.provider))
+      .authorizeAccount(aliceDelegatedWallet.address, permission);
+
+    // bob adds this account as delegated account with permission to withdraw deposit
+    await authorizedAccount
+      .connect(bob.connect(ethers.provider))
+      .authorizeAccount(bobDelegatedWallet.address, permission);
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        alice,
+        bob,
+        owner,
+        undefined,
+        aliceDelegatedWallet,
+        bobDelegatedWallet,
+      );
+
+    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+
+    await checkAfterRedeem(alice, 1000, 50, 500);
+  });
+
   it('can not calculate winning probablility if not generated during associated epoch', async () => {
     await epochsManager.initializeEpoch();
 
@@ -859,7 +1027,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithPanic(0x11); // Overflow: Arithmetic operation underflowed or overflowed
   });
 
-  it('can not redeem ticket if node has not joined directory', async () => {
+  it('cannot redeem ticket if node has not joined directory', async () => {
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
     await epochsManager.initializeEpoch();
@@ -877,7 +1045,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'RedeemerMustHaveJoinedEpoch');
   });
 
-  it('can not redeem ticket if node has not initialized reward pool', async () => {
+  it('cannot redeem ticket if node has not initialized reward pool', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
@@ -899,7 +1067,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(rewardsManager, 'RewardPoolNotExist');
   });
 
-  it('can not redeem invalid ticket', async () => {
+  it('cannot redeem invalid ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
@@ -1069,7 +1237,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it('can not redeem ticket more than once', async () => {
+  it('cannot redeem ticket more than once', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
@@ -2342,6 +2510,33 @@ describe('Ticketing', () => {
 
       compareExpectedBalance(expectedBalance, await token.balanceOf(address));
     }
+  };
+
+  const checkAfterRedeem = async (
+    sender: Wallet,
+    expectedEscrow: number,
+    expectedPenalty: number,
+    expectedRewards: number,
+  ) => {
+    const deposit = await ticketing.deposits(sender.address);
+    assert.equal(
+      deposit.escrow.toString(),
+      toSOLOs(expectedEscrow),
+      'Expected ticket payout to be substracted from escrow',
+    );
+    assert.equal(
+      deposit.penalty.toString(),
+      toSOLOs(expectedPenalty),
+      'Expected penalty to not be changed',
+    );
+
+    const pendingReward = await rewardsManager.getPendingRewards(owner);
+
+    assert.equal(
+      pendingReward.toString(),
+      toSOLOs(expectedRewards),
+      'Expected balance of pending rewards to have added the ticket face value',
+    );
   };
 
   async function setSeekerRegistry(

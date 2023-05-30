@@ -428,10 +428,10 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (!hasValidDepositPermission(ticket.sender)) {
+        if (!hasTicketSigningPermission(ticket.sender, ticket.generationBlock)) {
             revert InvalidSenderTicketSigningPermission();
         }
-        if (!hasValidDepositPermission(ticket.receiver)) {
+        if (!hasTicketSigningPermission(ticket.receiver, ticket.generationBlock)) {
             revert InvalidReceiverTicketSigningPermission();
         }
 
@@ -447,13 +447,22 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         }
     }
 
-    function hasValidDepositPermission(User memory user) internal view returns (bool) {
+    function hasTicketSigningPermission(
+        User memory user,
+        uint256 generationBlock
+    ) internal view returns (bool) {
         if (user.delegated == address(0)) {
             return true;
         }
 
         IAuthorizedAccount.Permission permission = IAuthorizedAccount.Permission.TicketSigning;
-        return _authorizedAccount.validatePermission(user.main, user.delegated, permission);
+        return
+            _authorizedAccount.validatePermission(
+                user.main,
+                user.delegated,
+                permission,
+                generationBlock
+            );
     }
 
     function createCommit(uint256 generationBlock, uint256 rand) public pure returns (bytes32) {

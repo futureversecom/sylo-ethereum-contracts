@@ -6,10 +6,16 @@ interface IAuthorizedAccount {
         TicketSigning
     }
 
+    struct AuthorizedPermission {
+        Permission permission; // Permission
+        uint256 authorizedAt; // Block number the permission is last authorized (block.number)
+        uint256 unauthorizedAt; // Block number the permission is started to be unauthorized (block.number + 1)
+    }
+
     struct AuthorizedAccount {
-        address account; // Address of the authorized account
-        uint256 createdAt; // Block number the authorized account was created
-        Permission[] permissions; // Permissions associated with delegated account
+        address account; // Authorized account
+        uint256 authorizedAt; // Block number the main account authorized the authorized account, 0 if not authorized
+        AuthorizedPermission[] permissions; // Permission list
     }
 
     function authorizeAccount(address authorized, Permission[] calldata permissions) external;
@@ -26,7 +32,8 @@ interface IAuthorizedAccount {
     function validatePermission(
         address main,
         address authorized,
-        Permission permission
+        Permission permission,
+        uint256 atBlock
     ) external returns (bool);
 
     function getAuthorizedAccounts(
