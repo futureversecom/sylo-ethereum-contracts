@@ -18,9 +18,26 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
      */
     mapping(address => AuthorizedAccount[]) public authorizedAccounts;
 
+    /**
+     * @notice Stores all permissions that can be authorized
+     */
+    Permission[] public allPermissions = [Permission.TicketSigning];
+
+    event PermissionsAdded(
+        address indexed main,
+        address indexed authorized,
+        Permission[] permissions
+    );
+    event PermissionsRemoved(
+        address indexed main,
+        address indexed authorized,
+        Permission[] permissions
+    );
+
     error AuthorizedAccountCannotBeZeroAddress();
     error MainAccountCannotBeZeroAddress();
-    error AccountAlreadyExists();
+    error AtBlockNumberCannotBeZero();
+    error AccountAlreadyAuthorized();
     error AccountDoesNotExist();
 
     function initialize() external initializer {
@@ -47,21 +64,26 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
             revert AuthorizedAccountCannotBeZeroAddress();
         }
 
-        // check if account has already existed
-        AuthorizedAccount[] storage _authorizedAccounts = authorizedAccounts[msg.sender];
-        for (uint i = 0; i < _authorizedAccounts.length; i++) {
-            if (_authorizedAccounts[i].account == authorized) {
-                revert AccountAlreadyExists();
+        // check if account has already been authorized
+        AuthorizedAccount[] storage authAccounts = authorizedAccounts[msg.sender];
+        for (uint i; i < authAccounts.length; ++i) {
+            if (authAccounts[i].account == authorized) {
+                if (authAccounts[i].authorizedAt != 0) {
+                    revert AccountAlreadyAuthorized();
+                }
+
+                authAccounts[i].authorizedAt = block.number;
+                return _addPermission(authorized, authAccounts[i], permissions);
             }
         }
 
-        AuthorizedAccount memory newAccount = AuthorizedAccount({
-            account: authorized,
-            createdAt: block.number,
-            permissions: permissions
-        });
+        // add new authorized account to the list
+        authAccounts.push();
+        AuthorizedAccount storage newAccount = authAccounts[authAccounts.length - 1];
+        newAccount.account = authorized;
+        newAccount.authorizedAt = block.number;
 
-        authorizedAccounts[msg.sender].push(newAccount);
+        _addPermission(authorized, newAccount, permissions);
     }
 
     /**
@@ -74,12 +96,11 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
             revert AuthorizedAccountCannotBeZeroAddress();
         }
 
-        AuthorizedAccount[] storage _authorizedAccounts = authorizedAccounts[msg.sender];
-        for (uint i = 0; i < _authorizedAccounts.length; i++) {
-            if (_authorizedAccounts[i].account == authorized) {
-                _authorizedAccounts[i] = _authorizedAccounts[_authorizedAccounts.length - 1];
-                _authorizedAccounts.pop();
-                return;
+        AuthorizedAccount[] storage authAccounts = authorizedAccounts[msg.sender];
+        for (uint i; i < authAccounts.length; ++i) {
+            if (authAccounts[i].account == authorized) {
+                delete authAccounts[i].authorizedAt;
+                return _removePermissions(authorized, authAccounts[i], allPermissions);
             }
         }
 
@@ -97,34 +118,55 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
             revert AuthorizedAccountCannotBeZeroAddress();
         }
 
-        AuthorizedAccount[] storage _authorizedAccounts = authorizedAccounts[msg.sender];
-        for (uint i = 0; i < _authorizedAccounts.length; i++) {
-            if (_authorizedAccounts[i].account == authorized) {
-                // iterate over the permissions
-                for (uint j = 0; j < permissions.length; j++) {
-                    // check if the permission already exists in the permissions array.
-                    bool exists = false;
-                    for (uint k = 0; k < _authorizedAccounts[i].permissions.length; k++) {
-                        if (_authorizedAccounts[i].permissions[k] == permissions[j]) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    // if the permission does not already exist, add it
-                    // otherwise, just skip duplicated permission
-                    if (!exists) {
-                        _authorizedAccounts[i].permissions.push(permissions[j]);
-                    }
-                }
-                return;
+        AuthorizedAccount[] storage authAccounts = authorizedAccounts[msg.sender];
+        for (uint i; i < authAccounts.length; ++i) {
+            if (authAccounts[i].account == authorized) {
+                return _addPermission(authorized, authAccounts[i], permissions);
             }
         }
+
         revert AccountDoesNotExist();
     }
 
+    function _addPermission(
+        address authorized,
+        AuthorizedAccount storage authAccount,
+        Permission[] memory permissions
+    ) private {
+        for (uint i; i < permissions.length; ++i) {
+            bool exists;
+            for (uint j; j < authAccount.permissions.length; ++j) {
+                AuthorizedPermission storage authPermission = authAccount.permissions[j];
+                if (permissions[i] == authPermission.permission) {
+                    exists = true;
+                    authPermission.authorizedAt = block.number;
+
+                    // if removePermission is previously called in the same block, set
+                    // unauthorizedAt = authorizedAt so the permission is valid
+                    // (authorizedAt >= unauthorizedAt)
+                    if (authPermission.unauthorizedAt > authPermission.authorizedAt) {
+                        authPermission.unauthorizedAt = authPermission.authorizedAt;
+                    }
+                    break;
+                }
+            }
+            if (!exists) {
+                authAccount.permissions.push(
+                    AuthorizedPermission({
+                        permission: permissions[i],
+                        authorizedAt: block.number,
+                        unauthorizedAt: 0
+                    })
+                );
+            }
+        }
+
+        emit PermissionsAdded(msg.sender, authorized, permissions);
+    }
+
     /**
-     * @notice Removes permissions of specific authorized account. This will revert if the account
-     * does not exist.
+     * @notice Removes permissions of specific authorized account. This will revert
+     * if the account does not exist.
      * @param authorized The address of authorized account
      * @param permissions The list of permissions will be removed
      */
@@ -133,41 +175,31 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
             revert AuthorizedAccountCannotBeZeroAddress();
         }
 
-        AuthorizedAccount[] storage _authorizedAccounts = authorizedAccounts[msg.sender];
-        for (uint i = 0; i < _authorizedAccounts.length; i++) {
-            if (_authorizedAccounts[i].account == authorized) {
-                // create temporary array to store the permissions to keep
-                Permission[] memory newPermissions = new Permission[](
-                    _authorizedAccounts[i].permissions.length
-                );
-
-                uint counter = 0;
-                // iterate over the existing permissions
-                for (uint j = 0; j < _authorizedAccounts[i].permissions.length; j++) {
-                    bool shouldRemove = false;
-                    for (uint k = 0; k < permissions.length; k++) {
-                        if (_authorizedAccounts[i].permissions[j] == permissions[k]) {
-                            shouldRemove = true;
-                            break;
-                        }
-                    }
-                    // if the permission should not be removed, add it to the new permissions array.
-                    if (!shouldRemove) {
-                        newPermissions[counter] = _authorizedAccounts[i].permissions[j];
-                        counter++;
-                    }
-                }
-
-                // replace the old permissions array with the new one.
-                delete _authorizedAccounts[i].permissions;
-                for (uint j = 0; j < counter; j++) {
-                    _authorizedAccounts[i].permissions.push(newPermissions[j]);
-                }
-                return;
+        AuthorizedAccount[] storage authAccounts = authorizedAccounts[msg.sender];
+        for (uint i; i < authAccounts.length; ++i) {
+            if (authAccounts[i].account == authorized) {
+                return _removePermissions(authorized, authAccounts[i], permissions);
             }
         }
 
         revert AccountDoesNotExist();
+    }
+
+    function _removePermissions(
+        address authorized,
+        AuthorizedAccount storage authAccount,
+        Permission[] memory permissions
+    ) private {
+        for (uint i; i < permissions.length; ++i) {
+            for (uint j; j < authAccount.permissions.length; ++j) {
+                if (permissions[i] == authAccount.permissions[j].permission) {
+                    authAccount.permissions[j].unauthorizedAt = block.number + 1;
+                    break;
+                }
+            }
+        }
+
+        emit PermissionsRemoved(msg.sender, authorized, permissions);
     }
 
     /**
@@ -175,12 +207,14 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
      * @param main The address of main account
      * @param authorized The address of authorized account
      * @param permission The permission needs to be verified with the authorized account
+     * @param atBlock The block number to check the permission
      * @return boolean value
      */
     function validatePermission(
         address main,
         address authorized,
-        Permission permission
+        Permission permission,
+        uint256 atBlock
     ) external view returns (bool) {
         if (main == address(0)) {
             revert MainAccountCannotBeZeroAddress();
@@ -190,16 +224,35 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
             revert AuthorizedAccountCannotBeZeroAddress();
         }
 
-        AuthorizedAccount[] memory _authorizedAccounts = authorizedAccounts[main];
-        for (uint i = 0; i < _authorizedAccounts.length; i++) {
-            if (_authorizedAccounts[i].account == authorized) {
-                for (uint j = 0; j < _authorizedAccounts[i].permissions.length; j++) {
-                    if (_authorizedAccounts[i].permissions[j] == permission) {
-                        return true;
+        if (atBlock == 0) {
+            revert AtBlockNumberCannotBeZero();
+        }
+
+        AuthorizedAccount[] storage authAccounts = authorizedAccounts[main];
+
+        for (uint i = 0; i < authAccounts.length; ++i) {
+            if (authAccounts[i].account == authorized) {
+                for (uint j = 0; j < authAccounts[i].permissions.length; ++j) {
+                    if (authAccounts[i].permissions[j].permission == permission) {
+                        uint256 authorizedAt = authAccounts[i].permissions[j].authorizedAt;
+                        uint256 unauthorizedAt = authAccounts[i].permissions[j].unauthorizedAt;
+
+                        // if addPermission -> removePermission are called in the same block,
+                        // unauthorizedAt is always greater than authorizedAt
+                        if (authorizedAt <= atBlock && atBlock < unauthorizedAt) {
+                            return true;
+                        }
+                        // unauthorizedAt <= authorizedAt <= atBlock
+                        if (unauthorizedAt <= authorizedAt && authorizedAt <= atBlock) {
+                            return true;
+                        }
+
+                        return false;
                     }
                 }
             }
         }
+
         return false;
     }
 
