@@ -237,8 +237,7 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
                         uint256 authorizedAt = authAccounts[i].permissions[j].authorizedAt;
                         uint256 unauthorizedAt = authAccounts[i].permissions[j].unauthorizedAt;
 
-                        // if addPermission -> removePermission are called in the same block,
-                        // unauthorizedAt is always greater than authorizedAt
+                        // authorizedAt <= atBlock < unauthorizedAt
                         if (authorizedAt <= atBlock && atBlock < unauthorizedAt) {
                             return true;
                         }
