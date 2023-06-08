@@ -820,6 +820,9 @@ describe('Ticketing', () => {
   });
 
   it('can redeem ticket using sender delegated account if removing permission is called after creating ticket', async () => {
+    // make sure ticket wins as we call removePermissions after creating ticket
+    await ticketingParameters.setDecayRate(1);
+
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 
@@ -858,6 +861,9 @@ describe('Ticketing', () => {
   });
 
   it('can redeem ticket using sender delegated account if unauthorizing account is called after creating ticket', async () => {
+    // make sure ticket wins as we call unauthorizeAccount after creating ticket
+    await ticketingParameters.setDecayRate(1);
+
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(accounts[0], accounts[1], 1);
 

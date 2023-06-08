@@ -53,9 +53,9 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Adds new authorized accounts with certain permissions. This will revert if the account
-     * has already existed
-     * @param authorized The authorized address of the main account
+     * @notice Adds new authorized accounts with certain permissions.
+     * This will revert if the account has already existed.
+     * @param authorized The address that the main account wants to authorize
      * @param permissions The list of permissions that the authorized account
      * can perform within the Sylo network.
      */
@@ -88,7 +88,7 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
 
     /**
      * @notice Removes an authorized account associated with the msg.sender.
-     * This will revert if the account does not exist
+     * This will revert if the account does not exist.
      * @param authorized The address of the authorized account
      */
     function unauthorizeAccount(address authorized) external {
@@ -109,9 +109,9 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
 
     /**
      * @notice Adds new permissions to a specific authorized account. This will revert if
-     * the account does not exist. Adding existing permissions will have no effect
-     * @param authorized The address of authorized account
-     * @param permissions The new permissions will be added for the authorized account
+     * the account does not exist. Adding existing or invalid permissions will have no effect.
+     * @param authorized The authorized account address
+     * @param permissions The new permissions will be added to the authorized account
      */
     function addPermissions(address authorized, Permission[] calldata permissions) external {
         if (authorized == address(0)) {
@@ -141,9 +141,8 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
                     exists = true;
                     authPermission.authorizedAt = block.number;
 
-                    // if removePermission is previously called in the same block, set
-                    // unauthorizedAt = authorizedAt so the permission is valid
-                    // (authorizedAt >= unauthorizedAt)
+                    // make sure unauthorizedAt is not greater than authorizedAt
+                    // (refer to the comment in IAuthorizedAccount -> AuthorizedPermission struct)
                     if (authPermission.unauthorizedAt > authPermission.authorizedAt) {
                         authPermission.unauthorizedAt = authPermission.authorizedAt;
                     }
@@ -204,10 +203,18 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
 
     /**
      * @notice Validates permission of an authorized account associated with the main account.
+     *
      * @param main The address of main account
      * @param authorized The address of authorized account
      * @param permission The permission needs to be verified with the authorized account
-     * @param atBlock The block number to check the permission
+     * @param atBlock The block number to check if the permission is valid between
+     * the permission's authorizedAt and unauthorizedAt period. It is added later to prevent
+     * the timing attack. E.g. If the main account authorizes the SigningTicket permission at
+     * block 1, creates a ticket at block 2, then unauthorizes the permission at block 3, the
+     * ticket will be invalid and cannot be redeemed. To avoid this, the `atBlock` param is
+     * needed to check if the permission is authorized between its authorizedAt and unauthorizedAt
+     * duration.
+     *
      * @return boolean value
      */
     function validatePermission(
@@ -237,22 +244,43 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
                         uint256 authorizedAt = authAccounts[i].permissions[j].authorizedAt;
                         uint256 unauthorizedAt = authAccounts[i].permissions[j].unauthorizedAt;
 
-                        // authorizedAt <= atBlock < unauthorizedAt
-                        if (authorizedAt <= atBlock && atBlock < unauthorizedAt) {
-                            return true;
+                        if (isPermissionUnauthorized(authorizedAt, unauthorizedAt)) {
+                            return
+                                isAtBlockBetweenAuthorizedDuration(
+                                    atBlock,
+                                    authorizedAt,
+                                    unauthorizedAt
+                                );
                         }
-                        // unauthorizedAt <= authorizedAt <= atBlock
-                        if (unauthorizedAt <= authorizedAt && authorizedAt <= atBlock) {
-                            return true;
-                        }
-
-                        return false;
+                        return isAtBlockGreaterThanAuthorizedAt(atBlock, authorizedAt);
                     }
                 }
             }
         }
 
         return false;
+    }
+
+    function isPermissionUnauthorized(
+        uint256 authorizedAt,
+        uint256 unauthorizedAt
+    ) private pure returns (bool) {
+        return authorizedAt < unauthorizedAt;
+    }
+
+    function isAtBlockBetweenAuthorizedDuration(
+        uint256 atBlock,
+        uint256 authorizedAt,
+        uint256 unauthorizedAt
+    ) private pure returns (bool) {
+        return authorizedAt <= atBlock && atBlock < unauthorizedAt;
+    }
+
+    function isAtBlockGreaterThanAuthorizedAt(
+        uint256 atBlock,
+        uint256 authorizedAt
+    ) private pure returns (bool) {
+        return authorizedAt <= atBlock;
     }
 
     /**
