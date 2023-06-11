@@ -18,16 +18,12 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
      */
     mapping(address => AuthorizedAccount[]) public authorizedAccounts;
 
-    /**
-     * @notice Stores all permissions that can be authorized
-     */
-    Permission[] public allPermissions = [Permission.TicketSigning];
-
     event PermissionsAdded(
         address indexed main,
         address indexed authorized,
         Permission[] permissions
     );
+
     event PermissionsRemoved(
         address indexed main,
         address indexed authorized,
@@ -73,7 +69,7 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
                 }
 
                 authAccounts[i].authorizedAt = block.number;
-                return _addPermission(authorized, authAccounts[i], permissions);
+                return _addPermissions(authorized, authAccounts[i], permissions);
             }
         }
 
@@ -83,11 +79,14 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
         newAccount.account = authorized;
         newAccount.authorizedAt = block.number;
 
-        _addPermission(authorized, newAccount, permissions);
+        _addPermissions(authorized, newAccount, permissions);
     }
 
     /**
-     * @notice Removes an authorized account associated with the msg.sender.
+     * @notice Removes all permissions of a specific authorized account
+     * associated with the msg.sender, and sets the account's authorizedAt
+     * to 0.
+     * Note: It does not remove the authorized account from the list.
      * This will revert if the account does not exist.
      * @param authorized The address of the authorized account
      */
@@ -100,7 +99,7 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
         for (uint i; i < authAccounts.length; ++i) {
             if (authAccounts[i].account == authorized) {
                 delete authAccounts[i].authorizedAt;
-                return _removePermissions(authorized, authAccounts[i], allPermissions);
+                return _removePermissions(authorized, authAccounts[i], getAllPermissions());
             }
         }
 
@@ -108,8 +107,13 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Adds new permissions to a specific authorized account. This will revert if
-     * the account does not exist. Adding existing or invalid permissions will have no effect.
+     * @notice Adds new permissions to a specific authorized account.
+     * - Adding invalid permissions will have no effect but still emit
+     * the PermissionsAdded event.
+     * - Adding duplicate permissions will update the permissions' authorizedAt value.
+     * - Adding permissions that were previously unauthorized will update the authorizedAt
+     * and unauthorizedAt values (refer to the comment in IAuthorizedAccount -> AuthorizedPermission struct).
+     * This will revert if the account does not exist.
      * @param authorized The authorized account address
      * @param permissions The new permissions will be added to the authorized account
      */
@@ -121,14 +125,14 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
         AuthorizedAccount[] storage authAccounts = authorizedAccounts[msg.sender];
         for (uint i; i < authAccounts.length; ++i) {
             if (authAccounts[i].account == authorized) {
-                return _addPermission(authorized, authAccounts[i], permissions);
+                return _addPermissions(authorized, authAccounts[i], permissions);
             }
         }
 
         revert AccountDoesNotExist();
     }
 
-    function _addPermission(
+    function _addPermissions(
         address authorized,
         AuthorizedAccount storage authAccount,
         Permission[] memory permissions
@@ -164,8 +168,12 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Removes permissions of specific authorized account. This will revert
-     * if the account does not exist.
+     * @notice Removes permissions of specific authorized account.
+     * - Removing invalid permissions will have no effect but still emit
+     * the PermissionsRemoved event.
+     * - Removing duplicate/authorized permissions will update the permissions'
+     * unauthorizedAt value.
+     * This will revert if the account does not exist.
      * @param authorized The address of authorized account
      * @param permissions The list of permissions will be removed
      */
@@ -244,43 +252,23 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
                         uint256 authorizedAt = authAccounts[i].permissions[j].authorizedAt;
                         uint256 unauthorizedAt = authAccounts[i].permissions[j].unauthorizedAt;
 
-                        if (isPermissionUnauthorized(authorizedAt, unauthorizedAt)) {
-                            return
-                                isAtBlockBetweenAuthorizedDuration(
-                                    atBlock,
-                                    authorizedAt,
-                                    unauthorizedAt
-                                );
+                        bool isPermissionUnauthorized = authorizedAt > 0 &&
+                            authorizedAt < unauthorizedAt;
+                        if (isPermissionUnauthorized) {
+                            // the permission was previously valid, so we check that
+                            // the `atBlock` is referencing a time when the permission was valid
+                            return authorizedAt <= atBlock && atBlock < unauthorizedAt;
                         }
-                        return isAtBlockGreaterThanAuthorizedAt(atBlock, authorizedAt);
+
+                        // otherwise just check if the permission was authorized before the
+                        // atBlock
+                        return authorizedAt > 0 && authorizedAt <= atBlock;
                     }
                 }
             }
         }
 
         return false;
-    }
-
-    function isPermissionUnauthorized(
-        uint256 authorizedAt,
-        uint256 unauthorizedAt
-    ) private pure returns (bool) {
-        return authorizedAt < unauthorizedAt;
-    }
-
-    function isAtBlockBetweenAuthorizedDuration(
-        uint256 atBlock,
-        uint256 authorizedAt,
-        uint256 unauthorizedAt
-    ) private pure returns (bool) {
-        return authorizedAt <= atBlock && atBlock < unauthorizedAt;
-    }
-
-    function isAtBlockGreaterThanAuthorizedAt(
-        uint256 atBlock,
-        uint256 authorizedAt
-    ) private pure returns (bool) {
-        return authorizedAt <= atBlock;
     }
 
     /**
@@ -296,5 +284,11 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
         }
 
         return authorizedAccounts[main];
+    }
+
+    function getAllPermissions() internal pure returns (Permission[] memory) {
+        Permission[] memory permissions = new Permission[](1);
+        permissions[0] = Permission.TicketSigning;
+        return permissions;
     }
 }

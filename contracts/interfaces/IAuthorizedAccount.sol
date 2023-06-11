@@ -10,7 +10,7 @@ interface IAuthorizedAccount {
 
     /**
      * @dev This type will hold the permission type and the block number from
-     * which the permission was set to be authorized and unauthorised.
+     * which the permission was set to be authorized and unauthorized.
      * The permission is authorized when authorizedAt >= unauthorizedAt.
      *
      * Note: authorizedAt and unauthorizedAt won't be set to 0 when the permission
@@ -19,15 +19,15 @@ interface IAuthorizedAccount {
     struct AuthorizedPermission {
         // Permission type
         Permission permission;
-        // Block number from which the permission was set to be authorised.
+        // Block number from which the permission was set to be authorized.
         // If the transaction is called in block 1, the permission is
         // authorized from block 1 (authorizedAt = block.number).
         uint256 authorizedAt;
-        // Block number from which the permission was set to be unauthorised.
+        // Block number from which the permission was set to be unauthorized.
         // If the transaction is called in block 1, the permission is
-        // unauthorised from block 2 (unauthorizedAt = block.number + 1)
+        // unauthorized from block 2 (unauthorizedAt = block.number + 1)
         // unauthorizedAt is set that way to avoid the case where the
-        // permission is authorized and unauthorised in the same block:
+        // permission is authorized and unauthorized in the same block:
         // E.g. addPermission is called => authorizedAt = 1
         //      removePermission is called => unauthorizedAt = 1
         // => We cannot tell if the permission is authorized or not.

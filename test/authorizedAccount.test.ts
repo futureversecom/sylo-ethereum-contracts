@@ -59,7 +59,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('can add unexisted authorized account', async () => {
+  it('can add authorized account', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
@@ -90,7 +90,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('can add multiple unexisted authorized account', async () => {
+  it('can add multiple authorized accounts', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
@@ -109,7 +109,7 @@ describe('Authorized Account', () => {
     assert.equal(authorizedAccounts.length, 2);
   });
 
-  it('cannot add existed authorized account', async () => {
+  it('cannot add existing authorized account', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
@@ -134,7 +134,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('cannot unauthorize account if none account is available', async () => {
+  it('cannot unauthorize account if account does not exist', async () => {
     await expect(
       authAccountConnectMain.unauthorizeAccount(delegatedAccount1),
     ).to.be.revertedWithCustomError(
@@ -143,7 +143,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('cannot unauthorize unexisted account', async () => {
+  it('cannot unauthorize account that does not exist', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
@@ -156,7 +156,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('can unauthorize existed account', async () => {
+  it('can unauthorize account', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
@@ -220,7 +220,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('can unauthorize existed account in the same block after authorize account', async () => {
+  it('can unauthorize account in the same block after authorizing account', async () => {
     await network.provider.send('evm_setAutomine', [false]);
     const block = await currentBlock();
 
@@ -299,7 +299,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('cannot add permission for invalid delegated account', async () => {
+  it('cannot add permission for invalid authorized account', async () => {
     await expect(
       authAccountConnectMain.addPermissions(
         ethers.constants.AddressZero,
@@ -311,7 +311,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('cannot add permission for unexisted delegated account', async () => {
+  it('cannot add permission for authorized account that does not exist', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
@@ -324,7 +324,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('can add permission for existed delegated account', async () => {
+  it('can add permission for authorized account', async () => {
     const permission: Permission[] = [];
     const newPermission: Permission[] = [Permission.TicketSigning];
     await authAccountConnectMain.authorizeAccount(
@@ -369,7 +369,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('can add multiple permissions (with duplicated permissions) for existed delegated account', async () => {
+  it('can add multiple permissions (with duplicated permissions) for authorized account', async () => {
     const permission: Permission[] = [];
     const newPermissions: Permission[] = [
       Permission.TicketSigning,
@@ -389,7 +389,7 @@ describe('Authorized Account', () => {
     assert.equal(accounts[0].permissions.length, 1);
   });
 
-  it('can add existed permission for current delegated account but permissions will not be duplicated', async () => {
+  it('can add existing permission for current authorized account but permissions will not be duplicated', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
@@ -404,7 +404,7 @@ describe('Authorized Account', () => {
     assert.equal(accounts[0].permissions.length, 1);
   });
 
-  it('can remove multiple permissions (with duplicated permissions) for existed delegated account', async () => {
+  it('can remove multiple permissions (with duplicated permissions) for authorized account', async () => {
     const permissionsToAdd: Permission[] = [Permission.TicketSigning];
     const permissionsToRemove: Permission[] = [
       Permission.TicketSigning,
@@ -483,7 +483,7 @@ describe('Authorized Account', () => {
     );
   });
 
-  it('cannot remove permission for unexisted delegated account', async () => {
+  it('cannot remove permission for authorized account that does not exist', async () => {
     await authAccountConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
