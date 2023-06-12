@@ -6,7 +6,7 @@ echo "starting local ganache node"
 ganache \
   --database.dbPath ganache-data \
   --wallet.mnemonic "enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup" \
-  --miner.blockTime 5 \
+  --miner.blockTime 1 \
   --wallet.accountKeysPath ./deployment/accounts.json \
   &>/dev/null &
 
