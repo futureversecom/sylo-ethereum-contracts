@@ -84,8 +84,7 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
 
     /**
      * @notice Removes all permissions of a specific authorized account
-     * associated with the msg.sender, and sets the account's authorizedAt
-     * to 0.
+     * associated with the msg.sender, and sets the account's authorizedAt to 0.
      * Note: It does not remove the authorized account from the list.
      * This will revert if the account does not exist.
      * @param authorized The address of the authorized account
@@ -108,11 +107,12 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
 
     /**
      * @notice Adds new permissions to a specific authorized account.
-     * - Adding invalid permissions will have no effect but still emit
-     * the PermissionsAdded event.
+     * - Adding permissions that don't exist in the Permission enum will return
+     * with panic code 0x21 (convert a value that is too big or negative into an enum type).
      * - Adding duplicate permissions will update the permissions' authorizedAt value.
-     * - Adding permissions that were previously unauthorized will update the authorizedAt
-     * and unauthorizedAt values (refer to the comment in IAuthorizedAccount -> AuthorizedPermission struct).
+     * - Adding permissions that were previously unauthorized will update
+     * the authorizedAt and unauthorizedAt values (refer to the comment in
+     * IAuthorizedAccount -> AuthorizedPermission struct).
      * This will revert if the account does not exist.
      * @param authorized The authorized account address
      * @param permissions The new permissions will be added to the authorized account
@@ -169,8 +169,8 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
 
     /**
      * @notice Removes permissions of specific authorized account.
-     * - Removing invalid permissions will have no effect but still emit
-     * the PermissionsRemoved event.
+     * - Removing permissions that don't exist in the Permission enum will return
+     * with panic code 0x21 (convert a value that is too big or negative into an enum type).
      * - Removing duplicate/authorized permissions will update the permissions'
      * unauthorizedAt value.
      * This will revert if the account does not exist.
