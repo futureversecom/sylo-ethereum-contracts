@@ -10,7 +10,7 @@ import {
   SyloTicketing,
   TicketingParameters,
   TestSeekers,
-  AuthorizedAccount,
+  AuthorizedAccounts,
 } from '../typechain-types';
 import { randomBytes } from 'crypto';
 
@@ -27,6 +27,7 @@ type Options = {
 };
 
 export type Contracts = {
+  authorizedAccounts: AuthorizedAccounts;
   registries: Registries;
   ticketing: SyloTicketing;
   ticketingParameters: TicketingParameters;
@@ -35,7 +36,6 @@ export type Contracts = {
   epochsManager: EpochsManager;
   stakingManager: StakingManager;
   seekers: TestSeekers;
-  authorizedAccount: AuthorizedAccount;
 };
 
 const initializeContracts = async function (
@@ -97,9 +97,9 @@ const initializeContracts = async function (
   const directory = await DirectoryFactory.deploy();
 
   const AuthorizedAccountFactory = await ethers.getContractFactory(
-    'AuthorizedAccount',
+    'AuthorizedAccounts',
   );
-  const authorizedAccount = await AuthorizedAccountFactory.deploy();
+  const authorizedAccounts = await AuthorizedAccountFactory.deploy();
 
   await stakingManager.initialize(
     tokenAddress,
@@ -126,7 +126,7 @@ const initializeContracts = async function (
     epochDuration,
     { from: deployer },
   );
-  await authorizedAccount.initialize({ from: deployer });
+  await authorizedAccounts.initialize({ from: deployer });
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
   const ticketing = await TicketingFactory.deploy();
@@ -137,7 +137,7 @@ const initializeContracts = async function (
     directory.address,
     epochsManager.address,
     rewardsManager.address,
-    authorizedAccount.address,
+    authorizedAccounts.address,
     unlockDuration,
     { from: deployer },
   );
@@ -149,6 +149,7 @@ const initializeContracts = async function (
   await directory.addManager(epochsManager.address);
 
   return {
+    authorizedAccounts,
     registries,
     ticketing,
     ticketingParameters,
@@ -157,7 +158,6 @@ const initializeContracts = async function (
     epochsManager,
     stakingManager,
     seekers,
-    authorizedAccount,
   };
 };
 

@@ -5,14 +5,19 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-import "./interfaces/IAuthorizedAccount.sol";
+import "./interfaces/IAuthorizedAccounts.sol";
 
 /**
  * @notice Manages authorized accounts with limited permissions on behalf of main account
  * these authorized accounts are allowed to perform some certain actions in the Sylo network
  * in order to reduce the works for main account
  */
-contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpgradeable, ERC165 {
+contract AuthorizedAccounts is
+    IAuthorizedAccounts,
+    Initializable,
+    Ownable2StepUpgradeable,
+    ERC165
+{
     /**
      * @notice Tracks authorized accounts for every main account
      */
@@ -45,7 +50,7 @@ contract AuthorizedAccount is IAuthorizedAccount, Initializable, Ownable2StepUpg
      * `interfaceId` from ERC165.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IAuthorizedAccount).interfaceId;
+        return interfaceId == type(IAuthorizedAccounts).interfaceId;
     }
 
     /**

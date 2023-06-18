@@ -15,7 +15,7 @@ import "../libraries/SyloUtils.sol";
 import "../epochs/EpochsManager.sol";
 import "../staking/StakingManager.sol";
 import "./ticketing/RewardsManager.sol";
-import "../AuthorizedAccount.sol";
+import "../AuthorizedAccounts.sol";
 import "../interfaces/payments/ISyloTicketing.sol";
 
 /**
@@ -47,9 +47,9 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     EpochsManager public _epochsManager;
 
     /**
-     * @notice Sylo Authorized Account.
+     * @notice Sylo Authorized Accounts.
      */
-    AuthorizedAccount public _authorizedAccount;
+    AuthorizedAccounts public _authorizedAccounts;
 
     /**
      * @notice The number of blocks a user must wait after calling "unlock"
@@ -107,7 +107,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         Directory directory,
         EpochsManager epochsManager,
         RewardsManager rewardsManager,
-        AuthorizedAccount authorizedAccount,
+        AuthorizedAccounts authorizedAccounts,
         uint256 _unlockDuration
     ) external initializer {
         if (address(token) == address(0)) {
@@ -145,9 +145,9 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         );
 
         SyloUtils.validateContractInterface(
-            "AuthorizedAccount",
-            address(authorizedAccount),
-            type(IAuthorizedAccount).interfaceId
+            "AuthorizedAccounts",
+            address(authorizedAccounts),
+            type(IAuthorizedAccounts).interfaceId
         );
 
         if (_unlockDuration == 0) {
@@ -162,7 +162,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         _directory = directory;
         _epochsManager = epochsManager;
         _rewardsManager = rewardsManager;
-        _authorizedAccount = authorizedAccount;
+        _authorizedAccounts = authorizedAccounts;
         unlockDuration = _unlockDuration;
     }
 
@@ -455,9 +455,9 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             return true;
         }
 
-        IAuthorizedAccount.Permission permission = IAuthorizedAccount.Permission.TicketSigning;
+        IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.TicketSigning;
         return
-            _authorizedAccount.validatePermission(
+            _authorizedAccounts.validatePermission(
                 user.main,
                 user.delegated,
                 permission,

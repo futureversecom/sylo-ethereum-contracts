@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-interface IAuthorizedAccount {
+interface IAuthorizedAccounts {
     enum Permission {
         // TicketSigning permission allows the authorized account to
         // sign tickets for ticketing redemption.
