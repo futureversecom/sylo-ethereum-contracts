@@ -1,7 +1,7 @@
 import { ethers, upgrades, network } from 'hardhat';
 import Config from './genesis.config';
 import {
-  AuthorizedAccount,
+  AuthorizedAccounts,
   Directory,
   EpochsManager,
   Registries,
@@ -16,7 +16,7 @@ type PhaseTwoContracts = {
   token: string;
   directory: Directory;
   epochsManager: EpochsManager;
-  authorizedAccount: AuthorizedAccount;
+  authorizedAccounts: AuthorizedAccounts;
   registries: Registries;
   rewardsManager: RewardsManager;
   stakingManager: StakingManager;
@@ -55,19 +55,19 @@ async function deployPhaseTwoContracts(
     logDeployment('Seekers', seekers.address);
   }
 
-  const AuthorizedAccountFactory = await ethers.getContractFactory(
-    'AuthorizedAccount',
+  const AuthorizedAccountsFactory = await ethers.getContractFactory(
+    'AuthorizedAccounts',
   );
-  const authorizeAccount = (await upgrades.deployProxy(
-    AuthorizedAccountFactory,
+  const authorizedAccounts = (await upgrades.deployProxy(
+    AuthorizedAccountsFactory,
     undefined,
     {
       initializer: false,
     },
-  )) as AuthorizedAccount;
-  await authorizeAccount.deployed();
+  )) as AuthorizedAccounts;
+  await authorizedAccounts.deployed();
 
-  logDeployment('AuthorizedAccount', authorizeAccount.address);
+  logDeployment('AuthorizedAccounts', authorizedAccounts.address);
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = (await upgrades.deployProxy(RegistriesFactory, undefined, {
@@ -143,9 +143,9 @@ async function deployPhaseTwoContracts(
 
   console.log('Initialized registries');
 
-  await authorizeAccount.initialize().then(tx => tx.wait());
+  await authorizedAccounts.initialize().then(tx => tx.wait());
 
-  console.log('Initialized authorized account');
+  console.log('Initialized authorized accounts');
 
   await ticketingParameters
     .initialize(
@@ -211,7 +211,7 @@ async function deployPhaseTwoContracts(
       directory.address,
       epochsManager.address,
       rewardsManager.address,
-      authorizeAccount.address,
+      authorizedAccounts.address,
       config.Ticketing.unlockDuration,
     )
     .then(tx => tx.wait());
@@ -238,7 +238,7 @@ async function deployPhaseTwoContracts(
 
   return {
     token: config.SyloToken,
-    authorizeAccount,
+    authorizedAccounts,
     registries,
     ticketing,
     ticketingParameters,
@@ -264,7 +264,7 @@ async function main() {
   const deployedJson = {
     deployer: deployer.address,
     token: contracts.token,
-    authorizedAccount: contracts.authorizeAccount.address,
+    authorizedAccounts: contracts.authorizedAccounts.address,
     registries: contracts.registries.address,
     ticketing: contracts.ticketing.address,
     ticketingParameters: contracts.ticketingParameters.address,

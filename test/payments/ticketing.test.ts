@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
 import { BigNumber, BigNumberish, Signer, Wallet } from 'ethers';
 import {
-  AuthorizedAccount,
+  AuthorizedAccounts,
   Directory,
   EpochsManager,
   Registries,
@@ -35,7 +35,7 @@ describe('Ticketing', () => {
   let registries: Registries;
   let stakingManager: StakingManager;
   let seekers: TestSeekers;
-  let authorizedAccount: AuthorizedAccount;
+  let authorizedAccounts: AuthorizedAccounts;
 
   enum Permission {
     TicketSigning,
@@ -73,7 +73,7 @@ describe('Ticketing', () => {
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
     seekers = contracts.seekers;
-    authorizedAccount = contracts.authorizedAccount;
+    authorizedAccounts = contracts.authorizedAccounts;
 
     await token.approve(stakingManager.address, toSOLOs(10000000));
     await token.approve(ticketing.address, toSOLOs(10000000));
@@ -106,7 +106,7 @@ describe('Ticketing', () => {
         directory.address,
         epochsManager.address,
         rewardsManager.address,
-        authorizedAccount.address,
+        authorizedAccounts.address,
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'TokenCannotBeZeroAddress');
@@ -119,7 +119,7 @@ describe('Ticketing', () => {
         directory.address,
         epochsManager.address,
         rewardsManager.address,
-        authorizedAccount.address,
+        authorizedAccounts.address,
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'UnlockDurationCannotBeZero');
@@ -729,7 +729,7 @@ describe('Ticketing', () => {
     const permission: Permission[] = [Permission.TicketSigning];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
@@ -780,10 +780,10 @@ describe('Ticketing', () => {
     const permission: Permission[] = [Permission.TicketSigning];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .unauthorizeAccount(delegatedWallet.address);
 
@@ -804,10 +804,10 @@ describe('Ticketing', () => {
       'InvalidSenderTicketSigningPermission',
     );
 
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .removePermissions(delegatedWallet.address, [Permission.TicketSigning]);
 
@@ -844,14 +844,14 @@ describe('Ticketing', () => {
     const permission: Permission[] = [Permission.TicketSigning];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
 
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .removePermissions(delegatedWallet.address, permission);
 
@@ -885,14 +885,14 @@ describe('Ticketing', () => {
     const permission: Permission[] = [Permission.TicketSigning];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
 
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .unauthorizeAccount(delegatedWallet.address);
 
@@ -922,7 +922,7 @@ describe('Ticketing', () => {
     const permission: Permission[] = [Permission.TicketSigning];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
-    await authorizedAccount
+    await authorizedAccounts
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
@@ -961,12 +961,12 @@ describe('Ticketing', () => {
 
     // alice adds this account as delegated account with permission to withdraw deposit
     const permission: Permission[] = [Permission.TicketSigning];
-    await authorizedAccount
+    await authorizedAccounts
       .connect(alice.connect(ethers.provider))
       .authorizeAccount(aliceDelegatedWallet.address, permission);
 
     // bob adds this account as delegated account with permission to withdraw deposit
-    await authorizedAccount
+    await authorizedAccounts
       .connect(bob.connect(ethers.provider))
       .authorizeAccount(bobDelegatedWallet.address, permission);
 

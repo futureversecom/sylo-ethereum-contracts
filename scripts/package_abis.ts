@@ -15,7 +15,7 @@ const syloContracts = [
   'SyloTicketing',
   'SyloToken',
   'TicketingParameters',
-  'AuthorizedAccount',
+  'AuthorizedAccounts',
 ];
 
 type ABI = {

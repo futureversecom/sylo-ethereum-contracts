@@ -1,10 +1,10 @@
 import { ethers, network } from 'hardhat';
 import { Signer } from 'ethers';
-import { AuthorizedAccount, SyloToken } from '../typechain-types';
+import { AuthorizedAccounts, SyloToken } from '../typechain-types';
 import utils, { Contracts } from './utils';
 import { assert, expect } from 'chai';
 
-describe('Authorized Account', () => {
+describe('Authorized Accounts', () => {
   let accounts: Signer[];
   let deployer: string;
   let mainAccount: Signer;
@@ -14,7 +14,7 @@ describe('Authorized Account', () => {
   let delegatedAccount3: string;
 
   let token: SyloToken;
-  let authAccountConnectMain: AuthorizedAccount;
+  let authAccountsConnectMain: AuthorizedAccounts;
   let contracts: Contracts;
 
   enum Permission {
@@ -38,34 +38,34 @@ describe('Authorized Account', () => {
 
   beforeEach(async () => {
     contracts = await utils.initializeContracts(deployer, token.address);
-    authAccountConnectMain = contracts.authorizedAccount.connect(mainAccount);
+    authAccountsConnectMain = contracts.authorizedAccounts.connect(mainAccount);
   });
 
   it('authorized account cannot be initialized again', async () => {
-    await expect(authAccountConnectMain.initialize()).to.be.revertedWith(
+    await expect(authAccountsConnectMain.initialize()).to.be.revertedWith(
       'Initializable: contract is already initialized',
     );
   });
 
   it('cannot add zero authorized account', async () => {
     await expect(
-      authAccountConnectMain.authorizeAccount(
+      authAccountsConnectMain.authorizeAccount(
         ethers.constants.AddressZero,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AuthorizedAccountCannotBeZeroAddress',
     );
   });
 
   it('can add authorized account', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
     const authorizedAccounts =
-      await authAccountConnectMain.getAuthorizedAccounts(mainAccountAddress);
+      await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
     assert.equal(authorizedAccounts.length, 1);
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
     assert.equal(
@@ -91,18 +91,18 @@ describe('Authorized Account', () => {
   });
 
   it('can add multiple authorized accounts', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
 
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
     );
 
     const authorizedAccounts =
-      await authAccountConnectMain.getAuthorizedAccounts(mainAccountAddress);
+      await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
 
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
     assert.equal(authorizedAccounts[1].account, delegatedAccount2);
@@ -110,92 +110,91 @@ describe('Authorized Account', () => {
   });
 
   it('cannot add existing authorized account', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
     await expect(
-      authAccountConnectMain.authorizeAccount(
+      authAccountsConnectMain.authorizeAccount(
         delegatedAccount1,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AccountAlreadyAuthorized',
     );
   });
 
   it('cannot unauthorize invalid authorized account', async () => {
     await expect(
-      authAccountConnectMain.unauthorizeAccount(ethers.constants.AddressZero),
+      authAccountsConnectMain.unauthorizeAccount(ethers.constants.AddressZero),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AuthorizedAccountCannotBeZeroAddress',
     );
   });
 
   it('cannot unauthorize account if account does not exist', async () => {
     await expect(
-      authAccountConnectMain.unauthorizeAccount(delegatedAccount1),
+      authAccountsConnectMain.unauthorizeAccount(delegatedAccount1),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AccountDoesNotExist',
     );
   });
 
   it('cannot unauthorize account that does not exist', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
     await expect(
-      authAccountConnectMain.unauthorizeAccount(delegatedAccount2),
+      authAccountsConnectMain.unauthorizeAccount(delegatedAccount2),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AccountDoesNotExist',
     );
   });
 
   it('can unauthorize account', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
     );
 
-    let result = authAccountConnectMain.authorizeAccount(
+    let result = authAccountsConnectMain.authorizeAccount(
       delegatedAccount3,
       permissionList,
     );
     await expect(result)
-      .to.emit(authAccountConnectMain, 'PermissionsAdded')
+      .to.emit(authAccountsConnectMain, 'PermissionsAdded')
       .withArgs(
         await mainAccount.getAddress(),
         delegatedAccount3,
         permissionList,
       );
 
-    let authorizedAccounts = await authAccountConnectMain.getAuthorizedAccounts(
-      mainAccountAddress,
-    );
+    let authorizedAccounts =
+      await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
     assert.equal(authorizedAccounts[1].account, delegatedAccount2);
     assert.equal(authorizedAccounts[2].account, delegatedAccount3);
     assert.equal(authorizedAccounts.length, 3);
 
-    result = authAccountConnectMain.unauthorizeAccount(delegatedAccount2);
+    result = authAccountsConnectMain.unauthorizeAccount(delegatedAccount2);
     await expect(result)
-      .to.emit(authAccountConnectMain, 'PermissionsRemoved')
+      .to.emit(authAccountsConnectMain, 'PermissionsRemoved')
       .withArgs(
         await mainAccount.getAddress(),
         delegatedAccount2,
         permissionList,
       );
 
-    authorizedAccounts = await authAccountConnectMain.getAuthorizedAccounts(
+    authorizedAccounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
 
@@ -224,11 +223,11 @@ describe('Authorized Account', () => {
     await network.provider.send('evm_setAutomine', [false]);
     const block = await currentBlock();
 
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
-    await authAccountConnectMain.unauthorizeAccount(delegatedAccount1);
+    await authAccountsConnectMain.unauthorizeAccount(delegatedAccount1);
 
     assert.equal(await currentBlock(), block);
 
@@ -236,7 +235,7 @@ describe('Authorized Account', () => {
     await network.provider.send('evm_setAutomine', [true]);
 
     const authorizedAccounts =
-      await authAccountConnectMain.getAuthorizedAccounts(mainAccountAddress);
+      await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
 
     assert.equal(authorizedAccounts.length, 1);
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
@@ -260,12 +259,12 @@ describe('Authorized Account', () => {
     await network.provider.send('evm_setAutomine', [false]);
     const block = await currentBlock();
 
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
-    await authAccountConnectMain.unauthorizeAccount(delegatedAccount1);
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.unauthorizeAccount(delegatedAccount1);
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
@@ -276,7 +275,7 @@ describe('Authorized Account', () => {
     await network.provider.send('evm_setAutomine', [true]);
 
     const authorizedAccounts =
-      await authAccountConnectMain.getAuthorizedAccounts(mainAccountAddress);
+      await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
 
     assert.equal(authorizedAccounts.length, 1);
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
@@ -301,25 +300,25 @@ describe('Authorized Account', () => {
 
   it('cannot add permission for invalid authorized account', async () => {
     await expect(
-      authAccountConnectMain.addPermissions(
+      authAccountsConnectMain.addPermissions(
         ethers.constants.AddressZero,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AuthorizedAccountCannotBeZeroAddress',
     );
   });
 
   it('cannot add permission for authorized account that does not exist', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
     );
     await expect(
-      authAccountConnectMain.addPermissions(delegatedAccount1, permissionList),
+      authAccountsConnectMain.addPermissions(delegatedAccount1, permissionList),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AccountDoesNotExist',
     );
   });
@@ -327,34 +326,34 @@ describe('Authorized Account', () => {
   it('can add permission for authorized account', async () => {
     const permission: Permission[] = [];
     const newPermission: Permission[] = [Permission.TicketSigning];
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permission,
     );
 
-    let result = authAccountConnectMain.addPermissions(
+    let result = authAccountsConnectMain.addPermissions(
       delegatedAccount1,
       permission,
     );
 
     await expect(result)
-      .to.emit(authAccountConnectMain, 'PermissionsAdded')
+      .to.emit(authAccountsConnectMain, 'PermissionsAdded')
       .withArgs(await mainAccount.getAddress(), delegatedAccount1, permission);
 
-    result = authAccountConnectMain.addPermissions(
+    result = authAccountsConnectMain.addPermissions(
       delegatedAccount1,
       newPermission,
     );
 
     await expect(result)
-      .to.emit(authAccountConnectMain, 'PermissionsAdded')
+      .to.emit(authAccountsConnectMain, 'PermissionsAdded')
       .withArgs(
         await mainAccount.getAddress(),
         delegatedAccount1,
         newPermission,
       );
 
-    const accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    const accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
 
@@ -375,30 +374,30 @@ describe('Authorized Account', () => {
       Permission.TicketSigning,
       Permission.TicketSigning,
     ];
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permission,
     );
-    await authAccountConnectMain.addPermissions(
+    await authAccountsConnectMain.addPermissions(
       delegatedAccount1,
       newPermissions,
     );
-    const accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    const accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
     assert.equal(accounts[0].permissions.length, 1);
   });
 
   it('can add existing permission for current authorized account but permissions will not be duplicated', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
-    await authAccountConnectMain.addPermissions(
+    await authAccountsConnectMain.addPermissions(
       delegatedAccount1,
       permissionList,
     );
-    const accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    const accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
     assert.equal(accounts[0].permissions.length, 1);
@@ -413,54 +412,54 @@ describe('Authorized Account', () => {
     const emptyPermissions: Permission[] = [];
     const permission2: Permission[] = [Permission.TicketSigning];
 
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionsToAdd,
     );
     const authorizedAtBlock = await currentBlock();
 
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount2,
       permission2,
     );
 
-    let accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    let accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
     assert.equal(accounts[0].permissions.length, 1);
 
-    let result = authAccountConnectMain.removePermissions(
+    let result = authAccountsConnectMain.removePermissions(
       delegatedAccount1,
       emptyPermissions,
     );
 
     await expect(result)
-      .to.emit(authAccountConnectMain, 'PermissionsRemoved')
+      .to.emit(authAccountsConnectMain, 'PermissionsRemoved')
       .withArgs(
         await mainAccount.getAddress(),
         delegatedAccount1,
         emptyPermissions,
       );
 
-    accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
     assert.equal(accounts[0].permissions.length, 1);
 
-    result = authAccountConnectMain.removePermissions(
+    result = authAccountsConnectMain.removePermissions(
       delegatedAccount1,
       permissionsToRemove,
     );
 
     await expect(result)
-      .to.emit(authAccountConnectMain, 'PermissionsRemoved')
+      .to.emit(authAccountsConnectMain, 'PermissionsRemoved')
       .withArgs(
         await mainAccount.getAddress(),
         delegatedAccount1,
         permissionsToRemove,
       );
 
-    accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
 
@@ -484,17 +483,17 @@ describe('Authorized Account', () => {
   });
 
   it('cannot remove permission for authorized account that does not exist', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
     );
     await expect(
-      authAccountConnectMain.removePermissions(
+      authAccountsConnectMain.removePermissions(
         delegatedAccount1,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AccountDoesNotExist',
     );
   });
@@ -502,40 +501,40 @@ describe('Authorized Account', () => {
   it('cannot remove permission with zero authorized account', async () => {
     const authorizedAddress = ethers.constants.AddressZero;
     await expect(
-      authAccountConnectMain.removePermissions(
+      authAccountsConnectMain.removePermissions(
         authorizedAddress,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AuthorizedAccountCannotBeZeroAddress',
     );
   });
 
   it('can remove permission', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
     const authorizedAtBlock = await currentBlock();
 
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount2,
       permissionList,
     );
 
-    let accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    let accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
 
     assert.equal(accounts[0].permissions.length, 1);
 
-    await authAccountConnectMain.removePermissions(
+    await authAccountsConnectMain.removePermissions(
       delegatedAccount1,
       permissionList,
     );
 
-    accounts = await authAccountConnectMain.getAuthorizedAccounts(
+    accounts = await authAccountsConnectMain.getAuthorizedAccounts(
       mainAccountAddress,
     );
 
@@ -554,9 +553,9 @@ describe('Authorized Account', () => {
   it('cannot get authorized accounts associated with invalid main account', async () => {
     const main = ethers.constants.AddressZero;
     await expect(
-      authAccountConnectMain.getAuthorizedAccounts(main),
+      authAccountsConnectMain.getAuthorizedAccounts(main),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'MainAccountCannotBeZeroAddress',
     );
   });
@@ -565,14 +564,14 @@ describe('Authorized Account', () => {
     const main = ethers.constants.AddressZero;
     const permission = Permission.TicketSigning;
     await expect(
-      authAccountConnectMain.validatePermission(
+      authAccountsConnectMain.validatePermission(
         main,
         delegatedAccount1,
         permission,
         await currentBlock(),
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'MainAccountCannotBeZeroAddress',
     );
   });
@@ -581,38 +580,38 @@ describe('Authorized Account', () => {
     const authorizedAddress = ethers.constants.AddressZero;
     const permission = Permission.TicketSigning;
     await expect(
-      authAccountConnectMain.validatePermission(
+      authAccountsConnectMain.validatePermission(
         mainAccountAddress,
         authorizedAddress,
         permission,
         await currentBlock(),
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AuthorizedAccountCannotBeZeroAddress',
     );
   });
 
   it('cannot validate permission with invalid atBlock', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
     await expect(
-      authAccountConnectMain.validatePermission(
+      authAccountsConnectMain.validatePermission(
         mainAccountAddress,
         delegatedAccount1,
         permissionList,
         0,
       ),
     ).to.be.revertedWithCustomError(
-      authAccountConnectMain,
+      authAccountsConnectMain,
       'AtBlockNumberCannotBeZero',
     );
   });
 
   it('return false if the account is never authorized', async () => {
-    const validate = await authAccountConnectMain.validatePermission(
+    const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
@@ -622,12 +621,12 @@ describe('Authorized Account', () => {
   });
 
   it('return false when validating permission with invalid authorized account', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
 
-    const validate = await authAccountConnectMain.validatePermission(
+    const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount2,
       Permission.TicketSigning,
@@ -639,12 +638,12 @@ describe('Authorized Account', () => {
 
   it('return false if authorized account does not have valid permission', async () => {
     const permission: Permission[] = [];
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permission,
     );
 
-    const validate = await authAccountConnectMain.validatePermission(
+    const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
@@ -655,7 +654,7 @@ describe('Authorized Account', () => {
   });
 
   it('can validate multiple cases with different atBlock', async () => {
-    const authContract = authAccountConnectMain;
+    const authContract = authAccountsConnectMain;
 
     /**
      * Symbol:
@@ -799,12 +798,12 @@ describe('Authorized Account', () => {
   });
 
   it('return true if authorized account has valid permission', async () => {
-    await authAccountConnectMain.authorizeAccount(
+    await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permissionList,
     );
 
-    const validate = await authAccountConnectMain.validatePermission(
+    const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
