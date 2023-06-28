@@ -22,18 +22,23 @@ describe('Epochs', () => {
   });
 
   beforeEach(async () => {
-    contracts = await utils.initializeContracts(owner, token.address);
+    contracts = await utils.initializeContracts(
+      owner,
+      await token.getAddress(),
+    );
     epochsManager = contracts.epochsManager;
-    await contracts.directory.transferOwnership(epochsManager.address);
+    await contracts.directory.transferOwnership(
+      await epochsManager.getAddress(),
+    );
   });
 
   it('epoch manager cannot be intialized twice', async () => {
     await expect(
       epochsManager.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
         0,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
@@ -45,10 +50,10 @@ describe('Epochs', () => {
 
     await expect(
       epochsManager.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
         0,
       ),
     ).to.be.revertedWithCustomError(
@@ -64,8 +69,8 @@ describe('Epochs', () => {
 
     const epochDuration = await epochsManager.epochDuration();
     assert.equal(
-      epochDuration.toNumber(),
-      777,
+      epochDuration,
+      BigInt(777),
       'Expected epoch duration to be updated',
     );
   });
@@ -89,8 +94,8 @@ describe('Epochs', () => {
 
     let currentIteration = await epochsManager.currentIteration();
     assert.equal(
-      currentIteration.toNumber(),
-      1,
+      currentIteration,
+      BigInt(1),
       'Expected fist epoch id to be correctly set',
     );
 
@@ -99,8 +104,8 @@ describe('Epochs', () => {
     await epochsManager.initializeEpoch();
     currentIteration = await epochsManager.currentIteration();
     assert.equal(
-      currentIteration.toNumber(),
-      2,
+      currentIteration,
+      BigInt(2),
       'Expected second epoch id to be correctly set',
     );
   });
@@ -124,14 +129,17 @@ describe('Epochs', () => {
 
     const epochInfo = await epochsManager.getCurrentActiveEpoch();
 
-    assert.equal(epochInfo[0].toNumber(), 2, 'Expected epoch id to be 2');
-
+    assert.equal(epochInfo[0], BigInt(2), 'Expected epoch id to be 2');
     assert.equal(
-      epochInfo[1].faceValue.toNumber(),
-      2222,
+      epochInfo[1].faceValue,
+      BigInt(2222),
       'Expected face value to change',
     );
 
-    assert.equal(epochInfo[1].decayRate, 1111, 'Expected decay rate to change');
+    assert.equal(
+      epochInfo[1].decayRate,
+      BigInt(1111),
+      'Expected decay rate to change',
+    );
   });
 });

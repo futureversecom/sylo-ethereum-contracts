@@ -1,6 +1,7 @@
 import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
-import { BigNumber, BigNumberish, Signer, Wallet } from 'ethers';
+import { BigNumberish, HDNodeWallet, Signer, Wallet } from 'ethers';
+import { BigNumber } from '@ethersproject/bignumber';
 import {
   AuthorizedAccounts,
   Directory,
@@ -15,7 +16,6 @@ import {
   ISyloTicketing__factory,
 } from '../../typechain-types';
 import crypto from 'crypto';
-import keccak256 from 'keccak256';
 import web3 from 'web3';
 import utils from '../utils';
 
@@ -52,7 +52,7 @@ describe('Ticketing', () => {
     for (let i = 10; i <= 15; i++) {
       await accounts[i].sendTransaction({
         to: owner,
-        value: ethers.utils.parseEther('5000.0'),
+        value: ethers.parseEther('5000.0'),
       });
     }
 
@@ -61,10 +61,14 @@ describe('Ticketing', () => {
   });
 
   beforeEach(async () => {
-    const contracts = await utils.initializeContracts(owner, token.address, {
-      faceValue,
-      epochDuration,
-    });
+    const contracts = await utils.initializeContracts(
+      owner,
+      await token.getAddress(),
+      {
+        faceValue,
+        epochDuration,
+      },
+    );
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
     ticketing = contracts.ticketing;
@@ -75,20 +79,20 @@ describe('Ticketing', () => {
     seekers = contracts.seekers;
     authorizedAccounts = contracts.authorizedAccounts;
 
-    await token.approve(stakingManager.address, toSOLOs(10000000));
-    await token.approve(ticketing.address, toSOLOs(10000000));
+    await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
+    await token.approve(await ticketing.getAddress(), toSOLOs(10000000));
   });
 
   it('ticketing cannot be initialized twice', async () => {
     await expect(
       ticketing.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
         0,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
@@ -100,26 +104,26 @@ describe('Ticketing', () => {
 
     await expect(
       ticketing.initialize(
-        ethers.constants.AddressZero,
-        registries.address,
-        stakingManager.address,
-        directory.address,
-        epochsManager.address,
-        rewardsManager.address,
-        authorizedAccounts.address,
+        ethers.ZeroAddress,
+        await registries.getAddress(),
+        await stakingManager.getAddress(),
+        await directory.getAddress(),
+        await epochsManager.getAddress(),
+        await rewardsManager.getAddress(),
+        await authorizedAccounts.getAddress(),
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'TokenCannotBeZeroAddress');
 
     await expect(
       ticketing.initialize(
-        token.address,
-        registries.address,
-        stakingManager.address,
-        directory.address,
-        epochsManager.address,
-        rewardsManager.address,
-        authorizedAccounts.address,
+        await token.getAddress(),
+        await registries.getAddress(),
+        await stakingManager.getAddress(),
+        await directory.getAddress(),
+        await epochsManager.getAddress(),
+        await rewardsManager.getAddress(),
+        await authorizedAccounts.getAddress(),
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'UnlockDurationCannotBeZero');
@@ -157,9 +161,9 @@ describe('Ticketing', () => {
   it('rewards manager cannot be initialized twice', async () => {
     await expect(
       rewardsManager.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
@@ -170,17 +174,17 @@ describe('Ticketing', () => {
 
     await expect(
       rewardsManager.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
       ),
     ).to.be.revertedWithCustomError(rewardsManager, 'TokenCannotBeZeroAddress');
 
     await expect(
       rewardsManager.initialize(
-        token.address,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        await token.getAddress(),
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
       ),
     )
       .to.be.revertedWithCustomError(
@@ -191,9 +195,9 @@ describe('Ticketing', () => {
 
     await expect(
       rewardsManager.initialize(
-        token.address,
-        stakingManager.address,
-        ethers.constants.AddressZero,
+        await token.getAddress(),
+        await stakingManager.getAddress(),
+        ethers.ZeroAddress,
       ),
     )
       .to.be.revertedWithCustomError(
@@ -204,13 +208,12 @@ describe('Ticketing', () => {
   });
 
   it('ticketing can check for support interface', async () => {
-    const iTicketing = ISyloTicketing__factory.createInterface();
-
-    let interfaceId = ethers.constants.Zero;
-    const functions: string[] = Object.keys(iTicketing.functions);
-    for (let i = 0; i < functions.length; i++) {
-      interfaceId = interfaceId.xor(iTicketing.getSighash(functions[i]));
-    }
+    let interfaceId = BigNumber.from(0);
+    ISyloTicketing__factory.createInterface().forEachFunction(f => {
+      interfaceId = interfaceId.xor(
+        ethers.id(f.format('sighash')).substring(0, 10),
+      );
+    });
 
     const supportInterface = await ticketing.supportsInterface(
       interfaceId.toHexString(),
@@ -245,39 +248,43 @@ describe('Ticketing', () => {
 
     const currentfaceValue = await ticketingParameters.faceValue();
     assert.equal(
-      currentfaceValue.toNumber(),
-      777,
+      currentfaceValue,
+      BigInt(777),
       'Expected face value to be correctly set',
     );
 
     const baseLiveWinProb = await ticketingParameters.baseLiveWinProb();
     assert.equal(
-      baseLiveWinProb.toNumber(),
-      888,
+      baseLiveWinProb,
+      BigInt(888),
       'Expected base live win prob to be correctly set',
     );
 
     const expiredWinProb = await ticketingParameters.expiredWinProb();
     assert.equal(
-      expiredWinProb.toNumber(),
-      999,
+      expiredWinProb,
+      BigInt(999),
       'Expected expired win prob to be correctly set',
     );
 
     const decayRate = await ticketingParameters.decayRate();
-    assert.equal(decayRate, 1111, 'Expected decay rate to be correctly set');
+    assert.equal(
+      decayRate,
+      BigInt(1111),
+      'Expected decay rate to be correctly set',
+    );
 
     const ticketDuration = await ticketingParameters.ticketDuration();
     assert.equal(
-      ticketDuration.toNumber(),
-      2222,
+      ticketDuration,
+      BigInt(2222),
       'Expected ticket duration to be correctly set',
     );
 
     const unlockDuration = await ticketing.unlockDuration();
     assert.equal(
-      unlockDuration.toNumber(),
-      3333,
+      unlockDuration,
+      BigInt(3333),
       'Expected unlock duration to be correctly set',
     );
   });
@@ -334,11 +341,11 @@ describe('Ticketing', () => {
   });
 
   it('can remove managers from rewards manager', async () => {
-    await rewardsManager.removeManager(stakingManager.address);
-    const b = await rewardsManager.managers(stakingManager.address);
+    await rewardsManager.removeManager(await stakingManager.getAddress());
+    const b = await rewardsManager.managers(await stakingManager.getAddress());
     assert.equal(
-      b.toNumber(),
-      0,
+      b,
+      BigInt(0),
       'Expected staking manager to be removed as manager',
     );
   });
@@ -353,7 +360,7 @@ describe('Ticketing', () => {
     await rewardsManager.addManager(owner);
 
     await expect(
-      rewardsManager.incrementRewardPool(ethers.constants.AddressZero, 10000),
+      rewardsManager.incrementRewardPool(ethers.ZeroAddress, 10000),
     ).to.be.revertedWithCustomError(
       rewardsManager,
       'StakeeCannotBeZeroAddress',
@@ -374,7 +381,7 @@ describe('Ticketing', () => {
     await rewardsManager.addManager(owner);
 
     await expect(
-      rewardsManager.initializeNextRewardPool(ethers.constants.AddressZero),
+      rewardsManager.initializeNextRewardPool(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       rewardsManager,
       'StakeeCannotBeZeroAddress',
@@ -395,7 +402,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'EscrowAmountCannotBeZero');
 
     await expect(
-      ticketing.depositEscrow(50, ethers.constants.AddressZero),
+      ticketing.depositEscrow(50, ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(ticketing, 'AccountCannotBeZeroAddress');
   });
 
@@ -413,7 +420,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(ticketing, 'PenaltyAmountCannotBeZero');
 
     await expect(
-      ticketing.depositPenalty(50, ethers.constants.AddressZero),
+      ticketing.depositPenalty(50, ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(ticketing, 'AccountCannotBeZeroAddress');
   });
 
@@ -455,11 +462,7 @@ describe('Ticketing', () => {
     await ticketing.unlockDeposits({ from: owner });
 
     const deposit = await ticketing.deposits(owner);
-    assert.isAbove(
-      deposit.unlockAt.toNumber(),
-      0,
-      'Expected deposit to go into unlocking phase',
-    );
+    expect(deposit.unlockAt).to.be.greaterThan(BigInt(0));
   });
 
   it('should fail to unlock if already unlocking', async () => {
@@ -518,7 +521,9 @@ describe('Ticketing', () => {
 
     const balanceAfterWithdrawal = await token.balanceOf(owner);
 
-    expect(balanceAfterWithdrawal).to.be.equal(balanceBeforeWithdrawal.add(50));
+    expect(balanceAfterWithdrawal).to.be.equal(
+      balanceBeforeWithdrawal + BigInt(50),
+    );
 
     // can now deposit again
     await ticketing.depositEscrow(50, owner);
@@ -555,11 +560,7 @@ describe('Ticketing', () => {
       owner,
     );
 
-    assert.isAbove(
-      rewardPool.initializedAt.toNumber(),
-      currentBlock,
-      'Expected reward pool to track the block number it was created',
-    );
+    expect(rewardPool.initializedAt).to.be.greaterThan(BigInt(currentBlock));
 
     assert.equal(
       rewardPool.totalActiveStake.toString(),
@@ -589,7 +590,7 @@ describe('Ticketing', () => {
 
     await expect(epochsManager.joinNextEpoch())
       .to.be.revertedWithCustomError(epochsManager, 'SeekerAlreadyJoinedEpoch')
-      .withArgs(BigNumber.from(1), BigNumber.from(1));
+      .withArgs(1, 1);
   });
 
   it('should not be able to initialize next reward pool without stake', async () => {
@@ -722,7 +723,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
@@ -737,7 +738,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
@@ -773,7 +774,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
@@ -791,7 +792,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
@@ -837,7 +838,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
@@ -878,7 +879,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
@@ -915,7 +916,7 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
@@ -952,11 +953,11 @@ describe('Ticketing', () => {
 
     await accounts[0].sendTransaction({
       to: alice.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
     await accounts[0].sendTransaction({
       to: bob.address,
-      value: ethers.utils.parseEther('2000.0'),
+      value: ethers.parseEther('2000.0'),
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
@@ -1092,7 +1093,7 @@ describe('Ticketing', () => {
       ticketing.redeem(
         {
           ...ticket,
-          sender: { ...ticket.sender, main: ethers.constants.AddressZero },
+          sender: { ...ticket.sender, main: ethers.ZeroAddress },
         },
 
         redeemerRand,
@@ -1108,7 +1109,7 @@ describe('Ticketing', () => {
       ticketing.redeem(
         {
           ...ticket,
-          receiver: { ...ticket.receiver, main: ethers.constants.AddressZero },
+          receiver: { ...ticket.receiver, main: ethers.ZeroAddress },
         },
 
         redeemerRand,
@@ -1124,7 +1125,7 @@ describe('Ticketing', () => {
       ticketing.redeem(
         {
           ...ticket,
-          redeemer: ethers.constants.AddressZero,
+          redeemer: ethers.ZeroAddress,
         },
 
         redeemerRand,
@@ -1163,10 +1164,17 @@ describe('Ticketing', () => {
 
   it('rejects non winning ticket', async () => {
     // redeploy contracts with win chance of 0%
-    const contracts = await utils.initializeContracts(owner, token.address, {
-      baseLiveWinProb: 0,
-    });
-    await token.approve(contracts.stakingManager.address, toSOLOs(100000));
+    const contracts = await utils.initializeContracts(
+      owner,
+      await token.getAddress(),
+      {
+        baseLiveWinProb: 0,
+      },
+    );
+    await token.approve(
+      await contracts.stakingManager.getAddress(),
+      toSOLOs(100000),
+    );
     await contracts.stakingManager.addStake(toSOLOs(1), owner);
     await utils.setSeekerRegistry(
       contracts.registries,
@@ -1179,11 +1187,14 @@ describe('Ticketing', () => {
     await contracts.epochsManager.joinNextEpoch();
 
     await contracts.directory.transferOwnership(
-      contracts.epochsManager.address,
+      await contracts.epochsManager.getAddress(),
     );
     await contracts.epochsManager.initializeEpoch();
 
-    await token.approve(contracts.ticketing.address, toSOLOs(100000));
+    await token.approve(
+      await contracts.ticketing.getAddress(),
+      toSOLOs(100000),
+    );
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     await contracts.ticketing.depositEscrow(toSOLOs(2000), alice.address);
@@ -1224,12 +1235,12 @@ describe('Ticketing', () => {
 
     const deposit = await ticketing.deposits(alice.address);
     assert.equal(
-      deposit.escrow.toString(),
+      deposit.escrow,
       toSOLOs(1000),
       'Expected ticket payout to be substracted from escrow',
     );
     assert.equal(
-      deposit.penalty.toString(),
+      deposit.penalty,
       toSOLOs(50),
       'Expected penalty to not be changed',
     );
@@ -1237,7 +1248,7 @@ describe('Ticketing', () => {
     const pendingReward = await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      pendingReward.toString(),
+      pendingReward,
       toSOLOs(500),
       'Expected balance of pending rewards to have added the ticket face value',
     );
@@ -1291,7 +1302,9 @@ describe('Ticketing', () => {
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
-    const initialTicketingBalance = await token.balanceOf(ticketing.address);
+    const initialTicketingBalance = await token.balanceOf(
+      await ticketing.getAddress(),
+    );
 
     await expect(ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig))
       .to.emit(ticketing, 'SenderPenaltyBurnt')
@@ -1317,10 +1330,12 @@ describe('Ticketing', () => {
       'Expected unclaimed balance to have added the remaining available escrow',
     );
 
-    const ticketingBalance = await token.balanceOf(ticketing.address);
+    const ticketingBalance = await token.balanceOf(
+      await ticketing.getAddress(),
+    );
     assert.equal(
-      ticketingBalance.toString(),
-      initialTicketingBalance.sub(toSOLOs(55)).toString(),
+      ticketingBalance,
+      initialTicketingBalance - BigInt(toSOLOs(55)),
       'Expected tokens from ticket contract to be removed',
     );
 
@@ -1367,7 +1382,7 @@ describe('Ticketing', () => {
 
     const postBalance = await token.balanceOf(owner);
     // Expect the node have the entire reward balance added to their account
-    const expectedPostBalance = initialBalance.add(toSOLOs(10000));
+    const expectedPostBalance = initialBalance + BigInt(toSOLOs(10000));
 
     compareExpectedBalance(expectedPostBalance, postBalance);
 
@@ -1378,10 +1393,13 @@ describe('Ticketing', () => {
     // check total rewards in the previous epoch after claiming
     const nextEpochId = await epochsManager.getNextEpochId();
     const rewardPoolStakersTotal =
-      await rewardsManager.getRewardPoolStakersTotal(nextEpochId.sub(2), owner);
+      await rewardsManager.getRewardPoolStakersTotal(
+        nextEpochId - BigInt(2),
+        owner,
+      );
 
     assert.equal(
-      rewardPoolStakersTotal.toString(),
+      rewardPoolStakersTotal,
       toSOLOs(500 * 10), // 500 is added to the stakers reward total on each redemption (50% of 1000)
       'Expected reward pool stakers total in the previous epoch to be 5000 SOLOs',
     );
@@ -1469,10 +1487,8 @@ describe('Ticketing', () => {
       await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      pendingRewardBeforeAddingStake
-        .sub(pendingRewardAfterAddingStake)
-        .toString(),
-      claimBeforeAddingStake.toString(),
+      pendingRewardBeforeAddingStake - pendingRewardAfterAddingStake,
+      claimBeforeAddingStake,
       'Expected claim to be removed from pending reward after adding stake',
     );
 
@@ -1503,10 +1519,8 @@ describe('Ticketing', () => {
       await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      pendingRewardBeforeRemovingStake
-        .sub(pendingRewardAfterRemovingStake)
-        .toString(),
-      claimBeforeRemovingStake.toString(),
+      pendingRewardBeforeRemovingStake - pendingRewardAfterRemovingStake,
+      claimBeforeRemovingStake,
       'Expected claim to be removed from pending reward after removing stake',
     );
   });
@@ -1545,14 +1559,14 @@ describe('Ticketing', () => {
 
   it('cannot calculate staker claim with invalid arguments)', async () => {
     await expect(
-      rewardsManager.calculateStakerClaim(ethers.constants.AddressZero, owner),
+      rewardsManager.calculateStakerClaim(ethers.ZeroAddress, owner),
     ).to.be.revertedWithCustomError(
       rewardsManager,
       'StakeeCannotBeZeroAddress',
     );
 
     await expect(
-      rewardsManager.calculateStakerClaim(owner, ethers.constants.AddressZero),
+      rewardsManager.calculateStakerClaim(owner, ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       rewardsManager,
       'StakerCannotBeZeroAddress',
@@ -1741,9 +1755,9 @@ describe('Ticketing', () => {
       owner,
       await accounts[4].getAddress(),
     );
-    const s = BigNumber.from(toSOLOs(500)); // initial stake
+    const s = BigInt(toSOLOs(500)); // initial stake
     const r = toSOLOs(2 * 6 * 500); // accumulated reward
-    const expectedStakeClaimFive = s.mul(r).div(epochTwoActiveStake);
+    const expectedStakeClaimFive = (s * BigInt(r)) / epochTwoActiveStake;
     compareExpectedBalance(expectedStakeClaimFive, stakeClaimFive);
 
     // for accounts 1, 2, and 3, the total managed stake that becomes active
@@ -1759,15 +1773,13 @@ describe('Ticketing', () => {
         1,
         owner,
       );
-      const epochOneReward = BigNumber.from(toSOLOs(6 * 500))
-        .mul(initialStake)
-        .div(epochOneActiveStake);
+      const epochOneReward =
+        (BigInt(toSOLOs(6 * 500)) * initialStake) / epochOneActiveStake;
 
-      const remainingReward = BigNumber.from(toSOLOs(2 * 6 * 500))
-        .mul(initialStake)
-        .div(epochTwoActiveStake);
+      const remainingReward =
+        (BigInt(toSOLOs(2 * 6 * 500)) * initialStake) / epochTwoActiveStake;
 
-      const totalExpectedReward = epochOneReward.add(remainingReward);
+      const totalExpectedReward = epochOneReward + remainingReward;
       const stakerClaim = await rewardsManager.calculateStakerClaim(
         owner,
         await accounts[i].getAddress(),
@@ -1837,15 +1849,13 @@ describe('Ticketing', () => {
         1,
         owner,
       );
-      const epochOneReward = BigNumber.from(toSOLOs(6 * 500))
-        .mul(initialStake)
-        .div(epochOneActiveStake);
+      const epochOneReward =
+        (BigInt(toSOLOs(6 * 500)) * initialStake) / epochOneActiveStake;
 
-      const remainingReward = BigNumber.from(toSOLOs(2 * 6 * 500))
-        .mul(initialStake)
-        .div(epochTwoActiveStake);
+      const remainingReward =
+        (BigInt(toSOLOs(2 * 6 * 500)) * initialStake) / epochTwoActiveStake;
 
-      const totalExpectedReward = epochOneReward.add(remainingReward);
+      const totalExpectedReward = epochOneReward + remainingReward;
       const stakerClaim = await rewardsManager.calculateStakerClaim(
         owner,
         await accounts[i].getAddress(),
@@ -1903,13 +1913,17 @@ describe('Ticketing', () => {
 
   it('should decay winning probability as ticket approaches expiry', async () => {
     // deploy another ticketing contract with simpler parameters
-    const contracts = await utils.initializeContracts(owner, token.address, {
-      faceValue,
-      baseLiveWinProb: 100000,
-      expiredWinProb: 1000,
-      decayRate: 8000,
-      ticketDuration: 100,
-    });
+    const contracts = await utils.initializeContracts(
+      owner,
+      await token.getAddress(),
+      {
+        faceValue,
+        baseLiveWinProb: 100000,
+        expiredWinProb: 1000,
+        decayRate: 8000,
+        ticketDuration: 100,
+      },
+    );
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
     ticketing = contracts.ticketing;
@@ -1917,12 +1931,12 @@ describe('Ticketing', () => {
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
 
-    await directory.transferOwnership(epochsManager.address);
-    await rewardsManager.addManager(ticketing.address);
-    await rewardsManager.addManager(epochsManager.address);
+    await directory.transferOwnership(await epochsManager.getAddress());
+    await rewardsManager.addManager(await ticketing.getAddress());
+    await rewardsManager.addManager(await epochsManager.getAddress());
 
-    await token.approve(ticketing.address, toSOLOs(10000));
-    await token.approve(stakingManager.address, toSOLOs(10000));
+    await token.approve(await ticketing.getAddress(), toSOLOs(10000));
+    await token.approve(await stakingManager.getAddress(), toSOLOs(10000));
 
     await stakingManager.addStake(toSOLOs(1), owner);
     await utils.setSeekerRegistry(
@@ -2158,7 +2172,10 @@ describe('Ticketing', () => {
     const postBalance = await token.balanceOf(owner);
 
     // expect to receive total balance of all redeemed tickets
-    compareExpectedBalance(postBalance, initialBalance.add(toSOLOs(20000)));
+    compareExpectedBalance(
+      postBalance,
+      initialBalance + BigInt(toSOLOs(20000)),
+    );
   });
 
   it('can claim staking rewards if node already joined next epoch', async () => {
@@ -2282,7 +2299,7 @@ describe('Ticketing', () => {
 
   it('cannot claim staking rewards with invalid arguments', async () => {
     await expect(
-      rewardsManager.claimStakingRewards(ethers.constants.AddressZero),
+      rewardsManager.claimStakingRewards(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       rewardsManager,
       'StakeeCannotBeZeroAddress',
@@ -2294,7 +2311,7 @@ describe('Ticketing', () => {
       await token.transfer(await accounts[i].getAddress(), toSOLOs(1000));
       await token
         .connect(accounts[i])
-        .approve(stakingManager.address, toSOLOs(1000));
+        .approve(await stakingManager.getAddress(), toSOLOs(1000));
     }
 
     await stakingManager.addStake(toSOLOs(1000), owner);
@@ -2367,17 +2384,11 @@ describe('Ticketing', () => {
       const totalStakingReward =
         await rewardsManager.getTotalEpochStakingRewards(i + 1);
 
-      expect(totalReward.toString()).to.equal(
-        BigNumber.from(toSOLOs(1000))
-          .mul(3)
-          .mul(i + 1)
-          .toString(),
+      expect(totalReward).to.equal(
+        BigInt(toSOLOs(1000)) * BigInt(3) * BigInt(i + 1),
       );
-      expect(totalStakingReward.toString()).to.equal(
-        BigNumber.from(toSOLOs(500))
-          .mul(3)
-          .mul(i + 1)
-          .toString(),
+      expect(totalStakingReward).to.equal(
+        BigInt(toSOLOs(500)) * BigInt(3) * BigInt(i + 1),
       );
     }
   });
@@ -2398,7 +2409,7 @@ describe('Ticketing', () => {
 
     const p = await ticketing.calculateWinningProbability(ticket);
 
-    assert.equal('0', p.toString(), 'Expected probability to be 0');
+    assert.equal(p, BigInt(0), 'Expected probability to be 0');
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {
@@ -2418,9 +2429,11 @@ describe('Ticketing', () => {
     await ticketing.depositPenalty(toSOLOs(50), sender.address);
 
     // have the node generate random numbers
-    const nodeRand = crypto.randomBytes(32);
+    const nodeRand = BigInt('0x' + crypto.randomBytes(32).toString('hex'));
 
-    const generationBlock = (await ethers.provider.getBlockNumber()) + 1;
+    const generationBlock = BigInt(
+      (await ethers.provider.getBlockNumber()) + 1,
+    );
 
     // create commits from those random numbers
     const nodeCommit = createCommit(generationBlock, nodeRand);
@@ -2431,11 +2444,11 @@ describe('Ticketing', () => {
       epochId,
       sender: {
         main: sender.address,
-        delegated: ethers.constants.AddressZero,
+        delegated: ethers.ZeroAddress,
       },
       receiver: {
         main: receiver.address,
-        delegated: ethers.constants.AddressZero,
+        delegated: ethers.ZeroAddress,
       },
       redeemer: node,
       generationBlock,
@@ -2444,12 +2457,8 @@ describe('Ticketing', () => {
 
     // have sender sign the hash of the ticket
     const ticketHash = await ticketing.getTicketHash(ticket);
-    const senderSig = await sender.signMessage(
-      ethers.utils.arrayify(ticketHash),
-    );
-    const receiverSig = await receiver.signMessage(
-      ethers.utils.arrayify(ticketHash),
-    );
+    const senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
+    const receiverSig = await receiver.signMessage(ethers.getBytes(ticketHash));
 
     // once secret has been revealed, the node can now redeem the ticket
     await ticketing.redeem(ticket, nodeRand, senderSig, receiverSig, {
@@ -2462,17 +2471,18 @@ describe('Ticketing', () => {
   // actual balance may slightly differ.
   // This function checks the difference falls within a small fraction of a single SYLO.
   function compareExpectedBalance(a: BigNumberish, b: BigNumberish) {
-    const diff = BigNumber.from(a).sub(BigNumber.from(b)).abs();
+    const abs = (n: bigint) => (n < 0 ? -n : n);
+    const diff = abs(BigInt(a) - BigInt(b));
     // NOTE: This essentially says that a margin of 10**4 SOLOs is acceptable, or
     // 0.00000000000001 SYLOs
-    expect(diff.toNumber()).to.be.within(0, 10 ** 4);
+    expect(diff).to.be.within(0, BigInt(10 ** 4));
   }
 
-  function toSOLOs(a: number): string {
-    return web3.utils.toWei(a.toString());
+  function toSOLOs(a: number): bigint {
+    return BigInt(web3.utils.toWei(a.toString()));
   }
 
-  function fromSOLOs(a: number | BigNumber | string): string {
+  function fromSOLOs(a: number | bigint | string): string {
     return web3.utils.fromWei(a.toString());
   }
 
@@ -2490,7 +2500,9 @@ describe('Ticketing', () => {
         const stake = toSOLOs(s.stake);
 
         await token.transfer(await s.account.getAddress(), stake);
-        await token.connect(s.account).approve(stakingManager.address, stake);
+        await token
+          .connect(s.account)
+          .approve(await stakingManager.getAddress(), stake);
 
         await stakingManager.connect(s.account).addStake(stake, owner);
 
@@ -2510,7 +2522,7 @@ describe('Ticketing', () => {
 
       const expectedBalance = await token
         .balanceOf(address)
-        .then((b: BigNumber) => b.add(claim));
+        .then((b: bigint) => b + claim);
 
       await rewardsManager.connect(t.account).claimStakingRewards(owner);
 
@@ -2519,19 +2531,19 @@ describe('Ticketing', () => {
   };
 
   const checkAfterRedeem = async (
-    sender: Wallet,
+    sender: HDNodeWallet,
     expectedEscrow: number,
     expectedPenalty: number,
     expectedRewards: number,
   ) => {
     const deposit = await ticketing.deposits(sender.address);
     assert.equal(
-      deposit.escrow.toString(),
+      deposit.escrow,
       toSOLOs(expectedEscrow),
       'Expected ticket payout to be substracted from escrow',
     );
     assert.equal(
-      deposit.penalty.toString(),
+      deposit.penalty,
       toSOLOs(expectedPenalty),
       'Expected penalty to not be changed',
     );
@@ -2539,7 +2551,7 @@ describe('Ticketing', () => {
     const pendingReward = await rewardsManager.getPendingRewards(owner);
 
     assert.equal(
-      pendingReward.toString(),
+      pendingReward,
       toSOLOs(expectedRewards),
       'Expected balance of pending rewards to have added the ticket face value',
     );
@@ -2560,24 +2572,26 @@ describe('Ticketing', () => {
   }
 
   async function createWinningTicket(
-    sender: Wallet,
-    receiver: Wallet,
+    sender: HDNodeWallet,
+    receiver: HDNodeWallet,
     redeemer: string,
     epochId?: number,
-    senderDelegatedWallet?: Wallet,
-    receiverDelegatedWallet?: Wallet,
+    senderDelegatedWallet?: HDNodeWallet,
+    receiverDelegatedWallet?: HDNodeWallet,
   ) {
-    const generationBlock = (await ethers.provider.getBlockNumber()) + 1;
+    const generationBlock = BigInt(
+      (await ethers.provider.getBlockNumber()) + 1,
+    );
 
     const redeemerRand = 1;
     const redeemerCommit = createCommit(generationBlock, redeemerRand);
 
-    let senderDelegatedAccount = ethers.constants.AddressZero;
+    let senderDelegatedAccount = ethers.ZeroAddress;
     if (senderDelegatedWallet) {
       senderDelegatedAccount = senderDelegatedWallet.address;
     }
 
-    let receiverDelegatedAccount = ethers.constants.AddressZero;
+    let receiverDelegatedAccount = ethers.ZeroAddress;
     if (receiverDelegatedWallet) {
       receiverDelegatedAccount = receiverDelegatedWallet.address;
     }
@@ -2594,26 +2608,24 @@ describe('Ticketing', () => {
       },
       redeemer,
       generationBlock,
-      redeemerCommit: '0x' + redeemerCommit.toString('hex'),
+      redeemerCommit: ethers.hexlify(redeemerCommit),
     };
 
     const ticketHash = await ticketing.getTicketHash(ticket);
-    let senderSig = await sender.signMessage(ethers.utils.arrayify(ticketHash));
+    let senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
     if (senderDelegatedWallet) {
       senderSig = await senderDelegatedWallet.signMessage(
-        ethers.utils.arrayify(ticketHash),
+        ethers.getBytes(ticketHash),
       );
     }
     if (!senderSig) {
       throw new Error('failed to derive sender signature for ticket');
     }
 
-    let receiverSig = await receiver.signMessage(
-      ethers.utils.arrayify(ticketHash),
-    );
+    let receiverSig = await receiver.signMessage(ethers.getBytes(ticketHash));
     if (receiverDelegatedWallet) {
       receiverSig = await receiverDelegatedWallet.signMessage(
-        ethers.utils.arrayify(ticketHash),
+        ethers.getBytes(ticketHash),
       );
     }
     if (!receiverSig) {
@@ -2624,28 +2636,21 @@ describe('Ticketing', () => {
       ticket,
       receiver,
       redeemerRand,
-      senderSig: ethers.utils.arrayify(senderSig),
-      receiverSig: ethers.utils.arrayify(receiverSig),
+      senderSig: ethers.getBytes(senderSig),
+      receiverSig: ethers.getBytes(receiverSig),
       ticketHash,
     };
   }
 
-  function createCommit(
-    generationBlock: BigNumberish,
-    rand: BigNumberish,
-  ): Buffer {
-    return keccak256(
-      ethers.utils.defaultAbiCoder.encode(
-        ['bytes32'],
-        [
-          keccak256(
-            ethers.utils.defaultAbiCoder.encode(
-              ['uint256', 'uint256'],
-              [generationBlock, rand],
-            ),
-          ),
-        ],
-      ),
+  function createCommit(generationBlock: bigint, rand: BigNumberish): string {
+    return ethers.solidityPackedKeccak256(
+      ['bytes32'],
+      [
+        ethers.solidityPackedKeccak256(
+          ['uint256', 'uint256'],
+          [generationBlock, rand],
+        ),
+      ],
     );
   }
 });

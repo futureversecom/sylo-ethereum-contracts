@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat';
-import { BigNumber, Signer } from 'ethers';
+import { Signer } from 'ethers';
 import {
   Directory,
   EpochsManager,
@@ -41,7 +41,10 @@ describe('Staking', () => {
   });
 
   beforeEach(async () => {
-    const contracts = await utils.initializeContracts(owner, token.address);
+    const contracts = await utils.initializeContracts(
+      owner,
+      await token.getAddress(),
+    );
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
     directory = contracts.directory;
@@ -49,16 +52,16 @@ describe('Staking', () => {
     registries = contracts.registries;
     seekers = contracts.seekers;
 
-    await token.approve(stakingManager.address, 100000);
+    await token.approve(await stakingManager.getAddress(), 100000);
   });
 
   it('staking manager cannot be intialized twice', async () => {
     await expect(
       stakingManager.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
         0,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
@@ -70,20 +73,20 @@ describe('Staking', () => {
 
     await expect(
       stakingManager.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
         0,
       ),
     ).to.be.revertedWithCustomError(stakingManager, 'TokenCannotBeZeroAddress');
 
     await expect(
       stakingManager.initialize(
-        token.address,
-        epochsManager.address, // correct contract is rewards manager
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
+        await token.getAddress(),
+        await epochsManager.getAddress(), // correct contract is rewards manager
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
         0,
       ),
     )
@@ -95,9 +98,9 @@ describe('Staking', () => {
 
     await expect(
       stakingManager.initialize(
-        token.address,
-        rewardsManager.address,
-        epochsManager.address,
+        await token.getAddress(),
+        await rewardsManager.getAddress(),
+        await epochsManager.getAddress(),
         0,
         0,
       ),
@@ -109,10 +112,7 @@ describe('Staking', () => {
 
   it('directory cannot be intialized twice', async () => {
     await expect(
-      directory.initialize(
-        ethers.constants.AddressZero,
-        ethers.constants.AddressZero,
-      ),
+      directory.initialize(ethers.ZeroAddress, ethers.ZeroAddress),
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
@@ -126,7 +126,7 @@ describe('Staking', () => {
 
   it('cannot add manager with zero address', async () => {
     await expect(
-      rewardsManager.addManager(ethers.constants.AddressZero),
+      rewardsManager.addManager(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       rewardsManager,
       'ManagerCannotBeZeroAddress',
@@ -159,13 +159,13 @@ describe('Staking', () => {
       await stakingManager.minimumStakeProportion();
 
     assert.equal(
-      unlockDuration.toNumber(),
-      100,
+      unlockDuration,
+      BigInt(100),
       'Expected unlock duration to be correctly set',
     );
     assert.equal(
       minimumStakeProportion,
-      3000,
+      BigInt(3000),
       'Expected minimum node stake to be correctly set',
     );
   });
@@ -202,14 +202,14 @@ describe('Staking', () => {
     await stakingManager.addStake(100, owner);
     await setSeekeRegistry(accounts[0], accounts[1], 1);
 
-    const currentEpochId = (await directory.currentDirectory()).add(1);
+    const currentEpochId = (await directory.currentDirectory()) + BigInt(1);
     const nextRewardPool = await rewardsManager.getRewardPool(
       currentEpochId,
       owner,
     );
     assert.equal(
-      nextRewardPool.initializedAt.toNumber(),
-      0,
+      nextRewardPool.initializedAt,
+      BigInt(0),
       'Expected next reward pool to be uninitalized',
     );
 
@@ -220,8 +220,8 @@ describe('Staking', () => {
       owner,
     );
     assert.notEqual(
-      currentRewardPool.initializedAt.toNumber(),
-      0,
+      currentRewardPool.initializedAt,
+      BigInt(0),
       'Expected reward pool to have been initalized',
     );
   });
@@ -230,8 +230,8 @@ describe('Staking', () => {
     await stakingManager.setUnlockDuration(100);
     const unlockDuration = await stakingManager.unlockDuration();
     assert.equal(
-      unlockDuration.toNumber(),
-      100,
+      unlockDuration,
+      BigInt(100),
       'Expected unlock duration to be updated',
     );
   });
@@ -244,16 +244,16 @@ describe('Staking', () => {
     const postStakeBalance = await token.balanceOf(owner);
 
     assert.equal(
-      initialBalance.sub(100).toString(),
-      postStakeBalance.toString(),
+      initialBalance - BigInt(100),
+      postStakeBalance,
       '100 tokens should be subtracted from initial balance after staking',
     );
 
     const stakeEntry = await stakingManager.getStakeEntry(owner, owner);
 
     assert.equal(
-      stakeEntry.amount.toString(),
-      '100',
+      stakeEntry.amount,
+      BigInt(100),
       'A stake entry with 100 tokens should be managed by the contract',
     );
   });
@@ -268,14 +268,16 @@ describe('Staking', () => {
     );
 
     assert.equal(
-      expectedRemaining,
-      remaining.toNumber(),
+      BigInt(expectedRemaining),
+      remaining,
       'Expected remaining additional stake to be correctly calculated',
     );
 
     // ensure we can actually add that amount
     await token.transfer(await accounts[1].getAddress(), 1000);
-    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await token
+      .connect(accounts[1])
+      .approve(await stakingManager.getAddress(), 1000);
     await stakingManager
       .connect(accounts[1])
       .addStake(expectedRemaining, owner);
@@ -285,21 +287,21 @@ describe('Staking', () => {
     await stakingManager.addStake(100, owner);
 
     await token.transfer(await accounts[1].getAddress(), 1000);
-    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await token
+      .connect(accounts[1])
+      .approve(await stakingManager.getAddress(), 1000);
     await stakingManager.connect(accounts[1]).addStake(100, owner);
 
     await stakingManager.unlockStake(80, owner);
 
     await expect(stakingManager.calculateMaxAdditionalDelegatedStake(owner))
       .to.be.revertedWithCustomError(stakingManager, 'StakeCapacityReached')
-      .withArgs(BigNumber.from(100), BigNumber.from(120));
+      .withArgs(BigInt(100), BigInt(120));
   });
 
   it('cannot calculate remaining stake with invalid arguments', async () => {
     await expect(
-      stakingManager.calculateMaxAdditionalDelegatedStake(
-        ethers.constants.AddressZero,
-      ),
+      stakingManager.calculateMaxAdditionalDelegatedStake(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
@@ -308,7 +310,7 @@ describe('Staking', () => {
 
   it('should not able to add stake invalid arguments', async () => {
     await expect(
-      stakingManager.addStake(100, ethers.constants.AddressZero),
+      stakingManager.addStake(100, ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
@@ -325,16 +327,12 @@ describe('Staking', () => {
 
     const key = await stakingManager.getKey(owner, owner);
     const unlocking = await stakingManager.unlockings(key);
-    assert.equal(
-      unlocking.amount.toNumber(),
-      100,
-      'Expected unlocking to exist',
-    );
+    assert.equal(unlocking.amount, BigInt(100), 'Expected unlocking to exist');
   });
 
   it('can not unlock stake with invalid arguments', async () => {
     await expect(
-      stakingManager.unlockStake(100, ethers.constants.AddressZero),
+      stakingManager.unlockStake(100, ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
@@ -358,7 +356,7 @@ describe('Staking', () => {
         stakingManager,
         'CannotUnlockMoreThanStaked',
       )
-      .withArgs(BigNumber.from(100), BigNumber.from(101));
+      .withArgs(BigInt(100), BigInt(101));
   });
 
   it('should update unlocking state when unlocking more stake', async () => {
@@ -371,9 +369,7 @@ describe('Staking', () => {
     await stakingManager.unlockStake(40, owner);
     const unlockingTwo = await stakingManager.unlockings(key);
 
-    expect(unlockingTwo.unlockAt.toNumber()).to.be.greaterThan(
-      unlockingOne.unlockAt.toNumber(),
-    );
+    expect(unlockingTwo.unlockAt).to.be.greaterThan(unlockingOne.unlockAt);
   });
 
   it("doesn't update unlock at if existing unlock will unlock later", async () => {
@@ -390,9 +386,7 @@ describe('Staking', () => {
     const unlockingTwo = await stakingManager.unlockings(key);
 
     // expect the second unlocking to not overwrite the original one
-    expect(unlockingTwo.unlockAt.toNumber()).to.be.equal(
-      unlockingOne.unlockAt.toNumber(),
-    );
+    expect(unlockingTwo.unlockAt).to.be.equal(unlockingOne.unlockAt);
   });
 
   it('should be able to restake when everything is unstaked', async () => {
@@ -425,7 +419,7 @@ describe('Staking', () => {
 
   it('cannot withdraw stake with invalid arguments', async () => {
     await expect(
-      stakingManager.withdrawStake(ethers.constants.AddressZero),
+      stakingManager.withdrawStake(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
@@ -449,8 +443,8 @@ describe('Staking', () => {
     const unlocking = await stakingManager.unlockings(key);
 
     assert.equal(
-      unlocking.amount.toNumber(),
-      0,
+      unlocking.amount,
+      BigInt(0),
       'Expected unlocking to be cancelled',
     );
   });
@@ -464,15 +458,15 @@ describe('Staking', () => {
     const unlocking = await stakingManager.unlockings(key);
 
     assert.equal(
-      unlocking.amount.toNumber(),
-      46,
+      unlocking.amount,
+      BigInt(46),
       'Expected only a portion of the unlocking to be cancelled',
     );
   });
 
   it('cannot cancel unlocking with invalid arguments', async () => {
     await expect(
-      stakingManager.cancelUnlocking(100, ethers.constants.AddressZero),
+      stakingManager.cancelUnlocking(100, ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
@@ -495,15 +489,17 @@ describe('Staking', () => {
     const unlocking = await stakingManager.unlockings(key);
 
     assert.equal(
-      unlocking.amount.toNumber(),
-      0,
+      unlocking.amount,
+      BigInt(0),
       'Expected unlocking to be cancelled',
     );
   });
 
   it('should allow delegated stake to exceed minimum owned stake by the stakee', async () => {
     await token.transfer(await accounts[1].getAddress(), 1000);
-    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await token
+      .connect(accounts[1])
+      .approve(await stakingManager.getAddress(), 1000);
     await stakingManager.connect(accounts[1]).addStake(180, owner);
   });
 
@@ -517,7 +513,7 @@ describe('Staking', () => {
   it('cannot join directory with invalid arguments', async () => {
     await directory.addManager(owner);
     await expect(
-      directory.joinNextDirectory(ethers.constants.AddressZero),
+      directory.joinNextDirectory(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(directory, 'StakeeCannotBeZeroAddress');
   });
 
@@ -534,7 +530,7 @@ describe('Staking', () => {
 
   it('cannot check min stake proportion with invalid arguments', async () => {
     await expect(
-      stakingManager.checkMinimumStakeProportion(ethers.constants.AddressZero),
+      stakingManager.checkMinimumStakeProportion(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       stakingManager,
       'StakeeCannotBeZeroAddress',
@@ -545,7 +541,9 @@ describe('Staking', () => {
     await stakingManager.addStake(100, owner);
 
     await token.transfer(await accounts[1].getAddress(), 1000);
-    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await token
+      .connect(accounts[1])
+      .approve(await stakingManager.getAddress(), 1000);
     await stakingManager.connect(accounts[1]).addStake(180, owner);
 
     // after unlocking, Node will own less than 20% of stake
@@ -566,12 +564,14 @@ describe('Staking', () => {
     );
     expect(meetsMinimum).to.equal(false);
 
-    expect(managedStake.div(2).toString()).to.equal(joinedStake);
+    expect(managedStake / BigInt(2)).to.equal(joinedStake);
   });
 
   it('should fail to join when node`s own stake is 0', async () => {
     await token.transfer(await accounts[1].getAddress(), 1000);
-    await token.connect(accounts[1]).approve(stakingManager.address, 1000);
+    await token
+      .connect(accounts[1])
+      .approve(await stakingManager.getAddress(), 1000);
     await stakingManager.connect(accounts[1]).addStake(180, owner);
 
     await directory.addManager(owner);
@@ -585,7 +585,9 @@ describe('Staking', () => {
     await stakingManager.addStake(100, owner);
     for (let i = 2; i < 10; i++) {
       await token.transfer(await accounts[i].getAddress(), 1000);
-      await token.connect(accounts[i]).approve(stakingManager.address, 1000);
+      await token
+        .connect(accounts[i])
+        .approve(await stakingManager.getAddress(), 1000);
       await stakingManager.connect(accounts[i]).addStake(10, owner);
 
       const stakeAmount = await stakingManager.getCurrentStakerAmount(
@@ -614,7 +616,7 @@ describe('Staking', () => {
   });
 
   it('should store the epochId the stake entry was updated at', async () => {
-    await directory.transferOwnership(epochsManager.address);
+    await directory.transferOwnership(await epochsManager.getAddress());
     await epochsManager.initializeEpoch({ from: owner });
 
     await stakingManager.addStake(100, owner);
@@ -622,8 +624,8 @@ describe('Staking', () => {
     const stakeEntry = await stakingManager.getStakeEntry(owner, owner);
 
     assert.equal(
-      stakeEntry.epochId.toNumber(),
-      1,
+      stakeEntry.epochId,
+      BigInt(1),
       'Stake entry should track the epoch id it was updated at',
     );
   });
@@ -701,7 +703,7 @@ describe('Staking', () => {
 
     assert.equal(
       address.toString(),
-      ethers.constants.AddressZero,
+      ethers.ZeroAddress,
       'Expected empty directory to scan to zero address',
     );
   });
@@ -716,8 +718,8 @@ describe('Staking', () => {
         await accounts[i].getAddress(),
       );
       assert.equal(
-        stake.toNumber(),
-        1,
+        stake,
+        BigInt(1),
         'Expected to be able to query total stake for stakee',
       );
     }
@@ -727,8 +729,8 @@ describe('Staking', () => {
 
     const totalStake = await directory.getTotalStake(1);
     assert.equal(
-      totalStake.toNumber(),
-      expectedTotalStake,
+      totalStake,
+      BigInt(expectedTotalStake),
       'Expected to return correct amount for total stake query',
     );
 
@@ -742,8 +744,8 @@ describe('Staking', () => {
         'Expected entry to hold correct address',
       );
       assert.equal(
-        boundary.toNumber(),
-        i + 1,
+        boundary,
+        BigInt(i) + BigInt(1),
         'Expected entry to hold correct boundary value',
       );
     }
@@ -753,7 +755,9 @@ describe('Staking', () => {
     let expectedTotalStake = 0;
     for (let i = 0; i < accounts.length; i++) {
       await token.transfer(await accounts[i].getAddress(), 100);
-      await token.connect(accounts[i]).approve(stakingManager.address, 100);
+      await token
+        .connect(accounts[i])
+        .approve(await stakingManager.getAddress(), 100);
       await stakingManager
         .connect(accounts[i])
         .addStake(i + 1, await accounts[i].getAddress());
@@ -763,8 +767,8 @@ describe('Staking', () => {
     const totalManagedStake = await stakingManager.getTotalManagedStake();
 
     assert.equal(
-      totalManagedStake.toNumber(),
-      expectedTotalStake,
+      totalManagedStake,
+      BigInt(expectedTotalStake),
       'Expected to be able to query for total managed stake',
     );
   });
@@ -777,13 +781,13 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const fifthPoint = BigNumber.from(2).pow(128).sub(1).div(5);
+    const fifthPoint = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(5);
     const points = [
-      '0',
-      fifthPoint.add(1).toString(),
-      fifthPoint.mul(2).add(2).toString(),
-      fifthPoint.mul(3).add(3).toString(),
-      fifthPoint.mul(4).add(4).toString(),
+      BigInt(0),
+      fifthPoint + BigInt(1),
+      fifthPoint * BigInt(2) + BigInt(2),
+      fifthPoint * BigInt(3) + BigInt(3),
+      fifthPoint * BigInt(4) + BigInt(4),
     ];
 
     for (let i = 0; i < 5; i++) {
@@ -844,7 +848,7 @@ describe('Staking', () => {
     await epochsManager.initializeEpoch();
 
     // check point of node 0, epoch 1
-    let point = BigNumber.from(2).pow(128).sub(1).div(8);
+    let point = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(8);
     await checkScanWithEpochId(
       await accounts[0].getAddress(),
       point.toString(),
@@ -852,7 +856,7 @@ describe('Staking', () => {
     );
 
     // check point of node 1, epoch 1
-    point = BigNumber.from(2).pow(128).sub(1).div(2);
+    point = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(2);
     await checkScanWithEpochId(
       await accounts[1].getAddress(),
       point.toString(),
@@ -860,7 +864,7 @@ describe('Staking', () => {
     );
 
     // check point of node 2, epoch 1
-    point = BigNumber.from(2).pow(128).sub(1);
+    point = BigInt(2) ** BigInt(128) - BigInt(1);
     await checkScanWithEpochId(
       await accounts[2].getAddress(),
       point.toString(),
@@ -873,7 +877,7 @@ describe('Staking', () => {
     // 0%  | 15%   | 37.5% | 62.5% | 77.5%
 
     // check point of node 1, epoch 2
-    point = BigNumber.from(2).pow(128).sub(1).div(4);
+    point = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(4);
     await checkScanWithEpochId(
       await accounts[1].getAddress(),
       point.toString(),
@@ -881,7 +885,7 @@ describe('Staking', () => {
     );
 
     // check point of node 3, epoch 2
-    point = BigNumber.from(2).pow(128).sub(1).div(4).mul(3);
+    point = ((BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(4)) * BigInt(3);
     await checkScanWithEpochId(
       await accounts[3].getAddress(),
       point.toString(),
@@ -889,7 +893,7 @@ describe('Staking', () => {
     );
 
     // check epoch 3 - empty directory
-    await checkScanWithEpochId(ethers.constants.AddressZero, '10000000', 4);
+    await checkScanWithEpochId(ethers.ZeroAddress, '10000000', 4);
   });
 
   it('can not call functions that onlyManager constraint', async () => {
@@ -960,13 +964,17 @@ describe('Staking', () => {
     await stakingManager.addStake(1, owner);
 
     await token.transfer(await accounts[1].getAddress(), 100);
-    await token.connect(accounts[1]).approve(stakingManager.address, 100);
+    await token
+      .connect(accounts[1])
+      .approve(await stakingManager.getAddress(), 100);
     await stakingManager
       .connect(accounts[1])
       .addStake(1, await accounts[1].getAddress());
 
     await token.transfer(await accounts[2].getAddress(), 100);
-    await token.connect(accounts[2]).approve(stakingManager.address, 100);
+    await token
+      .connect(accounts[2])
+      .approve(await stakingManager.getAddress(), 100);
     await stakingManager
       .connect(accounts[2])
       .addStake(1, await accounts[2].getAddress());
@@ -985,11 +993,7 @@ describe('Staking', () => {
     // check scan
     const address = await directory.scan(0);
 
-    assert.equal(
-      address,
-      ethers.constants.AddressZero,
-      'Expected zero address',
-    );
+    assert.equal(address, ethers.ZeroAddress, 'Expected zero address');
 
     // check scan with epoch id
     const addressWithEpochId = await directory.scanWithEpochId(0, epochId);
@@ -1021,7 +1025,9 @@ describe('Staking', () => {
     seekerId: number,
   ) {
     await token.transfer(await account.getAddress(), amount);
-    await token.connect(account).approve(stakingManager.address, amount);
+    await token
+      .connect(account)
+      .approve(await stakingManager.getAddress(), amount);
     await stakingManager
       .connect(account)
       .addStake(amount, await account.getAddress());
@@ -1073,11 +1079,14 @@ describe('Staking', () => {
       setTimeout(outputCompletion, 1000);
     }
 
-    const mnemonic =
-      'search topple trouble similar sorry just around connect hello range predict ahead';
+    const mnemonic = ethers.Mnemonic.fromPhrase(
+      'search topple trouble similar sorry just around connect hello range predict ahead',
+    );
     const keys = [];
     for (let i = 0; i < iterations; i++) {
-      keys.push(ethers.Wallet.fromMnemonic(mnemonic, `m/44'/60'/0'/${i}`));
+      keys.push(
+        ethers.HDNodeWallet.fromMnemonic(mnemonic, `m/44'/60'/0'/${i}`),
+      );
     }
 
     let i = 0;
@@ -1090,7 +1099,9 @@ describe('Staking', () => {
       const hash = crypto.createHash('sha256');
       hash.update(keys[i].publicKey);
       hash.update(Buffer.from([0])); // append epoch
-      const point = BigNumber.from(hash.digest().subarray(0, 16));
+      const point = BigInt(
+        '0x' + hash.digest().subarray(0, 16).toString('hex'),
+      );
       const address = await directory.scan(point);
       updatePoint(address);
       i++;
@@ -1106,7 +1117,7 @@ describe('Staking', () => {
     await expect(
       testSyloUtils.validateContractInterface(
         '',
-        rewardsManager.address,
+        await rewardsManager.getAddress(),
         '0x3db12b5a',
       ),
     ).to.be.revertedWithCustomError(testSyloUtils, 'ContractNameCannotBeEmpty');
@@ -1114,7 +1125,7 @@ describe('Staking', () => {
     await expect(
       testSyloUtils.validateContractInterface(
         'RewardsManager',
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         '0x3db12b5a',
       ),
     ).to.be.revertedWithCustomError(
@@ -1125,7 +1136,7 @@ describe('Staking', () => {
     await expect(
       testSyloUtils.validateContractInterface(
         'RewardsManager',
-        rewardsManager.address,
+        await rewardsManager.getAddress(),
         '0x00000000',
       ),
     ).to.be.revertedWithCustomError(
@@ -1136,7 +1147,7 @@ describe('Staking', () => {
     await expect(
       testSyloUtils.validateContractInterface(
         'RewardsManager',
-        rewardsManager.address,
+        await rewardsManager.getAddress(),
         '0x11111111',
       ),
     ).to.be.revertedWithCustomError(testSyloUtils, 'TargetNotSupportInterface');

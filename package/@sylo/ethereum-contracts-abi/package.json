@@ -8,6 +8,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ethers": "^5.5.2"
+    "ethers": "^6.6.2"
   }
 }

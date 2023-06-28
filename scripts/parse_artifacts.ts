@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import mkdirp from 'mkdirp';
+import { mkdirp } from 'mkdirp';
 
 const parseArtifact = (
   inFile: string,
@@ -22,16 +22,11 @@ const parseArtifact = (
         jsonData = JSON.stringify(json.abi);
       }
 
-      mkdirp(outDir, err => {
+      mkdirp.sync(outDir);
+      fs.writeFile(outFile, jsonData, err => {
         if (err) {
-          console.error('Failed to ensure directory ' + outDir + ': ' + err);
+          console.error('Failed to write ' + outFile + ': ' + err);
         }
-
-        fs.writeFile(outFile, jsonData, err => {
-          if (err) {
-            console.error('Failed to write ' + outFile + ': ' + err);
-          }
-        });
       });
     }
   });

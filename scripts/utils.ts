@@ -23,7 +23,7 @@ export type Contracts = {
 
 export function conectContracts(
   contracts: ContractsJSON,
-  provider: ethers.providers.JsonRpcProvider,
+  provider: ethers.JsonRpcProvider,
 ) {
   const stakingManager = factories.StakingManager__factory.connect(
     contracts.stakingManager,

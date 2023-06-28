@@ -1,13 +1,13 @@
 import * as dotenv from 'dotenv';
 
 import { HardhatUserConfig } from 'hardhat/config';
-import '@nomiclabs/hardhat-etherscan';
-import '@typechain/hardhat';
-import '@nomiclabs/hardhat-ethers';
-import 'hardhat-gas-reporter';
-import 'solidity-coverage';
-import '@openzeppelin/hardhat-upgrades';
+
 import '@nomicfoundation/hardhat-chai-matchers';
+import '@nomicfoundation/hardhat-ethers';
+import 'hardhat-gas-reporter';
+import '@typechain/hardhat';
+import 'solidity-coverage';
+import 'hardhat-deploy';
 
 dotenv.config();
 
@@ -28,6 +28,10 @@ const config: HardhatUserConfig = {
     noColors: true, // Needed for outputfile
   },
   networks: {
+    hardhat: {
+      gas: 100000000,
+      blockGasLimit: 2000000000000, // Add this to allow multiple transactions in one block when testing
+    },
     localhost: {
       url: 'http://0.0.0.0:8545',
       accounts: 'remote',
@@ -40,12 +44,6 @@ const config: HardhatUserConfig = {
     },
     rata: {
       url: process.env.RATA_ENDPOINT ?? '',
-      accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
-      },
-    },
-    nikau: {
-      url: process.env.NIKAU_ENDPOINT ?? '',
       accounts: {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },

@@ -1,4 +1,4 @@
-import { ethers, network } from 'hardhat';
+import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
 import { AuthorizedAccounts, SyloToken } from '../typechain-types';
 import utils, { Contracts } from './utils';
@@ -37,7 +37,10 @@ describe('Authorized Accounts', () => {
   });
 
   beforeEach(async () => {
-    contracts = await utils.initializeContracts(deployer, token.address);
+    contracts = await utils.initializeContracts(
+      deployer,
+      await token.getAddress(),
+    );
     authAccountsConnectMain = contracts.authorizedAccounts.connect(mainAccount);
   });
 
@@ -50,7 +53,7 @@ describe('Authorized Accounts', () => {
   it('cannot add zero authorized account', async () => {
     await expect(
       authAccountsConnectMain.authorizeAccount(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
@@ -74,20 +77,17 @@ describe('Authorized Accounts', () => {
     );
     assert.equal(
       authorizedAccounts[0].permissions[0].permission,
-      permissionList[0],
+      BigInt(permissionList[0]),
     );
     assert.equal(
-      authorizedAccounts[0].permissions[0].authorizedAt.toNumber(),
+      authorizedAccounts[0].permissions[0].authorizedAt,
       await currentBlock(),
     );
     assert.equal(
-      authorizedAccounts[0].permissions[0].unauthorizedAt.toNumber(),
-      0,
+      authorizedAccounts[0].permissions[0].unauthorizedAt,
+      BigInt(0),
     );
-    assert.equal(
-      authorizedAccounts[0].authorizedAt.toNumber(),
-      await currentBlock(),
-    );
+    assert.equal(authorizedAccounts[0].authorizedAt, await currentBlock());
   });
 
   it('can add multiple authorized accounts', async () => {
@@ -127,7 +127,7 @@ describe('Authorized Accounts', () => {
 
   it('cannot unauthorize invalid authorized account', async () => {
     await expect(
-      authAccountsConnectMain.unauthorizeAccount(ethers.constants.AddressZero),
+      authAccountsConnectMain.unauthorizeAccount(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       authAccountsConnectMain,
       'AuthorizedAccountCannotBeZeroAddress',
@@ -203,24 +203,23 @@ describe('Authorized Accounts', () => {
     assert.equal(authorizedAccounts[1].account, delegatedAccount2);
     assert.equal(authorizedAccounts[2].account, delegatedAccount3);
 
-    assert.equal(authorizedAccounts[1].authorizedAt.toNumber(), 0);
+    assert.equal(authorizedAccounts[1].authorizedAt, BigInt(0));
     assert.equal(authorizedAccounts[1].permissions.length, 1);
     assert.equal(
       authorizedAccounts[1].permissions[0].permission,
-      permissionList[0],
+      BigInt(permissionList[0]),
     );
     assert.equal(
-      authorizedAccounts[1].permissions[0].unauthorizedAt.toNumber(),
-      (await currentBlock()) + 1,
+      authorizedAccounts[1].permissions[0].unauthorizedAt,
+      (await currentBlock()) + BigInt(1),
     );
-    assert.isAbove(
-      authorizedAccounts[1].permissions[0].unauthorizedAt.toNumber(),
-      authorizedAccounts[1].permissions[0].authorizedAt.toNumber(),
-    );
+    expect(
+      authorizedAccounts[1].permissions[0].unauthorizedAt,
+    ).to.be.greaterThan(authorizedAccounts[1].permissions[0].authorizedAt);
   });
 
   it('can unauthorize account in the same block after authorizing account', async () => {
-    await network.provider.send('evm_setAutomine', [false]);
+    await ethers.provider.send('evm_setAutomine', [false]);
     const block = await currentBlock();
 
     await authAccountsConnectMain.authorizeAccount(
@@ -231,32 +230,31 @@ describe('Authorized Accounts', () => {
 
     assert.equal(await currentBlock(), block);
 
-    await network.provider.send('evm_mine');
-    await network.provider.send('evm_setAutomine', [true]);
+    await ethers.provider.send('evm_mine');
+    await ethers.provider.send('evm_setAutomine', [true]);
 
     const authorizedAccounts =
       await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
 
     assert.equal(authorizedAccounts.length, 1);
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
-    assert.equal(authorizedAccounts[0].authorizedAt.toNumber(), 0);
     assert.equal(authorizedAccounts[0].permissions.length, 1);
     assert.equal(
-      authorizedAccounts[0].permissions[0].permission,
-      permissionList[0],
+      authorizedAccounts[0].permissions[0].permission.toString(),
+      BigInt(permissionList[0]).toString(),
     );
     assert.equal(
-      authorizedAccounts[0].permissions[0].authorizedAt.toNumber(),
-      await currentBlock(),
+      authorizedAccounts[0].permissions[0].authorizedAt.toString(),
+      (await currentBlock()).toString(),
     );
     assert.equal(
-      authorizedAccounts[0].permissions[0].unauthorizedAt.toNumber(),
-      (await currentBlock()) + 1,
+      authorizedAccounts[0].permissions[0].unauthorizedAt,
+      (await currentBlock()) + BigInt(1),
     );
   });
 
   it('can authorize, unauthorize, and authorize again in one block', async () => {
-    await network.provider.send('evm_setAutomine', [false]);
+    await ethers.provider.send('evm_setAutomine', [false]);
     const block = await currentBlock();
 
     await authAccountsConnectMain.authorizeAccount(
@@ -271,37 +269,34 @@ describe('Authorized Accounts', () => {
 
     assert.equal(await currentBlock(), block);
 
-    await network.provider.send('evm_mine');
-    await network.provider.send('evm_setAutomine', [true]);
+    await ethers.provider.send('evm_mine');
+    await ethers.provider.send('evm_setAutomine', [true]);
 
     const authorizedAccounts =
       await authAccountsConnectMain.getAuthorizedAccounts(mainAccountAddress);
 
     assert.equal(authorizedAccounts.length, 1);
     assert.equal(authorizedAccounts[0].account, delegatedAccount1);
-    assert.equal(
-      authorizedAccounts[0].authorizedAt.toNumber(),
-      await currentBlock(),
-    );
+    assert.equal(authorizedAccounts[0].authorizedAt, await currentBlock());
     assert.equal(authorizedAccounts[0].permissions.length, 1);
     assert.equal(
       authorizedAccounts[0].permissions[0].permission,
-      permissionList[0],
+      BigInt(permissionList[0]),
     );
     assert.equal(
-      authorizedAccounts[0].permissions[0].authorizedAt.toNumber(),
+      authorizedAccounts[0].permissions[0].authorizedAt,
       await currentBlock(),
     );
     assert.equal(
-      authorizedAccounts[0].permissions[0].unauthorizedAt.toNumber(),
-      authorizedAccounts[0].permissions[0].authorizedAt.toNumber(),
+      authorizedAccounts[0].permissions[0].unauthorizedAt,
+      authorizedAccounts[0].permissions[0].authorizedAt,
     );
   });
 
   it('cannot add permission for invalid authorized account', async () => {
     await expect(
       authAccountsConnectMain.addPermissions(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         permissionList,
       ),
     ).to.be.revertedWithCustomError(
@@ -360,12 +355,9 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions.length, 1);
     assert.equal(
       accounts[0].permissions[0].permission,
-      Permission.TicketSigning,
+      BigInt(Permission.TicketSigning),
     );
-    assert.equal(
-      accounts[0].permissions[0].authorizedAt.toNumber(),
-      await currentBlock(),
-    );
+    assert.equal(accounts[0].permissions[0].authorizedAt, await currentBlock());
   });
 
   it('can add multiple permissions (with duplicated permissions) for authorized account', async () => {
@@ -466,19 +458,15 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions.length, 1);
     assert.equal(
       accounts[0].permissions[0].permission,
-      Permission.TicketSigning,
+      BigInt(Permission.TicketSigning),
     );
+    assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
     assert.equal(
-      accounts[0].permissions[0].authorizedAt.toNumber(),
-      authorizedAtBlock,
+      accounts[0].permissions[0].unauthorizedAt,
+      (await currentBlock()) + BigInt(1),
     );
-    assert.equal(
-      accounts[0].permissions[0].unauthorizedAt.toNumber(),
-      (await currentBlock()) + 1,
-    );
-    assert.isAbove(
-      accounts[0].permissions[0].unauthorizedAt.toNumber(),
-      accounts[0].permissions[0].authorizedAt.toNumber(),
+    expect(accounts[0].permissions[0].unauthorizedAt).to.be.greaterThan(
+      accounts[0].permissions[0].authorizedAt,
     );
   });
 
@@ -499,7 +487,7 @@ describe('Authorized Accounts', () => {
   });
 
   it('cannot remove permission with zero authorized account', async () => {
-    const authorizedAddress = ethers.constants.AddressZero;
+    const authorizedAddress = ethers.ZeroAddress;
     await expect(
       authAccountsConnectMain.removePermissions(
         authorizedAddress,
@@ -539,19 +527,19 @@ describe('Authorized Accounts', () => {
     );
 
     assert.equal(accounts[0].permissions.length, 1);
-    assert.equal(accounts[0].permissions[0].permission, permissionList[0]);
     assert.equal(
-      accounts[0].permissions[0].authorizedAt.toNumber(),
-      authorizedAtBlock,
+      accounts[0].permissions[0].permission,
+      BigInt(permissionList[0]),
     );
+    assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
     assert.equal(
-      accounts[0].permissions[0].unauthorizedAt.toNumber(),
-      (await currentBlock()) + 1,
+      accounts[0].permissions[0].unauthorizedAt,
+      (await currentBlock()) + BigInt(1),
     );
   });
 
   it('cannot get authorized accounts associated with invalid main account', async () => {
-    const main = ethers.constants.AddressZero;
+    const main = ethers.ZeroAddress;
     await expect(
       authAccountsConnectMain.getAuthorizedAccounts(main),
     ).to.be.revertedWithCustomError(
@@ -561,7 +549,7 @@ describe('Authorized Accounts', () => {
   });
 
   it('cannot validate permission with invalid main address ', async () => {
-    const main = ethers.constants.AddressZero;
+    const main = ethers.ZeroAddress;
     const permission = Permission.TicketSigning;
     await expect(
       authAccountsConnectMain.validatePermission(
@@ -577,7 +565,7 @@ describe('Authorized Accounts', () => {
   });
 
   it('cannot validate permission with invalid authorized address ', async () => {
-    const authorizedAddress = ethers.constants.AddressZero;
+    const authorizedAddress = ethers.ZeroAddress;
     const permission = Permission.TicketSigning;
     await expect(
       authAccountsConnectMain.validatePermission(
@@ -601,7 +589,7 @@ describe('Authorized Accounts', () => {
       authAccountsConnectMain.validatePermission(
         mainAccountAddress,
         delegatedAccount1,
-        permissionList,
+        permissionList[0],
         0,
       ),
     ).to.be.revertedWithCustomError(
@@ -687,13 +675,13 @@ describe('Authorized Accounts', () => {
     // A < B < U => true
     await utils.advanceBlock(5);
     await authContract.unauthorizeAccount(delegatedAccount1);
-    let unauthBlock = (await currentBlock()) + 1; // unauthorizeAt = block.number + 1
+    let unauthBlock = (await currentBlock()) + BigInt(1); // unauthorizeAt = block.number + BigInt(1)
 
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      (await currentBlock()) - 3,
+      (await currentBlock()) - BigInt(3),
     );
     assert.equal(validate, true);
 
@@ -711,7 +699,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - 1,
+      authBlock - BigInt(1),
     );
     assert.equal(validate, false);
 
@@ -720,7 +708,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      unauthBlock + 1,
+      unauthBlock + BigInt(1),
     );
     assert.equal(validate, false);
 
@@ -729,7 +717,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      unauthBlock + 123,
+      unauthBlock + BigInt(123),
     );
     assert.equal(validate, false);
 
@@ -750,7 +738,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock + 10,
+      authBlock + BigInt(10),
     );
     assert.equal(validate, true);
 
@@ -759,13 +747,13 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - 3,
+      authBlock - BigInt(3),
     );
     assert.equal(validate, false);
 
     // B < U < A => false
     await authContract.unauthorizeAccount(delegatedAccount1);
-    unauthBlock = (await currentBlock()) + 1; // unauthorizeAt = block.number + 1
+    unauthBlock = (await currentBlock()) + BigInt(1); // unauthorizeAt = block.number + BigInt(1)
     await utils.advanceBlock(1);
     await authContract.authorizeAccount(delegatedAccount1, permissionList);
     authBlock = await currentBlock();
@@ -774,7 +762,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - 3,
+      authBlock - BigInt(3),
     );
     assert.equal(validate, false);
 
@@ -783,7 +771,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock + 3,
+      authBlock + BigInt(3),
     );
     assert.equal(validate, true);
 
@@ -792,7 +780,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - 1,
+      authBlock - BigInt(1),
     );
     assert.equal(validate, false);
   });
@@ -807,13 +795,13 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      (await currentBlock()) + 1,
+      (await currentBlock()) + BigInt(1),
     );
 
     assert.equal(validate, true);
   });
 
-  async function currentBlock() {
-    return await ethers.provider.getBlockNumber();
+  async function currentBlock(): Promise<bigint> {
+    return BigInt(await ethers.provider.getBlockNumber());
   }
 });
