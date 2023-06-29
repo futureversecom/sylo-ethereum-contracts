@@ -41,10 +41,7 @@ describe('Staking', () => {
   });
 
   beforeEach(async () => {
-    const contracts = await utils.initializeContracts(
-      owner,
-      await token.getAddress(),
-    );
+    const contracts = await utils.initializeContracts(owner, token);
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
     directory = contracts.directory;

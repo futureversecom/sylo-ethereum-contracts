@@ -22,13 +22,9 @@ describe('Registries', () => {
     const Token = await ethers.getContractFactory('SyloToken');
     const token = await Token.deploy();
 
-    const contracts = await utils.initializeContracts(
-      owner,
-      await token.getAddress(),
-      {
-        payoutPercentage: 5000,
-      },
-    );
+    const contracts = await utils.initializeContracts(owner, token, {
+      payoutPercentage: 5000,
+    });
     registries = contracts.registries;
     seekers = contracts.seekers;
   });

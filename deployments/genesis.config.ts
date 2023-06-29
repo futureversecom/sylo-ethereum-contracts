@@ -54,7 +54,7 @@ const GenesisParameters: ContractParameters = {
       : '',
 
   EpochsManager: {
-    epochDuration: 80000,
+    epochDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
   },
 
   Registries: {
@@ -65,16 +65,16 @@ const GenesisParameters: ContractParameters = {
     faceValue: 100000,
     baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
     expiredWinProb: (2n ** 128n - 1n) / 1000n,
-    ticketDuration: 80000,
+    ticketDuration: 10_000_000, // make sure the ticket never expires in the short time on testnet
     decayRate: 8000,
   },
 
   Ticketing: {
-    unlockDuration: 80000,
+    unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
   },
 
   StakingManager: {
-    unlockDuration: 8000,
+    unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
     minimumStakeProportion: 3000,
   },
 };

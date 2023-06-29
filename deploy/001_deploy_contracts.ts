@@ -10,27 +10,7 @@ import path from 'path';
 import * as fs from 'fs/promises';
 import { ethers, network } from 'hardhat';
 import * as configs from '../deployments/genesis.config';
-
-const FixedContractNames = {
-  syloToken: 'SyloToken',
-  seekers: 'Seekers',
-};
-
-const DeployedContractNames = {
-  authorizedAccounts: 'AuthorizedAccounts',
-  registries: 'Registries',
-  ticketingParameters: 'TicketingParameters',
-  epochsManager: 'EpochsManager',
-  stakingManager: 'StakingManager',
-  rewardsManager: 'RewardsManager',
-  directory: 'Directory',
-  syloTicketing: 'SyloTicketing',
-};
-
-const ContractNames = {
-  ...FixedContractNames,
-  ...DeployedContractNames,
-};
+import { ContractNames, DeployedContractNames } from '../common/contracts';
 
 type ContractParams = {
   name: string;
@@ -47,6 +27,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const execute = hre.deployments.execute.bind(hre.deployments);
 
   const config = getConfig(network.name);
+
   const contracts: ContractMap = {};
 
   // DEPLOY CONTRACTS
@@ -150,7 +131,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     },
     {
       name: ContractNames.rewardsManager,
-      args: [contracts[ContractNames.ticketingParameters].address],
+      args: [contracts[ContractNames.syloTicketing].address],
     },
     {
       name: ContractNames.rewardsManager,

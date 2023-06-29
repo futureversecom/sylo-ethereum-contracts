@@ -3,7 +3,11 @@
   "incentivisingNodes": [
     {
       "privateKey": "0x22194c49f4362a63de672f60ea4b5f5166f55a4a231c10c2895f32241b7d4585",
-      "publicEndpoint": "http://sylo-incentivising-node-docker:28901/v1/public/metadata"
+      "publicEndpoint": "http://sylo-incentivising-node-docker:28901/v1/public/metadata",
+      "authorizedAccount": {
+        "address": "0xAe88266112947f33B252d294e41B82E3E8886678",
+        "description": "Testnet Available Accounts - Account (5)"
+      }
     }
   ],
   "relayNodes": [

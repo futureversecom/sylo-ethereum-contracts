@@ -1,69 +1,158 @@
 import { ethers } from 'ethers';
-import * as factories from '../typechain-types';
+import * as Contracts from '../common/contracts';
+import contractAddress from '../deployments/ganache_deployment_phase_two.json';
+import { randomBytes } from 'crypto';
+import { Permission } from '../common/enum';
 
-export type ContractsJSON = {
-  stakingManager: string;
-  token: string;
-  seekers: string;
-  registries: string;
-  ticketing: string;
-  ticketingParameters: string;
-  epochsManager: string;
+export const MAX_WINNING_PROBABILITY = 2n ** 128n - 1n;
+
+export type Node = {
+  signer: ethers.Signer;
+  publicEndPoint: string;
 };
 
-export type Contracts = {
-  stakingManager: factories.contracts.staking.StakingManager;
-  token: factories.contracts.SyloToken;
-  seekers: factories.contracts.mocks.TestSeekers;
-  registries: factories.contracts.Registries;
-  ticketing: factories.contracts.payments.SyloTicketing;
-  ticketingParameters: factories.contracts.payments.ticketing.TicketingParameters;
-  epochsManager: factories.contracts.epochs.EpochsManager;
+export type NodeConfig = {
+  privateKey: string;
+  publicEndpoint: string;
 };
 
-export function conectContracts(
-  contracts: ContractsJSON,
-  provider: ethers.JsonRpcProvider,
+export type IncentivisingNodeConfig =
+  | NodeConfig
+  | {
+      authorizedAccount: {
+        address: string;
+        description: string;
+      };
+    };
+
+export async function addStake(
+  contracts: Contracts.SyloContracts,
+  node: ethers.Signer,
+): Promise<void> {
+  await contracts.syloToken
+    .connect(node)
+    .approve(contractAddress.stakingManager, ethers.parseEther('1000000'), {
+      gasLimit: 1_000_000,
+    });
+
+  await contracts.stakingManager
+    .connect(node)
+    .addStake(ethers.parseEther('100000'), node.getAddress(), {
+      gasLimit: 1_000_000,
+    });
+}
+
+export async function registerNodes(
+  contracts: Contracts.SyloContracts,
+  nodes: Node,
+): Promise<void> {
+  if (nodes.publicEndPoint != '') {
+    await contracts.registries
+      .connect(nodes.signer)
+      .register(nodes.publicEndPoint, { gasLimit: 1_000_000 });
+  }
+}
+
+export async function setSeekerRegistry(
+  contracts: Contracts.SyloContracts,
+  nodeAccount: ethers.Signer,
+  seekerAccount: ethers.Signer,
+  tokenId: number,
+): Promise<void> {
+  if (!(await contracts.seekers.exists(tokenId))) {
+    await contracts.seekers
+      .connect(seekerAccount)
+      .mint(await seekerAccount.getAddress(), tokenId, { gasLimit: 1_000_000 });
+  }
+
+  const nonce = randomBytes(32);
+
+  const accountAddress = await nodeAccount.getAddress();
+  const proofMessage = await contracts.registries.getProofMessage(
+    tokenId,
+    accountAddress,
+    nonce,
+  );
+
+  const signature = await seekerAccount.signMessage(
+    Buffer.from(proofMessage.slice(2), 'hex'),
+  );
+
+  await contracts.registries
+    .connect(nodeAccount)
+    .setSeekerAccount(
+      await seekerAccount.getAddress(),
+      tokenId,
+      nonce,
+      signature,
+      { gasLimit: 1_000_000 },
+    );
+}
+
+export async function depositTicketing(
+  contracts: Contracts.SyloContracts,
+  incentivisedNode: ethers.Signer,
 ) {
-  const stakingManager = factories.StakingManager__factory.connect(
-    contracts.stakingManager,
-    provider,
-  );
+  await contracts.syloToken
+    .connect(incentivisedNode)
+    .approve(contractAddress.syloTicketing, ethers.parseEther('1000000000'), {
+      gasLimit: 1_000_000,
+    });
 
-  const token = factories.SyloToken__factory.connect(contracts.token, provider);
+  await contracts.syloTicketing
+    .connect(incentivisedNode)
+    .depositEscrow(
+      ethers.parseEther('1000000'),
+      incentivisedNode.getAddress(),
+      { gasLimit: 1_000_000 },
+    );
 
-  const seekers = factories.TestSeekers__factory.connect(
-    contracts.seekers,
-    provider,
-  );
+  await contracts.syloTicketing
+    .connect(incentivisedNode)
+    .depositPenalty(
+      ethers.parseEther('100000'),
+      incentivisedNode.getAddress(),
+      { gasLimit: 1_000_000 },
+    );
+}
 
-  const registries = factories.Registries__factory.connect(
-    contracts.registries,
-    provider,
-  );
+export async function authorizeAccount(
+  contracts: Contracts.SyloContracts,
+  main: ethers.Signer,
+  authorized: string,
+) {
+  await contracts.authorizedAccounts
+    .connect(main)
+    .authorizeAccount(authorized, [Permission.TicketSigning], {
+      gasLimit: 1_000_000,
+    });
+}
 
-  const ticketing = factories.SyloTicketing__factory.connect(
-    contracts.ticketing,
-    provider,
-  );
+export async function setNetworkParams(
+  contracts: Contracts.SyloContracts,
+  deployer: ethers.Signer,
+) {
+  await contracts.ticketingParameters
+    .connect(deployer)
+    .setBaseLiveWinProb(MAX_WINNING_PROBABILITY, { gasLimit: 1_000_000 });
 
-  const ticketingParameters = factories.TicketingParameters__factory.connect(
-    contracts.ticketingParameters,
-    provider,
-  );
+  await contracts.ticketingParameters
+    .connect(deployer)
+    .setFaceValue(ethers.parseEther('100'), { gasLimit: 1_000_000 });
 
-  const epochsManager = factories.EpochsManager__factory.connect(
-    contracts.epochsManager,
-    provider,
-  );
+  await contracts.ticketingParameters
+    .connect(deployer)
+    .setTicketDuration(1_000_000, { gasLimit: 1_000_000 });
 
-  return {
-    token,
-    stakingManager,
-    seekers,
-    registries,
-    ticketing,
-    ticketingParameters,
-    epochsManager,
-  } as Contracts;
+  await contracts.syloTicketing
+    .connect(deployer)
+    .setUnlockDuration(5, { gasLimit: 1_000_000 });
+
+  await contracts.stakingManager
+    .connect(deployer)
+    .setUnlockDuration(5, { gasLimit: 1_000_000 });
+
+  await contracts.epochsManager
+    .connect(deployer)
+    .setEpochDuration(10, { gasLimit: 1_000_000 });
 }

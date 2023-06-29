@@ -1,18 +1,9 @@
 import { ethers } from 'hardhat';
 import { BigNumberish, Signer } from 'ethers';
 import { toWei } from 'web3-utils';
-import {
-  Directory,
-  EpochsManager,
-  Registries,
-  RewardsManager,
-  StakingManager,
-  SyloTicketing,
-  TicketingParameters,
-  TestSeekers,
-  AuthorizedAccounts,
-} from '../typechain-types';
+import { Registries, SyloToken, TestSeekers } from '../typechain-types';
 import { randomBytes } from 'crypto';
+import { SyloContracts } from '../common/contracts';
 
 type Options = {
   faceValue?: BigNumberish;
@@ -26,23 +17,11 @@ type Options = {
   unlockDuration?: number;
 };
 
-export type Contracts = {
-  authorizedAccounts: AuthorizedAccounts;
-  registries: Registries;
-  ticketing: SyloTicketing;
-  ticketingParameters: TicketingParameters;
-  directory: Directory;
-  rewardsManager: RewardsManager;
-  epochsManager: EpochsManager;
-  stakingManager: StakingManager;
-  seekers: TestSeekers;
-};
-
 const initializeContracts = async function (
   deployer: string,
-  tokenAddress: string,
+  syloToken: SyloToken,
   opts: Options = {},
-): Promise<Contracts> {
+): Promise<SyloContracts> {
   const payoutPercentage = opts.payoutPercentage ? opts.payoutPercentage : 5000;
 
   const faceValue = opts.faceValue ?? toWei('15');
@@ -56,6 +35,8 @@ const initializeContracts = async function (
   const unlockDuration = opts.unlockDuration ?? 10;
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
+
+  const tokenAddress = await syloToken.getAddress();
 
   const SeekersFactory = await ethers.getContractFactory('TestSeekers');
   const seekers = await SeekersFactory.deploy();
@@ -132,8 +113,8 @@ const initializeContracts = async function (
   await authorizedAccounts.initialize({ from: deployer });
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
-  const ticketing = await TicketingFactory.deploy();
-  await ticketing.initialize(
+  const syloTicketing = await TicketingFactory.deploy();
+  await syloTicketing.initialize(
     tokenAddress,
     await registries.getAddress(),
     await stakingManager.getAddress(),
@@ -145,7 +126,7 @@ const initializeContracts = async function (
     { from: deployer },
   );
 
-  await rewardsManager.addManager(await ticketing.getAddress(), {
+  await rewardsManager.addManager(await syloTicketing.getAddress(), {
     from: deployer,
   });
   await rewardsManager.addManager(await stakingManager.getAddress(), {
@@ -158,14 +139,15 @@ const initializeContracts = async function (
   await directory.addManager(await epochsManager.getAddress());
 
   return {
+    syloToken,
     authorizedAccounts,
     registries,
-    ticketing,
     ticketingParameters,
-    directory,
-    rewardsManager,
     epochsManager,
     stakingManager,
+    rewardsManager,
+    directory,
+    syloTicketing,
     seekers,
   };
 };
