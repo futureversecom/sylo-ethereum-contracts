@@ -63,7 +63,7 @@ describe('Registries', () => {
     const p = await registries.defaultPayoutPercentage();
     assert.equal(
       p,
-      BigInt(2000),
+      2000n,
       'Expected default payout percentage to be correctly updated',
     );
   });
@@ -117,7 +117,7 @@ describe('Registries', () => {
 
     const n = await registries.getTotalNodes();
 
-    assert.equal(n, BigInt(2));
+    assert.equal(n, 2n);
   });
 
   it('can retrieve a list of registries', async () => {

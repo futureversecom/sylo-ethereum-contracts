@@ -54,13 +54,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     config.SyloToken = (
       await deployContract('SyloToken', deployer.address, false, deploy)
     ).address;
-    printEmptyLine();
   }
   if (config.Seekers == '') {
     config.Seekers = (
       await deployContract('TestSeekers', deployer.address, false, deploy)
     ).address;
-    printEmptyLine();
   }
   for (const name of Object.values(DeployedContractNames)) {
     contracts[name] = await deployContract(
@@ -69,7 +67,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       true,
       deploy,
     );
-    printEmptyLine();
   }
 
   // INITIALIZE CONTRACTS
@@ -143,7 +140,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   ];
   for (const { name, args } of initializeParams) {
     await initializeContract(name, args, deployer.address, execute);
-    printEmptyLine();
   }
 
   // ADD MANAGERS
@@ -167,15 +163,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   ];
   for (const { name, args } of addManagerParams) {
     await addManager(name, deployer.address, args[0] as string, execute);
-    printEmptyLine();
   }
 
   await saveContracts(deployer.address, network.name, contracts, config);
 };
 
 export default func;
-func.id = 'deploy_contractss'; // id required to prevent reexecution
-func.tags = ['DeployContracts'];
 
 function getConfig(networkName: string): configs.ContractParameters {
   switch (networkName) {
@@ -200,12 +193,16 @@ async function deployContract(
       }
     : false;
 
-  return await deploy(contractName, {
+  const result = await deploy(contractName, {
     from: deployer,
     log: true,
     proxy: proxy,
     autoMine: true, // speed up deployment on local network (ganache, hardhat), no effect on live networks
   });
+
+  printEmptyLine();
+
+  return result;
 }
 
 async function initializeContract(
@@ -219,12 +216,16 @@ async function initializeContract(
     ...args: unknown[]
   ) => Promise<Receipt>,
 ): Promise<Receipt> {
-  return await execute(
+  const result = await execute(
     contractName,
     { from: deployer, log: true },
     'initialize',
     ...args,
   );
+
+  printEmptyLine();
+
+  return result;
 }
 
 async function addManager(
@@ -238,12 +239,16 @@ async function addManager(
     ...args: unknown[]
   ) => Promise<Receipt>,
 ): Promise<Receipt> {
-  return await execute(
+  const result = await execute(
     contractName,
     { from: deployer, log: true },
     'addManager',
     manager,
   );
+
+  printEmptyLine();
+
+  return result;
 }
 
 async function saveContracts(

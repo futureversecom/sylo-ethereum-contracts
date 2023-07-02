@@ -63,8 +63,8 @@ const GenesisParameters: ContractParameters = {
 
   TicketingParameters: {
     faceValue: 100000,
-    baseLiveWinProb: (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(1000),
-    expiredWinProb: (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(1000),
+    baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
+    expiredWinProb: (2n ** 128n - 1n) / 1000n,
     ticketDuration: 80000,
     decayRate: 8000,
   },
@@ -94,8 +94,8 @@ const PorciniDevParameters: ContractParameters = {
 
   TicketingParameters: {
     faceValue: hre.ethers.parseEther('10000'),
-    baseLiveWinProb: BigInt(2) ** BigInt(128) - BigInt(1),
-    expiredWinProb: BigInt(2) ** BigInt(128) - BigInt(1),
+    baseLiveWinProb: 2n ** 128n - 1n,
+    expiredWinProb: 2n ** 128n - 1n,
     ticketDuration: 100,
     decayRate: 8000,
   },
@@ -125,8 +125,8 @@ const PorciniTestingParameters: ContractParameters = {
 
   TicketingParameters: {
     faceValue: hre.ethers.parseEther('10000'),
-    baseLiveWinProb: BigInt(2) ** BigInt(128) - BigInt(1),
-    expiredWinProb: BigInt(2) ** BigInt(128) - BigInt(1),
+    baseLiveWinProb: 2n ** 128n - 1n,
+    expiredWinProb: 2n ** 128n - 1n,
     ticketDuration: 100,
     decayRate: 8000,
   },

@@ -49,7 +49,7 @@ const config: HardhatUserConfig = {
       },
     },
     porcini: {
-      url: 'https://porcini.au.rootnet.app',
+      url: 'https://porcini.rootnet.app',
       accounts: {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
       },

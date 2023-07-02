@@ -83,10 +83,7 @@ describe('Authorized Accounts', () => {
       authorizedAccounts[0].permissions[0].authorizedAt,
       await currentBlock(),
     );
-    assert.equal(
-      authorizedAccounts[0].permissions[0].unauthorizedAt,
-      BigInt(0),
-    );
+    assert.equal(authorizedAccounts[0].permissions[0].unauthorizedAt, 0n);
     assert.equal(authorizedAccounts[0].authorizedAt, await currentBlock());
   });
 
@@ -203,7 +200,7 @@ describe('Authorized Accounts', () => {
     assert.equal(authorizedAccounts[1].account, delegatedAccount2);
     assert.equal(authorizedAccounts[2].account, delegatedAccount3);
 
-    assert.equal(authorizedAccounts[1].authorizedAt, BigInt(0));
+    assert.equal(authorizedAccounts[1].authorizedAt, 0n);
     assert.equal(authorizedAccounts[1].permissions.length, 1);
     assert.equal(
       authorizedAccounts[1].permissions[0].permission,
@@ -211,7 +208,7 @@ describe('Authorized Accounts', () => {
     );
     assert.equal(
       authorizedAccounts[1].permissions[0].unauthorizedAt,
-      (await currentBlock()) + BigInt(1),
+      (await currentBlock()) + 1n,
     );
     expect(
       authorizedAccounts[1].permissions[0].unauthorizedAt,
@@ -249,7 +246,7 @@ describe('Authorized Accounts', () => {
     );
     assert.equal(
       authorizedAccounts[0].permissions[0].unauthorizedAt,
-      (await currentBlock()) + BigInt(1),
+      (await currentBlock()) + 1n,
     );
   });
 
@@ -463,7 +460,7 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
     assert.equal(
       accounts[0].permissions[0].unauthorizedAt,
-      (await currentBlock()) + BigInt(1),
+      (await currentBlock()) + 1n,
     );
     expect(accounts[0].permissions[0].unauthorizedAt).to.be.greaterThan(
       accounts[0].permissions[0].authorizedAt,
@@ -534,7 +531,7 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
     assert.equal(
       accounts[0].permissions[0].unauthorizedAt,
-      (await currentBlock()) + BigInt(1),
+      (await currentBlock()) + 1n,
     );
   });
 
@@ -675,13 +672,13 @@ describe('Authorized Accounts', () => {
     // A < B < U => true
     await utils.advanceBlock(5);
     await authContract.unauthorizeAccount(delegatedAccount1);
-    let unauthBlock = (await currentBlock()) + BigInt(1); // unauthorizeAt = block.number + BigInt(1)
+    let unauthBlock = (await currentBlock()) + 1n; // unauthorizeAt = block.number + 1n
 
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      (await currentBlock()) - BigInt(3),
+      (await currentBlock()) - 3n,
     );
     assert.equal(validate, true);
 
@@ -699,7 +696,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - BigInt(1),
+      authBlock - 1n,
     );
     assert.equal(validate, false);
 
@@ -708,7 +705,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      unauthBlock + BigInt(1),
+      unauthBlock + 1n,
     );
     assert.equal(validate, false);
 
@@ -717,7 +714,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      unauthBlock + BigInt(123),
+      unauthBlock + 123n,
     );
     assert.equal(validate, false);
 
@@ -738,7 +735,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock + BigInt(10),
+      authBlock + 10n,
     );
     assert.equal(validate, true);
 
@@ -747,13 +744,13 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - BigInt(3),
+      authBlock - 3n,
     );
     assert.equal(validate, false);
 
     // B < U < A => false
     await authContract.unauthorizeAccount(delegatedAccount1);
-    unauthBlock = (await currentBlock()) + BigInt(1); // unauthorizeAt = block.number + BigInt(1)
+    unauthBlock = (await currentBlock()) + 1n; // unauthorizeAt = block.number + 1n
     await utils.advanceBlock(1);
     await authContract.authorizeAccount(delegatedAccount1, permissionList);
     authBlock = await currentBlock();
@@ -762,7 +759,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - BigInt(3),
+      authBlock - 3n,
     );
     assert.equal(validate, false);
 
@@ -771,7 +768,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock + BigInt(3),
+      authBlock + 3n,
     );
     assert.equal(validate, true);
 
@@ -780,7 +777,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      authBlock - BigInt(1),
+      authBlock - 1n,
     );
     assert.equal(validate, false);
   });
@@ -795,7 +792,7 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
       delegatedAccount1,
       Permission.TicketSigning,
-      (await currentBlock()) + BigInt(1),
+      (await currentBlock()) + 1n,
     );
 
     assert.equal(validate, true);

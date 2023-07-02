@@ -249,42 +249,38 @@ describe('Ticketing', () => {
     const currentfaceValue = await ticketingParameters.faceValue();
     assert.equal(
       currentfaceValue,
-      BigInt(777),
+      777n,
       'Expected face value to be correctly set',
     );
 
     const baseLiveWinProb = await ticketingParameters.baseLiveWinProb();
     assert.equal(
       baseLiveWinProb,
-      BigInt(888),
+      888n,
       'Expected base live win prob to be correctly set',
     );
 
     const expiredWinProb = await ticketingParameters.expiredWinProb();
     assert.equal(
       expiredWinProb,
-      BigInt(999),
+      999n,
       'Expected expired win prob to be correctly set',
     );
 
     const decayRate = await ticketingParameters.decayRate();
-    assert.equal(
-      decayRate,
-      BigInt(1111),
-      'Expected decay rate to be correctly set',
-    );
+    assert.equal(decayRate, 1111n, 'Expected decay rate to be correctly set');
 
     const ticketDuration = await ticketingParameters.ticketDuration();
     assert.equal(
       ticketDuration,
-      BigInt(2222),
+      2222n,
       'Expected ticket duration to be correctly set',
     );
 
     const unlockDuration = await ticketing.unlockDuration();
     assert.equal(
       unlockDuration,
-      BigInt(3333),
+      3333n,
       'Expected unlock duration to be correctly set',
     );
   });
@@ -343,11 +339,7 @@ describe('Ticketing', () => {
   it('can remove managers from rewards manager', async () => {
     await rewardsManager.removeManager(await stakingManager.getAddress());
     const b = await rewardsManager.managers(await stakingManager.getAddress());
-    assert.equal(
-      b,
-      BigInt(0),
-      'Expected staking manager to be removed as manager',
-    );
+    assert.equal(b, 0n, 'Expected staking manager to be removed as manager');
   });
 
   it('only managers can call functions with the onlyManager constraint', async () => {
@@ -462,7 +454,7 @@ describe('Ticketing', () => {
     await ticketing.unlockDeposits({ from: owner });
 
     const deposit = await ticketing.deposits(owner);
-    expect(deposit.unlockAt).to.be.greaterThan(BigInt(0));
+    expect(deposit.unlockAt).to.be.greaterThan(0n);
   });
 
   it('should fail to unlock if already unlocking', async () => {
@@ -521,9 +513,7 @@ describe('Ticketing', () => {
 
     const balanceAfterWithdrawal = await token.balanceOf(owner);
 
-    expect(balanceAfterWithdrawal).to.be.equal(
-      balanceBeforeWithdrawal + BigInt(50),
-    );
+    expect(balanceAfterWithdrawal).to.be.equal(balanceBeforeWithdrawal + 50n);
 
     // can now deposit again
     await ticketing.depositEscrow(50, owner);
@@ -1335,7 +1325,7 @@ describe('Ticketing', () => {
     );
     assert.equal(
       ticketingBalance,
-      initialTicketingBalance - BigInt(toSOLOs(55)),
+      initialTicketingBalance - toSOLOs(55),
       'Expected tokens from ticket contract to be removed',
     );
 
@@ -1382,7 +1372,7 @@ describe('Ticketing', () => {
 
     const postBalance = await token.balanceOf(owner);
     // Expect the node have the entire reward balance added to their account
-    const expectedPostBalance = initialBalance + BigInt(toSOLOs(10000));
+    const expectedPostBalance = initialBalance + toSOLOs(10000);
 
     compareExpectedBalance(expectedPostBalance, postBalance);
 
@@ -1393,10 +1383,7 @@ describe('Ticketing', () => {
     // check total rewards in the previous epoch after claiming
     const nextEpochId = await epochsManager.getNextEpochId();
     const rewardPoolStakersTotal =
-      await rewardsManager.getRewardPoolStakersTotal(
-        nextEpochId - BigInt(2),
-        owner,
-      );
+      await rewardsManager.getRewardPoolStakersTotal(nextEpochId - 2n, owner);
 
     assert.equal(
       rewardPoolStakersTotal,
@@ -1755,7 +1742,7 @@ describe('Ticketing', () => {
       owner,
       await accounts[4].getAddress(),
     );
-    const s = BigInt(toSOLOs(500)); // initial stake
+    const s = toSOLOs(500); // initial stake
     const r = toSOLOs(2 * 6 * 500); // accumulated reward
     const expectedStakeClaimFive = (s * BigInt(r)) / epochTwoActiveStake;
     compareExpectedBalance(expectedStakeClaimFive, stakeClaimFive);
@@ -1774,10 +1761,10 @@ describe('Ticketing', () => {
         owner,
       );
       const epochOneReward =
-        (BigInt(toSOLOs(6 * 500)) * initialStake) / epochOneActiveStake;
+        (toSOLOs(6 * 500) * initialStake) / epochOneActiveStake;
 
       const remainingReward =
-        (BigInt(toSOLOs(2 * 6 * 500)) * initialStake) / epochTwoActiveStake;
+        (toSOLOs(2 * 6 * 500) * initialStake) / epochTwoActiveStake;
 
       const totalExpectedReward = epochOneReward + remainingReward;
       const stakerClaim = await rewardsManager.calculateStakerClaim(
@@ -1850,10 +1837,10 @@ describe('Ticketing', () => {
         owner,
       );
       const epochOneReward =
-        (BigInt(toSOLOs(6 * 500)) * initialStake) / epochOneActiveStake;
+        (toSOLOs(6 * 500) * initialStake) / epochOneActiveStake;
 
       const remainingReward =
-        (BigInt(toSOLOs(2 * 6 * 500)) * initialStake) / epochTwoActiveStake;
+        (toSOLOs(2 * 6 * 500) * initialStake) / epochTwoActiveStake;
 
       const totalExpectedReward = epochOneReward + remainingReward;
       const stakerClaim = await rewardsManager.calculateStakerClaim(
@@ -2172,10 +2159,7 @@ describe('Ticketing', () => {
     const postBalance = await token.balanceOf(owner);
 
     // expect to receive total balance of all redeemed tickets
-    compareExpectedBalance(
-      postBalance,
-      initialBalance + BigInt(toSOLOs(20000)),
-    );
+    compareExpectedBalance(postBalance, initialBalance + toSOLOs(20000));
   });
 
   it('can claim staking rewards if node already joined next epoch', async () => {
@@ -2384,12 +2368,8 @@ describe('Ticketing', () => {
       const totalStakingReward =
         await rewardsManager.getTotalEpochStakingRewards(i + 1);
 
-      expect(totalReward).to.equal(
-        BigInt(toSOLOs(1000)) * BigInt(3) * BigInt(i + 1),
-      );
-      expect(totalStakingReward).to.equal(
-        BigInt(toSOLOs(500)) * BigInt(3) * BigInt(i + 1),
-      );
+      expect(totalReward).to.equal(toSOLOs(1000) * 3n * BigInt(i + 1));
+      expect(totalStakingReward).to.equal(toSOLOs(500) * 3n * BigInt(i + 1));
     }
   });
 
@@ -2409,7 +2389,7 @@ describe('Ticketing', () => {
 
     const p = await ticketing.calculateWinningProbability(ticket);
 
-    assert.equal(p, BigInt(0), 'Expected probability to be 0');
+    assert.equal(p, 0n, 'Expected probability to be 0');
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {

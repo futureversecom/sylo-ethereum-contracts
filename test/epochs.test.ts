@@ -68,11 +68,7 @@ describe('Epochs', () => {
       .withArgs(777);
 
     const epochDuration = await epochsManager.epochDuration();
-    assert.equal(
-      epochDuration,
-      BigInt(777),
-      'Expected epoch duration to be updated',
-    );
+    assert.equal(epochDuration, 777n, 'Expected epoch duration to be updated');
   });
 
   it('can not set epoch duration to zero', async () => {
@@ -95,7 +91,7 @@ describe('Epochs', () => {
     let currentIteration = await epochsManager.currentIteration();
     assert.equal(
       currentIteration,
-      BigInt(1),
+      1n,
       'Expected fist epoch id to be correctly set',
     );
 
@@ -105,7 +101,7 @@ describe('Epochs', () => {
     currentIteration = await epochsManager.currentIteration();
     assert.equal(
       currentIteration,
-      BigInt(2),
+      2n,
       'Expected second epoch id to be correctly set',
     );
   });
@@ -129,16 +125,16 @@ describe('Epochs', () => {
 
     const epochInfo = await epochsManager.getCurrentActiveEpoch();
 
-    assert.equal(epochInfo[0], BigInt(2), 'Expected epoch id to be 2');
+    assert.equal(epochInfo[0], 2n, 'Expected epoch id to be 2');
     assert.equal(
       epochInfo[1].faceValue,
-      BigInt(2222),
+      2222n,
       'Expected face value to change',
     );
 
     assert.equal(
       epochInfo[1].decayRate,
-      BigInt(1111),
+      1111n,
       'Expected decay rate to change',
     );
   });

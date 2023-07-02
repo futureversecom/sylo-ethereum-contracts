@@ -160,12 +160,12 @@ describe('Staking', () => {
 
     assert.equal(
       unlockDuration,
-      BigInt(100),
+      100n,
       'Expected unlock duration to be correctly set',
     );
     assert.equal(
       minimumStakeProportion,
-      BigInt(3000),
+      3000n,
       'Expected minimum node stake to be correctly set',
     );
   });
@@ -202,14 +202,14 @@ describe('Staking', () => {
     await stakingManager.addStake(100, owner);
     await setSeekeRegistry(accounts[0], accounts[1], 1);
 
-    const currentEpochId = (await directory.currentDirectory()) + BigInt(1);
+    const currentEpochId = (await directory.currentDirectory()) + 1n;
     const nextRewardPool = await rewardsManager.getRewardPool(
       currentEpochId,
       owner,
     );
     assert.equal(
       nextRewardPool.initializedAt,
-      BigInt(0),
+      0n,
       'Expected next reward pool to be uninitalized',
     );
 
@@ -221,7 +221,7 @@ describe('Staking', () => {
     );
     assert.notEqual(
       currentRewardPool.initializedAt,
-      BigInt(0),
+      0n,
       'Expected reward pool to have been initalized',
     );
   });
@@ -231,7 +231,7 @@ describe('Staking', () => {
     const unlockDuration = await stakingManager.unlockDuration();
     assert.equal(
       unlockDuration,
-      BigInt(100),
+      100n,
       'Expected unlock duration to be updated',
     );
   });
@@ -244,7 +244,7 @@ describe('Staking', () => {
     const postStakeBalance = await token.balanceOf(owner);
 
     assert.equal(
-      initialBalance - BigInt(100),
+      initialBalance - 100n,
       postStakeBalance,
       '100 tokens should be subtracted from initial balance after staking',
     );
@@ -253,7 +253,7 @@ describe('Staking', () => {
 
     assert.equal(
       stakeEntry.amount,
-      BigInt(100),
+      100n,
       'A stake entry with 100 tokens should be managed by the contract',
     );
   });
@@ -296,7 +296,7 @@ describe('Staking', () => {
 
     await expect(stakingManager.calculateMaxAdditionalDelegatedStake(owner))
       .to.be.revertedWithCustomError(stakingManager, 'StakeCapacityReached')
-      .withArgs(BigInt(100), BigInt(120));
+      .withArgs(100n, 120n);
   });
 
   it('cannot calculate remaining stake with invalid arguments', async () => {
@@ -327,7 +327,7 @@ describe('Staking', () => {
 
     const key = await stakingManager.getKey(owner, owner);
     const unlocking = await stakingManager.unlockings(key);
-    assert.equal(unlocking.amount, BigInt(100), 'Expected unlocking to exist');
+    assert.equal(unlocking.amount, 100n, 'Expected unlocking to exist');
   });
 
   it('can not unlock stake with invalid arguments', async () => {
@@ -356,7 +356,7 @@ describe('Staking', () => {
         stakingManager,
         'CannotUnlockMoreThanStaked',
       )
-      .withArgs(BigInt(100), BigInt(101));
+      .withArgs(100n, 101n);
   });
 
   it('should update unlocking state when unlocking more stake', async () => {
@@ -442,11 +442,7 @@ describe('Staking', () => {
     const key = await stakingManager.getKey(owner, owner);
     const unlocking = await stakingManager.unlockings(key);
 
-    assert.equal(
-      unlocking.amount,
-      BigInt(0),
-      'Expected unlocking to be cancelled',
-    );
+    assert.equal(unlocking.amount, 0n, 'Expected unlocking to be cancelled');
   });
 
   it('should be able to cancel a portion of the unlocking', async () => {
@@ -459,7 +455,7 @@ describe('Staking', () => {
 
     assert.equal(
       unlocking.amount,
-      BigInt(46),
+      46n,
       'Expected only a portion of the unlocking to be cancelled',
     );
   });
@@ -488,11 +484,7 @@ describe('Staking', () => {
     const key = await stakingManager.getKey(owner, owner);
     const unlocking = await stakingManager.unlockings(key);
 
-    assert.equal(
-      unlocking.amount,
-      BigInt(0),
-      'Expected unlocking to be cancelled',
-    );
+    assert.equal(unlocking.amount, 0n, 'Expected unlocking to be cancelled');
   });
 
   it('should allow delegated stake to exceed minimum owned stake by the stakee', async () => {
@@ -564,7 +556,7 @@ describe('Staking', () => {
     );
     expect(meetsMinimum).to.equal(false);
 
-    expect(managedStake / BigInt(2)).to.equal(joinedStake);
+    expect(managedStake / 2n).to.equal(joinedStake);
   });
 
   it('should fail to join when node`s own stake is 0', async () => {
@@ -625,7 +617,7 @@ describe('Staking', () => {
 
     assert.equal(
       stakeEntry.epochId,
-      BigInt(1),
+      1n,
       'Stake entry should track the epoch id it was updated at',
     );
   });
@@ -719,7 +711,7 @@ describe('Staking', () => {
       );
       assert.equal(
         stake,
-        BigInt(1),
+        1n,
         'Expected to be able to query total stake for stakee',
       );
     }
@@ -745,7 +737,7 @@ describe('Staking', () => {
       );
       assert.equal(
         boundary,
-        BigInt(i) + BigInt(1),
+        BigInt(i) + 1n,
         'Expected entry to hold correct boundary value',
       );
     }
@@ -781,13 +773,13 @@ describe('Staking', () => {
     await directory.addManager(owner);
     await directory.setCurrentDirectory(epochId);
 
-    const fifthPoint = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(5);
+    const fifthPoint = (2n ** 128n - 1n) / 5n;
     const points = [
-      BigInt(0),
-      fifthPoint + BigInt(1),
-      fifthPoint * BigInt(2) + BigInt(2),
-      fifthPoint * BigInt(3) + BigInt(3),
-      fifthPoint * BigInt(4) + BigInt(4),
+      0n,
+      fifthPoint + 1n,
+      fifthPoint * 2n + 2n,
+      fifthPoint * 3n + 3n,
+      fifthPoint * 4n + 4n,
     ];
 
     for (let i = 0; i < 5; i++) {
@@ -848,7 +840,7 @@ describe('Staking', () => {
     await epochsManager.initializeEpoch();
 
     // check point of node 0, epoch 1
-    let point = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(8);
+    let point = (2n ** 128n - 1n) / 8n;
     await checkScanWithEpochId(
       await accounts[0].getAddress(),
       point.toString(),
@@ -856,7 +848,7 @@ describe('Staking', () => {
     );
 
     // check point of node 1, epoch 1
-    point = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(2);
+    point = (2n ** 128n - 1n) / 2n;
     await checkScanWithEpochId(
       await accounts[1].getAddress(),
       point.toString(),
@@ -864,7 +856,7 @@ describe('Staking', () => {
     );
 
     // check point of node 2, epoch 1
-    point = BigInt(2) ** BigInt(128) - BigInt(1);
+    point = 2n ** 128n - 1n;
     await checkScanWithEpochId(
       await accounts[2].getAddress(),
       point.toString(),
@@ -877,7 +869,7 @@ describe('Staking', () => {
     // 0%  | 15%   | 37.5% | 62.5% | 77.5%
 
     // check point of node 1, epoch 2
-    point = (BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(4);
+    point = (2n ** 128n - 1n) / 4n;
     await checkScanWithEpochId(
       await accounts[1].getAddress(),
       point.toString(),
@@ -885,7 +877,7 @@ describe('Staking', () => {
     );
 
     // check point of node 3, epoch 2
-    point = ((BigInt(2) ** BigInt(128) - BigInt(1)) / BigInt(4)) * BigInt(3);
+    point = ((2n ** 128n - 1n) / 4n) * 3n;
     await checkScanWithEpochId(
       await accounts[3].getAddress(),
       point.toString(),
