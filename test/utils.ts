@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat';
-import { BigNumber, BigNumberish, Signer } from 'ethers';
+import { BigNumberish, Signer } from 'ethers';
 import { toWei } from 'web3-utils';
 import {
   Directory,
@@ -46,8 +46,7 @@ const initializeContracts = async function (
   const payoutPercentage = opts.payoutPercentage ? opts.payoutPercentage : 5000;
 
   const faceValue = opts.faceValue ?? toWei('15');
-  const baseLiveWinProb =
-    opts.baseLiveWinProb ?? BigNumber.from(2).pow(128).sub(1);
+  const baseLiveWinProb = opts.baseLiveWinProb ?? 2n ** 128n - 1n;
   const expiredWinProb = opts.expiredWinProb ?? 1000;
   const decayRate = opts.decayRate ?? 8000;
   const ticketDuration = opts.ticketDuration ?? 20;
@@ -63,7 +62,7 @@ const initializeContracts = async function (
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = await RegistriesFactory.deploy();
-  await registries.initialize(seekers.address, payoutPercentage, {
+  await registries.initialize(await seekers.getAddress(), payoutPercentage, {
     from: deployer,
   });
 
@@ -103,26 +102,30 @@ const initializeContracts = async function (
 
   await stakingManager.initialize(
     tokenAddress,
-    rewardsManager.address,
-    epochsManager.address,
+    await rewardsManager.getAddress(),
+    await epochsManager.getAddress(),
     unlockDuration,
     minimumStakeProportion,
     { from: deployer },
   );
   await rewardsManager.initialize(
     tokenAddress,
-    stakingManager.address,
-    epochsManager.address,
+    await stakingManager.getAddress(),
+    await epochsManager.getAddress(),
     { from: deployer },
   );
-  await directory.initialize(stakingManager.address, rewardsManager.address, {
-    from: deployer,
-  });
+  await directory.initialize(
+    await stakingManager.getAddress(),
+    await rewardsManager.getAddress(),
+    {
+      from: deployer,
+    },
+  );
   await epochsManager.initialize(
-    seekers.address,
-    directory.address,
-    registries.address,
-    ticketingParameters.address,
+    await seekers.getAddress(),
+    await directory.getAddress(),
+    await registries.getAddress(),
+    await ticketingParameters.getAddress(),
     epochDuration,
     { from: deployer },
   );
@@ -132,21 +135,27 @@ const initializeContracts = async function (
   const ticketing = await TicketingFactory.deploy();
   await ticketing.initialize(
     tokenAddress,
-    registries.address,
-    stakingManager.address,
-    directory.address,
-    epochsManager.address,
-    rewardsManager.address,
-    authorizedAccounts.address,
+    await registries.getAddress(),
+    await stakingManager.getAddress(),
+    await directory.getAddress(),
+    await epochsManager.getAddress(),
+    await rewardsManager.getAddress(),
+    await authorizedAccounts.getAddress(),
     unlockDuration,
     { from: deployer },
   );
 
-  await rewardsManager.addManager(ticketing.address, { from: deployer });
-  await rewardsManager.addManager(stakingManager.address, { from: deployer });
-  await rewardsManager.addManager(epochsManager.address, { from: deployer });
+  await rewardsManager.addManager(await ticketing.getAddress(), {
+    from: deployer,
+  });
+  await rewardsManager.addManager(await stakingManager.getAddress(), {
+    from: deployer,
+  });
+  await rewardsManager.addManager(await epochsManager.getAddress(), {
+    from: deployer,
+  });
 
-  await directory.addManager(epochsManager.address);
+  await directory.addManager(await epochsManager.getAddress());
 
   return {
     authorizedAccounts,

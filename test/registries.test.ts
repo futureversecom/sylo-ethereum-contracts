@@ -22,16 +22,20 @@ describe('Registries', () => {
     const Token = await ethers.getContractFactory('SyloToken');
     const token = await Token.deploy();
 
-    const contracts = await utils.initializeContracts(owner, token.address, {
-      payoutPercentage: 5000,
-    });
+    const contracts = await utils.initializeContracts(
+      owner,
+      await token.getAddress(),
+      {
+        payoutPercentage: 5000,
+      },
+    );
     registries = contracts.registries;
     seekers = contracts.seekers;
   });
 
   it('registries cannot initialize twice', async () => {
     await expect(
-      registries.initialize(seekers.address, 5000),
+      registries.initialize(await seekers.getAddress(), 5000),
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
 
@@ -40,14 +44,14 @@ describe('Registries', () => {
     registries = await Registries.deploy();
 
     await expect(
-      registries.initialize(ethers.constants.AddressZero, 5000),
+      registries.initialize(ethers.ZeroAddress, 5000),
     ).to.be.revertedWithCustomError(
       registries,
       'RootSeekersCannotBeZeroAddress',
     );
 
     await expect(
-      registries.initialize(seekers.address, 10001),
+      registries.initialize(await seekers.getAddress(), 10001),
     ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
   });
 
@@ -59,7 +63,7 @@ describe('Registries', () => {
     const p = await registries.defaultPayoutPercentage();
     assert.equal(
       p,
-      2000,
+      2000n,
       'Expected default payout percentage to be correctly updated',
     );
   });
@@ -113,7 +117,7 @@ describe('Registries', () => {
 
     const n = await registries.getTotalNodes();
 
-    assert.equal(n.toNumber(), 2);
+    assert.equal(n, 2n);
   });
 
   it('can retrieve a list of registries', async () => {
@@ -205,12 +209,7 @@ describe('Registries', () => {
 
   it('fails to set seeker account when seekerAccount is zero address', async () => {
     await expect(
-      registries.setSeekerAccount(
-        ethers.constants.AddressZero,
-        1,
-        randomBytes(32),
-        '0x',
-      ),
+      registries.setSeekerAccount(ethers.ZeroAddress, 1, randomBytes(32), '0x'),
     ).to.be.revertedWithCustomError(
       registries,
       'SeekerAccountCannotBeZeroAddress',
@@ -309,7 +308,7 @@ describe('Registries', () => {
 
     const registry = await registries.getRegistry(owner);
 
-    expect(registry.seekerAccount).to.equal(ethers.constants.AddressZero);
+    expect(registry.seekerAccount).to.equal(ethers.ZeroAddress);
   });
 
   it('can only revoke seeker account as seeker account', async () => {
@@ -368,9 +367,7 @@ describe('Registries', () => {
     );
 
     expect(regoSeekerAccountOne.seekerId).to.equal(0);
-    expect(regoSeekerAccountOne.seekerAccount).to.equal(
-      ethers.constants.AddressZero,
-    );
+    expect(regoSeekerAccountOne.seekerAccount).to.equal(ethers.ZeroAddress);
 
     expect(regoSeekerAccountTwo.seekerId).is.equal(tokenID);
     expect(regoSeekerAccountTwo.seekerAccount).is.equal(

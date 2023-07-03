@@ -1,10 +1,10 @@
 import { ethers } from 'ethers';
 import { randomBytes } from 'crypto';
-import contractAddress from '../deploy/ganache_deployment_phase_two.json';
+import contractAddress from '../deployments/ganache_deployment_phase_two.json';
 import nodesConfig from './nodes.json';
 import * as utils from './utils';
 
-const WINNING_PROBABILITY = ethers.BigNumber.from(2).pow(128).sub(1);
+const WINNING_PROBABILITY = BigInt(2) ** BigInt(128) - BigInt(1);
 
 type Node = {
   signer: ethers.Signer;
@@ -17,7 +17,7 @@ type NodeConfig = {
 };
 
 async function main() {
-  const provider = new ethers.providers.JsonRpcProvider('http://0.0.0.0:8545');
+  const provider = new ethers.JsonRpcProvider('http://0.0.0.0:8545');
 
   const contracts = utils.conectContracts(contractAddress, provider);
 
@@ -35,7 +35,7 @@ async function main() {
 
     await contracts.token
       .connect(deployer)
-      .transfer(node.signer.getAddress(), ethers.utils.parseEther('110000'));
+      .transfer(node.signer.getAddress(), ethers.parseEther('110000'));
 
     await addStake(contracts, node.signer);
     await registerNodes(contracts, node);
@@ -53,10 +53,7 @@ async function main() {
 
     await contracts.token
       .connect(deployer)
-      .transfer(
-        node.signer.getAddress(),
-        ethers.utils.parseEther('1000000000'),
-      );
+      .transfer(node.signer.getAddress(), ethers.parseEther('1000000000'));
 
     await registerNodes(contracts, node);
     await depositTicketing(contracts, node.signer);
@@ -70,7 +67,7 @@ async function main() {
 }
 
 async function createNode(
-  provider: ethers.providers.JsonRpcProvider,
+  provider: ethers.JsonRpcProvider,
   nodeConfig: NodeConfig,
 ): Promise<Node> {
   const newNode = connectSigner(
@@ -90,15 +87,13 @@ async function addStake(
 ): Promise<void> {
   await contracts.token
     .connect(node)
-    .approve(
-      contractAddress.stakingManager,
-      ethers.utils.parseEther('1000000'),
-      { gasLimit: 1_000_000 },
-    );
+    .approve(contractAddress.stakingManager, ethers.parseEther('1000000'), {
+      gasLimit: 1_000_000,
+    });
 
   await contracts.stakingManager
     .connect(node)
-    .addStake(ethers.utils.parseEther('100000'), node.getAddress(), {
+    .addStake(ethers.parseEther('100000'), node.getAddress(), {
       gasLimit: 1_000_000,
     });
 }
@@ -156,14 +151,14 @@ async function depositTicketing(
 ) {
   await contracts.token
     .connect(incentivisedNode)
-    .approve(contractAddress.ticketing, ethers.utils.parseEther('1000000000'), {
+    .approve(contractAddress.ticketing, ethers.parseEther('1000000000'), {
       gasLimit: 1_000_000,
     });
 
   await contracts.ticketing
     .connect(incentivisedNode)
     .depositEscrow(
-      ethers.utils.parseEther('1000000'),
+      ethers.parseEther('1000000'),
       incentivisedNode.getAddress(),
       { gasLimit: 1_000_000 },
     );
@@ -171,7 +166,7 @@ async function depositTicketing(
   await contracts.ticketing
     .connect(incentivisedNode)
     .depositPenalty(
-      ethers.utils.parseEther('100000'),
+      ethers.parseEther('100000'),
       incentivisedNode.getAddress(),
       { gasLimit: 1_000_000 },
     );
@@ -187,7 +182,7 @@ async function setNetworkParams(
 
   await contracts.ticketingParameters
     .connect(deployer)
-    .setFaceValue(ethers.utils.parseEther('100'), { gasLimit: 1_000_000 });
+    .setFaceValue(ethers.parseEther('100'), { gasLimit: 1_000_000 });
 
   await contracts.ticketingParameters
     .connect(deployer)
@@ -208,7 +203,7 @@ async function setNetworkParams(
 
 export function connectSigner(
   wallet: ethers.Wallet,
-  provider: ethers.providers.Provider,
+  provider: ethers.Provider,
 ): ethers.Wallet {
   const s = wallet.connect(provider);
 

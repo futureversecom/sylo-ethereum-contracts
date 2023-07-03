@@ -1,5 +1,5 @@
 import * as hre from 'hardhat';
-import { BigNumber, BigNumberish } from 'ethers';
+import { BigNumberish } from 'ethers';
 
 type ContractParameters = {
   // Address of the existing Sylo Token
@@ -63,8 +63,8 @@ const GenesisParameters: ContractParameters = {
 
   TicketingParameters: {
     faceValue: 100000,
-    baseLiveWinProb: BigNumber.from(2).pow(128).sub(1).div(1000),
-    expiredWinProb: BigNumber.from(2).pow(128).sub(1).div(1000),
+    baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
+    expiredWinProb: (2n ** 128n - 1n) / 1000n,
     ticketDuration: 80000,
     decayRate: 8000,
   },
@@ -79,4 +79,68 @@ const GenesisParameters: ContractParameters = {
   },
 };
 
-export default GenesisParameters;
+const PorciniDevParameters: ContractParameters = {
+  SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
+
+  Seekers: '0xAAAAAAAA00001864000000000000000000000000',
+
+  EpochsManager: {
+    epochDuration: 30,
+  },
+
+  Registries: {
+    defaultPayoutPercentage: 5000,
+  },
+
+  TicketingParameters: {
+    faceValue: hre.ethers.parseEther('10000'),
+    baseLiveWinProb: 2n ** 128n - 1n,
+    expiredWinProb: 2n ** 128n - 1n,
+    ticketDuration: 100,
+    decayRate: 8000,
+  },
+
+  Ticketing: {
+    unlockDuration: 10,
+  },
+
+  StakingManager: {
+    unlockDuration: 10,
+    minimumStakeProportion: 3000,
+  },
+};
+
+const PorciniTestingParameters: ContractParameters = {
+  SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
+
+  Seekers: '0xAAAAAAAA00001864000000000000000000000000',
+
+  EpochsManager: {
+    epochDuration: 17280, // 1 day
+  },
+
+  Registries: {
+    defaultPayoutPercentage: 5000,
+  },
+
+  TicketingParameters: {
+    faceValue: hre.ethers.parseEther('10000'),
+    baseLiveWinProb: 2n ** 128n - 1n,
+    expiredWinProb: 2n ** 128n - 1n,
+    ticketDuration: 100,
+    decayRate: 8000,
+  },
+
+  Ticketing: {
+    unlockDuration: 120,
+  },
+
+  StakingManager: {
+    unlockDuration: 120,
+    minimumStakeProportion: 3000,
+  },
+};
+
+export { GenesisParameters, PorciniDevParameters, PorciniTestingParameters };
+
+export type { ContractParameters };
