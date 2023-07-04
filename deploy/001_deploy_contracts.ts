@@ -157,6 +157,8 @@ function getConfig(networkName: string): configs.ContractParameters {
       return configs.PorciniDevParameters;
     case 'poricni-testing':
       return configs.PorciniTestingParameters;
+    case 'locahost':
+      return configs.GanacheTestnetParameters;
     default:
       return configs.GenesisParameters;
   }
