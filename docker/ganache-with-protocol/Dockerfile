@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:18.14 AS node-builder
+FROM node:18.16 AS node-builder
 
 WORKDIR /app
 
@@ -10,7 +10,9 @@ RUN npm install -g ganache typescript ts-node
 # copy necessary files
 COPY ["package.json", "package-lock.json*", "./"]
 COPY contracts contracts
+COPY common common
 COPY deploy deploy
+COPY deployments deployments
 COPY scripts scripts
 COPY tsconfig.json .
 COPY hardhat.config.ts .

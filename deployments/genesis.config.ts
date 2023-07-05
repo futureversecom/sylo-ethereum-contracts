@@ -79,6 +79,37 @@ const GenesisParameters: ContractParameters = {
   },
 };
 
+const GanacheTestnetParameters: ContractParameters = {
+  SyloToken: '',
+
+  Seekers: '',
+
+  EpochsManager: {
+    epochDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
+  },
+
+  Registries: {
+    defaultPayoutPercentage: 5000,
+  },
+
+  TicketingParameters: {
+    faceValue: 100000,
+    baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
+    expiredWinProb: (2n ** 128n - 1n) / 1000n,
+    ticketDuration: 10_000_000, // make sure the ticket never expires in the short time on testnet
+    decayRate: 8000,
+  },
+
+  Ticketing: {
+    unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
+  },
+
+  StakingManager: {
+    unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
+    minimumStakeProportion: 3000,
+  },
+};
+
 const PorciniDevParameters: ContractParameters = {
   SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
 
@@ -141,6 +172,11 @@ const PorciniTestingParameters: ContractParameters = {
   },
 };
 
-export { GenesisParameters, PorciniDevParameters, PorciniTestingParameters };
+export {
+  GenesisParameters,
+  GanacheTestnetParameters,
+  PorciniDevParameters,
+  PorciniTestingParameters,
+};
 
 export type { ContractParameters };

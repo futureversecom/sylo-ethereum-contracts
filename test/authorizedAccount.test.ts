@@ -1,8 +1,10 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
 import { AuthorizedAccounts, SyloToken } from '../typechain-types';
-import utils, { Contracts } from './utils';
+import utils from './utils';
 import { assert, expect } from 'chai';
+import { SyloContracts } from '../common/contracts';
+import { Permission } from '../common/enum';
 
 describe('Authorized Accounts', () => {
   let accounts: Signer[];
@@ -15,11 +17,7 @@ describe('Authorized Accounts', () => {
 
   let token: SyloToken;
   let authAccountsConnectMain: AuthorizedAccounts;
-  let contracts: Contracts;
-
-  enum Permission {
-    TicketSigning,
-  }
+  let contracts: SyloContracts;
 
   const permissionList: Permission[] = [Permission.TicketSigning];
 
@@ -37,10 +35,7 @@ describe('Authorized Accounts', () => {
   });
 
   beforeEach(async () => {
-    contracts = await utils.initializeContracts(
-      deployer,
-      await token.getAddress(),
-    );
+    contracts = await utils.initializeContracts(deployer, token);
     authAccountsConnectMain = contracts.authorizedAccounts.connect(mainAccount);
   });
 

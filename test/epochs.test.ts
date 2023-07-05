@@ -1,8 +1,9 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
 import { EpochsManager, SyloToken } from '../typechain-types';
-import utils, { Contracts } from './utils';
+import utils from './utils';
 import { assert, expect } from 'chai';
+import { SyloContracts } from '../common/contracts';
 
 describe('Epochs', () => {
   let accounts: Signer[];
@@ -10,7 +11,7 @@ describe('Epochs', () => {
 
   let token: SyloToken;
   let epochsManager: EpochsManager;
-  let contracts: Contracts;
+  let contracts: SyloContracts;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -22,10 +23,7 @@ describe('Epochs', () => {
   });
 
   beforeEach(async () => {
-    contracts = await utils.initializeContracts(
-      owner,
-      await token.getAddress(),
-    );
+    contracts = await utils.initializeContracts(owner, token);
     epochsManager = contracts.epochsManager;
     await contracts.directory.transferOwnership(
       await epochsManager.getAddress(),

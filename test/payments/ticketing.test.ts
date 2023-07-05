@@ -29,7 +29,7 @@ describe('Ticketing', () => {
   let token: SyloToken;
   let epochsManager: EpochsManager;
   let rewardsManager: RewardsManager;
-  let ticketing: SyloTicketing;
+  let syloTicketing: SyloTicketing;
   let ticketingParameters: TicketingParameters;
   let directory: Directory;
   let registries: Registries;
@@ -61,17 +61,13 @@ describe('Ticketing', () => {
   });
 
   beforeEach(async () => {
-    const contracts = await utils.initializeContracts(
-      owner,
-      await token.getAddress(),
-      {
-        faceValue,
-        epochDuration,
-      },
-    );
+    const contracts = await utils.initializeContracts(owner, token, {
+      faceValue,
+      epochDuration,
+    });
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
-    ticketing = contracts.ticketing;
+    syloTicketing = contracts.syloTicketing;
     ticketingParameters = contracts.ticketingParameters;
     directory = contracts.directory;
     registries = contracts.registries;
@@ -80,12 +76,12 @@ describe('Ticketing', () => {
     authorizedAccounts = contracts.authorizedAccounts;
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
-    await token.approve(await ticketing.getAddress(), toSOLOs(10000000));
+    await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
   });
 
   it('ticketing cannot be initialized twice', async () => {
     await expect(
-      ticketing.initialize(
+      syloTicketing.initialize(
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
@@ -215,7 +211,7 @@ describe('Ticketing', () => {
       );
     });
 
-    const supportInterface = await ticketing.supportsInterface(
+    const supportInterface = await syloTicketing.supportsInterface(
       interfaceId.toHexString(),
     );
     expect(supportInterface).to.be.true;
@@ -242,8 +238,8 @@ describe('Ticketing', () => {
       .to.emit(ticketingParameters, 'TicketDurationUpdated')
       .withArgs(2222);
 
-    await expect(ticketing.setUnlockDuration(3333))
-      .to.emit(ticketing, 'UnlockDurationUpdated')
+    await expect(syloTicketing.setUnlockDuration(3333))
+      .to.emit(syloTicketing, 'UnlockDurationUpdated')
       .withArgs(3333);
 
     const currentfaceValue = await ticketingParameters.faceValue();
@@ -277,7 +273,7 @@ describe('Ticketing', () => {
       'Expected ticket duration to be correctly set',
     );
 
-    const unlockDuration = await ticketing.unlockDuration();
+    const unlockDuration = await syloTicketing.unlockDuration();
     assert.equal(
       unlockDuration,
       3333n,
@@ -309,13 +305,15 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('Ownable: caller is not the owner');
 
     await expect(
-      ticketing.connect(notOwner).setUnlockDuration(3333),
+      syloTicketing.connect(notOwner).setUnlockDuration(3333),
     ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
   it('ticketing cannot set parameters with invalid arguments', async () => {
-    await expect(ticketing.setUnlockDuration(0)).to.be.revertedWithCustomError(
-      ticketing,
+    await expect(
+      syloTicketing.setUnlockDuration(0),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
       'UnlockDurationCannotBeZero',
     );
   });
@@ -382,106 +380,112 @@ describe('Ticketing', () => {
 
   it('should be able to deposit escrow', async () => {
     const alice = Wallet.createRandom();
-    await ticketing.depositEscrow(50, alice.address);
+    await syloTicketing.depositEscrow(50, alice.address);
 
-    const deposit = await ticketing.deposits(alice.address);
+    const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(deposit.escrow.toString(), '50', 'Expected 50 in escrow');
   });
 
   it('should not be able to deposit escrow with invalid arguments', async () => {
     await expect(
-      ticketing.depositEscrow(0, owner),
-    ).to.be.revertedWithCustomError(ticketing, 'EscrowAmountCannotBeZero');
+      syloTicketing.depositEscrow(0, owner),
+    ).to.be.revertedWithCustomError(syloTicketing, 'EscrowAmountCannotBeZero');
 
     await expect(
-      ticketing.depositEscrow(50, ethers.ZeroAddress),
-    ).to.be.revertedWithCustomError(ticketing, 'AccountCannotBeZeroAddress');
+      syloTicketing.depositEscrow(50, ethers.ZeroAddress),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'AccountCannotBeZeroAddress',
+    );
   });
 
   it('should be able to deposit penalty', async () => {
     const alice = Wallet.createRandom();
-    await ticketing.depositPenalty(50, alice.address);
+    await syloTicketing.depositPenalty(50, alice.address);
 
-    const deposit = await ticketing.deposits(alice.address);
+    const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(deposit.penalty.toString(), '50', 'Expected 50 in escrow');
   });
 
   it('should not be able to deposit penalty with invalid arguments', async () => {
     await expect(
-      ticketing.depositPenalty(0, owner),
-    ).to.be.revertedWithCustomError(ticketing, 'PenaltyAmountCannotBeZero');
+      syloTicketing.depositPenalty(0, owner),
+    ).to.be.revertedWithCustomError(syloTicketing, 'PenaltyAmountCannotBeZero');
 
     await expect(
-      ticketing.depositPenalty(50, ethers.ZeroAddress),
-    ).to.be.revertedWithCustomError(ticketing, 'AccountCannotBeZeroAddress');
+      syloTicketing.depositPenalty(50, ethers.ZeroAddress),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'AccountCannotBeZeroAddress',
+    );
   });
 
   it('should be able to deposit escrow multiple times', async () => {
     const alice = Wallet.createRandom();
-    await ticketing.depositEscrow(50, alice.address);
-    await ticketing.depositEscrow(50, alice.address);
+    await syloTicketing.depositEscrow(50, alice.address);
+    await syloTicketing.depositEscrow(50, alice.address);
 
-    const deposit = await ticketing.deposits(alice.address);
+    const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(deposit.escrow.toString(), '100', 'Expected 100 in escrow');
   });
 
   it('should be able to deposit to penalty multiple times', async () => {
     const alice = Wallet.createRandom();
-    await ticketing.depositPenalty(50, alice.address);
-    await ticketing.depositPenalty(50, alice.address);
+    await syloTicketing.depositPenalty(50, alice.address);
+    await syloTicketing.depositPenalty(50, alice.address);
 
-    const deposit = await ticketing.deposits(alice.address);
+    const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(deposit.penalty.toString(), '100', 'Expected 100 in penalty');
   });
 
   it('should fail to withdraw without unlocking', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await expect(ticketing.withdraw()).to.be.revertedWithCustomError(
-      ticketing,
+    await syloTicketing.depositEscrow(50, owner);
+    await expect(syloTicketing.withdraw()).to.be.revertedWithCustomError(
+      syloTicketing,
       'UnlockingNotInProcess',
     );
   });
 
   it('should fail to unlock without deposit', async () => {
-    await expect(ticketing.unlockDeposits()).to.be.revertedWithCustomError(
-      ticketing,
+    await expect(syloTicketing.unlockDeposits()).to.be.revertedWithCustomError(
+      syloTicketing,
       'NoEsrowAndPenalty',
     );
   });
 
   it('should be able to unlock', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await ticketing.unlockDeposits({ from: owner });
+    await syloTicketing.depositEscrow(50, owner);
+    await syloTicketing.unlockDeposits({ from: owner });
 
-    const deposit = await ticketing.deposits(owner);
+    const deposit = await syloTicketing.deposits(owner);
     expect(deposit.unlockAt).to.be.greaterThan(0n);
   });
 
   it('should fail to unlock if already unlocking', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await ticketing.unlockDeposits();
+    await syloTicketing.depositEscrow(50, owner);
+    await syloTicketing.unlockDeposits();
 
-    await expect(ticketing.unlockDeposits()).to.be.revertedWithCustomError(
-      ticketing,
+    await expect(syloTicketing.unlockDeposits()).to.be.revertedWithCustomError(
+      syloTicketing,
       'UnlockingInProcess',
     );
   });
 
   it('should fail to lock if already locked', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await expect(ticketing.lockDeposits()).to.be.revertedWithCustomError(
-      ticketing,
+    await syloTicketing.depositEscrow(50, owner);
+    await expect(syloTicketing.lockDeposits()).to.be.revertedWithCustomError(
+      syloTicketing,
       'UnlockingNotInProcess',
     );
   });
 
   it('should be able to lock deposit while it is unlocked', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await ticketing.unlockDeposits();
+    await syloTicketing.depositEscrow(50, owner);
+    await syloTicketing.unlockDeposits();
 
-    await ticketing.lockDeposits();
+    await syloTicketing.lockDeposits();
 
-    const deposit = await ticketing.deposits(owner);
+    const deposit = await syloTicketing.deposits(owner);
     assert.equal(
       deposit.unlockAt.toString(),
       '0',
@@ -490,49 +494,49 @@ describe('Ticketing', () => {
   });
 
   it('should fail to deposit while unlocking', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await ticketing.unlockDeposits();
+    await syloTicketing.depositEscrow(50, owner);
+    await syloTicketing.unlockDeposits();
 
     await expect(
-      ticketing.depositEscrow(10, owner),
-    ).to.be.revertedWithCustomError(ticketing, 'UnlockingInProcess');
+      syloTicketing.depositEscrow(10, owner),
+    ).to.be.revertedWithCustomError(syloTicketing, 'UnlockingInProcess');
     await expect(
-      ticketing.depositPenalty(10, owner),
-    ).to.be.revertedWithCustomError(ticketing, 'UnlockingInProcess');
+      syloTicketing.depositPenalty(10, owner),
+    ).to.be.revertedWithCustomError(syloTicketing, 'UnlockingInProcess');
   });
 
   it('should be able to withdraw after unlocking phase has completed', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await ticketing.unlockDeposits();
+    await syloTicketing.depositEscrow(50, owner);
+    await syloTicketing.unlockDeposits();
 
     await utils.advanceBlock(11);
 
     const balanceBeforeWithdrawal = await token.balanceOf(owner);
 
-    await ticketing.withdraw();
+    await syloTicketing.withdraw();
 
     const balanceAfterWithdrawal = await token.balanceOf(owner);
 
     expect(balanceAfterWithdrawal).to.be.equal(balanceBeforeWithdrawal + 50n);
 
     // can now deposit again
-    await ticketing.depositEscrow(50, owner);
+    await syloTicketing.depositEscrow(50, owner);
   });
 
   it('should fail to withdraw if deposits not unlocked', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await expect(ticketing.withdraw()).to.be.revertedWithCustomError(
-      ticketing,
+    await syloTicketing.depositEscrow(50, owner);
+    await expect(syloTicketing.withdraw()).to.be.revertedWithCustomError(
+      syloTicketing,
       'UnlockingNotInProcess',
     );
   });
 
   it('should fail to withdraw if still unlocking', async () => {
-    await ticketing.depositEscrow(50, owner);
-    await ticketing.unlockDeposits();
+    await syloTicketing.depositEscrow(50, owner);
+    await syloTicketing.unlockDeposits();
 
-    await expect(ticketing.withdraw()).to.be.revertedWithCustomError(
-      ticketing,
+    await expect(syloTicketing.withdraw()).to.be.revertedWithCustomError(
+      syloTicketing,
       'UnlockingNotCompleted',
     );
   });
@@ -606,7 +610,7 @@ describe('Ticketing', () => {
     const receiverSig = '0x00';
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWith('ECDSA: invalid signature length');
   });
 
@@ -624,8 +628,8 @@ describe('Ticketing', () => {
     const redeemerRand = 999;
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(syloTicketing, 'RedeemerCommitMismatch');
   });
 
   it('cannot redeem ticket if associated epoch does not exist', async () => {
@@ -635,8 +639,8 @@ describe('Ticketing', () => {
       await createWinningTicket(alice, bob, owner, 1);
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketEpochNotFound');
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(syloTicketing, 'TicketEpochNotFound');
   });
 
   it('can not calculate winning probability if associated epoch does not exist', async () => {
@@ -647,8 +651,8 @@ describe('Ticketing', () => {
     ticket.epochId = 1;
 
     await expect(
-      ticketing.calculateWinningProbability(ticket),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketEpochNotFound');
+      syloTicketing.calculateWinningProbability(ticket),
+    ).to.be.revertedWithCustomError(syloTicketing, 'TicketEpochNotFound');
   });
 
   it('cannot redeem ticket if generated for a future block', async () => {
@@ -662,8 +666,11 @@ describe('Ticketing', () => {
     const updatedTicket = { ...ticket, generationBlock: 100000 };
 
     await expect(
-      ticketing.redeem(updatedTicket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketCannotBeFromFutureBlock');
+      syloTicketing.redeem(updatedTicket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'TicketCannotBeFromFutureBlock',
+    );
   });
 
   it('cannot redeem ticket using sender delegated account to sign without permission', async () => {
@@ -677,8 +684,8 @@ describe('Ticketing', () => {
     const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(
@@ -691,9 +698,9 @@ describe('Ticketing', () => {
       );
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'InvalidSenderTicketSigningPermission',
     );
   });
@@ -709,8 +716,8 @@ describe('Ticketing', () => {
     const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -724,8 +731,8 @@ describe('Ticketing', () => {
       .connect(aliceConnected)
       .authorizeAccount(delegatedWallet.address, permission);
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -742,9 +749,9 @@ describe('Ticketing', () => {
       );
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'InvalidReceiverTicketSigningPermission',
     );
   });
@@ -760,8 +767,8 @@ describe('Ticketing', () => {
     const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -778,8 +785,8 @@ describe('Ticketing', () => {
       .connect(aliceConnected)
       .unauthorizeAccount(delegatedWallet.address);
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -789,9 +796,9 @@ describe('Ticketing', () => {
       await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'InvalidSenderTicketSigningPermission',
     );
 
@@ -803,9 +810,9 @@ describe('Ticketing', () => {
       .removePermissions(delegatedWallet.address, [Permission.TicketSigning]);
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'InvalidSenderTicketSigningPermission',
     );
   });
@@ -824,8 +831,8 @@ describe('Ticketing', () => {
     const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -846,7 +853,7 @@ describe('Ticketing', () => {
       .connect(aliceConnected)
       .removePermissions(delegatedWallet.address, permission);
 
-    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+    await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
     await checkAfterRedeem(alice, 1000, 50, 500);
   });
@@ -865,8 +872,8 @@ describe('Ticketing', () => {
     const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -887,7 +894,7 @@ describe('Ticketing', () => {
       .connect(aliceConnected)
       .unauthorizeAccount(delegatedWallet.address);
 
-    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+    await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
     await checkAfterRedeem(alice, 1000, 50, 500);
   });
@@ -902,8 +909,8 @@ describe('Ticketing', () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     const delegatedWallet = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
     await accounts[0].sendTransaction({
       to: alice.address,
       value: ethers.parseEther('2000.0'),
@@ -920,7 +927,7 @@ describe('Ticketing', () => {
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner, undefined, delegatedWallet);
 
-    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+    await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
     await checkAfterRedeem(alice, 1000, 50, 500);
   });
@@ -938,8 +945,8 @@ describe('Ticketing', () => {
     const aliceDelegatedWallet = Wallet.createRandom();
     const bobDelegatedWallet = Wallet.createRandom();
 
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     await accounts[0].sendTransaction({
       to: alice.address,
@@ -971,7 +978,7 @@ describe('Ticketing', () => {
         bobDelegatedWallet,
       );
 
-    await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+    await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
     await checkAfterRedeem(alice, 1000, 50, 500);
   });
@@ -986,8 +993,11 @@ describe('Ticketing', () => {
     const updatedTicket = { ...ticket, generationBlock: 1 };
 
     await expect(
-      ticketing.calculateWinningProbability(updatedTicket),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketNotCreatedInTheEpoch');
+      syloTicketing.calculateWinningProbability(updatedTicket),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'TicketNotCreatedInTheEpoch',
+    );
   });
 
   it('cannot calculate winning probability if generated after epoch end block', async () => {
@@ -1005,8 +1015,11 @@ describe('Ticketing', () => {
     };
 
     await expect(
-      ticketing.calculateWinningProbability(updatedTicket),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketNotCreatedInTheEpoch');
+      syloTicketing.calculateWinningProbability(updatedTicket),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'TicketNotCreatedInTheEpoch',
+    );
   });
 
   it('calculate winning ticket panic for invalid ticket', async () => {
@@ -1020,7 +1033,7 @@ describe('Ticketing', () => {
     const updatedTicket = { ...ticket, generationBlock: 10000 };
 
     await expect(
-      ticketing.calculateWinningProbability(updatedTicket),
+      syloTicketing.calculateWinningProbability(updatedTicket),
     ).to.be.revertedWithPanic(0x11); // Overflow: Arithmetic operation underflowed or overflowed
   });
 
@@ -1031,15 +1044,18 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'RedeemerMustHaveJoinedEpoch');
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'RedeemerMustHaveJoinedEpoch',
+    );
   });
 
   it('cannot redeem ticket if node has not initialized reward pool', async () => {
@@ -1053,14 +1069,14 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(rewardsManager, 'RewardPoolNotExist');
   });
 
@@ -1073,14 +1089,14 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
     await expect(
-      ticketing.redeem(
+      syloTicketing.redeem(
         {
           ...ticket,
           sender: { ...ticket.sender, main: ethers.ZeroAddress },
@@ -1091,12 +1107,12 @@ describe('Ticketing', () => {
         receiverSig,
       ),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'TicketSenderCannotBeZeroAddress',
     );
 
     await expect(
-      ticketing.redeem(
+      syloTicketing.redeem(
         {
           ...ticket,
           receiver: { ...ticket.receiver, main: ethers.ZeroAddress },
@@ -1107,12 +1123,12 @@ describe('Ticketing', () => {
         receiverSig,
       ),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'TicketReceiverCannotBeZeroAddress',
     );
 
     await expect(
-      ticketing.redeem(
+      syloTicketing.redeem(
         {
           ...ticket,
           redeemer: ethers.ZeroAddress,
@@ -1123,12 +1139,12 @@ describe('Ticketing', () => {
         receiverSig,
       ),
     ).to.be.revertedWithCustomError(
-      ticketing,
+      syloTicketing,
       'TicketRedeemerCannotBeZeroAddress',
     );
 
     await expect(
-      ticketing.redeem(
+      syloTicketing.redeem(
         {
           ...ticket,
           redeemerCommit:
@@ -1139,28 +1155,24 @@ describe('Ticketing', () => {
         senderSig,
         receiverSig,
       ),
-    ).to.be.revertedWithCustomError(ticketing, 'RedeemerCommitMismatch');
+    ).to.be.revertedWithCustomError(syloTicketing, 'RedeemerCommitMismatch');
 
     const malformedSig =
       '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
     await expect(
-      ticketing.redeem(ticket, redeemerRand, malformedSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'InvalidSenderSignature');
+      syloTicketing.redeem(ticket, redeemerRand, malformedSig, receiverSig),
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSenderSignature');
 
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, malformedSig),
-    ).to.be.revertedWithCustomError(ticketing, 'InvalidReceiverSignature');
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, malformedSig),
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidReceiverSignature');
   });
 
   it('rejects non winning ticket', async () => {
     // redeploy contracts with win chance of 0%
-    const contracts = await utils.initializeContracts(
-      owner,
-      await token.getAddress(),
-      {
-        baseLiveWinProb: 0,
-      },
-    );
+    const contracts = await utils.initializeContracts(owner, token, {
+      baseLiveWinProb: 0,
+    });
     await token.approve(
       await contracts.stakingManager.getAddress(),
       toSOLOs(100000),
@@ -1182,13 +1194,13 @@ describe('Ticketing', () => {
     await contracts.epochsManager.initializeEpoch();
 
     await token.approve(
-      await contracts.ticketing.getAddress(),
+      await contracts.syloTicketing.getAddress(),
       toSOLOs(100000),
     );
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await contracts.ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await contracts.ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await contracts.syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await contracts.syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner, 1);
@@ -1196,8 +1208,13 @@ describe('Ticketing', () => {
     await utils.advanceBlock(5);
 
     await expect(
-      contracts.ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketNotWinning');
+      contracts.syloTicketing.redeem(
+        ticket,
+        redeemerRand,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(syloTicketing, 'TicketNotWinning');
   });
 
   it('can redeem winning ticket', async () => {
@@ -1209,13 +1226,13 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
-    await ticketing.redeem(
+    await syloTicketing.redeem(
       ticket,
 
       redeemerRand,
@@ -1223,7 +1240,7 @@ describe('Ticketing', () => {
       receiverSig,
     );
 
-    const deposit = await ticketing.deposits(alice.address);
+    const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(
       deposit.escrow,
       toSOLOs(1000),
@@ -1253,13 +1270,13 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(2000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
-    await ticketing.redeem(
+    await syloTicketing.redeem(
       ticket,
 
       redeemerRand,
@@ -1267,8 +1284,8 @@ describe('Ticketing', () => {
       receiverSig,
     );
     await expect(
-      ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(ticketing, 'TicketAlreadyRedeemed');
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(syloTicketing, 'TicketAlreadyRedeemed');
   });
 
   it('not manager cannot update pending rewards', async () => {
@@ -1286,21 +1303,23 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(5), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(5), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
     const initialTicketingBalance = await token.balanceOf(
-      await ticketing.getAddress(),
+      await syloTicketing.getAddress(),
     );
 
-    await expect(ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig))
-      .to.emit(ticketing, 'SenderPenaltyBurnt')
+    await expect(
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    )
+      .to.emit(syloTicketing, 'SenderPenaltyBurnt')
       .withArgs(alice.address);
 
-    const deposit = await ticketing.deposits(alice.address);
+    const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(
       deposit.escrow.toString(),
       '0',
@@ -1321,7 +1340,7 @@ describe('Ticketing', () => {
     );
 
     const ticketingBalance = await token.balanceOf(
-      await ticketing.getAddress(),
+      await syloTicketing.getAddress(),
     );
     assert.equal(
       ticketingBalance,
@@ -1354,14 +1373,14 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.initializeEpoch();
@@ -1406,14 +1425,14 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     const totalWinnings = 5000;
@@ -1446,14 +1465,14 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.joinNextEpoch();
@@ -1485,7 +1504,7 @@ describe('Ticketing', () => {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.joinNextEpoch();
@@ -1569,13 +1588,13 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(alice, bob, owner);
 
-    await ticketing.redeem(
+    await syloTicketing.redeem(
       ticket,
 
       redeemerRand,
@@ -1608,8 +1627,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(500000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(500000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let j = 0; j < 3; j++) {
       await epochsManager.joinNextEpoch();
@@ -1620,7 +1639,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1652,8 +1676,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(500000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(500000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     await setSeekerRegistry(accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
@@ -1665,7 +1689,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
 
       await epochsManager.joinNextEpoch();
@@ -1708,8 +1737,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     // have account 4 add stake midway through
     for (let j = 0; j < 3; j++) {
@@ -1725,7 +1754,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1794,8 +1828,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     // have account 1 unlock stake midway through
     for (let j = 0; j < 3; j++) {
@@ -1812,7 +1846,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -1874,8 +1913,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(1000 * 500), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(1000 * 500), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1886,7 +1925,7 @@ describe('Ticketing', () => {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.initializeEpoch();
@@ -1900,29 +1939,25 @@ describe('Ticketing', () => {
 
   it('should decay winning probability as ticket approaches expiry', async () => {
     // deploy another ticketing contract with simpler parameters
-    const contracts = await utils.initializeContracts(
-      owner,
-      await token.getAddress(),
-      {
-        faceValue,
-        baseLiveWinProb: 100000,
-        expiredWinProb: 1000,
-        decayRate: 8000,
-        ticketDuration: 100,
-      },
-    );
+    const contracts = await utils.initializeContracts(owner, token, {
+      faceValue,
+      baseLiveWinProb: 100000,
+      expiredWinProb: 1000,
+      decayRate: 8000,
+      ticketDuration: 100,
+    });
     epochsManager = contracts.epochsManager;
     rewardsManager = contracts.rewardsManager;
-    ticketing = contracts.ticketing;
+    syloTicketing = contracts.syloTicketing;
     directory = contracts.directory;
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
 
     await directory.transferOwnership(await epochsManager.getAddress());
-    await rewardsManager.addManager(await ticketing.getAddress());
+    await rewardsManager.addManager(await syloTicketing.getAddress());
     await rewardsManager.addManager(await epochsManager.getAddress());
 
-    await token.approve(await ticketing.getAddress(), toSOLOs(10000));
+    await token.approve(await syloTicketing.getAddress(), toSOLOs(10000));
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000));
 
     await stakingManager.addStake(toSOLOs(1), owner);
@@ -1939,8 +1974,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(5000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(5000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket } = await createWinningTicket(alice, bob, owner);
 
@@ -1950,7 +1985,7 @@ describe('Ticketing', () => {
     // check if the probability has decayed 50% of the maximum decayed value (80%)
     const expectedProbability = 100000 - 0.5 * 0.8 * 100000;
 
-    const decayedProbability = await ticketing.calculateWinningProbability(
+    const decayedProbability = await syloTicketing.calculateWinningProbability(
       ticket,
     );
 
@@ -1974,8 +2009,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(500000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(500000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     // the node doesn't participate for several epochs
     for (let i = 0; i < 3; i++) {
@@ -1992,7 +2027,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -2026,15 +2066,20 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let j = 0; j < 3; j++) {
       for (let i = 0; i < 10; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
 
       if (j != 2) {
@@ -2073,15 +2118,20 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 10; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
 
       await epochsManager.joinNextEpoch();
@@ -2103,7 +2153,7 @@ describe('Ticketing', () => {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     // confirm claim is still 0
@@ -2128,8 +2178,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const initialBalance = await token.balanceOf(owner);
 
@@ -2137,7 +2187,7 @@ describe('Ticketing', () => {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.joinNextEpoch();
@@ -2149,7 +2199,7 @@ describe('Ticketing', () => {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.initializeEpoch();
@@ -2175,8 +2225,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let j = 0; j < 2; j++) {
       await epochsManager.joinNextEpoch();
@@ -2186,7 +2236,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -2242,8 +2297,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let j = 0; j < 2; j++) {
       await epochsManager.joinNextEpoch();
@@ -2253,7 +2308,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -2308,8 +2368,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -2318,7 +2378,7 @@ describe('Ticketing', () => {
       const { ticket, redeemerRand, senderSig, receiverSig } =
         await createWinningTicket(alice, bob, owner);
 
-      await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+      await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.joinNextEpoch();
@@ -2348,8 +2408,8 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    await ticketing.depositEscrow(toSOLOs(50000), alice.address);
-    await ticketing.depositPenalty(toSOLOs(50), alice.address);
+    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     for (let i = 0; i < 3; i++) {
       await epochsManager.joinNextEpoch();
@@ -2359,7 +2419,12 @@ describe('Ticketing', () => {
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(alice, bob, owner);
 
-        await ticketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+        await syloTicketing.redeem(
+          ticket,
+          redeemerRand,
+          senderSig,
+          receiverSig,
+        );
       }
     }
 
@@ -2387,7 +2452,7 @@ describe('Ticketing', () => {
     // advance the block all the way to ticket expiry
     await utils.advanceBlock(21);
 
-    const p = await ticketing.calculateWinningProbability(ticket);
+    const p = await syloTicketing.calculateWinningProbability(ticket);
 
     assert.equal(p, 0n, 'Expected probability to be 0');
   });
@@ -2405,8 +2470,8 @@ describe('Ticketing', () => {
     await epochsManager.initializeEpoch();
 
     // set up the sender's escrow
-    await ticketing.depositEscrow(50, sender.address);
-    await ticketing.depositPenalty(toSOLOs(50), sender.address);
+    await syloTicketing.depositEscrow(50, sender.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), sender.address);
 
     // have the node generate random numbers
     const nodeRand = BigInt('0x' + crypto.randomBytes(32).toString('hex'));
@@ -2436,12 +2501,12 @@ describe('Ticketing', () => {
     };
 
     // have sender sign the hash of the ticket
-    const ticketHash = await ticketing.getTicketHash(ticket);
+    const ticketHash = await syloTicketing.getTicketHash(ticket);
     const senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
     const receiverSig = await receiver.signMessage(ethers.getBytes(ticketHash));
 
     // once secret has been revealed, the node can now redeem the ticket
-    await ticketing.redeem(ticket, nodeRand, senderSig, receiverSig, {
+    await syloTicketing.redeem(ticket, nodeRand, senderSig, receiverSig, {
       from: node,
     });
   });
@@ -2516,7 +2581,7 @@ describe('Ticketing', () => {
     expectedPenalty: number,
     expectedRewards: number,
   ) => {
-    const deposit = await ticketing.deposits(sender.address);
+    const deposit = await syloTicketing.deposits(sender.address);
     assert.equal(
       deposit.escrow,
       toSOLOs(expectedEscrow),
@@ -2591,7 +2656,7 @@ describe('Ticketing', () => {
       redeemerCommit: ethers.hexlify(redeemerCommit),
     };
 
-    const ticketHash = await ticketing.getTicketHash(ticket);
+    const ticketHash = await syloTicketing.getTicketHash(ticket);
     let senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
     if (senderDelegatedWallet) {
       senderSig = await senderDelegatedWallet.signMessage(

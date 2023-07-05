@@ -11,6 +11,7 @@
   "include": [
     "scripts/**/*.ts",
     "test/**/*.ts",
+    "common/**/*.ts",
     "typechain-types/**/*.ts",
     "deploy/**/*.ts",
     "deployments/**/*.ts",
