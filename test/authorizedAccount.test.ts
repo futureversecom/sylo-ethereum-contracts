@@ -518,6 +518,8 @@ describe('Authorized Accounts', () => {
       mainAccountAddress,
     );
 
+    const expectedUnauthorizedAt = (await currentBlock()) + 1n;
+
     assert.equal(accounts[0].permissions.length, 1);
     assert.equal(
       accounts[0].permissions[0].permission,
@@ -526,7 +528,28 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
     assert.equal(
       accounts[0].permissions[0].unauthorizedAt,
-      (await currentBlock()) + 1n,
+      expectedUnauthorizedAt,
+    );
+
+    // can remove again without any effect
+    await authAccountsConnectMain.removePermissions(
+      delegatedAccount1,
+      permissionList,
+    );
+
+    accounts = await authAccountsConnectMain.getAuthorizedAccounts(
+      mainAccountAddress,
+    );
+
+    assert.equal(accounts[0].permissions.length, 1);
+    assert.equal(
+      accounts[0].permissions[0].permission,
+      BigInt(permissionList[0]),
+    );
+    assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
+    assert.equal(
+      accounts[0].permissions[0].unauthorizedAt,
+      expectedUnauthorizedAt,
     );
   });
 
