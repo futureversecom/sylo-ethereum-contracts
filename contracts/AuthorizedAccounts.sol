@@ -205,7 +205,13 @@ contract AuthorizedAccounts is
         for (uint i; i < permissions.length; ++i) {
             for (uint j; j < authAccount.permissions.length; ++j) {
                 if (permissions[i] == authAccount.permissions[j].permission) {
-                    authAccount.permissions[j].unauthorizedAt = block.number + 1;
+                    // only update unauthorizedAt if the permission is authorized
+                    if (
+                        authAccount.permissions[j].authorizedAt >=
+                        authAccount.permissions[j].unauthorizedAt
+                    ) {
+                        authAccount.permissions[j].unauthorizedAt = block.number + 1;
+                    }
                     break;
                 }
             }
