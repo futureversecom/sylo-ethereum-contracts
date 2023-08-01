@@ -38,14 +38,17 @@ const initializeContracts = async function (
 
   const tokenAddress = await syloToken.getAddress();
 
+  console.log('1');
   const SeekersFactory = await ethers.getContractFactory('TestSeekers');
   const seekers = await SeekersFactory.deploy();
+  console.log('1');
 
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = await RegistriesFactory.deploy();
   await registries.initialize(await seekers.getAddress(), payoutPercentage, {
     from: deployer,
   });
+  console.log('1');
 
   const TicketingParametersFactory = await ethers.getContractFactory(
     'TicketingParameters',
@@ -59,27 +62,33 @@ const initializeContracts = async function (
     ticketDuration,
     { from: deployer },
   );
+  console.log('1');
 
   const EpochsManagerFactory = await ethers.getContractFactory('EpochsManager');
   const epochsManager = await EpochsManagerFactory.deploy();
+  console.log('1');
 
   const StakingManagerFactory = await ethers.getContractFactory(
     'StakingManager',
   );
   const stakingManager = await StakingManagerFactory.deploy();
+  console.log('1');
 
   const RewardsManagerFactory = await ethers.getContractFactory(
     'RewardsManager',
   );
   const rewardsManager = await RewardsManagerFactory.deploy();
+  console.log('1');
 
   const DirectoryFactory = await ethers.getContractFactory('Directory');
   const directory = await DirectoryFactory.deploy();
+  console.log('1');
 
   const AuthorizedAccountFactory = await ethers.getContractFactory(
     'AuthorizedAccounts',
   );
   const authorizedAccounts = await AuthorizedAccountFactory.deploy();
+  console.log('1');
 
   await stakingManager.initialize(
     tokenAddress,
@@ -89,12 +98,16 @@ const initializeContracts = async function (
     minimumStakeProportion,
     { from: deployer },
   );
+  console.log('2');
+
   await rewardsManager.initialize(
     tokenAddress,
     await stakingManager.getAddress(),
     await epochsManager.getAddress(),
     { from: deployer },
   );
+  console.log('1');
+
   await directory.initialize(
     await stakingManager.getAddress(),
     await rewardsManager.getAddress(),
@@ -102,6 +115,8 @@ const initializeContracts = async function (
       from: deployer,
     },
   );
+  console.log('hero');
+
   await epochsManager.initialize(
     await seekers.getAddress(),
     await directory.getAddress(),
@@ -110,7 +125,10 @@ const initializeContracts = async function (
     epochDuration,
     { from: deployer },
   );
+  console.log('1');
+
   await authorizedAccounts.initialize({ from: deployer });
+  console.log('1');
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
   const syloTicketing = await TicketingFactory.deploy();
@@ -137,7 +155,7 @@ const initializeContracts = async function (
   });
 
   await directory.addManager(await epochsManager.getAddress());
-
+  console.log('made it');
   return {
     syloToken,
     authorizedAccounts,

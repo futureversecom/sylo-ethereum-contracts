@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import contractAddress from '../deployments/ganache_deployment_phase_two.json';
+import contractAddress from '../deployments/localhost_deployment_phase_two.json';
 import nodesConfig from './nodes.json';
 import * as Contracts from '../common/contracts';
 import * as utils from './utils';
@@ -21,16 +21,16 @@ async function main() {
   for (let i = 0; i < nodesConfig.relayNodes.length; i++) {
     const node = await createNode(provider, nodesConfig.relayNodes[i]);
 
-    await contracts.syloToken
-      .connect(deployer)
-      .transfer(node.signer.getAddress(), ethers.parseEther('110000'));
+    // await contracts.syloToken
+    //   .connect(deployer)
+    //   .transfer(node.signer.getAddress(), ethers.parseEther('110000'));
 
-    await utils.addStake(contracts, node.signer);
-    await utils.registerNodes(contracts, node);
-    await utils.setSeekerRegistry(contracts, node.signer, deployer, i);
-    await contracts.epochsManager
-      .connect(node.signer)
-      .joinNextEpoch({ gasLimit: 1_000_000 });
+    // await utils.addStake(contracts, node.signer);
+    // await utils.registerNodes(contracts, node);
+    // await utils.setSeekerRegistry(contracts, node.signer, deployer, i);
+    // await contracts.epochsManager
+    //   .connect(node.signer)
+    //   .joinNextEpoch({ gasLimit: 1_000_000 });
 
     console.log('Relay node', i, 'is ready');
   }
@@ -39,24 +39,24 @@ async function main() {
   for (let i = 0; i < nodesConfig.incentivisingNodes.length; i++) {
     const node = await createNode(provider, nodesConfig.incentivisingNodes[i]);
 
-    await contracts.syloToken
-      .connect(deployer)
-      .transfer(node.signer.getAddress(), ethers.parseEther('1000000000'));
+    //   await contracts.syloToken
+    //     .connect(deployer)
+    //     .transfer(node.signer.getAddress(), ethers.parseEther('1000000000'));
 
-    await utils.registerNodes(contracts, node);
-    await utils.depositTicketing(contracts, node.signer);
+    //   await utils.registerNodes(contracts, node);
+    //   await utils.depositTicketing(contracts, node.signer);
 
-    if (
-      nodesConfig.incentivisingNodes[i].authorizedAccount.address.length > 0
-    ) {
-      await utils.authorizeAccount(
-        contracts,
-        node.signer,
-        nodesConfig.incentivisingNodes[i].authorizedAccount.address,
-      );
-    }
+    //   if (
+    //     nodesConfig.incentivisingNodes[i].authorizedAccount.address.length > 0
+    //   ) {
+    //     await utils.authorizeAccount(
+    //       contracts,
+    //       node.signer,
+    //       nodesConfig.incentivisingNodes[i].authorizedAccount.address,
+    //     );
+    //   }
 
-    console.log('Incentivising node', i, 'is ready');
+    //   console.log('Incentivising node', i, 'is ready');
   }
 
   // initialize next epoch

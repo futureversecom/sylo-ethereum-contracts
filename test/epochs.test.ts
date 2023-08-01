@@ -23,7 +23,9 @@ describe('Epochs', () => {
   });
 
   beforeEach(async () => {
+    console.log('here');
     contracts = await utils.initializeContracts(owner, token);
+    console.log('here');
     epochsManager = contracts.epochsManager;
     await contracts.directory.transferOwnership(
       await epochsManager.getAddress(),
@@ -104,7 +106,7 @@ describe('Epochs', () => {
     );
   });
 
-  it('can not initialize next epoch before current one had ended', async () => {
+  it.only('can not initialize next epoch before current one had ended', async () => {
     await epochsManager.initializeEpoch();
     await expect(epochsManager.initializeEpoch())
       .to.be.revertedWithCustomError(epochsManager, 'EpochHasNotEnded')

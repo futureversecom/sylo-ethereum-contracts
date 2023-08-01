@@ -23,9 +23,10 @@ type ContractMap = {
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const [deployer] = await ethers.getSigners();
+  console.log('deployer here', deployer);
+  console.log('deployer ', deployer.address);
   const deploy = hre.deployments.deploy.bind(hre.deployments);
   const execute = hre.deployments.execute.bind(hre.deployments);
-
   const config = getConfig(network.name);
 
   const contracts: ContractMap = {};
@@ -153,13 +154,15 @@ export default func;
 
 function getConfig(networkName: string): configs.ContractParameters {
   switch (networkName) {
-    case 'poricni-dev':
+    case 'porcini':
+      console.log('no no no this one');
       return configs.PorciniDevParameters;
     case 'poricni-testing':
       return configs.PorciniTestingParameters;
     case 'locahost':
       return configs.GanacheTestnetParameters;
     default:
+      console.log('this one right? ', networkName);
       return configs.GenesisParameters;
   }
 }
