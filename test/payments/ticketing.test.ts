@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
-import { BigNumberish, HDNodeWallet, Signer, Wallet } from 'ethers';
+import { Signer, Wallet } from 'ethers';
 import { BigNumber } from '@ethersproject/bignumber';
 import {
   AuthorizedAccounts,
@@ -16,7 +16,16 @@ import {
   ISyloTicketing__factory,
 } from '../../typechain-types';
 import crypto from 'crypto';
-import web3 from 'web3';
+import {
+  compareExpectedBalance,
+  toSOLOs,
+  addStakes,
+  testClaims,
+  checkAfterRedeem,
+  setSeekerRegistry,
+  createWinningTicket,
+  createCommit,
+} from './utils';
 import utils from '../utils';
 
 describe('Ticketing', () => {
@@ -543,7 +552,7 @@ describe('Ticketing', () => {
 
   it('should be able to initialize next reward pool', async () => {
     await stakingManager.addStake(30, owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     const currentBlock = await ethers.provider.getBlockNumber();
 
@@ -565,12 +574,12 @@ describe('Ticketing', () => {
 
   it('can not initialize reward pool more than once', async () => {
     await stakingManager.addStake(30, owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
 
     // change the seeker but node should still be prevented from
     // initializing the reward pool again
-    await setSeekerRegistry(accounts[0], accounts[1], 2);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 2);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
       rewardsManager,
       'RewardPoolAlreadyExist',
@@ -579,7 +588,7 @@ describe('Ticketing', () => {
 
   it('can not initialize reward pool more than once for the same seekers', async () => {
     await stakingManager.addStake(30, owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
 
     await expect(epochsManager.joinNextEpoch())
@@ -588,7 +597,7 @@ describe('Ticketing', () => {
   });
 
   it('should not be able to initialize next reward pool without stake', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
       rewardsManager,
       'NoStakeToCreateRewardPool',
@@ -601,6 +610,8 @@ describe('Ticketing', () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     const { ticket, redeemerRand } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
       alice,
       bob,
       owner,
@@ -620,6 +631,8 @@ describe('Ticketing', () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     const { ticket, senderSig, receiverSig } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
       alice,
       bob,
       owner,
@@ -636,7 +649,14 @@ describe('Ticketing', () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, 1);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        1,
+      );
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
@@ -646,12 +666,21 @@ describe('Ticketing', () => {
   it('can not calculate winning probability if associated epoch does not exist', async () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, bob, owner);
+    const { ticket } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
+      alice,
+      bob,
+      owner,
+    );
 
     ticket.epochId = 1;
 
     await expect(
-      syloTicketing.calculateWinningProbability(ticket),
+      syloTicketing.calculateWinningProbability(
+        ticket.epochId,
+        ticket.generationBlock,
+      ),
     ).to.be.revertedWithCustomError(syloTicketing, 'TicketEpochNotFound');
   });
 
@@ -661,7 +690,13 @@ describe('Ticketing', () => {
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     const updatedTicket = { ...ticket, generationBlock: 100000 };
 
@@ -675,7 +710,7 @@ describe('Ticketing', () => {
 
   it('cannot redeem ticket using sender delegated account to sign without permission', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -689,6 +724,8 @@ describe('Ticketing', () => {
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(
+        syloTicketing,
+        epochsManager,
         alice,
         bob,
         owner,
@@ -707,7 +744,7 @@ describe('Ticketing', () => {
 
   it('cannot redeem ticket using receiver delegated account to sign without permission', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -740,6 +777,8 @@ describe('Ticketing', () => {
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(
+        syloTicketing,
+        epochsManager,
         alice,
         bob,
         owner,
@@ -758,7 +797,7 @@ describe('Ticketing', () => {
 
   it('cannot redeem ticket using sender delegated account to sign after unauthorizing account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -793,7 +832,15 @@ describe('Ticketing', () => {
     });
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        1,
+        delegatedWallet,
+      );
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
@@ -822,7 +869,7 @@ describe('Ticketing', () => {
     await ticketingParameters.setDecayRate(1);
 
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -847,7 +894,15 @@ describe('Ticketing', () => {
       .authorizeAccount(delegatedWallet.address, permission);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        1,
+        delegatedWallet,
+      );
 
     await authorizedAccounts
       .connect(aliceConnected)
@@ -855,7 +910,15 @@ describe('Ticketing', () => {
 
     await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
-    await checkAfterRedeem(alice, 1000, 50, 500);
+    await checkAfterRedeem(
+      syloTicketing,
+      rewardsManager,
+      owner,
+      alice,
+      1000,
+      50,
+      500,
+    );
   });
 
   it('can redeem ticket using sender delegated account if unauthorizing account is called after creating ticket', async () => {
@@ -863,7 +926,7 @@ describe('Ticketing', () => {
     await ticketingParameters.setDecayRate(1);
 
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -888,7 +951,15 @@ describe('Ticketing', () => {
       .authorizeAccount(delegatedWallet.address, permission);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, 1, delegatedWallet);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        1,
+        delegatedWallet,
+      );
 
     await authorizedAccounts
       .connect(aliceConnected)
@@ -896,12 +967,20 @@ describe('Ticketing', () => {
 
     await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
-    await checkAfterRedeem(alice, 1000, 50, 500);
+    await checkAfterRedeem(
+      syloTicketing,
+      rewardsManager,
+      owner,
+      alice,
+      1000,
+      50,
+      500,
+    );
   });
 
   it('can redeem ticket using sender authorized account to sign with valid permission', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -925,16 +1004,32 @@ describe('Ticketing', () => {
       .authorizeAccount(delegatedWallet.address, permission);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, undefined, delegatedWallet);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        undefined,
+        delegatedWallet,
+      );
 
     await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
-    await checkAfterRedeem(alice, 1000, 50, 500);
+    await checkAfterRedeem(
+      syloTicketing,
+      rewardsManager,
+      owner,
+      alice,
+      1000,
+      50,
+      500,
+    );
   });
 
   it('can redeem ticket using sender and receiver authorized accounts to sign with valid permission', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -970,6 +1065,8 @@ describe('Ticketing', () => {
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(
+        syloTicketing,
+        epochsManager,
         alice,
         bob,
         owner,
@@ -980,7 +1077,15 @@ describe('Ticketing', () => {
 
     await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
-    await checkAfterRedeem(alice, 1000, 50, 500);
+    await checkAfterRedeem(
+      syloTicketing,
+      rewardsManager,
+      owner,
+      alice,
+      1000,
+      50,
+      500,
+    );
   });
 
   it('can not calculate winning probablility if not generated during associated epoch', async () => {
@@ -988,12 +1093,21 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, bob, owner);
+    const { ticket } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
+      alice,
+      bob,
+      owner,
+    );
 
     const updatedTicket = { ...ticket, generationBlock: 1 };
 
     await expect(
-      syloTicketing.calculateWinningProbability(updatedTicket),
+      syloTicketing.calculateWinningProbability(
+        updatedTicket.epochId,
+        updatedTicket.generationBlock,
+      ),
     ).to.be.revertedWithCustomError(
       syloTicketing,
       'TicketNotCreatedInTheEpoch',
@@ -1005,7 +1119,13 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, bob, owner);
+    const { ticket } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
+      alice,
+      bob,
+      owner,
+    );
 
     await epochsManager.initializeEpoch();
 
@@ -1015,7 +1135,10 @@ describe('Ticketing', () => {
     };
 
     await expect(
-      syloTicketing.calculateWinningProbability(updatedTicket),
+      syloTicketing.calculateWinningProbability(
+        updatedTicket.epochId,
+        updatedTicket.generationBlock,
+      ),
     ).to.be.revertedWithCustomError(
       syloTicketing,
       'TicketNotCreatedInTheEpoch',
@@ -1028,17 +1151,26 @@ describe('Ticketing', () => {
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
-    const { ticket } = await createWinningTicket(alice, bob, owner);
+    const { ticket } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
+      alice,
+      bob,
+      owner,
+    );
 
     const updatedTicket = { ...ticket, generationBlock: 10000 };
 
     await expect(
-      syloTicketing.calculateWinningProbability(updatedTicket),
+      syloTicketing.calculateWinningProbability(
+        updatedTicket.epochId,
+        updatedTicket.generationBlock,
+      ),
     ).to.be.revertedWithPanic(0x11); // Overflow: Arithmetic operation underflowed or overflowed
   });
 
   it('cannot redeem ticket if node has not joined directory', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.initializeEpoch();
 
@@ -1048,7 +1180,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
@@ -1060,7 +1198,7 @@ describe('Ticketing', () => {
 
   it('cannot redeem ticket if node has not initialized reward pool', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await directory.addManager(owner);
     await directory.joinNextDirectory(owner);
@@ -1073,7 +1211,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
@@ -1082,7 +1226,7 @@ describe('Ticketing', () => {
 
   it('cannot redeem invalid ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1093,7 +1237,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     await expect(
       syloTicketing.redeem(
@@ -1203,7 +1353,14 @@ describe('Ticketing', () => {
     await contracts.syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner, 1);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        1,
+      );
 
     await utils.advanceBlock(5);
 
@@ -1219,7 +1376,7 @@ describe('Ticketing', () => {
 
   it('can redeem winning ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1230,7 +1387,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     await syloTicketing.redeem(
       ticket,
@@ -1263,7 +1426,7 @@ describe('Ticketing', () => {
 
   it('cannot redeem ticket more than once', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1274,7 +1437,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     await syloTicketing.redeem(
       ticket,
@@ -1296,7 +1465,7 @@ describe('Ticketing', () => {
 
   it('burns penalty on insufficient escrow', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1307,7 +1476,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     const initialTicketingBalance = await token.balanceOf(
       await syloTicketing.getAddress(),
@@ -1366,7 +1541,7 @@ describe('Ticketing', () => {
 
   it('can claim ticketing rewards', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1378,7 +1553,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -1412,9 +1593,9 @@ describe('Ticketing', () => {
   });
 
   it('delegated stakers should be able to claim rewards', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 3 },
       // have account 2 as a delegated staker
       { account: accounts[2], stake: 2 },
@@ -1430,7 +1611,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -1439,7 +1626,7 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       {
         account: accounts[0],
         claim: proportions[0] * totalWinnings + 5000, // add the node's fee,
@@ -1452,9 +1639,9 @@ describe('Ticketing', () => {
   });
 
   it('should have rewards be automatically removed from pending when stake is updated', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    await addStakes([
+    await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 10000 },
       // have account 2 as a delegated staker
       { account: accounts[2], stake: 2 },
@@ -1470,7 +1657,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -1486,7 +1679,9 @@ describe('Ticketing', () => {
       await rewardsManager.getPendingRewards(owner);
 
     // add more stake
-    await addStakes([{ account: accounts[2], stake: 1 }]);
+    await addStakes(token, stakingManager, owner, [
+      { account: accounts[2], stake: 1 },
+    ]);
 
     // pending reward after stake is added should have previous claim removed
     const pendingRewardAfterAddingStake =
@@ -1502,7 +1697,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -1532,9 +1733,9 @@ describe('Ticketing', () => {
   });
 
   it('can calculate staker claim if reward total is 0', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    await addStakes([
+    await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 3 },
       // have account 2 as a delegated staker
       { account: accounts[2], stake: 10 },
@@ -1581,7 +1782,7 @@ describe('Ticketing', () => {
 
   it('can not claim reward more than once for the same epoch', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -1592,7 +1793,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
     const { ticket, redeemerRand, senderSig, receiverSig } =
-      await createWinningTicket(alice, bob, owner);
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
 
     await syloTicketing.redeem(
       ticket,
@@ -1615,9 +1822,9 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake is the same', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -1637,7 +1844,13 @@ describe('Ticketing', () => {
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
       for (let i = 0; i < 6; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -1658,7 +1871,7 @@ describe('Ticketing', () => {
     compareExpectedBalance(toSOLOs(totalWinnings), pendingReward);
 
     // verify each staker will receive the correct amount of reward if they were to claim now
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       { account: accounts[1], claim: proportions[1] * totalWinnings },
       { account: accounts[2], claim: proportions[2] * totalWinnings },
       { account: accounts[3], claim: proportions[3] * totalWinnings },
@@ -1666,7 +1879,7 @@ describe('Ticketing', () => {
   });
 
   it('should be able to stake, accumulate rewards, and claim more than once as a delegated staker', async () => {
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -1679,7 +1892,7 @@ describe('Ticketing', () => {
     await syloTicketing.depositEscrow(toSOLOs(500000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
 
@@ -1687,7 +1900,13 @@ describe('Ticketing', () => {
       // 250 is added to the delegated stakers reward total on each redemption
       for (let i = 0; i < 5; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -1703,7 +1922,7 @@ describe('Ticketing', () => {
       const totalWinnings = 2500;
 
       // No accounts adds or withdraws stake, so stake proportions remain constant
-      await testClaims([
+      await testClaims(token, rewardsManager, owner, [
         {
           account: accounts[0],
           claim: proportions[0] * totalWinnings + 2500,
@@ -1725,9 +1944,9 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake increases', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    await addStakes([
+    await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -1743,7 +1962,9 @@ describe('Ticketing', () => {
     // have account 4 add stake midway through
     for (let j = 0; j < 3; j++) {
       if (j == 1) {
-        await addStakes([{ account: accounts[4], stake: 500 }]);
+        await addStakes(token, stakingManager, owner, [
+          { account: accounts[4], stake: 500 },
+        ]);
       }
 
       await epochsManager.joinNextEpoch();
@@ -1752,7 +1973,13 @@ describe('Ticketing', () => {
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
       for (let i = 0; i < 6; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -1816,9 +2043,9 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staking rewards for multiple epochs when managed stake decreases', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    await addStakes([
+    await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -1844,7 +2071,13 @@ describe('Ticketing', () => {
 
       for (let i = 0; i < 6; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -1901,9 +2134,9 @@ describe('Ticketing', () => {
   // to the Rewards contract calculation is made.
   // TODO: Create script to spin up new test network to run this test locally or for CI automatically.
   it('should calculate updated stake and rewards over several ticket redemptions without significant precision loss [ @skip-on-coverage ]', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -1923,14 +2156,20 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < iterations; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
 
     await epochsManager.initializeEpoch();
 
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       { account: accounts[1], claim: iterations * 500 * proportions[1] },
       { account: accounts[2], claim: iterations * 500 * proportions[2] },
       { account: accounts[3], claim: iterations * 500 * proportions[3] },
@@ -1977,7 +2216,13 @@ describe('Ticketing', () => {
     await syloTicketing.depositEscrow(toSOLOs(5000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
 
-    const { ticket } = await createWinningTicket(alice, bob, owner);
+    const { ticket } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
+      alice,
+      bob,
+      owner,
+    );
 
     // advance the block halfway to ticket expiry
     await utils.advanceBlock(51);
@@ -1986,7 +2231,8 @@ describe('Ticketing', () => {
     const expectedProbability = 100000 - 0.5 * 0.8 * 100000;
 
     const decayedProbability = await syloTicketing.calculateWinningProbability(
-      ticket,
+      ticket.epochId,
+      ticket.generationBlock,
     );
 
     assert.equal(
@@ -1997,9 +2243,9 @@ describe('Ticketing', () => {
   });
 
   it('should be able to correctly calculate staker rewards if node was not active for multiple epochs', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -2025,7 +2271,13 @@ describe('Ticketing', () => {
       // 500 is added to the stakers reward total on each redemption (50% of 1000)
       for (let i = 0; i < 6; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -2046,7 +2298,7 @@ describe('Ticketing', () => {
     compareExpectedBalance(toSOLOs(totalWinnings), pendingReward);
 
     // verify each staker will receive the correct amount of reward if they were to claim now
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       { account: accounts[1], claim: proportions[1] * totalWinnings },
       { account: accounts[2], claim: proportions[2] * totalWinnings },
       { account: accounts[3], claim: proportions[3] * totalWinnings },
@@ -2054,12 +2306,12 @@ describe('Ticketing', () => {
   });
 
   it('claiming staking rewards only claims up to the previous epoch', async () => {
-    await addStakes([
+    await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1 },
       { account: accounts[1], stake: 1 },
     ]);
 
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -2072,7 +2324,13 @@ describe('Ticketing', () => {
     for (let j = 0; j < 3; j++) {
       for (let i = 0; i < 10; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -2106,12 +2364,12 @@ describe('Ticketing', () => {
   });
 
   it('rewards generated in the current epoch are not claimable', async () => {
-    await addStakes([
+    await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1 },
       { account: accounts[1], stake: 1 },
     ]);
 
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -2124,7 +2382,13 @@ describe('Ticketing', () => {
     for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 10; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -2151,7 +2415,13 @@ describe('Ticketing', () => {
     // generate rewards for the current epoch
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -2171,7 +2441,7 @@ describe('Ticketing', () => {
 
   it('can claim staking rewards again after previous ended', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -2185,7 +2455,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -2197,7 +2473,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -2213,9 +2495,9 @@ describe('Ticketing', () => {
   });
 
   it('can claim staking rewards if node already joined next epoch', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -2234,7 +2516,13 @@ describe('Ticketing', () => {
 
       for (let i = 0; i < 10; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -2251,7 +2539,7 @@ describe('Ticketing', () => {
     // have the node join the next epoch and test stakers are able
     // to claim for the first epoch
     await epochsManager.joinNextEpoch();
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       {
         account: accounts[1],
         claim: proportions[1] * totalWinnings,
@@ -2268,7 +2556,7 @@ describe('Ticketing', () => {
 
     // confirm the second epoch can be claimed for
     await epochsManager.initializeEpoch();
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       {
         account: accounts[1],
         claim: proportions[1] * totalWinnings,
@@ -2285,9 +2573,9 @@ describe('Ticketing', () => {
   });
 
   it('can claim staking rewards if node already joined next epoch but skipped the current epoch', async () => {
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
-    const { proportions } = await addStakes([
+    const { proportions } = await addStakes(token, stakingManager, owner, [
       { account: accounts[0], stake: 1000 },
       // have accounts 1, 2 and 3 as delegated stakers
       { account: accounts[1], stake: 250 },
@@ -2306,7 +2594,13 @@ describe('Ticketing', () => {
 
       for (let i = 0; i < 10; i++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -2325,7 +2619,7 @@ describe('Ticketing', () => {
     await epochsManager.joinNextEpoch();
 
     // confirm all epochs can be claimed for
-    await testClaims([
+    await testClaims(token, rewardsManager, owner, [
       {
         account: accounts[1],
         claim: proportions[1] * totalWinnings,
@@ -2359,7 +2653,7 @@ describe('Ticketing', () => {
     }
 
     await stakingManager.addStake(toSOLOs(1000), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     // have account 2, 3 and 4 as delegated stakers with varying levels of stake
     await stakingManager.connect(accounts[2]).addStake(toSOLOs(250), owner);
@@ -2376,7 +2670,13 @@ describe('Ticketing', () => {
 
     for (let i = 0; i < 10; i++) {
       const { ticket, redeemerRand, senderSig, receiverSig } =
-        await createWinningTicket(alice, bob, owner);
+        await createWinningTicket(
+          syloTicketing,
+          epochsManager,
+          alice,
+          bob,
+          owner,
+        );
 
       await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
     }
@@ -2404,7 +2704,7 @@ describe('Ticketing', () => {
 
   it('can retrieve total staking rewards for an epoch', async () => {
     await stakingManager.addStake(toSOLOs(1000), owner);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     const alice = Wallet.createRandom();
     const bob = Wallet.createRandom();
@@ -2417,7 +2717,13 @@ describe('Ticketing', () => {
 
       for (let j = 0; j < 3 * (i + 1); j++) {
         const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(alice, bob, owner);
+          await createWinningTicket(
+            syloTicketing,
+            epochsManager,
+            alice,
+            bob,
+            owner,
+          );
 
         await syloTicketing.redeem(
           ticket,
@@ -2447,12 +2753,21 @@ describe('Ticketing', () => {
 
     await epochsManager.initializeEpoch();
 
-    const { ticket } = await createWinningTicket(alice, bob, owner);
+    const { ticket } = await createWinningTicket(
+      syloTicketing,
+      epochsManager,
+      alice,
+      bob,
+      owner,
+    );
 
     // advance the block all the way to ticket expiry
     await utils.advanceBlock(21);
 
-    const p = await syloTicketing.calculateWinningProbability(ticket);
+    const p = await syloTicketing.calculateWinningProbability(
+      ticket.epochId,
+      ticket.generationBlock,
+    );
 
     assert.equal(p, 0n, 'Expected probability to be 0');
   });
@@ -2464,7 +2779,7 @@ describe('Ticketing', () => {
 
     // set up the node's stake and registry
     await stakingManager.addStake(toSOLOs(1), node);
-    await setSeekerRegistry(accounts[0], accounts[1], 1);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -2510,192 +2825,4 @@ describe('Ticketing', () => {
       from: node,
     });
   });
-
-  // This test suite relies on confirming that updated stakes and rewards are correctly
-  // calculated after incrementing the reward pool. However due to minor precision loss, the
-  // actual balance may slightly differ.
-  // This function checks the difference falls within a small fraction of a single SYLO.
-  function compareExpectedBalance(a: BigNumberish, b: BigNumberish) {
-    const abs = (n: bigint) => (n < 0 ? -n : n);
-    const diff = abs(BigInt(a) - BigInt(b));
-    // NOTE: This essentially says that a margin of 10**4 SOLOs is acceptable, or
-    // 0.00000000000001 SYLOs
-    expect(diff).to.be.within(0, BigInt(10 ** 4));
-  }
-
-  function toSOLOs(a: number): bigint {
-    return BigInt(web3.utils.toWei(a.toString()));
-  }
-
-  function fromSOLOs(a: number | bigint | string): string {
-    return web3.utils.fromWei(a.toString());
-  }
-
-  // Helper function to initialize stakes for multiple stakees,
-  // and returns an array of stake proportions.
-  const addStakes = async (
-    stakees: { account: Signer; stake: number }[],
-  ): Promise<{ totalStake: number; proportions: number[] }> => {
-    const totalStake = stakees.reduce((p, c) => {
-      return { ...p, stake: p.stake + c.stake };
-    }).stake;
-
-    const proportions = await Promise.all(
-      stakees.map(async s => {
-        const stake = toSOLOs(s.stake);
-
-        await token.transfer(await s.account.getAddress(), stake);
-        await token
-          .connect(s.account)
-          .approve(await stakingManager.getAddress(), stake);
-
-        await stakingManager.connect(s.account).addStake(stake, owner);
-
-        return s.stake / totalStake;
-      }),
-    );
-
-    return { totalStake, proportions };
-  };
-
-  // Helper function for testing that an account's SYLO balance
-  // increased as expected after making a claim
-  const testClaims = async (tests: { account: Signer; claim: number }[]) => {
-    for (const t of tests) {
-      const claim = toSOLOs(t.claim);
-      const address = await t.account.getAddress();
-
-      const expectedBalance = await token
-        .balanceOf(address)
-        .then((b: bigint) => b + claim);
-
-      await rewardsManager.connect(t.account).claimStakingRewards(owner);
-
-      compareExpectedBalance(expectedBalance, await token.balanceOf(address));
-    }
-  };
-
-  const checkAfterRedeem = async (
-    sender: HDNodeWallet,
-    expectedEscrow: number,
-    expectedPenalty: number,
-    expectedRewards: number,
-  ) => {
-    const deposit = await syloTicketing.deposits(sender.address);
-    assert.equal(
-      deposit.escrow,
-      toSOLOs(expectedEscrow),
-      'Expected ticket payout to be substracted from escrow',
-    );
-    assert.equal(
-      deposit.penalty,
-      toSOLOs(expectedPenalty),
-      'Expected penalty to not be changed',
-    );
-
-    const pendingReward = await rewardsManager.getPendingRewards(owner);
-
-    assert.equal(
-      pendingReward,
-      toSOLOs(expectedRewards),
-      'Expected balance of pending rewards to have added the ticket face value',
-    );
-  };
-
-  async function setSeekerRegistry(
-    account: Signer,
-    seekerAccount: Signer,
-    tokenId: number,
-  ) {
-    await utils.setSeekerRegistry(
-      registries,
-      seekers,
-      account,
-      seekerAccount,
-      tokenId,
-    );
-  }
-
-  async function createWinningTicket(
-    sender: HDNodeWallet,
-    receiver: HDNodeWallet,
-    redeemer: string,
-    epochId?: number,
-    senderDelegatedWallet?: HDNodeWallet,
-    receiverDelegatedWallet?: HDNodeWallet,
-  ) {
-    const generationBlock = BigInt(
-      (await ethers.provider.getBlockNumber()) + 1,
-    );
-
-    const redeemerRand = 1;
-    const redeemerCommit = createCommit(generationBlock, redeemerRand);
-
-    let senderDelegatedAccount = ethers.ZeroAddress;
-    if (senderDelegatedWallet) {
-      senderDelegatedAccount = senderDelegatedWallet.address;
-    }
-
-    let receiverDelegatedAccount = ethers.ZeroAddress;
-    if (receiverDelegatedWallet) {
-      receiverDelegatedAccount = receiverDelegatedWallet.address;
-    }
-
-    const ticket = {
-      epochId: epochId ?? (await epochsManager.currentIteration()),
-      sender: {
-        main: sender.address,
-        delegated: senderDelegatedAccount,
-      },
-      receiver: {
-        main: receiver.address,
-        delegated: receiverDelegatedAccount,
-      },
-      redeemer,
-      generationBlock,
-      redeemerCommit: ethers.hexlify(redeemerCommit),
-    };
-
-    const ticketHash = await syloTicketing.getTicketHash(ticket);
-    let senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
-    if (senderDelegatedWallet) {
-      senderSig = await senderDelegatedWallet.signMessage(
-        ethers.getBytes(ticketHash),
-      );
-    }
-    if (!senderSig) {
-      throw new Error('failed to derive sender signature for ticket');
-    }
-
-    let receiverSig = await receiver.signMessage(ethers.getBytes(ticketHash));
-    if (receiverDelegatedWallet) {
-      receiverSig = await receiverDelegatedWallet.signMessage(
-        ethers.getBytes(ticketHash),
-      );
-    }
-    if (!receiverSig) {
-      throw new Error('failed to derive receiver signature for ticket');
-    }
-
-    return {
-      ticket,
-      receiver,
-      redeemerRand,
-      senderSig: ethers.getBytes(senderSig),
-      receiverSig: ethers.getBytes(receiverSig),
-      ticketHash,
-    };
-  }
-
-  function createCommit(generationBlock: bigint, rand: BigNumberish): string {
-    return ethers.solidityPackedKeccak256(
-      ['bytes32'],
-      [
-        ethers.solidityPackedKeccak256(
-          ['uint256', 'uint256'],
-          [generationBlock, rand],
-        ),
-      ],
-    );
-  }
 });
