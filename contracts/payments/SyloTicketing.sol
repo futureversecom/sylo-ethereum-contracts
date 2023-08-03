@@ -350,16 +350,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
         }
 
-        uint256 rewardAmount = rewardRedeemer(epoch, ticket.sender, ticket.redeemer);
-
-        emit Redemption(
-            ticket.epochId,
-            ticket.redeemer,
-            ticket.sender.main,
-            ticket.receiver.main,
-            ticket.generationBlock,
-            rewardAmount
-        );
+        _redeem(epoch, ticket);
     }
 
     /**
@@ -386,14 +377,13 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert TicketCannotBeFromFutureBlock();
         }
 
-        (, bytes32 ticketReceiverHash) =
-            requireValidWinningMultiReceiverTicket(
-                ticket,
-                receiver,
-                redeemerRand,
-                senderSig,
-                receiverSig
-            );
+        (, bytes32 ticketReceiverHash) = requireValidWinningMultiReceiverTicket(
+            ticket,
+            receiver,
+            redeemerRand,
+            senderSig,
+            receiverSig
+        );
 
         bytes32 leaf = keccak256(abi.encodePacked([receiver.main]));
         if (!MerkleProof.verifyCalldata(merkleProof, ticket.merkleRoot, leaf)) {
@@ -410,6 +400,27 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
         }
 
+        _redeemMultiReceiver(epoch, ticket, receiver);
+    }
+
+    function _redeem(EpochsManager.Epoch memory epoch, Ticket calldata ticket) internal {
+        uint256 rewardAmount = rewardRedeemer(epoch, ticket.sender, ticket.redeemer);
+
+        emit Redemption(
+            ticket.epochId,
+            ticket.redeemer,
+            ticket.sender.main,
+            ticket.receiver.main,
+            ticket.generationBlock,
+            rewardAmount
+        );
+    }
+
+    function _redeemMultiReceiver(
+        EpochsManager.Epoch memory epoch,
+        MultiReceiverTicket calldata ticket,
+        User calldata receiver
+    ) internal {
         uint256 rewardAmount = rewardRedeemer(epoch, ticket.sender, ticket.redeemer);
 
         emit MultiReceiverRedemption(
@@ -561,10 +572,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         // only be used ONCE per receiver. Thus the second hash additionally
         // appends the receiver address as well.
         ticketHash = getMultiReceiverTicketHash(ticket);
-        ticketReceiverHash = keccak256(abi.encodePacked(
-            ticketHash,
-            receiver.main
-        ));
+        ticketReceiverHash = keccak256(abi.encodePacked(ticketHash, receiver.main));
         if (usedTickets[ticketReceiverHash]) {
             revert TicketAlreadyRedeemed();
         }
