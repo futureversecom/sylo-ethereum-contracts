@@ -57,7 +57,7 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
     error RegistriesCannotBeZeroAddress();
     error RootSeekerCannotBeZeroAddress();
     error EpochHasNotEnded(uint256 epochId);
-    error SeekerAcountCannotBeZeroAddress();
+    error SeekerAccountCannotBeZeroAddress();
     error TicketingParametersCannotBeZeroAddress();
     error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
 
@@ -187,7 +187,7 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
 
         // validate the node's seeker ownership
         if (registry.seekerAccount == address(0)) {
-            revert SeekerAcountCannotBeZeroAddress();
+            revert SeekerAccountCannotBeZeroAddress();
         }
 
         uint256 seekerId = registry.seekerId;

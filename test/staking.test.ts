@@ -630,7 +630,7 @@ describe('Staking', () => {
   it('should not be able to join directory without setting seeker account', async () => {
     await expect(epochsManager.joinNextEpoch()).to.be.revertedWithCustomError(
       epochsManager,
-      'SeekerAcountCannotBeZeroAddress',
+      'SeekerAccountCannotBeZeroAddress',
     );
   });
 
