@@ -40,16 +40,6 @@ describe('MultiReceiverTicketing', () => {
     // first account is implicitly used as deployer of contracts in hardhat
     owner = await accounts[0].getAddress();
 
-    // add more fund to owner account so it can fund main wallets
-    // to authorize accounts and add permissions
-    // account 10 to 15 are unused so we can get ETH from them
-    for (let i = 10; i <= 15; i++) {
-      await accounts[i].sendTransaction({
-        to: owner,
-        value: ethers.parseEther('5000.0'),
-      });
-    }
-
     const Token = await ethers.getContractFactory('SyloToken');
     token = await Token.deploy();
   });
@@ -277,6 +267,40 @@ describe('MultiReceiverTicketing', () => {
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'RedeemerCommitMismatch');
 
+    await expect(
+      syloTicketing.redeemMultiReceiver(
+        {
+          ...ticket,
+          sender: {
+            ...ticket.sender,
+            delegated: Wallet.createRandom().address,
+          },
+        },
+        redeemerRand,
+        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        proof,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'InvalidSenderTicketSigningPermission',
+    );
+
+    await expect(
+      syloTicketing.redeemMultiReceiver(
+        ticket,
+        redeemerRand,
+        { main: bobs[0].address, delegated: Wallet.createRandom().address },
+        proof,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'InvalidReceiverTicketSigningPermission',
+    );
+
     const malformedSig =
       '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
     await expect(
@@ -300,6 +324,133 @@ describe('MultiReceiverTicketing', () => {
         malformedSig,
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'InvalidReceiverSignature');
+  });
+
+  it('can not redeem non winning ticket', async () => {
+    await ticketingParameters.setBaseLiveWinProb(0);
+
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bobs = Array(5)
+      .fill(0)
+      .map(_ => Wallet.createRandom());
+
+    const tree = StandardMerkleTree.of(
+      bobs.map(b => [b.address]),
+      ['address'],
+    );
+
+    const { ticket, redeemerRand, senderSig, ticketHash } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        tree.root,
+        owner,
+      );
+
+    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const proof = tree.getProof([bobs[0].address]);
+
+    await expect(
+      syloTicketing.redeemMultiReceiver(
+        ticket,
+        redeemerRand,
+        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        proof,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(syloTicketing, 'TicketNotWinning');
+  });
+
+  it('can not redeem ticket for future block', async () => {
+    const alice = Wallet.createRandom();
+    const bobs = Array(5)
+      .fill(0)
+      .map(_ => Wallet.createRandom());
+
+    const tree = StandardMerkleTree.of(
+      bobs.map(b => [b.address]),
+      ['address'],
+    );
+
+    const { ticket, redeemerRand, senderSig } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        tree.root,
+        owner,
+      );
+
+    await expect(
+      syloTicketing.redeemMultiReceiver(
+        {
+          ...ticket,
+          generationBlock: BigInt(ticket.generationBlock) + 10n,
+        },
+        redeemerRand,
+        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        [],
+        senderSig,
+        new Uint8Array(0),
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'TicketCannotBeFromFutureBlock',
+    );
+  });
+
+  it('cannot redeem multi receiver ticket if node has not joined epoch', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bobs = Array(5)
+      .fill(0)
+      .map(_ => Wallet.createRandom());
+
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const tree = StandardMerkleTree.of(
+      bobs.map(b => [b.address]),
+      ['address'],
+    );
+
+    const { ticket, redeemerRand, senderSig, ticketHash } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        tree.root,
+        owner,
+      );
+
+    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const proof = tree.getProof([bobs[0].address]);
+
+    await expect(
+      syloTicketing.redeemMultiReceiver(
+        ticket,
+        redeemerRand,
+        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        proof,
+        senderSig,
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'RedeemerMustHaveJoinedEpoch',
+    );
   });
 
   it('can not redeem for non valid receiver', async () => {
