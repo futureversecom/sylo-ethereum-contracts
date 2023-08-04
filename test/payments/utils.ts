@@ -210,6 +210,61 @@ export async function createWinningTicket(
   };
 }
 
+export async function createWinningMultiReceiverTicket(
+  syloTicketing: SyloTicketing,
+  epochsManager: EpochsManager,
+  sender: HDNodeWallet,
+  merkleRoot: string,
+  redeemer: string,
+  epochId?: number,
+  senderDelegatedWallet?: HDNodeWallet,
+): Promise<{
+  ticket: contractTypes.contracts.interfaces.payments.ISyloTicketing.MultiReceiverTicketStruct;
+  redeemerRand: number;
+  senderSig: Uint8Array;
+  ticketHash: string;
+}> {
+  const generationBlock = BigInt((await ethers.provider.getBlockNumber()) + 1);
+
+  const redeemerRand = 1;
+  const redeemerCommit = createCommit(generationBlock, redeemerRand);
+
+  let senderDelegatedAccount = ethers.ZeroAddress;
+  if (senderDelegatedWallet) {
+    senderDelegatedAccount = senderDelegatedWallet.address;
+  }
+
+  const ticket = {
+    epochId: epochId ?? (await epochsManager.currentIteration()),
+    sender: {
+      main: sender.address,
+      delegated: senderDelegatedAccount,
+    },
+    merkleRoot,
+    redeemer,
+    generationBlock,
+    redeemerCommit: ethers.hexlify(redeemerCommit),
+  };
+
+  const ticketHash = await syloTicketing.getMultiReceiverTicketHash(ticket);
+  let senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
+  if (senderDelegatedWallet) {
+    senderSig = await senderDelegatedWallet.signMessage(
+      ethers.getBytes(ticketHash),
+    );
+  }
+  if (!senderSig) {
+    throw new Error('failed to derive sender signature for ticket');
+  }
+
+  return {
+    ticket,
+    redeemerRand,
+    senderSig: ethers.getBytes(senderSig),
+    ticketHash,
+  };
+}
+
 export function createCommit(
   generationBlock: bigint,
   rand: BigNumberish,

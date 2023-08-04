@@ -379,16 +379,12 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
 
         (, bytes32 ticketReceiverHash) = requireValidWinningMultiReceiverTicket(
             ticket,
+            merkleProof,
             receiver,
             redeemerRand,
             senderSig,
             receiverSig
         );
-
-        bytes32 leaf = keccak256(abi.encodePacked([receiver.main]));
-        if (!MerkleProof.verifyCalldata(merkleProof, ticket.merkleRoot, leaf)) {
-            revert InvalidMerkleProof(receiver.main);
-        }
 
         usedTickets[ticketReceiverHash] = true;
 
@@ -549,6 +545,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
      */
     function requireValidWinningMultiReceiverTicket(
         MultiReceiverTicket memory ticket,
+        bytes32[] calldata merkleProof,
         User calldata receiver,
         uint256 redeemerRand,
         bytes calldata senderSig,
@@ -562,6 +559,17 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         }
         if (ticket.redeemer == address(0)) {
             revert TicketRedeemerCannotBeZeroAddress();
+        }
+
+        // validate the merkle proof
+        bytes32 leaf =
+            keccak256(
+                bytes.concat(
+                    keccak256(abi.encode(receiver.main))
+                )
+            );
+        if (!MerkleProof.verifyCalldata(merkleProof, ticket.merkleRoot, leaf)) {
+            revert InvalidMerkleProof(receiver.main);
         }
 
         // There are two hashes create. The first hash is signed by all

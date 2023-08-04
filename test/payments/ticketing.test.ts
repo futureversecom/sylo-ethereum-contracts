@@ -1395,13 +1395,7 @@ describe('Ticketing', () => {
         owner,
       );
 
-    await syloTicketing.redeem(
-      ticket,
-
-      redeemerRand,
-      senderSig,
-      receiverSig,
-    );
+    await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
 
     const deposit = await syloTicketing.deposits(alice.address);
     assert.equal(
