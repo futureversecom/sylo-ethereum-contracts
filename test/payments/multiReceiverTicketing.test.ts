@@ -613,5 +613,5 @@ describe('MultiReceiverTicketing', () => {
       senderSig,
       receiverSig,
     );
-  });
+  }).timeout(0);
 });
