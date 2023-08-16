@@ -22,6 +22,15 @@ interface ISyloTicketing {
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
+    struct MultiReceiverTicket {
+        uint256 epochId; // The epoch this ticket is associated with
+        User sender; // Ticket sender's main and delegated addresses
+        address redeemer; // Address of the intended recipient
+        bytes32 merkleRoot; // Root of the merkle tree of all receivers
+        uint256 generationBlock; // Block number the ticket was generated
+        bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
+    }
+
     function setUnlockDuration(uint256 _unlockDuration) external;
 
     function depositEscrow(uint256 amount, address account) external;
@@ -37,6 +46,15 @@ interface ISyloTicketing {
     function redeem(
         Ticket calldata ticket,
         uint256 redeemerRand,
+        bytes calldata senderSig,
+        bytes calldata receiverSig
+    ) external;
+
+    function redeemMultiReceiver(
+        MultiReceiverTicket calldata ticket,
+        uint256 redeemerRand,
+        User calldata receiver,
+        bytes32[] calldata merkleProof,
         bytes calldata senderSig,
         bytes calldata receiverSig
     ) external;

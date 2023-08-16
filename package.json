@@ -20,8 +20,6 @@
     "@nomicfoundation/hardhat-chai-matchers": "2",
     "@nomicfoundation/hardhat-ethers": "^3.0.3",
     "@nomicfoundation/hardhat-verify": "^1.0.3",
-    "@openzeppelin/contracts": "^4.9.2",
-    "@openzeppelin/contracts-upgradeable": "^4.8.1",
     "@stdlib/stats": "^0.0.13",
     "@typechain/ethers-v6": "^0.4.0",
     "@typechain/hardhat": "8",
@@ -32,7 +30,6 @@
     "@types/node": "^20.3.1",
     "@typescript-eslint/eslint-plugin": "^5.52.0",
     "@typescript-eslint/parser": "^5.52.0",
-    "abdk-libraries-solidity": "^3.1.0",
     "chai": "^4.3.7",
     "dotenv": "^16.3.1",
     "eslint": "^8.34.0",
@@ -60,5 +57,11 @@
     "typechain": "^8.2.0",
     "typescript": "^4.9.5",
     "web3": "^1.8.2"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.2",
+    "@openzeppelin/contracts-upgradeable": "^4.8.1",
+    "@openzeppelin/merkle-tree": "^1.0.5",
+    "abdk-libraries-solidity": "^3.1.0"
   }
 }
