@@ -33,6 +33,7 @@ export type SyloContracts = {
   directory: factories.contracts.staking.Directory;
   syloTicketing: factories.contracts.payments.SyloTicketing;
   seekers: factories.contracts.mocks.TestSeekers;
+  futurepassRegistrar: factories.contracts.mocks.TestFuturepassRegistrar;
 };
 
 export type ContractAddresses = {
@@ -46,6 +47,7 @@ export type ContractAddresses = {
   directory: string;
   syloTicketing: string;
   seekers: string;
+  futurepassRegistrar: string;
 };
 
 export function connectContracts(
@@ -102,6 +104,12 @@ export function connectContracts(
     provider,
   );
 
+  const futurepassRegistrar =
+    factories.TestFuturepassRegistrar__factory.connect(
+      contracts.futurepassRegistrar,
+      provider,
+    );
+
   return {
     syloToken,
     authorizedAccounts,
@@ -113,5 +121,6 @@ export function connectContracts(
     directory,
     syloTicketing,
     seekers,
+    futurepassRegistrar,
   };
 }

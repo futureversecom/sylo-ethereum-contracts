@@ -14,6 +14,7 @@ import {
   TestSeekers,
   TicketingParameters,
   ISyloTicketing__factory,
+  TestFuturepassRegistrar,
 } from '../../typechain-types';
 import crypto from 'crypto';
 import {
@@ -45,6 +46,7 @@ describe('Ticketing', () => {
   let stakingManager: StakingManager;
   let seekers: TestSeekers;
   let authorizedAccounts: AuthorizedAccounts;
+  let futurepassRegistrar: TestFuturepassRegistrar;
 
   enum Permission {
     TicketSigning,
@@ -83,6 +85,7 @@ describe('Ticketing', () => {
     stakingManager = contracts.stakingManager;
     seekers = contracts.seekers;
     authorizedAccounts = contracts.authorizedAccounts;
+    futurepassRegistrar = contracts.futurepassRegistrar;
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
     await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
@@ -91,6 +94,7 @@ describe('Ticketing', () => {
   it('ticketing cannot be initialized twice', async () => {
     await expect(
       syloTicketing.initialize(
+        ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
@@ -116,6 +120,7 @@ describe('Ticketing', () => {
         await epochsManager.getAddress(),
         await rewardsManager.getAddress(),
         await authorizedAccounts.getAddress(),
+        await futurepassRegistrar.getAddress(),
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'TokenCannotBeZeroAddress');
@@ -129,6 +134,7 @@ describe('Ticketing', () => {
         await epochsManager.getAddress(),
         await rewardsManager.getAddress(),
         await authorizedAccounts.getAddress(),
+        await futurepassRegistrar.getAddress(),
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'UnlockDurationCannotBeZero');
