@@ -52,7 +52,7 @@ export type ContractAddresses = {
 
 export function connectContracts(
   contracts: ContractAddresses,
-  provider: ethers.JsonRpcProvider,
+  provider: ethers.ContractRunner,
 ): SyloContracts {
   const syloToken = factories.SyloToken__factory.connect(
     contracts.syloToken,

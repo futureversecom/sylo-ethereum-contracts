@@ -41,6 +41,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       await deployContract('TestSeekers', deployer.address, false, deploy)
     ).address;
   }
+  if (config.FuturepassRegistrar == '') {
+    config.FuturepassRegistrar = (
+      await deployContract(
+        'TestFuturepassRegistrar',
+        deployer.address,
+        false,
+        deploy,
+      )
+    ).address;
+  }
   for (const name of Object.values(DeployedContractNames)) {
     contracts[name] = await deployContract(
       name,
@@ -115,6 +125,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         contracts[ContractNames.epochsManager].address,
         contracts[ContractNames.rewardsManager].address,
         contracts[ContractNames.authorizedAccounts].address,
+        config.FuturepassRegistrar,
         config.Ticketing.unlockDuration,
       ],
     },
@@ -252,6 +263,7 @@ async function saveContracts(
     directory: contracts[ContractNames.directory].address,
     syloTicketing: contracts[ContractNames.syloTicketing].address,
     seekers: config.Seekers,
+    futurepassRegistrar: config.FuturepassRegistrar,
   };
 
   const filePath = path.join(process.cwd(), 'deployments');
