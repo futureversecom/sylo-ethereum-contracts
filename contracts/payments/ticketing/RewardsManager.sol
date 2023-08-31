@@ -30,6 +30,8 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
+    uint256 internal constant MAX_INT64 = 9223372036854776000;
+
     /** ERC20 Sylo token contract. */
     IERC20 public _token;
 
@@ -104,6 +106,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     error StakeeCannotBeZeroAddress();
     error StakerCannotBeZeroAddress();
     error StakerKeyCannotBeZeroBytes();
+    error InvalidFixedPointResult();
 
     function initialize(
         IERC20 token,
@@ -328,6 +331,17 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
         }
 
         rewardPool.stakersRewardTotal = rewardPool.stakersRewardTotal + stakersReward;
+
+        // We preemptively prevent an overflow revert with the abdk library.
+        // Dividing the stakers reward with the pool's total active
+        // stake may produce a value that is greater than the maximum possible
+        // 64.64 fixed point value.
+        // This error is incredibly niche and unlikely to happen, so we just
+        // revert here as well (with a named error) and remediation involves
+        // just increasing the amount of stake a node has.
+        if (rewardPool.totalActiveStake * MAX_INT64 < stakersReward) {
+            revert InvalidFixedPointResult();
+        }
 
         cumulativeRewardFactors[stakee] = ABDKMath64x64.add(
             cumulativeRewardFactors[stakee],

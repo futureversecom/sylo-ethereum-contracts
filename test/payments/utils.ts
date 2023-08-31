@@ -135,21 +135,23 @@ export async function setSeekerRegistry(
 export async function createWinningTicket(
   syloTicketing: SyloTicketing,
   epochsManager: EpochsManager,
-  sender: HDNodeWallet,
-  receiver: HDNodeWallet,
+  sender: Signer,
+  receiver: Signer,
   redeemer: string,
   epochId?: number,
   senderDelegatedWallet?: HDNodeWallet,
   receiverDelegatedWallet?: HDNodeWallet,
 ): Promise<{
   ticket: contractTypes.contracts.interfaces.payments.ISyloTicketing.TicketStruct;
-  receiver: HDNodeWallet;
+  receiver: Signer;
   redeemerRand: number;
   senderSig: Uint8Array;
   receiverSig: Uint8Array;
   ticketHash: string;
 }> {
-  const generationBlock = BigInt((await ethers.provider.getBlockNumber()) + 1);
+  const generationBlock = BigInt(
+    ((await syloTicketing.runner?.provider?.getBlockNumber()) ?? 0) + 1,
+  );
 
   const redeemerRand = 1;
   const redeemerCommit = createCommit(generationBlock, redeemerRand);
@@ -167,11 +169,11 @@ export async function createWinningTicket(
   const ticket = {
     epochId: epochId ?? (await epochsManager.currentIteration()),
     sender: {
-      main: sender.address,
+      main: await sender.getAddress(),
       delegated: senderDelegatedAccount,
     },
     receiver: {
-      main: receiver.address,
+      main: await receiver.getAddress(),
       delegated: receiverDelegatedAccount,
     },
     redeemer,

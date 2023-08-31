@@ -361,7 +361,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
-  it('cannot increament reward pool with invalid arguments', async () => {
+  it('cannot increment reward pool with invalid arguments', async () => {
     await rewardsManager.addManager(owner);
 
     await expect(
@@ -2770,6 +2770,36 @@ describe('Ticketing', () => {
     );
 
     assert.equal(p, 0n, 'Expected probability to be 0');
+  });
+
+  it('reverts when reward pool stake is signficanlty less than reward', async () => {
+    // The node's stake is 2**63-1 times smaller than what the
+    // reward will be.
+    await ticketingParameters.setFaceValue(ethers.parseEther('10000'));
+    await stakingManager.addStake(50, owner);
+
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
+
+    await expect(
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(rewardsManager, 'InvalidFixedPointResult');
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {
