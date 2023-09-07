@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
-import { Signer, Wallet } from 'ethers';
+import { HDNodeWallet, Signer, Wallet } from 'ethers';
 import {
   EpochsManager,
   Registries,
@@ -71,16 +71,7 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
@@ -130,16 +121,7 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(20000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
@@ -186,16 +168,7 @@ describe('MultiReceiverTicketing', () => {
 
   it('can not redeem invalid ticket', async () => {
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
@@ -328,16 +301,7 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
@@ -362,16 +326,7 @@ describe('MultiReceiverTicketing', () => {
 
   it('can not redeem ticket for future block', async () => {
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     const { ticket, redeemerRand, senderSig } =
       await createWinningMultiReceiverTicket(
@@ -405,16 +360,7 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
@@ -451,9 +397,6 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
@@ -491,16 +434,7 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = await Promise.all(
-      Array(5)
-        .fill(0)
-        .map(async _ => {
-          const w = Wallet.createRandom();
-          // register futurepass account
-          await futurepassRegistrar.create(w.address);
-          return w;
-        }),
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
@@ -533,4 +467,17 @@ describe('MultiReceiverTicketing', () => {
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'TicketAlreadyRedeemed');
   });
+
+  async function createFuturepassReceivers(n: number): Promise<HDNodeWallet[]> {
+    return Promise.all(
+      Array(5)
+        .fill(0)
+        .map(async _ => {
+          const w = Wallet.createRandom();
+          // register futurepass account
+          await futurepassRegistrar.create(w.address);
+          return w;
+        }),
+    );
+  }
 });

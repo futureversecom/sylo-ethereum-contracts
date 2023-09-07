@@ -22,7 +22,7 @@ interface ISyloTicketing {
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
-    // MultiReceiver ticket do not explicit state the receiver address.
+    // A type of ticket that does not explicit state the receiver address.
     struct MultiReceiverTicket {
         uint256 epochId; // The epoch this ticket is associated with
         User sender; // Ticket sender's main and delegated addresses

@@ -30,7 +30,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     // 64x64 Fixed point representation of 1 SYLO (10**18 >> 64)
     int128 internal constant ONE_SYLO_FIXED = 18446744073709551616000000000000000000;
 
-    uint256 internal constant MAX_INT64 = 9223372036854776000;
+    uint256 internal constant MAX_INT64 = 9223372036854775807;
 
     /** ERC20 Sylo token contract. */
     IERC20 public _token;

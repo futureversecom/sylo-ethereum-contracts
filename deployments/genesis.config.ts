@@ -118,12 +118,9 @@ const GanacheTestnetParameters: ContractParameters = {
 };
 
 const PorciniDevParameters: ContractParameters = {
-  // SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
+  SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
 
-  // Seekers: '0xAAAAAAAA00001864000000000000000000000000',
-
-  SyloToken: '',
-  Seekers: '',
+  Seekers: '0xAAAAAAAA00001864000000000000000000000000',
 
   FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
