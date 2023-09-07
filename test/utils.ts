@@ -41,6 +41,11 @@ const initializeContracts = async function (
   const SeekersFactory = await ethers.getContractFactory('TestSeekers');
   const seekers = await SeekersFactory.deploy();
 
+  const FuturepassRegistrarFactory = await ethers.getContractFactory(
+    'TestFuturepassRegistrar',
+  );
+  const futurepassRegistrar = await FuturepassRegistrarFactory.deploy();
+
   const RegistriesFactory = await ethers.getContractFactory('Registries');
   const registries = await RegistriesFactory.deploy();
   await registries.initialize(await seekers.getAddress(), payoutPercentage, {
@@ -122,6 +127,7 @@ const initializeContracts = async function (
     await epochsManager.getAddress(),
     await rewardsManager.getAddress(),
     await authorizedAccounts.getAddress(),
+    await futurepassRegistrar.getAddress(),
     unlockDuration,
     { from: deployer },
   );
@@ -149,6 +155,7 @@ const initializeContracts = async function (
     directory,
     syloTicketing,
     seekers,
+    futurepassRegistrar,
   };
 };
 

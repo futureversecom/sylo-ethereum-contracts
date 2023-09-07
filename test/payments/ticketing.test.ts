@@ -14,6 +14,7 @@ import {
   TestSeekers,
   TicketingParameters,
   ISyloTicketing__factory,
+  TestFuturepassRegistrar,
 } from '../../typechain-types';
 import crypto from 'crypto';
 import {
@@ -45,6 +46,7 @@ describe('Ticketing', () => {
   let stakingManager: StakingManager;
   let seekers: TestSeekers;
   let authorizedAccounts: AuthorizedAccounts;
+  let futurepassRegistrar: TestFuturepassRegistrar;
 
   enum Permission {
     TicketSigning,
@@ -83,6 +85,7 @@ describe('Ticketing', () => {
     stakingManager = contracts.stakingManager;
     seekers = contracts.seekers;
     authorizedAccounts = contracts.authorizedAccounts;
+    futurepassRegistrar = contracts.futurepassRegistrar;
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
     await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
@@ -91,6 +94,7 @@ describe('Ticketing', () => {
   it('ticketing cannot be initialized twice', async () => {
     await expect(
       syloTicketing.initialize(
+        ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
@@ -116,6 +120,7 @@ describe('Ticketing', () => {
         await epochsManager.getAddress(),
         await rewardsManager.getAddress(),
         await authorizedAccounts.getAddress(),
+        await futurepassRegistrar.getAddress(),
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'TokenCannotBeZeroAddress');
@@ -129,6 +134,7 @@ describe('Ticketing', () => {
         await epochsManager.getAddress(),
         await rewardsManager.getAddress(),
         await authorizedAccounts.getAddress(),
+        await futurepassRegistrar.getAddress(),
         0,
       ),
     ).to.be.revertedWithCustomError(ticketing, 'UnlockDurationCannotBeZero');
@@ -355,7 +361,7 @@ describe('Ticketing', () => {
     ).to.be.revertedWithCustomError(rewardsManager, 'OnlyManagers');
   });
 
-  it('cannot increament reward pool with invalid arguments', async () => {
+  it('cannot increment reward pool with invalid arguments', async () => {
     await rewardsManager.addManager(owner);
 
     await expect(
@@ -2764,6 +2770,36 @@ describe('Ticketing', () => {
     );
 
     assert.equal(p, 0n, 'Expected probability to be 0');
+  });
+
+  it('reverts when reward pool stake is signficanlty less than reward', async () => {
+    // The node's stake is 2**63-1 times smaller than what the
+    // reward will be.
+    await ticketingParameters.setFaceValue(ethers.parseEther('10000'));
+    await stakingManager.addStake(50, owner);
+
+    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+      );
+
+    await expect(
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(rewardsManager, 'InvalidFixedPointResult');
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {

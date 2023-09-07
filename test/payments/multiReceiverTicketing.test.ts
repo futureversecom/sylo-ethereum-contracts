@@ -1,7 +1,6 @@
 import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
-import { Signer, Wallet } from 'ethers';
-import { StandardMerkleTree } from '@openzeppelin/merkle-tree';
+import { HDNodeWallet, Signer, Wallet } from 'ethers';
 import {
   EpochsManager,
   Registries,
@@ -9,6 +8,7 @@ import {
   StakingManager,
   SyloTicketing,
   SyloToken,
+  TestFuturepassRegistrar,
   TestSeekers,
   TicketingParameters,
 } from '../../typechain-types';
@@ -34,6 +34,7 @@ describe('MultiReceiverTicketing', () => {
   let registries: Registries;
   let stakingManager: StakingManager;
   let seekers: TestSeekers;
+  let futurepassRegistrar: TestFuturepassRegistrar;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -56,6 +57,7 @@ describe('MultiReceiverTicketing', () => {
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
     seekers = contracts.seekers;
+    futurepassRegistrar = contracts.futurepassRegistrar;
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
     await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
@@ -69,35 +71,25 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
     const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
-    const proof = tree.getProof([bobs[0].address]);
 
     await syloTicketing.redeemMultiReceiver(
       ticket,
       redeemerRand,
       { main: bobs[0].address, delegated: ethers.ZeroAddress },
-      proof,
       senderSig,
       receiverSig,
     );
@@ -129,24 +121,16 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(20000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
@@ -155,13 +139,11 @@ describe('MultiReceiverTicketing', () => {
 
     for (const bob of bobs) {
       const receiverSig = await bob.signMessage(ethers.getBytes(ticketHash));
-      const proof = tree.getProof([bob.address]);
 
       await syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
         { main: bob.address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       );
@@ -186,36 +168,26 @@ describe('MultiReceiverTicketing', () => {
 
   it('can not redeem invalid ticket', async () => {
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
     const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
-    const proof = tree.getProof([bobs[0].address]);
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         { ...ticket, sender: { ...ticket.sender, main: ethers.ZeroAddress } },
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -229,7 +201,6 @@ describe('MultiReceiverTicketing', () => {
         ticket,
         redeemerRand,
         { main: ethers.ZeroAddress, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -243,7 +214,6 @@ describe('MultiReceiverTicketing', () => {
         { ...ticket, redeemer: ethers.ZeroAddress },
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -261,7 +231,6 @@ describe('MultiReceiverTicketing', () => {
         },
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -278,7 +247,6 @@ describe('MultiReceiverTicketing', () => {
         },
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -292,7 +260,6 @@ describe('MultiReceiverTicketing', () => {
         ticket,
         redeemerRand,
         { main: bobs[0].address, delegated: Wallet.createRandom().address },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -308,7 +275,6 @@ describe('MultiReceiverTicketing', () => {
         ticket,
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         malformedSig,
         receiverSig,
       ),
@@ -319,7 +285,6 @@ describe('MultiReceiverTicketing', () => {
         ticket,
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         malformedSig,
       ),
@@ -336,33 +301,23 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
     const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
-    const proof = tree.getProof([bobs[0].address]);
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -371,21 +326,13 @@ describe('MultiReceiverTicketing', () => {
 
   it('can not redeem ticket for future block', async () => {
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
+    const bobs = await createFuturepassReceivers(5);
 
     const { ticket, redeemerRand, senderSig } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
@@ -397,7 +344,6 @@ describe('MultiReceiverTicketing', () => {
         },
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        [],
         senderSig,
         new Uint8Array(0),
       ),
@@ -414,36 +360,26 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
     const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
-    const proof = tree.getProof([bobs[0].address]);
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
@@ -461,24 +397,15 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
@@ -487,18 +414,16 @@ describe('MultiReceiverTicketing', () => {
     const receiverSig = await invalidReceiver.signMessage(
       ethers.getBytes(ticketHash),
     );
-    const proof = tree.getProof([bobs[0].address]);
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
         { main: invalidReceiver.address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
-    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidMerkleProof');
+    ).to.be.revertedWithCustomError(syloTicketing, 'MissingFuturepassAccount');
   });
 
   it('can not redeem for the same user more than once', async () => {
@@ -509,35 +434,25 @@ describe('MultiReceiverTicketing', () => {
     await epochsManager.initializeEpoch();
 
     const alice = Wallet.createRandom();
-    const bobs = Array(5)
-      .fill(0)
-      .map(_ => Wallet.createRandom());
+    const bobs = await createFuturepassReceivers(5);
 
     await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
     await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
-    );
 
     const { ticket, redeemerRand, senderSig, ticketHash } =
       await createWinningMultiReceiverTicket(
         syloTicketing,
         epochsManager,
         alice,
-        tree.root,
         owner,
       );
 
     const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
-    const proof = tree.getProof([bobs[0].address]);
 
     await syloTicketing.redeemMultiReceiver(
       ticket,
       redeemerRand,
       { main: bobs[0].address, delegated: ethers.ZeroAddress },
-      proof,
       senderSig,
       receiverSig,
     );
@@ -547,71 +462,22 @@ describe('MultiReceiverTicketing', () => {
         ticket,
         redeemerRand,
         { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
         senderSig,
         receiverSig,
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'TicketAlreadyRedeemed');
   });
 
-  it('can redeem a ticket if receiver is very large [ @skip-on-coverage ]', async () => {
-    await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
-
-    await epochsManager.joinNextEpoch();
-    await epochsManager.initializeEpoch();
-
-    const alice = Wallet.createRandom();
-    // create 100_000 receivers
-    const bobs = Array(10000)
-      .fill(0)
-      .map((_, i) => {
-        if (i > 999 && i % 1000 === 0) {
-          console.log(`generated ${i} wallets...`);
-        }
-        return Wallet.createRandom();
-      });
-
-    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
-    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    const tree = StandardMerkleTree.of(
-      bobs.map(b => [b.address]),
-      ['address'],
+  async function createFuturepassReceivers(n: number): Promise<HDNodeWallet[]> {
+    return Promise.all(
+      Array(5)
+        .fill(0)
+        .map(async _ => {
+          const w = Wallet.createRandom();
+          // register futurepass account
+          await futurepassRegistrar.create(w.address);
+          return w;
+        }),
     );
-
-    const { ticket, redeemerRand, senderSig, ticketHash } =
-      await createWinningMultiReceiverTicket(
-        syloTicketing,
-        epochsManager,
-        alice,
-        tree.root,
-        owner,
-      );
-
-    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
-    const proof = tree.getProof([bobs[0].address]);
-
-    console.log('proof size: ', proof.length);
-
-    console.log(
-      'gas limit estimation: ',
-      await syloTicketing.redeemMultiReceiver.estimateGas(
-        ticket,
-        redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        proof,
-        senderSig,
-        receiverSig,
-      ),
-    );
-    await syloTicketing.redeemMultiReceiver(
-      ticket,
-      redeemerRand,
-      { main: bobs[0].address, delegated: ethers.ZeroAddress },
-      proof,
-      senderSig,
-      receiverSig,
-    );
-  }).timeout(0);
+  }
 });

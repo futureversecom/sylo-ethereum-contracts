@@ -22,11 +22,11 @@ interface ISyloTicketing {
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
 
+    // A type of ticket that does not explicit state the receiver address.
     struct MultiReceiverTicket {
         uint256 epochId; // The epoch this ticket is associated with
         User sender; // Ticket sender's main and delegated addresses
         address redeemer; // Address of the intended recipient
-        bytes32 merkleRoot; // Root of the merkle tree of all receivers
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
@@ -54,7 +54,6 @@ interface ISyloTicketing {
         MultiReceiverTicket calldata ticket,
         uint256 redeemerRand,
         User calldata receiver,
-        bytes32[] calldata merkleProof,
         bytes calldata senderSig,
         bytes calldata receiverSig
     ) external;

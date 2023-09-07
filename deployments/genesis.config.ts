@@ -8,6 +8,9 @@ type ContractParameters = {
   // Address of the existing bridged Seekers contract
   Seekers: string;
 
+  // Address of the pre-compile futurepass registrar
+  FuturepassRegistrar: string;
+
   EpochsManager: {
     epochDuration: BigNumberish;
   };
@@ -53,6 +56,8 @@ const GenesisParameters: ContractParameters = {
       ? '0xAAAAAAAA00001864000000000000000000000000'
       : '',
 
+  FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
+
   EpochsManager: {
     epochDuration: 80000,
   },
@@ -83,6 +88,8 @@ const GanacheTestnetParameters: ContractParameters = {
   SyloToken: '',
 
   Seekers: '',
+
+  FuturepassRegistrar: '',
 
   EpochsManager: {
     epochDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
@@ -115,6 +122,8 @@ const PorciniDevParameters: ContractParameters = {
 
   Seekers: '0xAAAAAAAA00001864000000000000000000000000',
 
+  FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
+
   EpochsManager: {
     epochDuration: 30,
   },
@@ -145,6 +154,8 @@ const PorciniTestingParameters: ContractParameters = {
   SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
 
   Seekers: '0xAAAAAAAA00001864000000000000000000000000',
+
+  FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
   EpochsManager: {
     epochDuration: 17280, // 1 day
