@@ -12,6 +12,7 @@ type ContractParameters = {
   FuturepassRegistrar: string;
 
   EpochsManager: {
+    initialEpoch: BigNumberish;
     epochDuration: BigNumberish;
   };
 
@@ -59,6 +60,7 @@ const GenesisParameters: ContractParameters = {
   FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
   EpochsManager: {
+    initialEpoch: 0,
     epochDuration: 80000,
   },
 
@@ -92,6 +94,7 @@ const GanacheTestnetParameters: ContractParameters = {
   FuturepassRegistrar: '',
 
   EpochsManager: {
+    initialEpoch: 0,
     epochDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
   },
 
@@ -125,6 +128,7 @@ const PorciniDevParameters: ContractParameters = {
   FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
   EpochsManager: {
+    initialEpoch: 0,
     epochDuration: 30,
   },
 
@@ -158,6 +162,7 @@ const PorciniTestingParameters: ContractParameters = {
   FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
   EpochsManager: {
+    initialEpoch: 0,
     epochDuration: 17280, // 1 day
   },
 

@@ -12,6 +12,7 @@ type Options = {
   expiredWinProb?: BigNumberish;
   decayRate?: number;
   ticketDuration?: number;
+  initialEpoch?: number;
   epochDuration?: number;
   minimumStakeProportion?: number;
   unlockDuration?: number;
@@ -112,6 +113,7 @@ const initializeContracts = async function (
     await directory.getAddress(),
     await registries.getAddress(),
     await ticketingParameters.getAddress(),
+    opts.initialEpoch ?? (await ethers.provider.getBlockNumber()) + 1,
     epochDuration,
     { from: deployer },
   );
