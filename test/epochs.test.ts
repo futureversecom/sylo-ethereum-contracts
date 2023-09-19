@@ -62,30 +62,29 @@ describe('Epochs', () => {
     );
   });
 
-  it('can set first epoch', async () => {
+  it('can set initial epoch', async () => {
     const blockNumber = await ethers.provider.getBlockNumber();
-    await expect(epochsManager.setFirstEpoch(blockNumber + 3))
-      .to.emit(epochsManager, 'FirstEpochUpdated')
+    await expect(epochsManager.setInitialEpoch(blockNumber + 3))
+      .to.emit(epochsManager, 'InitialEpochUpdated')
       .withArgs(blockNumber + 3);
 
-    const firstEpoch = await epochsManager.firstEpoch();
+    const initialEpoch = await epochsManager.initialEpoch();
     assert.equal(
-      firstEpoch,
+      initialEpoch,
       BigInt(blockNumber + 3),
-      'Expected first epoch to be updated',
+      'Expected initial epoch to be updated',
     );
   });
 
-  it('cannot set first epoch if the value is zero', async () => {
-    await expect(epochsManager.setFirstEpoch(0)).to.be.revertedWithCustomError(
-      epochsManager,
-      'FirstEpochCannotBeZero',
-    );
-  });
-
-  it('not owner cannot set first epoch', async () => {
+  it('cannot set initial epoch if the value is zero', async () => {
     await expect(
-      epochsManager.connect(accounts[1]).setFirstEpoch(777),
+      epochsManager.setInitialEpoch(0),
+    ).to.be.revertedWithCustomError(epochsManager, 'InitialEpochCannotBeZero');
+  });
+
+  it('not owner cannot set initial epoch', async () => {
+    await expect(
+      epochsManager.connect(accounts[1]).setInitialEpoch(777),
     ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
@@ -133,12 +132,12 @@ describe('Epochs', () => {
     );
   });
 
-  it('can not initialize first epoch if the current block is less than first epoch', async () => {
+  it('can not initialize epoch 1 if the current block is less than initial epoch', async () => {
     const firstBlock = (await ethers.provider.getBlockNumber()) + 10;
-    await epochsManager.setFirstEpoch(firstBlock);
+    await epochsManager.setInitialEpoch(firstBlock);
 
     await expect(epochsManager.initializeEpoch())
-      .to.be.revertedWithCustomError(epochsManager, 'TooEarlyToStartFirstEpoch')
+      .to.be.revertedWithCustomError(epochsManager, 'InitialEpochNotYetReady')
       .withArgs(firstBlock, (await ethers.provider.getBlockNumber()) + 1);
   });
 
