@@ -87,6 +87,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         contracts[ContractNames.directory].address,
         contracts[ContractNames.registries].address,
         contracts[ContractNames.ticketingParameters].address,
+        config.EpochsManager.firstEpoch,
         config.EpochsManager.epochDuration,
       ],
     },

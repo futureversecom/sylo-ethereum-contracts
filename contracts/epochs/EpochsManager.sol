@@ -36,6 +36,11 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
     mapping(uint256 => Epoch) public epochs;
 
     /**
+     * @notice The block number since the first epoch can be initialized.
+     */
+    uint256 public firstEpoch;
+
+    /**
      * @notice The duration in blocks an epoch will last for.
      */
     uint256 public epochDuration;
@@ -49,9 +54,11 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
 
     event NewEpoch(uint256 indexed epochId);
     event EpochJoined(uint256 indexed epochId, address indexed node, uint256 indexed seekerId);
+    event FirstEpochUpdated(uint256 firstEpoch);
     event EpochDurationUpdated(uint256 epochDuration);
 
     error SeekerOwnerMismatch();
+    error FirstEpochCannotBeZero();
     error EpochDurationCannotBeZero();
     error DirectoryCannotBeZeroAddress();
     error RegistriesCannotBeZeroAddress();
@@ -60,12 +67,14 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
     error SeekerAccountCannotBeZeroAddress();
     error TicketingParametersCannotBeZeroAddress();
     error SeekerAlreadyJoinedEpoch(uint256 epochId, uint256 seekerId);
+    error TooEarlyToStartFirstEpoch(uint256 expectedBlock, uint256 currentBlock);
 
     function initialize(
         IERC721 rootSeekers,
         Directory directory,
         Registries registries,
         TicketingParameters ticketingParameters,
+        uint256 _firstEpoch,
         uint256 _epochDuration
     ) external initializer {
         if (address(rootSeekers) == address(0)) {
@@ -96,6 +105,8 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
         _directory = directory;
         _registries = registries;
         _ticketingParameters = ticketingParameters;
+
+        firstEpoch = _firstEpoch;
         epochDuration = _epochDuration;
     }
 
@@ -114,7 +125,7 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
      * the parameters in a new Epoch struct. The end block of the current epoch
      * will also be set to a non-zero value.
      */
-    function initializeEpoch() external returns (uint256) {
+    function initializeEpoch() external firstEpochMustBeValid returns (uint256) {
         Epoch storage current = epochs[currentIteration];
 
         uint256 end = current.startBlock + current.duration;
@@ -156,7 +167,19 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
     }
 
     /**
-     * @notice Set the epoch duration. Will take effect in the next epoch. only
+     * @notice Set the first epoch starting block. Only callable by the owner.
+     * @param _firstEpoch The block number when the first epoch can be initialized.
+     */
+    function setFirstEpoch(uint256 _firstEpoch) external onlyOwner {
+        if (_firstEpoch == 0) {
+            revert FirstEpochCannotBeZero();
+        }
+        firstEpoch = _firstEpoch;
+        emit FirstEpochUpdated(_firstEpoch);
+    }
+
+    /**
+     * @notice Set the epoch duration. Will take effect in the next epoch. Only
      * callable by the owner.
      * @param _epochDuration The epoch duration in number of blocks.
      */
@@ -226,5 +249,12 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
      */
     function getNextEpochId() public view returns (uint256) {
         return currentIteration + 1;
+    }
+
+    modifier firstEpochMustBeValid() {
+        if (currentIteration == 0 && firstEpoch > block.number) {
+            revert TooEarlyToStartFirstEpoch(firstEpoch, block.number);
+        }
+        _;
     }
 }

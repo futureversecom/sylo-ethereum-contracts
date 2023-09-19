@@ -38,6 +38,7 @@ describe('Epochs', () => {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         0,
+        0,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
@@ -53,6 +54,7 @@ describe('Epochs', () => {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         0,
+        0,
       ),
     ).to.be.revertedWithCustomError(
       epochsManager,
@@ -60,10 +62,37 @@ describe('Epochs', () => {
     );
   });
 
+  it('can set first epoch', async () => {
+    const blockNumber = await ethers.provider.getBlockNumber();
+    await expect(epochsManager.setFirstEpoch(blockNumber + 3))
+      .to.emit(epochsManager, 'FirstEpochUpdated')
+      .withArgs(blockNumber + 3);
+
+    const firstEpoch = await epochsManager.firstEpoch();
+    assert.equal(
+      firstEpoch,
+      BigInt(blockNumber + 3),
+      'Expected first epoch to be updated',
+    );
+  });
+
+  it('cannot set first epoch if the value is zero', async () => {
+    await expect(epochsManager.setFirstEpoch(0)).to.be.revertedWithCustomError(
+      epochsManager,
+      'FirstEpochCannotBeZero',
+    );
+  });
+
+  it('not owner cannot set first epoch', async () => {
+    await expect(
+      epochsManager.connect(accounts[1]).setFirstEpoch(777),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
   it('can set epoch duration', async () => {
     await expect(epochsManager.setEpochDuration(777))
       .to.emit(epochsManager, 'EpochDurationUpdated')
-      .withArgs(777);
+      .withArgs(777n);
 
     const epochDuration = await epochsManager.epochDuration();
     assert.equal(epochDuration, 777n, 'Expected epoch duration to be updated');
@@ -102,6 +131,15 @@ describe('Epochs', () => {
       2n,
       'Expected second epoch id to be correctly set',
     );
+  });
+
+  it('can not initialize first epoch if the current block is less than first epoch', async () => {
+    const firstBlock = (await ethers.provider.getBlockNumber()) + 10;
+    await epochsManager.setFirstEpoch(firstBlock);
+
+    await expect(epochsManager.initializeEpoch())
+      .to.be.revertedWithCustomError(epochsManager, 'TooEarlyToStartFirstEpoch')
+      .withArgs(firstBlock, (await ethers.provider.getBlockNumber()) + 1);
   });
 
   it('can not initialize next epoch before current one had ended', async () => {
