@@ -1,0 +1,79 @@
+name: Run CI
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Use Node.js 18.14.1
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.14.1
+          cache: 'yarn'
+
+      - name: cache repo
+        uses: actions/cache@v3
+        with:
+          path: ./
+          key: repo-${{hashFiles('./yarn.lock')}}
+
+      - name: yarn install
+        run: yarn
+
+      - name: build contracts
+        run: yarn build
+
+      - name: solidity lint
+        run: yarn solhint
+
+      - name: prepare artifacts
+        run: npx ts-node scripts/parse_artifacts.ts
+
+  test-node:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: restore cache
+        uses: actions/cache@v3
+        with:
+          path: ./
+          key: repo-${{hashFiles('./yarn.lock')}}
+
+      - name: test contracts
+        run: ITERATIONS=10000 npm test
+
+      - name: prepare outputs
+        run: npx ts-node scripts/parse_artifacts.ts
+
+      - name: store artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: gas-report
+          path: ./gasReport.txt
+
+  test-coverage:
+    needs: test-node
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: restore cache
+        uses: actions/cache@v3
+        with:
+          path: ./
+          key: repo-${{hashFiles('./yarn.lock')}}
+
+      - name: test contracts
+        run: yarn coverage
+
+      - name: check coverage
+        run: npx istanbul check-coverage --statements 100 --functions 100 --lines 100
+
+      - name: store artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: ./coverage
