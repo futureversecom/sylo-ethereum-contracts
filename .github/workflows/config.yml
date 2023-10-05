@@ -14,11 +14,17 @@ jobs:
           node-version: 18.14.1
           cache: 'yarn'
 
+      - name: cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ./node_modules
+          key: yarn-${{hashFiles('./yarn.lock')}}
+
       - name: cache repo
         uses: actions/cache@v3
         with:
           path: ./
-          key: repo-${{hashFiles('./yarn.lock')}}
+          key: repo-${{hashFiles('./')}}
 
       - name: yarn install
         run: yarn
@@ -41,7 +47,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./
-          key: repo-${{hashFiles('./yarn.lock')}}
+          key: repo-${{hashFiles('./')}}
 
       - name: test contracts
         run: ITERATIONS=10000 npm test
@@ -64,7 +70,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./
-          key: repo-${{hashFiles('./yarn.lock')}}
+          key: repo-${{hashFiles('./')}}
 
       - name: test contracts
         run: yarn coverage
