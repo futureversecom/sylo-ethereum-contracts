@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.2",
-    "@openzeppelin/contracts-upgradeable": "^4.8.1",
+    "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "@openzeppelin/merkle-tree": "^1.0.5",
     "abdk-libraries-solidity": "^3.1.0"
   }
