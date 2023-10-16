@@ -1,0 +1,10 @@
+{
+  "name": "@futureverse/sylo-protocol-abi",
+  "version": "0.0.0-pre.1",
+  "description": "Compiled ABI's for the sylo protocol ethereum contracts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

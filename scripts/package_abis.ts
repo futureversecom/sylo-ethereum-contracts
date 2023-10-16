@@ -3,7 +3,7 @@ import path from 'path';
 
 const PKG_DIR =
   process.env.ABI_PACKAGE ??
-  path.resolve(__dirname, '../package/@sylo/ethereum-contracts-abi');
+  path.resolve(__dirname, '../package/@futureverse/sylo-protocol-abi');
 const ABI_DIR = path.resolve(__dirname, '../abi');
 
 const syloContracts = [
@@ -29,7 +29,7 @@ async function parseAbis() {
       const src = `${ABI_DIR}/${contract}.abi`;
       const abi = await fs.readFile(src).then((b: Buffer) => b.toString());
 
-      await fs.copyFile(src, `${PKG_DIR}/${contract}.abi`);
+      await fs.copyFile(src, `${PKG_DIR}/abis/${contract}.abi`);
 
       return { contract, abi };
     }),
