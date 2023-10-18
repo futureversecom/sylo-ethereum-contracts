@@ -204,6 +204,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
 
         unlockDuration = _unlockDuration;
         emit UnlockDurationUpdated(_unlockDuration);
+
+        revert UnlockDurationCannotBeZero();
     }
 
     /**
