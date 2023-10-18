@@ -25,6 +25,7 @@ async function main() {
       .connect(deployer)
       .transfer(node.signer.getAddress(), ethers.parseEther('110000'));
 
+    await utils.updateFuturepassRegistrar(contracts, node.signer);
     await utils.addStake(contracts, node.signer);
     await utils.registerNodes(contracts, node);
     await utils.setSeekerRegistry(contracts, node.signer, deployer, i);
@@ -43,6 +44,7 @@ async function main() {
       .connect(deployer)
       .transfer(node.signer.getAddress(), ethers.parseEther('1000000000'));
 
+    await utils.updateFuturepassRegistrar(contracts, node.signer);
     await utils.registerNodes(contracts, node);
     await utils.depositTicketing(contracts, node.signer);
 
