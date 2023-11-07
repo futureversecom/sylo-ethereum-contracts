@@ -46,18 +46,14 @@ const GenesisParameters: ContractParameters = {
       ? '0xcCCCcCcC00004274000000000000000000000000'
       : hre.network.name === 'nikau'
       ? '0xcccCccCC000042B4000000000000000000000000'
-      : hre.network.name === 'porcini'
-      ? '0xCCcCCcCC00000C64000000000000000000000000'
       : '',
 
   Seekers:
     hre.network.name === 'nikau'
       ? '0xC65fDC6c38D0a1d3524aE54ba205BDE197AbddbA'
-      : hre.network.name === 'porcini'
-      ? '0xAAAAAAAA00001864000000000000000000000000'
       : '',
 
-  FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
+  FuturepassRegistrar: '',
 
   EpochsManager: {
     initialEpoch: 0,

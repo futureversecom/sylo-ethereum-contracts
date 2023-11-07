@@ -25,6 +25,15 @@ export type IncentivisingNodeConfig =
       };
     };
 
+export async function updateFuturepassRegistrar(
+  contracts: Contracts.SyloContracts,
+  node: ethers.Signer,
+): Promise<void> {
+  await contracts.futurepassRegistrar.connect(node).create(node.getAddress(), {
+    gasLimit: 1_000_000,
+  });
+}
+
 export async function addStake(
   contracts: Contracts.SyloContracts,
   node: ethers.Signer,
