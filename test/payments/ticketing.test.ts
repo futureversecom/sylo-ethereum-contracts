@@ -49,7 +49,7 @@ describe('Ticketing', () => {
   let futurepassRegistrar: TestFuturepassRegistrar;
 
   enum Permission {
-    TicketSigning,
+    Signing,
   }
 
   before(async () => {
@@ -744,7 +744,7 @@ describe('Ticketing', () => {
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
       syloTicketing,
-      'InvalidSenderTicketSigningPermission',
+      'InvalidSenderSigningPermission',
     );
   });
 
@@ -767,7 +767,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
+    const permission: Permission[] = [Permission.Signing];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -797,7 +797,7 @@ describe('Ticketing', () => {
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
       syloTicketing,
-      'InvalidReceiverTicketSigningPermission',
+      'InvalidReceiverSigningPermission',
     );
   });
 
@@ -820,7 +820,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
+    const permission: Permission[] = [Permission.Signing];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -852,7 +852,7 @@ describe('Ticketing', () => {
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
       syloTicketing,
-      'InvalidSenderTicketSigningPermission',
+      'InvalidSenderSigningPermission',
     );
 
     await authorizedAccounts
@@ -860,13 +860,13 @@ describe('Ticketing', () => {
       .authorizeAccount(delegatedWallet.address, permission);
     await authorizedAccounts
       .connect(aliceConnected)
-      .removePermissions(delegatedWallet.address, [Permission.TicketSigning]);
+      .removePermissions(delegatedWallet.address, [Permission.Signing]);
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(
       syloTicketing,
-      'InvalidSenderTicketSigningPermission',
+      'InvalidSenderSigningPermission',
     );
   });
 
@@ -892,7 +892,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
+    const permission: Permission[] = [Permission.Signing];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -949,7 +949,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
+    const permission: Permission[] = [Permission.Signing];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -1002,7 +1002,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
+    const permission: Permission[] = [Permission.Signing];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -1059,7 +1059,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.TicketSigning];
+    const permission: Permission[] = [Permission.Signing];
     await authorizedAccounts
       .connect(alice.connect(ethers.provider))
       .authorizeAccount(aliceDelegatedWallet.address, permission);

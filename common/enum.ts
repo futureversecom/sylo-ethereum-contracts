@@ -1,3 +1,3 @@
 export enum Permission {
-  TicketSigning,
+  Signing,
 }

@@ -132,7 +132,7 @@ export async function authorizeAccount(
 ) {
   await contracts.authorizedAccounts
     .connect(main)
-    .authorizeAccount(authorized, [Permission.TicketSigning], {
+    .authorizeAccount(authorized, [Permission.Signing], {
       gasLimit: 1_000_000,
     });
 }

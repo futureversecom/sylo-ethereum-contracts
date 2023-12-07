@@ -252,7 +252,7 @@ describe('MultiReceiverTicketing', () => {
       ),
     ).to.be.revertedWithCustomError(
       syloTicketing,
-      'InvalidSenderTicketSigningPermission',
+      'InvalidSenderSigningPermission',
     );
 
     await expect(
@@ -265,7 +265,7 @@ describe('MultiReceiverTicketing', () => {
       ),
     ).to.be.revertedWithCustomError(
       syloTicketing,
-      'InvalidReceiverTicketSigningPermission',
+      'InvalidReceiverSigningPermission',
     );
 
     const malformedSig =

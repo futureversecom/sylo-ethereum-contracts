@@ -299,7 +299,7 @@ contract AuthorizedAccounts is
 
     function getAllPermissions() internal pure returns (Permission[] memory) {
         Permission[] memory permissions = new Permission[](1);
-        permissions[0] = Permission.TicketSigning;
+        permissions[0] = Permission.Signing;
         return permissions;
     }
 }
