@@ -19,7 +19,7 @@ describe('Authorized Accounts', () => {
   let authAccountsConnectMain: AuthorizedAccounts;
   let contracts: SyloContracts;
 
-  const permissionList: Permission[] = [Permission.TicketSigning];
+  const permissionList: Permission[] = [Permission.PersonalSign];
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -312,7 +312,7 @@ describe('Authorized Accounts', () => {
 
   it('can add permission for authorized account', async () => {
     const permission: Permission[] = [];
-    const newPermission: Permission[] = [Permission.TicketSigning];
+    const newPermission: Permission[] = [Permission.PersonalSign];
     await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
       permission,
@@ -347,7 +347,7 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions.length, 1);
     assert.equal(
       accounts[0].permissions[0].permission,
-      BigInt(Permission.TicketSigning),
+      BigInt(Permission.PersonalSign),
     );
     assert.equal(accounts[0].permissions[0].authorizedAt, await currentBlock());
   });
@@ -355,8 +355,8 @@ describe('Authorized Accounts', () => {
   it('can add multiple permissions (with duplicated permissions) for authorized account', async () => {
     const permission: Permission[] = [];
     const newPermissions: Permission[] = [
-      Permission.TicketSigning,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
+      Permission.PersonalSign,
     ];
     await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
@@ -388,13 +388,13 @@ describe('Authorized Accounts', () => {
   });
 
   it('can remove multiple permissions (with duplicated permissions) for authorized account', async () => {
-    const permissionsToAdd: Permission[] = [Permission.TicketSigning];
+    const permissionsToAdd: Permission[] = [Permission.PersonalSign];
     const permissionsToRemove: Permission[] = [
-      Permission.TicketSigning,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
+      Permission.PersonalSign,
     ];
     const emptyPermissions: Permission[] = [];
-    const permission2: Permission[] = [Permission.TicketSigning];
+    const permission2: Permission[] = [Permission.PersonalSign];
 
     await authAccountsConnectMain.authorizeAccount(
       delegatedAccount1,
@@ -450,7 +450,7 @@ describe('Authorized Accounts', () => {
     assert.equal(accounts[0].permissions.length, 1);
     assert.equal(
       accounts[0].permissions[0].permission,
-      BigInt(Permission.TicketSigning),
+      BigInt(Permission.PersonalSign),
     );
     assert.equal(accounts[0].permissions[0].authorizedAt, authorizedAtBlock);
     assert.equal(
@@ -565,7 +565,7 @@ describe('Authorized Accounts', () => {
 
   it('cannot validate permission with invalid main address ', async () => {
     const main = ethers.ZeroAddress;
-    const permission = Permission.TicketSigning;
+    const permission = Permission.PersonalSign;
     await expect(
       authAccountsConnectMain.validatePermission(
         main,
@@ -581,7 +581,7 @@ describe('Authorized Accounts', () => {
 
   it('cannot validate permission with invalid authorized address ', async () => {
     const authorizedAddress = ethers.ZeroAddress;
-    const permission = Permission.TicketSigning;
+    const permission = Permission.PersonalSign;
     await expect(
       authAccountsConnectMain.validatePermission(
         mainAccountAddress,
@@ -617,7 +617,7 @@ describe('Authorized Accounts', () => {
     const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       await currentBlock(),
     );
     assert.equal(validate, false);
@@ -632,7 +632,7 @@ describe('Authorized Accounts', () => {
     const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount2,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       await currentBlock(),
     );
 
@@ -649,7 +649,7 @@ describe('Authorized Accounts', () => {
     const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       await currentBlock(),
     );
 
@@ -670,7 +670,7 @@ describe('Authorized Accounts', () => {
     let validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       1000,
     );
     assert.equal(validate, false);
@@ -682,7 +682,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       1000,
     );
     assert.equal(validate, true);
@@ -695,7 +695,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       (await currentBlock()) - 3n,
     );
     assert.equal(validate, true);
@@ -704,7 +704,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock,
     );
     assert.equal(validate, true);
@@ -713,7 +713,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock - 1n,
     );
     assert.equal(validate, false);
@@ -722,7 +722,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       unauthBlock + 1n,
     );
     assert.equal(validate, false);
@@ -731,7 +731,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       unauthBlock + 123n,
     );
     assert.equal(validate, false);
@@ -743,7 +743,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock,
     );
     assert.equal(validate, true);
@@ -752,7 +752,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock + 10n,
     );
     assert.equal(validate, true);
@@ -761,7 +761,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock - 3n,
     );
     assert.equal(validate, false);
@@ -776,7 +776,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock - 3n,
     );
     assert.equal(validate, false);
@@ -785,7 +785,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock + 3n,
     );
     assert.equal(validate, true);
@@ -794,7 +794,7 @@ describe('Authorized Accounts', () => {
     validate = await authContract.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       authBlock - 1n,
     );
     assert.equal(validate, false);
@@ -809,7 +809,7 @@ describe('Authorized Accounts', () => {
     const validate = await authAccountsConnectMain.validatePermission(
       mainAccountAddress,
       delegatedAccount1,
-      Permission.TicketSigning,
+      Permission.PersonalSign,
       (await currentBlock()) + 1n,
     );
 

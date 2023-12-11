@@ -3,9 +3,9 @@ pragma solidity ^0.8.18;
 
 interface IAuthorizedAccounts {
     enum Permission {
-        // TicketSigning permission allows the authorized account to
-        // sign tickets for ticketing redemption.
-        TicketSigning
+        // PersonalSign permission allows the authorized account to
+        // sign on behalf of the sending account.
+        PersonalSign
     }
 
     /**

@@ -96,8 +96,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     error PenaltyAmountCannotBeZero();
     error UnlockDurationCannotBeZero();
     error AccountCannotBeZeroAddress();
-    error InvalidSenderTicketSigningPermission();
-    error InvalidReceiverTicketSigningPermission();
+    error InvalidSenderSigningPermission();
+    error InvalidReceiverSigningPermission();
 
     error TicketNotWinning();
     error MissingFuturepassAccount(address receiver);
@@ -515,11 +515,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (!hasTicketSigningPermission(ticket.sender, ticket.generationBlock)) {
-            revert InvalidSenderTicketSigningPermission();
+        if (!hasSigningPermission(ticket.sender, ticket.generationBlock)) {
+            revert InvalidSenderSigningPermission();
         }
-        if (!hasTicketSigningPermission(ticket.receiver, ticket.generationBlock)) {
-            revert InvalidReceiverTicketSigningPermission();
+        if (!hasSigningPermission(ticket.receiver, ticket.generationBlock)) {
+            revert InvalidReceiverSigningPermission();
         }
 
         if (!isValidTicketSig(ticket.sender, senderSig, ticketHash)) {
@@ -599,11 +599,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (!hasTicketSigningPermission(ticket.sender, ticket.generationBlock)) {
-            revert InvalidSenderTicketSigningPermission();
+        if (!hasSigningPermission(ticket.sender, ticket.generationBlock)) {
+            revert InvalidSenderSigningPermission();
         }
-        if (!hasTicketSigningPermission(receiver, ticket.generationBlock)) {
-            revert InvalidReceiverTicketSigningPermission();
+        if (!hasSigningPermission(receiver, ticket.generationBlock)) {
+            revert InvalidReceiverSigningPermission();
         }
 
         if (!isValidTicketSig(ticket.sender, senderSig, ticketHash)) {
@@ -628,7 +628,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         return (ticketHash, ticketReceiverHash);
     }
 
-    function hasTicketSigningPermission(
+    function hasSigningPermission(
         User memory user,
         uint256 generationBlock
     ) internal view returns (bool) {
@@ -636,7 +636,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             return true;
         }
 
-        IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.TicketSigning;
+        IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.PersonalSign;
         return
             _authorizedAccounts.validatePermission(
                 user.main,
