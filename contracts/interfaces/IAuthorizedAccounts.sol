@@ -3,9 +3,9 @@ pragma solidity ^0.8.18;
 
 interface IAuthorizedAccounts {
     enum Permission {
-        // Signing permission allows the authorized account to
+        // PersonalSign permission allows the authorized account to
         // sign on behalf of the sending account.
-        Signing
+        PersonalSign
     }
 
     /**

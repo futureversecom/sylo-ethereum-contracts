@@ -228,7 +228,7 @@ contract AuthorizedAccounts is
      * @param permission The permission needs to be verified with the authorized account
      * @param atBlock The block number to check if the permission is valid between
      * the permission's authorizedAt and unauthorizedAt period. It is added later to prevent
-     * the timing attack. E.g. If the main account authorizes the SigningTicket permission at
+     * the timing attack. E.g. If the main account authorizes the PersonalSign permission at
      * block 1, creates a ticket at block 2, then unauthorizes the permission at block 3, the
      * ticket will be invalid and cannot be redeemed. To avoid this, the `atBlock` param is
      * needed to check if the permission is authorized between its authorizedAt and unauthorizedAt
@@ -299,7 +299,7 @@ contract AuthorizedAccounts is
 
     function getAllPermissions() internal pure returns (Permission[] memory) {
         Permission[] memory permissions = new Permission[](1);
-        permissions[0] = Permission.Signing;
+        permissions[0] = Permission.PersonalSign;
         return permissions;
     }
 }

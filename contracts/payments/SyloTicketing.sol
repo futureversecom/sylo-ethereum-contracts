@@ -636,7 +636,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             return true;
         }
 
-        IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.Signing;
+        IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.PersonalSign;
         return
             _authorizedAccounts.validatePermission(
                 user.main,

@@ -49,7 +49,7 @@ describe('Ticketing', () => {
   let futurepassRegistrar: TestFuturepassRegistrar;
 
   enum Permission {
-    Signing,
+    PersonalSign,
   }
 
   before(async () => {
@@ -767,7 +767,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.Signing];
+    const permission: Permission[] = [Permission.PersonalSign];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -820,7 +820,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.Signing];
+    const permission: Permission[] = [Permission.PersonalSign];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -860,7 +860,7 @@ describe('Ticketing', () => {
       .authorizeAccount(delegatedWallet.address, permission);
     await authorizedAccounts
       .connect(aliceConnected)
-      .removePermissions(delegatedWallet.address, [Permission.Signing]);
+      .removePermissions(delegatedWallet.address, [Permission.PersonalSign]);
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
@@ -892,7 +892,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.Signing];
+    const permission: Permission[] = [Permission.PersonalSign];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -949,7 +949,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.Signing];
+    const permission: Permission[] = [Permission.PersonalSign];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -1002,7 +1002,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.Signing];
+    const permission: Permission[] = [Permission.PersonalSign];
     const provider = ethers.provider;
     const aliceConnected = alice.connect(provider);
     await authorizedAccounts
@@ -1059,7 +1059,7 @@ describe('Ticketing', () => {
     });
 
     // alice adds this account as delegated account with permission to withdraw deposit
-    const permission: Permission[] = [Permission.Signing];
+    const permission: Permission[] = [Permission.PersonalSign];
     await authorizedAccounts
       .connect(alice.connect(ethers.provider))
       .authorizeAccount(aliceDelegatedWallet.address, permission);
