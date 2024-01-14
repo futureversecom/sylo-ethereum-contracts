@@ -32,6 +32,7 @@ export type SyloContracts = {
   rewardsManager: factories.contracts.payments.ticketing.RewardsManager;
   directory: factories.contracts.staking.Directory;
   syloTicketing: factories.contracts.payments.SyloTicketing;
+  seekerPowerOracle: factories.contracts.SeekerPowerOracle;
   seekers: factories.contracts.mocks.TestSeekers;
   futurepassRegistrar: factories.contracts.mocks.TestFuturepassRegistrar;
 };

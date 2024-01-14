@@ -49,7 +49,7 @@ contract SeekerPowerOracle is
   }
 
   function setSeekerPowerRestricted(uint256 seekerId, uint256 power) external {
-    if (msg.sender != this.owner() || msg.sender != oracle) {
+    if (msg.sender != this.owner() && msg.sender != oracle) {
       revert UnauthorizedSetSeekerCall();
     }
 
@@ -57,8 +57,8 @@ contract SeekerPowerOracle is
     emit SeekerPowerUpdated(seekerId, power);
   }
 
-  function setSeekerPower(uint256 seekerId, uint256 power, bytes calldata proof) external {
-    bytes memory proofMessage = getProofMessage((seekerId, power);
+  function registerSeekerPower(uint256 seekerId, uint256 power, bytes calldata proof) external {
+    bytes memory proofMessage = getProofMessage(seekerId, power);
     bytes32 ecdsaHash = ECDSA.toEthSignedMessageHash(proofMessage);
 
     if (ECDSA.recover(ecdsaHash, proof) != oracle) {
@@ -73,7 +73,7 @@ contract SeekerPowerOracle is
     return seekerPowers[seekerId];
   }
 
-  function getProofMessage(uint256 seekerId, uint256 power) external view returns (bytes memory) {
+  function getProofMessage(uint256 seekerId, uint256 power) public pure returns (bytes memory) {
     return abi.encodePacked(
       Strings.toString(seekerId),
       ":",

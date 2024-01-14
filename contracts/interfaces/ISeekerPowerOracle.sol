@@ -6,7 +6,9 @@ interface ISeekerPowerOracle {
 
   function setSeekerPowerRestricted(uint256 seekerId, uint256 power) external;
 
-  function setSeekerPower(uint256 seekerId, uint256 power, bytes calldata proof) external;
+  function registerSeekerPower(uint256 seekerId, uint256 power, bytes calldata proof) external;
 
-  function getProofMessage(uint256 seekerId, uint256 power) external view returns (bytes memory);
+  function getSeekerPower(uint256 seekerId) external view returns (uint256);
+
+  function getProofMessage(uint256 seekerId, uint256 power) external pure returns (bytes memory);
 }
