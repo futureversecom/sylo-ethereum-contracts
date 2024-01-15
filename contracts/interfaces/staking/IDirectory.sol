@@ -27,7 +27,7 @@ interface IDirectory {
 
     function setCurrentDirectory(uint256 epochId) external;
 
-    function joinNextDirectory(address stakee) external;
+    function joinNextDirectory(address stakee, uint256 seekerId) external;
 
     function scan(uint128 point) external view returns (address stakee);
 

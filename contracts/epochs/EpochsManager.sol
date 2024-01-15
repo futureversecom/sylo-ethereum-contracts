@@ -232,7 +232,7 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
         activeSeekers[nextEpoch][seekerId] = msg.sender;
 
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
-        _directory.joinNextDirectory(msg.sender);
+        _directory.joinNextDirectory(msg.sender, seekerId);
 
         emit EpochJoined(nextEpoch, msg.sender, seekerId);
     }
