@@ -27,7 +27,7 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
     mapping(bytes32 => address) private proofNonces;
 
     /**
-     * @notice Tracks the set Seeker Power levels.
+     * @notice Tracks the set of Seeker Power levels.
      */
     mapping(uint256 => uint256) public seekerPowers;
 
