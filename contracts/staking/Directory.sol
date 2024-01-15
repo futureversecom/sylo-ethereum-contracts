@@ -81,7 +81,12 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
     }
 
     /**
-     * @notice This function is called by a node as a prerequisite to participate in the next epoch.
+     * @notice This function is called by the epochs manager as a prerequisite to when the node joins the next epoch.
+     * @param stakee The address of the node.
+     * @param seekerId The seekerId of the Seeker that the node is
+     * registered with when joining the epoch. It is used to determine the nodes
+     * staking capacity based on its seeker power.
+     *
      * @dev This will construct the directory as nodes join. The directory is constructed
      * by creating a boundary value which is a sum of the current directory's total stake, and
      * the current stakee's total stake, and pushing the new boundary into the entries array.
@@ -100,7 +105,7 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      */
-    function joinNextDirectory(address stakee) external onlyManager {
+    function joinNextDirectory(address stakee, uint256 seekerId) external onlyManager {
         if (stakee == address(0)) {
             revert StakeeCannotBeZeroAddress();
         }
@@ -113,6 +118,15 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
         }
 
         uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
+
+        uint256 seekerStakingCapacity = _stakingManager.calculateCapacityFromSeekerPower(seekerId);
+
+        // we take the minimum value between the currentStake and the current
+        // staking capacity
+        if (currentStake > seekerStakingCapacity) {
+            currentStake = seekerStakingCapacity;
+        }
+
         uint16 ownedStakeProportion = SyloUtils.asPerc(
             SafeCast.toUint128(currentStake),
             totalStake

@@ -49,6 +49,8 @@ interface IStakingManager {
 
     function cancelUnlocking(uint256 amount, address stakee) external;
 
+    function calculateCapacityFromSeekerPower(uint256 seekerId) external view returns (uint256);
+
     function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256);
 
     function getTotalManagedStake() external view returns (uint256);

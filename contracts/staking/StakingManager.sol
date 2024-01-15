@@ -9,6 +9,7 @@ import "../libraries/SyloUtils.sol";
 import "../epochs/EpochsManager.sol";
 import "../payments/ticketing/RewardsManager.sol";
 import "../interfaces/staking/IStakingManager.sol";
+import "../interfaces/ISeekerPowerOracle.sol";
 
 /**
  * @notice Manages stakes and delegated stakes for Nodes. Holding
@@ -27,6 +28,8 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
     RewardsManager public _rewardsManager;
 
     EpochsManager public _epochsManager;
+
+    ISeekerPowerOracle public _seekerPowerOracle;
 
     /**
      * @notice Tracks the managed stake for every Node.
@@ -70,11 +73,13 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
     error CannotCancelUnlockZeroAmount();
     error CannotUnlockMoreThanStaked(uint256 stakeAmount, uint256 unlockAmount);
     error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
+    error SeekerPowerNotRegistered(uint256 seekerId);
 
     function initialize(
         IERC20 token,
         RewardsManager rewardsManager,
         EpochsManager epochsManager,
+        ISeekerPowerOracle seekerPowerOracle,
         uint256 _unlockDuration,
         uint16 _minimumStakeProportion
     ) external initializer {
@@ -94,6 +99,12 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
             type(IEpochsManager).interfaceId
         );
 
+        SyloUtils.validateContractInterface(
+            "SeekerPowerOracle",
+            address(seekerPowerOracle),
+            type(ISeekerPowerOracle).interfaceId
+        );
+
         if (_unlockDuration == 0) {
             revert UnlockDurationCannotBeZero();
         }
@@ -103,6 +114,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         _token = token;
         _rewardsManager = rewardsManager;
         _epochsManager = epochsManager;
+        _seekerPowerOracle = seekerPowerOracle;
         unlockDuration = _unlockDuration;
         minimumStakeProportion = _minimumStakeProportion;
     }
@@ -299,6 +311,23 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         }
 
         _addStake(amount, stakee);
+    }
+
+    /**
+     * @notice This function determines the staking capacity of
+     * a Seeker based on its power level. The method will revert if
+     * the Seeker's power level has not been registered with the oracle.
+     *
+     * Currently the algorithm is as follows:
+     *    staking_capacity = seeker_power^2
+     */
+    function calculateCapacityFromSeekerPower(uint256 seekerId) external view returns (uint256) {
+        uint256 seekerPower = _seekerPowerOracle.getSeekerPower(seekerId);
+        if (seekerPower == 0) {
+            revert SeekerPowerNotRegistered(seekerId);
+        }
+
+        return seekerId ** 2;
     }
 
     /**
