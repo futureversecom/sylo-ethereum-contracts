@@ -4,6 +4,7 @@ import { SyloToken } from '../typechain-types';
 import utils from './utils';
 import { SyloContracts } from '../common/contracts';
 import { expect } from 'chai';
+import { randomBytes } from 'crypto';
 
 describe('Seeker Power Oracle', () => {
   let accounts: Signer[];
@@ -40,7 +41,9 @@ describe('Seeker Power Oracle', () => {
     const seekerId = 5;
 
     // check power of seeker id 5
-    const zeroPower = await contracts.seekerPowerOracle.seekerPowers(seekerId);
+    const zeroPower = await contracts.seekerPowerOracle.getSeekerPower(
+      seekerId,
+    );
     expect(zeroPower).to.equal(0);
 
     const seekerPower = 111;
@@ -48,9 +51,9 @@ describe('Seeker Power Oracle', () => {
     // update with oracle
     await contracts.seekerPowerOracle
       .connect(accounts[1])
-      .setSeekerPowerRestricted(seekerId, seekerPower);
+      .registerSeekerPowerRestricted(seekerId, seekerPower);
 
-    const updatedPower = await contracts.seekerPowerOracle.seekerPowers(
+    const updatedPower = await contracts.seekerPowerOracle.getSeekerPower(
       seekerId,
     );
     expect(updatedPower).to.equal(seekerPower);
@@ -60,28 +63,30 @@ describe('Seeker Power Oracle', () => {
     const seekerId = 5;
 
     // check power of seeker id 5
-    const zeroPower = await contracts.seekerPowerOracle.seekerPowers(seekerId);
+    const zeroPower = await contracts.seekerPowerOracle.getSeekerPower(
+      seekerId,
+    );
     expect(zeroPower).to.equal(0);
 
     const seekerPower = 111;
 
     // update with oracle
-    await contracts.seekerPowerOracle.setSeekerPowerRestricted(
+    await contracts.seekerPowerOracle.registerSeekerPowerRestricted(
       seekerId,
       seekerPower,
     );
 
-    const updatedPower = await contracts.seekerPowerOracle.seekerPowers(
+    const updatedPower = await contracts.seekerPowerOracle.getSeekerPower(
       seekerId,
     );
     expect(updatedPower).to.equal(seekerPower);
   });
 
-  it('only allows setSeekerPowerRestricted to be called by owner or oracle', async () => {
+  it('only allows registerSeekerPowerRestricted to be called by owner or oracle', async () => {
     await expect(
       contracts.seekerPowerOracle
         .connect(accounts[2]) // unauthorized caller
-        .setSeekerPowerRestricted(1, 2),
+        .registerSeekerPowerRestricted(1, 2),
     ).to.be.revertedWithCustomError(
       contracts.seekerPowerOracle,
       'UnauthorizedSetSeekerCall',
@@ -94,10 +99,12 @@ describe('Seeker Power Oracle', () => {
 
     const seekerId = 111;
     const seekerPower = 222;
+    const nonce = randomBytes(32);
 
     const proofMessage = await contracts.seekerPowerOracle.getProofMessage(
       seekerId,
       seekerPower,
+      nonce,
     );
 
     const proof = await accounts[1].signMessage(
@@ -106,9 +113,9 @@ describe('Seeker Power Oracle', () => {
 
     await contracts.seekerPowerOracle
       .connect(accounts[2])
-      .registerSeekerPower(seekerId, seekerPower, proof);
+      .registerSeekerPower(seekerId, seekerPower, nonce, proof);
 
-    const updatedPower = await contracts.seekerPowerOracle.seekerPowers(
+    const updatedPower = await contracts.seekerPowerOracle.getSeekerPower(
       seekerId,
     );
     expect(updatedPower).to.equal(seekerPower);
@@ -120,24 +127,52 @@ describe('Seeker Power Oracle', () => {
 
     const seekerId = 111;
     const seekerPower = 222;
+    const nonce = randomBytes(32);
 
     const proofMessage = await contracts.seekerPowerOracle.getProofMessage(
       seekerId,
       seekerPower,
+      nonce,
     );
 
     // sign with non-oracle account
-    const proof = await accounts[2].signMessage(
+    const invalidOracleProof = await accounts[2].signMessage(
       Buffer.from(proofMessage.slice(2), 'hex'),
     );
 
     await expect(
-      contracts.seekerPowerOracle
-        .connect(accounts[3])
-        .registerSeekerPower(seekerId, seekerPower, proof),
+      contracts.seekerPowerOracle.registerSeekerPower(
+        seekerId,
+        seekerPower,
+        nonce,
+        invalidOracleProof,
+      ),
     ).to.be.revertedWithCustomError(
       contracts.seekerPowerOracle,
       'UnauthorizedSetSeekerCall',
+    );
+
+    const validProof = await accounts[1].signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await contracts.seekerPowerOracle.registerSeekerPower(
+      seekerId,
+      seekerPower,
+      nonce,
+      validProof,
+    );
+
+    await expect(
+      contracts.seekerPowerOracle.registerSeekerPower(
+        seekerId,
+        seekerPower,
+        nonce,
+        validProof,
+      ),
+    ).to.be.revertedWithCustomError(
+      contracts.seekerPowerOracle,
+      'NonceCannotBeReused',
     );
   });
 
@@ -145,10 +180,12 @@ describe('Seeker Power Oracle', () => {
     for (let i = 1; i < 11; i++) {
       const seekerId = i;
       const seekerPower = i * 1111;
+      const nonce = randomBytes(32);
 
       const proofMessage = await contracts.seekerPowerOracle.getProofMessage(
         seekerId,
         seekerPower,
+        nonce,
       );
 
       const proof = await accounts[0].signMessage(
@@ -157,9 +194,9 @@ describe('Seeker Power Oracle', () => {
 
       await contracts.seekerPowerOracle
         .connect(accounts[i])
-        .registerSeekerPower(seekerId, seekerPower, proof);
+        .registerSeekerPower(seekerId, seekerPower, nonce, proof);
 
-      const updatedPower = await contracts.seekerPowerOracle.seekerPowers(
+      const updatedPower = await contracts.seekerPowerOracle.getSeekerPower(
         seekerId,
       );
       expect(updatedPower).to.equal(seekerPower);
@@ -170,10 +207,12 @@ describe('Seeker Power Oracle', () => {
     for (let i = 0; i < 5; i++) {
       const seekerId = 1;
       const seekerPower = i * 1111;
+      const nonce = randomBytes(32);
 
       const proofMessage = await contracts.seekerPowerOracle.getProofMessage(
         seekerId,
         seekerPower,
+        nonce,
       );
 
       const proof = await accounts[0].signMessage(
@@ -182,9 +221,9 @@ describe('Seeker Power Oracle', () => {
 
       await contracts.seekerPowerOracle
         .connect(accounts[1])
-        .registerSeekerPower(seekerId, seekerPower, proof);
+        .registerSeekerPower(seekerId, seekerPower, nonce, proof);
 
-      const updatedPower = await contracts.seekerPowerOracle.seekerPowers(
+      const updatedPower = await contracts.seekerPowerOracle.getSeekerPower(
         seekerId,
       );
       expect(updatedPower).to.equal(seekerPower);
