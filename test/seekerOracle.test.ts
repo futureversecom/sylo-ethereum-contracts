@@ -25,6 +25,12 @@ describe('Seeker Power Oracle', () => {
     contracts = await utils.initializeContracts(deployer, token);
   });
 
+  it('seeker power oracle cannot be initialized twice', async () => {
+    await expect(
+      contracts.seekerPowerOracle.initialize(deployer),
+    ).to.be.revertedWith('Initializable: contract is already initialized');
+  });
+
   it('can set oracle with owner', async () => {
     const oracle = await accounts[1].getAddress();
     await contracts.seekerPowerOracle.setOracle(oracle);
@@ -32,6 +38,12 @@ describe('Seeker Power Oracle', () => {
     const _oracle = await contracts.seekerPowerOracle.oracle();
 
     expect(_oracle).to.equal(oracle);
+  });
+
+  it('reverts with setting oracle with non-owner', async () => {
+    await expect(
+      contracts.seekerPowerOracle.connect(accounts[3]).setOracle(deployer),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
   it('can set seeker power with oracle', async () => {
