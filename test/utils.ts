@@ -16,7 +16,7 @@ type Options = {
   epochDuration?: number;
   minimumStakeProportion?: number;
   unlockDuration?: number;
-  oracle?: string;
+  seekerPowerOracleAccount?: string;
 };
 
 const initializeContracts = async function (
@@ -38,7 +38,7 @@ const initializeContracts = async function (
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
 
-  const oracle = opts.oracle ?? deployer;
+  const seekerPowerOracleAccount = opts.seekerPowerOracleAccount ?? deployer;
 
   const tokenAddress = await syloToken.getAddress();
 
@@ -126,7 +126,9 @@ const initializeContracts = async function (
     { from: deployer },
   );
   await authorizedAccounts.initialize({ from: deployer });
-  await seekerPowerOracle.initialize(oracle, { from: deployer });
+  await seekerPowerOracle.initialize(seekerPowerOracleAccount, {
+    from: deployer,
+  });
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
   const syloTicketing = await TicketingFactory.deploy();

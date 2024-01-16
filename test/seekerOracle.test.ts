@@ -94,14 +94,14 @@ describe('Seeker Power Oracle', () => {
     expect(updatedPower).to.equal(seekerPower);
   });
 
-  it('only allows registerSeekerPowerRestricted to be called by owner or oracle', async () => {
+  it('only allows registerSeekerPowerRestricted to be called by the oracle', async () => {
     await expect(
       contracts.seekerPowerOracle
         .connect(accounts[2]) // unauthorized caller
         .registerSeekerPowerRestricted(1, 2),
     ).to.be.revertedWithCustomError(
       contracts.seekerPowerOracle,
-      'UnauthorizedSetSeekerCall',
+      'UnauthorizedRegisterSeekerPowerCall',
     );
   });
 
@@ -161,7 +161,7 @@ describe('Seeker Power Oracle', () => {
       ),
     ).to.be.revertedWithCustomError(
       contracts.seekerPowerOracle,
-      'UnauthorizedSetSeekerCall',
+      'UnauthorizedRegisterSeekerPowerCall',
     );
 
     const validProof = await accounts[1].signMessage(

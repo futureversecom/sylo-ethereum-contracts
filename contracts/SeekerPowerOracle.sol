@@ -10,7 +10,7 @@ import "./interfaces/ISeekerPowerOracle.sol";
 
 /**
  * @notice Acts as a source of information for Seeker Powers. Allows setting
- * a Seeker's power level via a restricted owner call. Seeker Power can also
+ * a Seeker's power level via a restricted oracle account call. Seeker Power can also
  * be set by any account if the correct Oracle signature proof is provided.
  */
 contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpgradeable {
@@ -33,14 +33,14 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
 
     event SeekerPowerUpdated(uint256 indexed seekerId, uint256 indexed power);
 
+    error UnauthorizedRegisterSeekerPowerCall();
+    error NonceCannotBeReused();
+
     function initialize(address _oracle) external initializer {
         Ownable2StepUpgradeable.__Ownable2Step_init();
 
         oracle = _oracle;
     }
-
-    error UnauthorizedSetSeekerCall();
-    error NonceCannotBeReused();
 
     /**
      * @notice Sets the oracle account.
@@ -57,8 +57,8 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
      * @param power The power level of the Seeker.
      */
     function registerSeekerPowerRestricted(uint256 seekerId, uint256 power) external {
-        if (msg.sender != this.owner() && msg.sender != oracle) {
-            revert UnauthorizedSetSeekerCall();
+        if (msg.sender != oracle) {
+            revert UnauthorizedRegisterSeekerPowerCall();
         }
 
         seekerPowers[seekerId] = power;
@@ -85,13 +85,13 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
         bytes32 ecdsaHash = ECDSA.toEthSignedMessageHash(proofMessage);
 
         if (ECDSA.recover(ecdsaHash, proof) != oracle) {
-            revert UnauthorizedSetSeekerCall();
+            revert UnauthorizedRegisterSeekerPowerCall();
         }
 
         seekerPowers[seekerId] = power;
-        emit SeekerPowerUpdated(seekerId, power);
-
         proofNonces[nonce] = oracle;
+
+        emit SeekerPowerUpdated(seekerId, power);
     }
 
     /**
