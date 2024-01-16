@@ -35,6 +35,7 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
 
     error UnauthorizedRegisterSeekerPowerCall();
     error NonceCannotBeReused();
+    error PowerCannotBeZero();
 
     function initialize(address _oracle) external initializer {
         Ownable2StepUpgradeable.__Ownable2Step_init();
@@ -61,6 +62,10 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
             revert UnauthorizedRegisterSeekerPowerCall();
         }
 
+        if (power == 0) {
+            revert PowerCannotBeZero();
+        }
+
         seekerPowers[seekerId] = power;
         emit SeekerPowerUpdated(seekerId, power);
     }
@@ -79,6 +84,10 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
     ) external {
         if (proofNonces[nonce] != address(0)) {
             revert NonceCannotBeReused();
+        }
+
+        if (power == 0) {
+            revert PowerCannotBeZero();
         }
 
         bytes memory proofMessage = getProofMessage(seekerId, power, nonce);

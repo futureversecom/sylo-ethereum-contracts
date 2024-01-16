@@ -188,6 +188,39 @@ describe('Seeker Power Oracle', () => {
     );
   });
 
+  it('can not set seeker power to 0', async () => {
+    const seekerId = 111;
+
+    await expect(
+      contracts.seekerPowerOracle.registerSeekerPowerRestricted(seekerId, 0),
+    ).to.be.revertedWithCustomError(
+      contracts.seekerPowerOracle,
+      'PowerCannotBeZero',
+    );
+
+    const seekerPower = 0;
+    const nonce = randomBytes(32);
+
+    const proofMessage = await contracts.seekerPowerOracle.getProofMessage(
+      seekerId,
+      seekerPower,
+      nonce,
+    );
+
+    const proof = await accounts[1].signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await expect(
+      contracts.seekerPowerOracle
+        .connect(accounts[2])
+        .registerSeekerPower(seekerId, seekerPower, nonce, proof),
+    ).to.be.revertedWithCustomError(
+      contracts.seekerPowerOracle,
+      'PowerCannotBeZero',
+    );
+  });
+
   it('can update multiple seeker powers', async () => {
     for (let i = 1; i < 11; i++) {
       const seekerId = i;
@@ -216,7 +249,7 @@ describe('Seeker Power Oracle', () => {
   });
 
   it('can update the same seeker power multiple times', async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 1; i < 6; i++) {
       const seekerId = 1;
       const seekerPower = i * 1111;
       const nonce = randomBytes(32);
