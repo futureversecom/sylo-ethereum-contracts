@@ -9,6 +9,7 @@ import {
   SyloTicketing,
   SyloToken,
   TestSeekers,
+  SeekerPowerOracle,
 } from '../../typechain-types';
 import * as contractTypes from '../../typechain-types';
 import web3 from 'web3';
@@ -119,6 +120,7 @@ export const checkAfterRedeem = async (
 export async function setSeekerRegistry(
   seekers: TestSeekers,
   registries: Registries,
+  seekerPowerOracle: SeekerPowerOracle,
   account: Signer,
   seekerAccount: Signer,
   tokenId: number,
@@ -126,6 +128,7 @@ export async function setSeekerRegistry(
   await utils.setSeekerRegistry(
     registries,
     seekers,
+    seekerPowerOracle,
     account,
     seekerAccount,
     tokenId,

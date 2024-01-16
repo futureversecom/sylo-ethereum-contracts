@@ -1,7 +1,12 @@
 import { ethers } from 'hardhat';
-import { BigNumberish, Signer } from 'ethers';
+import { BigNumberish, MaxUint256, Signer } from 'ethers';
 import { toWei } from 'web3-utils';
-import { Registries, SyloToken, TestSeekers } from '../typechain-types';
+import {
+  Registries,
+  SeekerPowerOracle,
+  SyloToken,
+  TestSeekers,
+} from '../typechain-types';
 import { randomBytes } from 'crypto';
 import { SyloContracts } from '../common/contracts';
 
@@ -99,6 +104,7 @@ const initializeContracts = async function (
     tokenAddress,
     await rewardsManager.getAddress(),
     await epochsManager.getAddress(),
+    await seekerPowerOracle.getAddress(),
     unlockDuration,
     minimumStakeProportion,
     { from: deployer },
@@ -183,6 +189,7 @@ const advanceBlock = async function (i: number): Promise<void> {
 async function setSeekerRegistry(
   registries: Registries,
   seekers: TestSeekers,
+  seekerPowerOracle: SeekerPowerOracle,
   account: Signer,
   seekerAccount: Signer,
   tokenId: number,
@@ -214,6 +221,9 @@ async function setSeekerRegistry(
       nonce,
       signature,
     );
+
+  // set the seeker power default to the max value
+  await seekerPowerOracle.registerSeekerPowerRestricted(tokenId, MaxUint256);
 }
 
 export default {

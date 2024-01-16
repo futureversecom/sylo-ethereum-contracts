@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "./interfaces/ISeekerPowerOracle.sol";
 
@@ -13,7 +14,7 @@ import "./interfaces/ISeekerPowerOracle.sol";
  * a Seeker's power level via a restricted oracle account call. Seeker Power can also
  * be set by any account if the correct Oracle signature proof is provided.
  */
-contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpgradeable {
+contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpgradeable, ERC165 {
     /**
      * @notice The oracle account. This contract accepts any attestations of
      * Seeker power that have been signed by this account.
@@ -41,6 +42,14 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
         Ownable2StepUpgradeable.__Ownable2Step_init();
 
         oracle = _oracle;
+    }
+
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(ISeekerPowerOracle).interfaceId;
     }
 
     /**
