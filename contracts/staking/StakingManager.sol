@@ -18,6 +18,10 @@ import "../interfaces/ISeekerPowerOracle.sol";
  * and delegated stakers are rewarded on a pro-rata basis.
  */
 contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeable, ERC165 {
+    // The maximum possible SYLO that exists in the network. Naturally
+    // represents the maximum possible SYLO that can be staked.
+    uint256 internal constant MAX_SYLO = 10_000_000_000 ether;
+
     /** ERC 20 compatible token we are dealing with */
     IERC20 public _token;
 
@@ -327,7 +331,15 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
             revert SeekerPowerNotRegistered(seekerId);
         }
 
-        return seekerId ** 2;
+        // If the Seeker Power is already
+        // at the maximum sylo, then we just return the max sylo value directly.
+        if (seekerPower >= MAX_SYLO) {
+            return MAX_SYLO;
+        }
+
+        uint256 capacity = seekerPower ** 2 * 1 ether;
+
+        return capacity > MAX_SYLO ? MAX_SYLO : capacity;
     }
 
     /**

@@ -5,6 +5,7 @@ import {
   EpochsManager,
   Registries,
   RewardsManager,
+  SeekerPowerOracle,
   StakingManager,
   SyloTicketing,
   SyloToken,
@@ -34,6 +35,7 @@ describe('MultiReceiverTicketing', () => {
   let registries: Registries;
   let stakingManager: StakingManager;
   let seekers: TestSeekers;
+  let seekerPowerOracle: SeekerPowerOracle;
   let futurepassRegistrar: TestFuturepassRegistrar;
 
   before(async () => {
@@ -57,6 +59,7 @@ describe('MultiReceiverTicketing', () => {
     registries = contracts.registries;
     stakingManager = contracts.stakingManager;
     seekers = contracts.seekers;
+    seekerPowerOracle = contracts.seekerPowerOracle;
     futurepassRegistrar = contracts.futurepassRegistrar;
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
@@ -65,7 +68,14 @@ describe('MultiReceiverTicketing', () => {
 
   it('can redeem multi receiver ticket', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -115,7 +125,14 @@ describe('MultiReceiverTicketing', () => {
     await ticketingParameters.setTicketDuration(10000000000);
 
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -295,7 +312,14 @@ describe('MultiReceiverTicketing', () => {
     await ticketingParameters.setBaseLiveWinProb(0);
 
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -355,7 +379,14 @@ describe('MultiReceiverTicketing', () => {
 
   it('cannot redeem multi receiver ticket if node has not joined epoch', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
 
     await epochsManager.initializeEpoch();
 
@@ -391,7 +422,14 @@ describe('MultiReceiverTicketing', () => {
 
   it('can not redeem for non valid receiver', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();
@@ -428,7 +466,14 @@ describe('MultiReceiverTicketing', () => {
 
   it('can not redeem for the same user more than once', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
-    await setSeekerRegistry(seekers, registries, accounts[0], accounts[1], 1);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
 
     await epochsManager.joinNextEpoch();
     await epochsManager.initializeEpoch();

@@ -117,15 +117,15 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
             revert NoStakeToJoinEpoch();
         }
 
-        uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
-
         uint256 seekerStakingCapacity = _stakingManager.calculateCapacityFromSeekerPower(seekerId);
 
-        // we take the minimum value between the currentStake and the current
+        // we take the minimum value between the total stake and the current
         // staking capacity
-        if (currentStake > seekerStakingCapacity) {
-            currentStake = seekerStakingCapacity;
+        if (totalStake > seekerStakingCapacity) {
+            totalStake = seekerStakingCapacity;
         }
+
+        uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
 
         uint16 ownedStakeProportion = SyloUtils.asPerc(
             SafeCast.toUint128(currentStake),
