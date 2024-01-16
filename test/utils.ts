@@ -16,6 +16,7 @@ type Options = {
   epochDuration?: number;
   minimumStakeProportion?: number;
   unlockDuration?: number;
+  seekerPowerOracleAccount?: string;
 };
 
 const initializeContracts = async function (
@@ -36,6 +37,8 @@ const initializeContracts = async function (
   const unlockDuration = opts.unlockDuration ?? 10;
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
+
+  const seekerPowerOracleAccount = opts.seekerPowerOracleAccount ?? deployer;
 
   const tokenAddress = await syloToken.getAddress();
 
@@ -87,6 +90,11 @@ const initializeContracts = async function (
   );
   const authorizedAccounts = await AuthorizedAccountFactory.deploy();
 
+  const SeekerPowerOracleFactory = await ethers.getContractFactory(
+    'SeekerPowerOracle',
+  );
+  const seekerPowerOracle = await SeekerPowerOracleFactory.deploy();
+
   await stakingManager.initialize(
     tokenAddress,
     await rewardsManager.getAddress(),
@@ -118,6 +126,9 @@ const initializeContracts = async function (
     { from: deployer },
   );
   await authorizedAccounts.initialize({ from: deployer });
+  await seekerPowerOracle.initialize(seekerPowerOracleAccount, {
+    from: deployer,
+  });
 
   const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
   const syloTicketing = await TicketingFactory.deploy();
@@ -157,6 +168,7 @@ const initializeContracts = async function (
     directory,
     syloTicketing,
     seekers,
+    seekerPowerOracle,
     futurepassRegistrar,
   };
 };
