@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { MaxUint256, ethers } from 'ethers';
 import * as Contracts from '../common/contracts';
 import contractAddress from '../deployments/ganache_deployment_phase_two.json';
 import { randomBytes } from 'crypto';
@@ -96,6 +96,10 @@ export async function setSeekerRegistry(
       signature,
       { gasLimit: 1_000_000 },
     );
+
+  await contracts.seekerPowerOracle
+    .connect(seekerAccount)
+    .registerSeekerPowerRestricted(tokenId, MaxUint256);
 }
 
 export async function depositTicketing(

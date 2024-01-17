@@ -30,6 +30,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const contracts: ContractMap = {};
 
+  console.log(
+    `Deploying Sylo Protocol Contracts with deployer: ${deployer.address}...`,
+  );
+
   // DEPLOY CONTRACTS
   if (config.SyloToken == '') {
     config.SyloToken = (
@@ -97,6 +101,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         config.SyloToken,
         contracts[ContractNames.rewardsManager].address,
         contracts[ContractNames.epochsManager].address,
+        contracts[ContractNames.seekerPowerOracle].address,
         config.StakingManager.unlockDuration,
         config.StakingManager.minimumStakeProportion,
       ],
@@ -129,6 +134,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         config.FuturepassRegistrar,
         config.Ticketing.unlockDuration,
       ],
+    },
+    {
+      name: ContractNames.seekerPowerOracle,
+      args: [config.SeekerPowerOracle.oracleAccount],
     },
   ];
   for (const { name, args } of initializeParams) {
@@ -167,8 +176,6 @@ function getConfig(networkName: string): configs.ContractParameters {
   switch (networkName) {
     case 'porcini-dev':
       return configs.PorciniDevParameters;
-    case 'porcini-testing':
-      return configs.PorciniTestingParameters;
     case 'locahost':
       return configs.GanacheTestnetParameters;
     default:
@@ -264,6 +271,7 @@ async function saveContracts(
     directory: contracts[ContractNames.directory].address,
     syloTicketing: contracts[ContractNames.syloTicketing].address,
     seekers: config.Seekers,
+    seekerPowerOracle: contracts[ContractNames.seekerPowerOracle].address,
     futurepassRegistrar: config.FuturepassRegistrar,
   };
 
