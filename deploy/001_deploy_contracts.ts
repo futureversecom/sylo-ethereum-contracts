@@ -104,6 +104,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         contracts[ContractNames.seekerPowerOracle].address,
         config.StakingManager.unlockDuration,
         config.StakingManager.minimumStakeProportion,
+        config.StakingManager.seekerPowerMultiplier,
       ],
     },
     {

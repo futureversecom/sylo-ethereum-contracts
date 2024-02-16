@@ -35,6 +35,7 @@ type ContractParameters = {
   StakingManager: {
     unlockDuration: BigNumberish;
     minimumStakeProportion: number;
+    seekerPowerMultiplier: BigNumberish;
   };
 
   SeekerPowerOracle: {
@@ -83,6 +84,7 @@ const GenesisParameters: ContractParameters = {
   StakingManager: {
     unlockDuration: 8000,
     minimumStakeProportion: 20000,
+    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
   },
 
   SeekerPowerOracle: {
@@ -120,7 +122,8 @@ const GanacheTestnetParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
-    minimumStakeProportion: 3000,
+    minimumStakeProportion: 20000,
+    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
   },
 
   SeekerPowerOracle: {
@@ -159,6 +162,7 @@ const PorciniDevParameters: ContractParameters = {
   StakingManager: {
     unlockDuration: 10,
     minimumStakeProportion: 20000,
+    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
   },
 
   SeekerPowerOracle: {
