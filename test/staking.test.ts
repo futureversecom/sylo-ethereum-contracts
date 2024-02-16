@@ -18,6 +18,8 @@ import crypto from 'crypto';
 
 type Results = { [key: string]: number };
 
+const MAX_SYLO_STAKE = ethers.parseEther('10000000000');
+
 describe('Staking', () => {
   let accounts: Signer[];
   let owner: string;
@@ -72,6 +74,7 @@ describe('Staking', () => {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         0,
+        0,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
   });
@@ -88,6 +91,7 @@ describe('Staking', () => {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         0,
+        0,
       ),
     ).to.be.revertedWithCustomError(stakingManager, 'TokenCannotBeZeroAddress');
 
@@ -98,6 +102,7 @@ describe('Staking', () => {
         await seekerPowerOracle.getAddress(),
         ethers.ZeroAddress,
         ethers.ZeroAddress,
+        0,
         0,
       ),
     )
@@ -113,6 +118,7 @@ describe('Staking', () => {
         await rewardsManager.getAddress(),
         await epochsManager.getAddress(),
         await seekerPowerOracle.getAddress(),
+        0,
         0,
         0,
       ),
@@ -1059,13 +1065,14 @@ describe('Staking', () => {
   });
 
   it('correctly calculates seeker staking capacity from power', async () => {
+    // default multiplier is 1M
     const seekerPowers = [
-      { seekerId: 10, power: 100, expectedSyloCapacity: 10000 },
-      { seekerId: 11, power: 222, expectedSyloCapacity: 49284 },
-      { seekerId: 12, power: 432, expectedSyloCapacity: 186624 },
-      { seekerId: 13, power: 1000, expectedSyloCapacity: 1000000 },
-      { seekerId: 14, power: 2000, expectedSyloCapacity: 4000000 },
-      { seekerId: 15, power: 100, expectedSyloCapacity: 10000 },
+      { seekerId: 10, power: 100, expectedSyloCapacity: 100000000 },
+      { seekerId: 11, power: 222, expectedSyloCapacity: 222000000 },
+      { seekerId: 12, power: 432, expectedSyloCapacity: 432000000 },
+      { seekerId: 13, power: 3, expectedSyloCapacity: 3000000 },
+      { seekerId: 14, power: 4, expectedSyloCapacity: 4000000 },
+      { seekerId: 15, power: 8, expectedSyloCapacity: 8000000 },
     ];
 
     for (const sp of seekerPowers) {
@@ -1087,28 +1094,29 @@ describe('Staking', () => {
   });
 
   it('returns maximum SYLO amount if seeker power is very large', async () => {
-    const maxSylo = ethers.parseEther('10000000000');
-
     // 1 more than the maximum sylo
-    await seekerPowerOracle.registerSeekerPowerRestricted(111, maxSylo + 1n);
+    await seekerPowerOracle.registerSeekerPowerRestricted(
+      111,
+      MAX_SYLO_STAKE + 1n,
+    );
 
     const capacityOne = await stakingManager.calculateCapacityFromSeekerPower(
       111,
     );
 
-    expect(capacityOne).to.equal(maxSylo);
+    expect(capacityOne).to.equal(MAX_SYLO_STAKE);
 
-    // seeker_power ** 2 > maximum_sylo
+    // seeker_power * multiplier > maximum_sylo
     await seekerPowerOracle.registerSeekerPowerRestricted(
       222,
-      Math.sqrt(parseInt(maxSylo.toString())) + 1,
+      MAX_SYLO_STAKE / 2n,
     );
 
     const capacityTwo = await stakingManager.calculateCapacityFromSeekerPower(
       222,
     );
 
-    expect(capacityTwo).to.equal(maxSylo);
+    expect(capacityTwo).to.equal(MAX_SYLO_STAKE);
   });
 
   it('reverts when joining directory without seeker power registered', async () => {
@@ -1121,21 +1129,21 @@ describe('Staking', () => {
   });
 
   it('joins directory with stake where maximum is dependent on seeker power', async () => {
-    const stakeToAdd = ethers.parseEther('1000000');
+    const stakeToAdd = ethers.parseEther('10000000');
 
     await token.approve(stakingManager.getAddress(), stakeToAdd);
     await stakingManager.addStake(stakeToAdd, owner);
 
-    // the added stake is 1,000,000 SYLO, but the seeker power capacity
-    // is 490,000 SYLO.
-    await seekerPowerOracle.registerSeekerPowerRestricted(111, 700);
+    // the added stake is 10,000,000 SYLO, but the seeker power capacity
+    // is 4,000,000
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 4);
 
     await directory.addManager(owner);
     await directory.joinNextDirectory(owner, 111);
 
     const joinedStake = await directory.getTotalStakeForStakee(1, owner);
 
-    expect(joinedStake).to.equal(ethers.parseEther('490000'));
+    expect(joinedStake).to.equal(ethers.parseEther('4000000'));
   });
 
   async function setSeekeRegistry(

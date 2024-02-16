@@ -11,6 +11,11 @@ error TargetNotSupportInterface(string name, bytes4 interfaceId);
 
 library SyloUtils {
     /**
+     * @dev The maximum possible SYLO that exists in the network.
+     */
+    uint256 public constant MAX_SYLO = 10_000_000_000 ether;
+
+    /**
      * @dev Percentages are expressed as a ratio where 10000 is the denominator.
      * A large denominator allows for more precision, e.g representing 12.5%
      * can be done as 1250 / 10000

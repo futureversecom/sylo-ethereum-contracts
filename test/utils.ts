@@ -20,6 +20,7 @@ type Options = {
   initialEpoch?: number;
   epochDuration?: number;
   minimumStakeProportion?: number;
+  seekerPowerMultiplier?: BigNumberish;
   unlockDuration?: number;
   seekerPowerOracleAccount?: string;
 };
@@ -42,6 +43,9 @@ const initializeContracts = async function (
   const unlockDuration = opts.unlockDuration ?? 10;
 
   const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
+
+  const seekerPowerMultiplier =
+    opts.seekerPowerMultiplier ?? ethers.parseEther('1000000');
 
   const seekerPowerOracleAccount = opts.seekerPowerOracleAccount ?? deployer;
 
@@ -107,6 +111,7 @@ const initializeContracts = async function (
     await seekerPowerOracle.getAddress(),
     unlockDuration,
     minimumStakeProportion,
+    seekerPowerMultiplier,
     { from: deployer },
   );
   await rewardsManager.initialize(
