@@ -58,7 +58,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      * represented as a percentage of the Node's total stake, where
      * the value is a ratio of 10000.
      */
-    uint16 public minimumStakeProportion;
+    uint32 public minimumStakeProportion;
 
     /**
      * @notice The multiplier used in determining a Seeker's staking
@@ -87,7 +87,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         EpochsManager epochsManager,
         SeekerPowerOracle seekerPowerOracle,
         uint256 _unlockDuration,
-        uint16 _minimumStakeProportion,
+        uint32 _minimumStakeProportion,
         uint256 _seekerPowerMultiplier
     ) external initializer {
         if (address(token) == address(0)) {
@@ -154,7 +154,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      * the owner.
      * @param _minimumStakeProportion The minimum stake proportion in SOLO.
      */
-    function setMinimumStakeProportion(uint16 _minimumStakeProportion) external onlyOwner {
+    function setMinimumStakeProportion(uint32 _minimumStakeProportion) external onlyOwner {
         minimumStakeProportion = _minimumStakeProportion;
         emit MinimumStakeProportionUpdated(_minimumStakeProportion);
     }
@@ -436,7 +436,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        uint16 ownedStakeProportion = SyloUtils.asPerc(
+        uint32 ownedStakeProportion = SyloUtils.asPerc(
             SafeCast.toUint128(currentlyOwnedStake),
             stake.totalManagedStake
         );

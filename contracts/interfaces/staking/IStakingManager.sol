@@ -39,7 +39,7 @@ interface IStakingManager {
 
     function setUnlockDuration(uint256 _unlockDuration) external;
 
-    function setMinimumStakeProportion(uint16 _minimumStakeProportion) external;
+    function setMinimumStakeProportion(uint32 _minimumStakeProportion) external;
 
     function addStake(uint256 amount, address stakee) external;
 
