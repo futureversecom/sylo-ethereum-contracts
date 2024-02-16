@@ -6,10 +6,10 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 import "../SyloToken.sol";
 import "../libraries/SyloUtils.sol";
+import "../SeekerPowerOracle.sol";
 import "../epochs/EpochsManager.sol";
 import "../payments/ticketing/RewardsManager.sol";
 import "../interfaces/staking/IStakingManager.sol";
-import "../interfaces/ISeekerPowerOracle.sol";
 
 /**
  * @notice Manages stakes and delegated stakes for Nodes. Holding
@@ -18,10 +18,6 @@ import "../interfaces/ISeekerPowerOracle.sol";
  * and delegated stakers are rewarded on a pro-rata basis.
  */
 contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeable, ERC165 {
-    // The maximum possible SYLO that exists in the network. Naturally
-    // represents the maximum possible SYLO that can be staked.
-    uint256 internal constant MAX_SYLO = 10_000_000_000 ether;
-
     /** ERC 20 compatible token we are dealing with */
     IERC20 public _token;
 
@@ -33,7 +29,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
 
     EpochsManager public _epochsManager;
 
-    ISeekerPowerOracle public _seekerPowerOracle;
+    SeekerPowerOracle public _seekerPowerOracle;
 
     /**
      * @notice Tracks the managed stake for every Node.
@@ -64,6 +60,12 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      */
     uint16 public minimumStakeProportion;
 
+    /**
+     * @notice The multiplier used in determining a Seeker's staking
+     * capacity based on its power level.
+     */
+    uint256 public seekerPowerMultiplier;
+
     event UnlockDurationUpdated(uint256 unlockDuration);
     event MinimumStakeProportionUpdated(uint256 minimumStakeProportion);
 
@@ -83,9 +85,10 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         IERC20 token,
         RewardsManager rewardsManager,
         EpochsManager epochsManager,
-        ISeekerPowerOracle seekerPowerOracle,
+        SeekerPowerOracle seekerPowerOracle,
         uint256 _unlockDuration,
-        uint16 _minimumStakeProportion
+        uint16 _minimumStakeProportion,
+        uint256 _seekerPowerMultiplier
     ) external initializer {
         if (address(token) == address(0)) {
             revert TokenCannotBeZeroAddress();
@@ -121,6 +124,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         _seekerPowerOracle = seekerPowerOracle;
         unlockDuration = _unlockDuration;
         minimumStakeProportion = _minimumStakeProportion;
+        seekerPowerMultiplier = _seekerPowerMultiplier;
     }
 
     /**
@@ -323,7 +327,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      * the Seeker's power level has not been registered with the oracle.
      *
      * Currently the algorithm is as follows:
-     *    staking_capacity = seeker_power^2
+     *    staking_capacity = seeker_power * seeker_power_multiplier;
      */
     function calculateCapacityFromSeekerPower(uint256 seekerId) external view returns (uint256) {
         uint256 seekerPower = _seekerPowerOracle.getSeekerPower(seekerId);
@@ -333,13 +337,13 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
 
         // If the Seeker Power is already
         // at the maximum sylo, then we just return the max sylo value directly.
-        if (seekerPower >= MAX_SYLO) {
-            return MAX_SYLO;
+        if (seekerPower >= SyloUtils.MAX_SYLO) {
+            return SyloUtils.MAX_SYLO;
         }
 
-        uint256 capacity = seekerPower ** 2 * 1 ether;
+        uint256 capacity = seekerPower * seekerPowerMultiplier;
 
-        return capacity > MAX_SYLO ? MAX_SYLO : capacity;
+        return capacity > SyloUtils.MAX_SYLO ? SyloUtils.MAX_SYLO : capacity;
     }
 
     /**

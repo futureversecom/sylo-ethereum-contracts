@@ -104,6 +104,11 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
      *
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
+     *
+     * The amount of stake will join a directory with is dependent on its
+     * capacity. We first consider the capacity based on the it's Seeker power.
+     * We then consider its capacity based on the minimum stake proportion
+     * factor. The final staking amount will not exceed either capacities.
      */
     function joinNextDirectory(address stakee, uint256 seekerId) external onlyManager {
         if (stakee == address(0)) {
