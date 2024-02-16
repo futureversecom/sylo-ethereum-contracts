@@ -347,13 +347,11 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
     }
 
     /**
-     * @notice This function should be called by clients to determine how much
-     * additional delegated stake can be allocated to a Node via an addStake or
-     * cancelUnlocking call. This is useful to avoid a revert due to
-     * the minimum stake proportion requirement not being met from the additional stake.
+     * @notice This function can be used to a determine a Node's staking capacity,
+     * based on the minimum stake proportion constant.
      * @param stakee The address of the staked Node.
      */
-    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
+    function calculateCapacityFromMinStakingProportion(address stakee) public view returns (uint256) {
         if (stakee == address(0)) {
             revert StakeeCannotBeZeroAddress();
         }
@@ -361,8 +359,21 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        uint256 totalMaxStake = (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
+        return (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
             minimumStakeProportion;
+    }
+
+    /**
+     * @notice This function should be called by clients to determine how much
+     * additional delegated stake can be allocated to a Node via an addStake or
+     * cancelUnlocking call. This is useful to avoid a revert due to
+     * the minimum stake proportion requirement not being met from the additional stake.
+     * @param stakee The address of the staked Node.
+     */
+    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
+        uint256 totalMaxStake = calculateCapacityFromMinStakingProportion(stakee);
+
+        Stake storage stake = stakes[stakee];
 
         if (totalMaxStake < stake.totalManagedStake) {
             revert StakeCapacityReached(totalMaxStake, stake.totalManagedStake);

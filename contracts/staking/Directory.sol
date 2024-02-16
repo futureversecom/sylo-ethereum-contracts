@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
 import "./StakingManager.sol";
 import "../libraries/SyloUtils.sol";
 import "../libraries/Manageable.sol";
@@ -105,10 +107,12 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
      *
-     * The amount of stake will join a directory with is dependent on its
-     * capacity. We first consider the capacity based on the it's Seeker power.
-     * We then consider its capacity based on the minimum stake proportion
-     * factor. The final staking amount will not exceed either capacities.
+     * The amount of stake that a node will join a directory with is dependent on its
+     * different capacity values. There are two distinct capacity values, one
+     * calculated from the seeker power, and another from the minimum stake
+     * proportion. The final staking amount will not exceed either capacities,
+     * and in the case that the current total stake exceeds both, then the final
+     * will be the minimum of the two values.
      */
     function joinNextDirectory(address stakee, uint256 seekerId) external onlyManager {
         if (stakee == address(0)) {
@@ -122,31 +126,23 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
             revert NoStakeToJoinEpoch();
         }
 
+        // staking capacity based on seeker power
         uint256 seekerStakingCapacity = _stakingManager.calculateCapacityFromSeekerPower(seekerId);
 
-        // we take the minimum value between the total stake and the current
-        // staking capacity
-        if (totalStake > seekerStakingCapacity) {
-            totalStake = seekerStakingCapacity;
-        }
-
-        uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
-
-        uint16 ownedStakeProportion = SyloUtils.asPerc(
-            SafeCast.toUint128(currentStake),
-            totalStake
-        );
-
-        uint16 minimumStakeProportion = _stakingManager.minimumStakeProportion();
+        // staking capacity based on the min staking proportion constant
+        uint256 minProportionStakingCapacity = _stakingManager.calculateCapacityFromMinStakingProportion(stakee);
 
         uint256 joiningStake;
-        if (ownedStakeProportion >= minimumStakeProportion) {
+        if (totalStake > seekerStakingCapacity && totalStake > minProportionStakingCapacity) {
+            joiningStake = Math.min(seekerStakingCapacity, minProportionStakingCapacity);
+        } else if (totalStake > seekerStakingCapacity) {
+            joiningStake = seekerStakingCapacity;
+        } else if (totalStake > minProportionStakingCapacity) {
+            joiningStake = minProportionStakingCapacity;
+        } else { // uncapped
             joiningStake = totalStake;
-        } else {
-            // if the node is below the minimum stake proportion, then we reduce
-            // the stake used to join the epoch proportionally
-            joiningStake = (totalStake * ownedStakeProportion) / minimumStakeProportion;
         }
+
         if (joiningStake == 0) {
             revert NoJoiningStakeToJoinEpoch();
         }

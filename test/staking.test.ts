@@ -1146,6 +1146,37 @@ describe('Staking', () => {
     expect(joinedStake).to.equal(ethers.parseEther('4000000'));
   });
 
+  it('joins directory with stake where maximum neither exceeds seeker power capacity or proportion capacity', async () => {
+    const stakeToAdd = ethers.parseEther('100000');
+
+    await token.approve(stakingManager.getAddress(), stakeToAdd);
+    await stakingManager.addStake(stakeToAdd, owner);
+
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 4);
+
+    // delegated stake added causes the minimum proportion to be exceeded
+    const delegatedStakeToAdd = ethers.parseEther('1000000');
+
+    await token.transfer(accounts[2], delegatedStakeToAdd);
+    await token
+      .connect(accounts[2])
+      .approve(stakingManager.getAddress(), delegatedStakeToAdd);
+    await stakingManager
+      .connect(accounts[2])
+      .addStake(delegatedStakeToAdd, owner);
+
+    await directory.addManager(owner);
+    await directory.joinNextDirectory(owner, 111);
+
+    const joinedStake = await directory.getTotalStakeForStakee(1, owner);
+
+    // The seeker staking capacity is 1M, and the proportion capacity is 500k.
+    // In this case the total stake exceeds both, and the joined stake should be
+    // the lesser of the two capacities.
+
+    expect(joinedStake).to.equal(ethers.parseEther('500000'));
+  });
+
   async function setSeekeRegistry(
     account: Signer,
     seekerAccount: Signer,
