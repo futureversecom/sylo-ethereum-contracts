@@ -49,8 +49,8 @@ describe('Registries', () => {
     );
 
     await expect(
-      registries.initialize(await seekers.getAddress(), 10001),
-    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
+      registries.initialize(await seekers.getAddress(), 100001),
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed100000');
   });
 
   it('can allow owner to set default payout percentage', async () => {
@@ -183,8 +183,8 @@ describe('Registries', () => {
 
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
-      registries.setDefaultPayoutPercentage(10001),
-    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
+      registries.setDefaultPayoutPercentage(100001),
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed100000');
   });
 
   it('can set seeker account with valid proof', async () => {

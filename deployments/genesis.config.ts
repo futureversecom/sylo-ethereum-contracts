@@ -66,7 +66,7 @@ const GenesisParameters: ContractParameters = {
   },
 
   Registries: {
-    defaultPayoutPercentage: 5000,
+    defaultPayoutPercentage: 50000,
   },
 
   TicketingParameters: {
@@ -74,7 +74,7 @@ const GenesisParameters: ContractParameters = {
     baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
     expiredWinProb: (2n ** 128n - 1n) / 1000n,
     ticketDuration: 80000,
-    decayRate: 8000,
+    decayRate: 80000,
   },
 
   Ticketing: {
@@ -105,7 +105,7 @@ const GanacheTestnetParameters: ContractParameters = {
   },
 
   Registries: {
-    defaultPayoutPercentage: 5000,
+    defaultPayoutPercentage: 50000,
   },
 
   TicketingParameters: {
@@ -113,7 +113,7 @@ const GanacheTestnetParameters: ContractParameters = {
     baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
     expiredWinProb: (2n ** 128n - 1n) / 1000n,
     ticketDuration: 10_000_000, // make sure the ticket never expires in the short time on testnet
-    decayRate: 8000,
+    decayRate: 80000,
   },
 
   Ticketing: {
@@ -144,7 +144,7 @@ const PorciniDevParameters: ContractParameters = {
   },
 
   Registries: {
-    defaultPayoutPercentage: 5000,
+    defaultPayoutPercentage: 50000,
   },
 
   TicketingParameters: {
@@ -152,7 +152,7 @@ const PorciniDevParameters: ContractParameters = {
     baseLiveWinProb: 2n ** 128n - 1n / 10n,
     expiredWinProb: 2n ** 128n - 1n,
     ticketDuration: 17280,
-    decayRate: 8000,
+    decayRate: 80000,
   },
 
   Ticketing: {

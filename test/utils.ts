@@ -30,12 +30,14 @@ const initializeContracts = async function (
   syloToken: SyloToken,
   opts: Options = {},
 ): Promise<SyloContracts> {
-  const payoutPercentage = opts.payoutPercentage ? opts.payoutPercentage : 5000;
+  const payoutPercentage = opts.payoutPercentage
+    ? opts.payoutPercentage
+    : 50000;
 
   const faceValue = opts.faceValue ?? toWei('15');
   const baseLiveWinProb = opts.baseLiveWinProb ?? 2n ** 128n - 1n;
   const expiredWinProb = opts.expiredWinProb ?? 1000;
-  const decayRate = opts.decayRate ?? 8000;
+  const decayRate = opts.decayRate ?? 80000;
   const ticketDuration = opts.ticketDuration ?? 20;
 
   const epochDuration = opts.epochDuration ?? 30;

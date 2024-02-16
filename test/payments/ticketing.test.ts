@@ -2383,7 +2383,7 @@ describe('Ticketing', () => {
       faceValue,
       baseLiveWinProb: 100000,
       expiredWinProb: 1000,
-      decayRate: 8000,
+      decayRate: 80000,
       ticketDuration: 100,
     });
     epochsManager = contracts.epochsManager;
