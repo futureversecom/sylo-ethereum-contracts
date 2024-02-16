@@ -82,7 +82,7 @@ const GenesisParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 8000,
-    minimumStakeProportion: 3000,
+    minimumStakeProportion: 20000,
   },
 
   SeekerPowerOracle: {
@@ -158,7 +158,7 @@ const PorciniDevParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 10,
-    minimumStakeProportion: 3000,
+    minimumStakeProportion: 20000,
   },
 
   SeekerPowerOracle: {

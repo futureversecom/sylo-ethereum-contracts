@@ -42,7 +42,7 @@ const initializeContracts = async function (
 
   const unlockDuration = opts.unlockDuration ?? 10;
 
-  const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
+  const minimumStakeProportion = opts.minimumStakeProportion ?? 20000;
 
   const seekerPowerMultiplier =
     opts.seekerPowerMultiplier ?? ethers.parseEther('1000000');
