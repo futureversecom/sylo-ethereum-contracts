@@ -50,15 +50,15 @@ contract TicketingParameters is
      * probability that will be decayed once a ticket has expired.
      * Example: 80% decayRate indicates that a ticket will decay down to 20% of its
      * base win probability upon reaching the block before its expiry.
-     * The value is expressed as a fraction of 10000.
+     * The value is expressed as a fraction of 100000.
      */
-    uint16 public decayRate;
+    uint32 public decayRate;
 
     event FaceValueUpdated(uint256 faceValue);
     event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
     event ExpiredWinProbUpdated(uint128 expiredWinProb);
     event TicketDurationUpdated(uint256 ticketDuration);
-    event DecayRateUpdated(uint16 decayRate);
+    event DecayRateUpdated(uint32 decayRate);
 
     error FaceValueCannotBeZero();
     error TicketDurationCannotBeZero();
@@ -67,7 +67,7 @@ contract TicketingParameters is
         uint256 _faceValue,
         uint128 _baseLiveWinProb,
         uint128 _expiredWinProb,
-        uint16 _decayRate,
+        uint32 _decayRate,
         uint256 _ticketDuration
     ) external initializer {
         if (_faceValue == 0) {
@@ -136,7 +136,7 @@ contract TicketingParameters is
      * @param _decayRate The decay rate as a percentage, where the
      * denominator is 10000.
      */
-    function setDecayRate(uint16 _decayRate) external onlyOwner {
+    function setDecayRate(uint32 _decayRate) external onlyOwner {
         decayRate = _decayRate;
         emit DecayRateUpdated(_decayRate);
     }
@@ -166,7 +166,7 @@ contract TicketingParameters is
     function getTicketingParameters()
         external
         view
-        returns (uint256, uint128, uint128, uint256, uint16)
+        returns (uint256, uint128, uint128, uint256, uint32)
     {
         return (faceValue, baseLiveWinProb, expiredWinProb, ticketDuration, decayRate);
     }

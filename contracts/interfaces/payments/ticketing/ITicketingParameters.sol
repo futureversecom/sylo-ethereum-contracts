@@ -8,12 +8,12 @@ interface ITicketingParameters {
 
     function setExpiredWinProb(uint128 _expiredWinProb) external;
 
-    function setDecayRate(uint16 _decayRate) external;
+    function setDecayRate(uint32 _decayRate) external;
 
     function setTicketDuration(uint256 _ticketDuration) external;
 
     function getTicketingParameters()
         external
         view
-        returns (uint256, uint128, uint128, uint256, uint16);
+        returns (uint256, uint128, uint128, uint256, uint32);
 }
