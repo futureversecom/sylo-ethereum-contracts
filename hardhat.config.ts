@@ -36,31 +36,7 @@ const config: HardhatUserConfig = {
       url: 'http://0.0.0.0:8545',
       accounts: 'remote',
     },
-    ropsten: {
-      url: process.env.ROPSTEN_INFURA_ENDPOINT ?? '',
-      accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
-      },
-    },
-    rata: {
-      url: process.env.RATA_ENDPOINT ?? '',
-      accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
-      },
-    },
-    nikau: {
-      url: process.env.NIKAU_ENDPOINT ?? '',
-      accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
-      },
-    },
     'porcini-dev': {
-      url: 'https://porcini.rootnet.app',
-      accounts: {
-        mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
-      },
-    },
-    'porcini-testing': {
       url: 'https://porcini.rootnet.app',
       accounts: {
         mnemonic: process.env.ROPSTEN_MNEMONIC ?? '',
