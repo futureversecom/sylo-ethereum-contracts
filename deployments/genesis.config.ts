@@ -140,7 +140,7 @@ const PorciniDevParameters: ContractParameters = {
 
   EpochsManager: {
     initialEpoch: 0,
-    epochDuration: 17280, // 1 day
+    epochDuration: 720, // 1 hour
   },
 
   Registries: {
@@ -148,10 +148,10 @@ const PorciniDevParameters: ContractParameters = {
   },
 
   TicketingParameters: {
-    faceValue: hre.ethers.parseEther('1000'),
-    baseLiveWinProb: 2n ** 128n - 1n / 10n,
+    faceValue: hre.ethers.parseEther('100'),
+    baseLiveWinProb: (2n ** 128n - 1n) / 10n, // 10%
     expiredWinProb: 2n ** 128n - 1n,
-    ticketDuration: 17280,
+    ticketDuration: 17280, // 1 day
     decayRate: 80000,
   },
 
