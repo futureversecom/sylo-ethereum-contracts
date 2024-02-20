@@ -37,9 +37,14 @@ contract SeekerPowerOracle is ISeekerPowerOracle, Initializable, Ownable2StepUpg
     error UnauthorizedRegisterSeekerPowerCall();
     error NonceCannotBeReused();
     error PowerCannotBeZero();
+    error OracleCannotBeZeroAddress();
 
     function initialize(address _oracle) external initializer {
         Ownable2StepUpgradeable.__Ownable2Step_init();
+
+        if (_oracle == address(0)) {
+            revert OracleCannotBeZeroAddress();
+        }
 
         oracle = _oracle;
     }

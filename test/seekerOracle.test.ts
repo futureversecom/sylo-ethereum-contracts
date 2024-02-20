@@ -25,6 +25,20 @@ describe('Seeker Power Oracle', () => {
     contracts = await utils.initializeContracts(deployer, token);
   });
 
+  it('seeker power oracle cannot be initialized with invalid arguments', async () => {
+    const SeekerPowerOracle = await ethers.getContractFactory(
+      'SeekerPowerOracle',
+    );
+    const seekerPowerOracle = await SeekerPowerOracle.deploy();
+
+    await expect(
+      seekerPowerOracle.initialize(ethers.ZeroAddress),
+    ).to.be.revertedWithCustomError(
+      seekerPowerOracle,
+      'OracleCannotBeZeroAddress',
+    );
+  });
+
   it('seeker power oracle cannot be initialized twice', async () => {
     await expect(
       contracts.seekerPowerOracle.initialize(deployer),

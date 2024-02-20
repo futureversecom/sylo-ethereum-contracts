@@ -88,7 +88,7 @@ const GenesisParameters: ContractParameters = {
   },
 
   SeekerPowerOracle: {
-    oracleAccount: '0x835dF5fE77D479695a616F79A3FC3a25310eb7c6',
+    oracleAccount: '',
   },
 };
 
@@ -127,7 +127,7 @@ const GanacheTestnetParameters: ContractParameters = {
   },
 
   SeekerPowerOracle: {
-    oracleAccount: '',
+    oracleAccount: '0x835dF5fE77D479695a616F79A3FC3a25310eb7c6', // deployer
   },
 };
 

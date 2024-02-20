@@ -523,7 +523,7 @@ describe('Staking', () => {
   it('cannot join directory with invalid arguments', async () => {
     await directory.addManager(owner);
     await expect(
-      directory.joinNextDirectory(ethers.ZeroAddress, 1),
+      directory.joinNextDirectory(ethers.ZeroAddress, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'StakeeCannotBeZeroAddress');
   });
 
