@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
 import "./StakingManager.sol";
 import "../libraries/SyloUtils.sol";
 import "../libraries/Manageable.sol";
@@ -81,7 +83,12 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
     }
 
     /**
-     * @notice This function is called by a node as a prerequisite to participate in the next epoch.
+     * @notice This function is called by the epochs manager as a prerequisite to when the node joins the next epoch.
+     * @param stakee The address of the node.
+     * @param seekerId The seekerId of the Seeker that the node is
+     * registered with when joining the epoch. It is used to determine the nodes
+     * staking capacity based on its seeker power.
+     *
      * @dev This will construct the directory as nodes join. The directory is constructed
      * by creating a boundary value which is a sum of the current directory's total stake, and
      * the current stakee's total stake, and pushing the new boundary into the entries array.
@@ -99,8 +106,15 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
      *
      *  |-----------|------|----------------|--------|
      *     Alice/20  Bob/30     Carl/70      Dave/95
+     *
+     * The amount of stake that a node will join a directory with is dependent on its
+     * different capacity values. There are two distinct capacity values, one
+     * calculated from the seeker power, and another from the minimum stake
+     * proportion. The final staking amount will not exceed either capacities,
+     * and in the case that the current total stake exceeds both, then the final
+     * will be the minimum of the two values.
      */
-    function joinNextDirectory(address stakee) external onlyManager {
+    function joinNextDirectory(address stakee, uint256 seekerId) external onlyManager {
         if (stakee == address(0)) {
             revert StakeeCannotBeZeroAddress();
         }
@@ -112,22 +126,23 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
             revert NoStakeToJoinEpoch();
         }
 
-        uint256 currentStake = _stakingManager.getCurrentStakerAmount(stakee, stakee);
-        uint16 ownedStakeProportion = SyloUtils.asPerc(
-            SafeCast.toUint128(currentStake),
-            totalStake
-        );
+        // staking capacity based on seeker power
+        uint256 seekerStakingCapacity = _stakingManager.calculateCapacityFromSeekerPower(seekerId);
 
-        uint16 minimumStakeProportion = _stakingManager.minimumStakeProportion();
+        // staking capacity based on the min staking proportion constant
+        uint256 minProportionStakingCapacity = _stakingManager.calculateCapacityFromMinStakingProportion(stakee);
 
         uint256 joiningStake;
-        if (ownedStakeProportion >= minimumStakeProportion) {
+        if (totalStake > seekerStakingCapacity && totalStake > minProportionStakingCapacity) {
+            joiningStake = Math.min(seekerStakingCapacity, minProportionStakingCapacity);
+        } else if (totalStake > seekerStakingCapacity) {
+            joiningStake = seekerStakingCapacity;
+        } else if (totalStake > minProportionStakingCapacity) {
+            joiningStake = minProportionStakingCapacity;
+        } else { // uncapped
             joiningStake = totalStake;
-        } else {
-            // if the node is below the minimum stake proportion, then we reduce
-            // the stake used to join the epoch proportionally
-            joiningStake = (totalStake * ownedStakeProportion) / minimumStakeProportion;
         }
+
         if (joiningStake == 0) {
             revert NoJoiningStakeToJoinEpoch();
         }

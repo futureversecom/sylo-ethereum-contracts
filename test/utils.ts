@@ -1,7 +1,12 @@
 import { ethers } from 'hardhat';
-import { BigNumberish, Signer } from 'ethers';
+import { BigNumberish, MaxUint256, Signer } from 'ethers';
 import { toWei } from 'web3-utils';
-import { Registries, SyloToken, TestSeekers } from '../typechain-types';
+import {
+  Registries,
+  SeekerPowerOracle,
+  SyloToken,
+  TestSeekers,
+} from '../typechain-types';
 import { randomBytes } from 'crypto';
 import { SyloContracts } from '../common/contracts';
 
@@ -15,6 +20,7 @@ type Options = {
   initialEpoch?: number;
   epochDuration?: number;
   minimumStakeProportion?: number;
+  seekerPowerMultiplier?: BigNumberish;
   unlockDuration?: number;
   seekerPowerOracleAccount?: string;
 };
@@ -24,19 +30,24 @@ const initializeContracts = async function (
   syloToken: SyloToken,
   opts: Options = {},
 ): Promise<SyloContracts> {
-  const payoutPercentage = opts.payoutPercentage ? opts.payoutPercentage : 5000;
+  const payoutPercentage = opts.payoutPercentage
+    ? opts.payoutPercentage
+    : 50000;
 
   const faceValue = opts.faceValue ?? toWei('15');
   const baseLiveWinProb = opts.baseLiveWinProb ?? 2n ** 128n - 1n;
   const expiredWinProb = opts.expiredWinProb ?? 1000;
-  const decayRate = opts.decayRate ?? 8000;
+  const decayRate = opts.decayRate ?? 80000;
   const ticketDuration = opts.ticketDuration ?? 20;
 
   const epochDuration = opts.epochDuration ?? 30;
 
   const unlockDuration = opts.unlockDuration ?? 10;
 
-  const minimumStakeProportion = opts.minimumStakeProportion ?? 2000;
+  const minimumStakeProportion = opts.minimumStakeProportion ?? 20000;
+
+  const seekerPowerMultiplier =
+    opts.seekerPowerMultiplier ?? ethers.parseEther('1000000');
 
   const seekerPowerOracleAccount = opts.seekerPowerOracleAccount ?? deployer;
 
@@ -99,8 +110,10 @@ const initializeContracts = async function (
     tokenAddress,
     await rewardsManager.getAddress(),
     await epochsManager.getAddress(),
+    await seekerPowerOracle.getAddress(),
     unlockDuration,
     minimumStakeProportion,
+    seekerPowerMultiplier,
     { from: deployer },
   );
   await rewardsManager.initialize(
@@ -183,6 +196,7 @@ const advanceBlock = async function (i: number): Promise<void> {
 async function setSeekerRegistry(
   registries: Registries,
   seekers: TestSeekers,
+  seekerPowerOracle: SeekerPowerOracle,
   account: Signer,
   seekerAccount: Signer,
   tokenId: number,
@@ -214,6 +228,9 @@ async function setSeekerRegistry(
       nonce,
       signature,
     );
+
+  // set the seeker power default to the max value
+  await seekerPowerOracle.registerSeekerPowerRestricted(tokenId, MaxUint256);
 }
 
 export default {

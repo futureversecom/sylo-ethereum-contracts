@@ -15,9 +15,9 @@ interface IEpochsManager {
         // Zero here represents the epoch has not yet ended.
 
         // registry variables
-        uint16 defaultPayoutPercentage;
+        uint32 defaultPayoutPercentage;
         // ticketing variables
-        uint16 decayRate;
+        uint32 decayRate;
         uint256 faceValue;
         uint128 baseLiveWinProb;
         uint128 expiredWinProb;

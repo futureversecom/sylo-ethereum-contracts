@@ -11,19 +11,24 @@ error TargetNotSupportInterface(string name, bytes4 interfaceId);
 
 library SyloUtils {
     /**
-     * @dev Percentages are expressed as a ratio where 10000 is the denominator.
-     * A large denominator allows for more precision, e.g representing 12.5%
-     * can be done as 1250 / 10000
+     * @dev The maximum possible SYLO that exists in the network.
      */
-    uint16 public constant PERCENTAGE_DENOMINATOR = 10000;
+    uint256 public constant MAX_SYLO = 10_000_000_000 ether;
+
+    /**
+     * @dev Percentages are expressed as a ratio where 100000 is the denominator.
+     * A large denominator allows for more precision, e.g representing 12.5%
+     * can be done as 12500 / 100000
+     */
+    uint32 public constant PERCENTAGE_DENOMINATOR = 100000;
 
     /**
      * @dev Multiply a value by a given percentage. Converts the provided
      * uint128 value to uint256 to avoid any reverts on overflow.
      * @param value The value to multiply.
-     * @param percentage The percentage, as a ratio of 10000.
+     * @param percentage The percentage, as a ratio of 100000.
      */
-    function percOf(uint128 value, uint16 percentage) internal pure returns (uint256) {
+    function percOf(uint128 value, uint32 percentage) internal pure returns (uint256) {
         return (uint256(value) * percentage) / PERCENTAGE_DENOMINATOR;
     }
 
@@ -32,10 +37,10 @@ library SyloUtils {
      * @param numerator The numerator limited to a uint128 value to prevent
      * phantom overflow.
      * @param denominator The denominator.
-     * @return The percentage, as a ratio of 10000.
+     * @return The percentage, as a ratio of 100000.
      */
-    function asPerc(uint128 numerator, uint256 denominator) internal pure returns (uint16) {
-        return SafeCast.toUint16((uint256(numerator) * PERCENTAGE_DENOMINATOR) / denominator);
+    function asPerc(uint128 numerator, uint256 denominator) internal pure returns (uint32) {
+        return SafeCast.toUint32((uint256(numerator) * PERCENTAGE_DENOMINATOR) / denominator);
     }
 
     /**

@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 import "../SyloToken.sol";
 import "../libraries/SyloUtils.sol";
+import "../SeekerPowerOracle.sol";
 import "../epochs/EpochsManager.sol";
 import "../payments/ticketing/RewardsManager.sol";
 import "../interfaces/staking/IStakingManager.sol";
@@ -27,6 +28,8 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
     RewardsManager public _rewardsManager;
 
     EpochsManager public _epochsManager;
+
+    SeekerPowerOracle public _seekerPowerOracle;
 
     /**
      * @notice Tracks the managed stake for every Node.
@@ -55,7 +58,13 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      * represented as a percentage of the Node's total stake, where
      * the value is a ratio of 10000.
      */
-    uint16 public minimumStakeProportion;
+    uint32 public minimumStakeProportion;
+
+    /**
+     * @notice The multiplier used in determining a Seeker's staking
+     * capacity based on its power level.
+     */
+    uint256 public seekerPowerMultiplier;
 
     event UnlockDurationUpdated(uint256 unlockDuration);
     event MinimumStakeProportionUpdated(uint256 minimumStakeProportion);
@@ -70,13 +79,16 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
     error CannotCancelUnlockZeroAmount();
     error CannotUnlockMoreThanStaked(uint256 stakeAmount, uint256 unlockAmount);
     error StakeCapacityReached(uint256 maxCapacity, uint256 currentCapacity);
+    error SeekerPowerNotRegistered(uint256 seekerId);
 
     function initialize(
         IERC20 token,
         RewardsManager rewardsManager,
         EpochsManager epochsManager,
+        SeekerPowerOracle seekerPowerOracle,
         uint256 _unlockDuration,
-        uint16 _minimumStakeProportion
+        uint32 _minimumStakeProportion,
+        uint256 _seekerPowerMultiplier
     ) external initializer {
         if (address(token) == address(0)) {
             revert TokenCannotBeZeroAddress();
@@ -94,6 +106,12 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
             type(IEpochsManager).interfaceId
         );
 
+        SyloUtils.validateContractInterface(
+            "SeekerPowerOracle",
+            address(seekerPowerOracle),
+            type(ISeekerPowerOracle).interfaceId
+        );
+
         if (_unlockDuration == 0) {
             revert UnlockDurationCannotBeZero();
         }
@@ -103,8 +121,10 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         _token = token;
         _rewardsManager = rewardsManager;
         _epochsManager = epochsManager;
+        _seekerPowerOracle = seekerPowerOracle;
         unlockDuration = _unlockDuration;
         minimumStakeProportion = _minimumStakeProportion;
+        seekerPowerMultiplier = _seekerPowerMultiplier;
     }
 
     /**
@@ -134,7 +154,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      * the owner.
      * @param _minimumStakeProportion The minimum stake proportion in SOLO.
      */
-    function setMinimumStakeProportion(uint16 _minimumStakeProportion) external onlyOwner {
+    function setMinimumStakeProportion(uint32 _minimumStakeProportion) external onlyOwner {
         minimumStakeProportion = _minimumStakeProportion;
         emit MinimumStakeProportionUpdated(_minimumStakeProportion);
     }
@@ -302,13 +322,36 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
     }
 
     /**
-     * @notice This function should be called by clients to determine how much
-     * additional delegated stake can be allocated to a Node via an addStake or
-     * cancelUnlocking call. This is useful to avoid a revert due to
-     * the minimum stake proportion requirement not being met from the additional stake.
+     * @notice This function determines the staking capacity of
+     * a Seeker based on its power level. The method will revert if
+     * the Seeker's power level has not been registered with the oracle.
+     *
+     * Currently the algorithm is as follows:
+     *    staking_capacity = seeker_power * seeker_power_multiplier;
+     */
+    function calculateCapacityFromSeekerPower(uint256 seekerId) external view returns (uint256) {
+        uint256 seekerPower = _seekerPowerOracle.getSeekerPower(seekerId);
+        if (seekerPower == 0) {
+            revert SeekerPowerNotRegistered(seekerId);
+        }
+
+        // If the Seeker Power is already
+        // at the maximum sylo, then we just return the max sylo value directly.
+        if (seekerPower >= SyloUtils.MAX_SYLO) {
+            return SyloUtils.MAX_SYLO;
+        }
+
+        uint256 capacity = seekerPower * seekerPowerMultiplier;
+
+        return capacity > SyloUtils.MAX_SYLO ? SyloUtils.MAX_SYLO : capacity;
+    }
+
+    /**
+     * @notice This function can be used to a determine a Node's staking capacity,
+     * based on the minimum stake proportion constant.
      * @param stakee The address of the staked Node.
      */
-    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
+    function calculateCapacityFromMinStakingProportion(address stakee) public view returns (uint256) {
         if (stakee == address(0)) {
             revert StakeeCannotBeZeroAddress();
         }
@@ -316,8 +359,21 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        uint256 totalMaxStake = (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
+        return (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
             minimumStakeProportion;
+    }
+
+    /**
+     * @notice This function should be called by clients to determine how much
+     * additional delegated stake can be allocated to a Node via an addStake or
+     * cancelUnlocking call. This is useful to avoid a revert due to
+     * the minimum stake proportion requirement not being met from the additional stake.
+     * @param stakee The address of the staked Node.
+     */
+    function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256) {
+        uint256 totalMaxStake = calculateCapacityFromMinStakingProportion(stakee);
+
+        Stake storage stake = stakes[stakee];
 
         if (totalMaxStake < stake.totalManagedStake) {
             revert StakeCapacityReached(totalMaxStake, stake.totalManagedStake);
@@ -380,7 +436,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        uint16 ownedStakeProportion = SyloUtils.asPerc(
+        uint32 ownedStakeProportion = SyloUtils.asPerc(
             SafeCast.toUint128(currentlyOwnedStake),
             stake.totalManagedStake
         );

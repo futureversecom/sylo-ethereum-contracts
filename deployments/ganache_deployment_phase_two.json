@@ -10,5 +10,6 @@
   "directory": "0x7E7C762176eaa1662d372399265760d4600CCf28",
   "syloTicketing": "0x943E7031A7Ed0FC236173f05a3084104b81Aa480",
   "seekers": "0x49C537a88016186Ef41713239799Fc975F9e9aFA",
+  "seekerPowerOracle": "0xca7efb9aA54e70F7a8e7efb878A48BaefA34F4AC",
   "futurepassRegistrar": "0x7DBf77bb534997892e5Bcfbdc79Dd82E71C35245"
 }

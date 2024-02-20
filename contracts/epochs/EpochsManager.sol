@@ -142,7 +142,7 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
             uint128 baseLiveWinProb,
             uint128 expiredWinProb,
             uint256 ticketDuration,
-            uint16 decayRate
+            uint32 decayRate
         ) = _ticketingParameters.getTicketingParameters();
 
         uint256 nextEpochId = getNextEpochId();
@@ -232,7 +232,7 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
         activeSeekers[nextEpoch][seekerId] = msg.sender;
 
         _directory._rewardsManager().initializeNextRewardPool(msg.sender);
-        _directory.joinNextDirectory(msg.sender);
+        _directory.joinNextDirectory(msg.sender, seekerId);
 
         emit EpochJoined(nextEpoch, msg.sender, seekerId);
     }

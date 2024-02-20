@@ -35,6 +35,11 @@ type ContractParameters = {
   StakingManager: {
     unlockDuration: BigNumberish;
     minimumStakeProportion: number;
+    seekerPowerMultiplier: BigNumberish;
+  };
+
+  SeekerPowerOracle: {
+    oracleAccount: string;
   };
 };
 
@@ -61,7 +66,7 @@ const GenesisParameters: ContractParameters = {
   },
 
   Registries: {
-    defaultPayoutPercentage: 5000,
+    defaultPayoutPercentage: 50000,
   },
 
   TicketingParameters: {
@@ -69,7 +74,7 @@ const GenesisParameters: ContractParameters = {
     baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
     expiredWinProb: (2n ** 128n - 1n) / 1000n,
     ticketDuration: 80000,
-    decayRate: 8000,
+    decayRate: 80000,
   },
 
   Ticketing: {
@@ -78,7 +83,12 @@ const GenesisParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 8000,
-    minimumStakeProportion: 3000,
+    minimumStakeProportion: 20000,
+    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
+  },
+
+  SeekerPowerOracle: {
+    oracleAccount: '',
   },
 };
 
@@ -95,7 +105,7 @@ const GanacheTestnetParameters: ContractParameters = {
   },
 
   Registries: {
-    defaultPayoutPercentage: 5000,
+    defaultPayoutPercentage: 50000,
   },
 
   TicketingParameters: {
@@ -103,7 +113,7 @@ const GanacheTestnetParameters: ContractParameters = {
     baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
     expiredWinProb: (2n ** 128n - 1n) / 1000n,
     ticketDuration: 10_000_000, // make sure the ticket never expires in the short time on testnet
-    decayRate: 8000,
+    decayRate: 80000,
   },
 
   Ticketing: {
@@ -112,7 +122,12 @@ const GanacheTestnetParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
-    minimumStakeProportion: 3000,
+    minimumStakeProportion: 20000,
+    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
+  },
+
+  SeekerPowerOracle: {
+    oracleAccount: '0x835dF5fE77D479695a616F79A3FC3a25310eb7c6', // deployer
   },
 };
 
@@ -125,70 +140,36 @@ const PorciniDevParameters: ContractParameters = {
 
   EpochsManager: {
     initialEpoch: 0,
-    epochDuration: 30,
-  },
-
-  Registries: {
-    defaultPayoutPercentage: 5000,
-  },
-
-  TicketingParameters: {
-    faceValue: hre.ethers.parseEther('10000'),
-    baseLiveWinProb: 2n ** 128n - 1n,
-    expiredWinProb: 2n ** 128n - 1n,
-    ticketDuration: 100,
-    decayRate: 8000,
-  },
-
-  Ticketing: {
-    unlockDuration: 10,
-  },
-
-  StakingManager: {
-    unlockDuration: 10,
-    minimumStakeProportion: 3000,
-  },
-};
-
-const PorciniTestingParameters: ContractParameters = {
-  SyloToken: '0xCCcCCcCC00000C64000000000000000000000000',
-
-  Seekers: '0xAAAAAAAA00001864000000000000000000000000',
-
-  FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
-
-  EpochsManager: {
-    initialEpoch: 0,
     epochDuration: 17280, // 1 day
   },
 
   Registries: {
-    defaultPayoutPercentage: 5000,
+    defaultPayoutPercentage: 50000,
   },
 
   TicketingParameters: {
-    faceValue: hre.ethers.parseEther('10000'),
-    baseLiveWinProb: 2n ** 128n - 1n,
+    faceValue: hre.ethers.parseEther('1000'),
+    baseLiveWinProb: 2n ** 128n - 1n / 10n,
     expiredWinProb: 2n ** 128n - 1n,
-    ticketDuration: 100,
-    decayRate: 8000,
+    ticketDuration: 17280,
+    decayRate: 80000,
   },
 
   Ticketing: {
-    unlockDuration: 120,
+    unlockDuration: 10,
   },
 
   StakingManager: {
-    unlockDuration: 120,
-    minimumStakeProportion: 3000,
+    unlockDuration: 10,
+    minimumStakeProportion: 20000,
+    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
+  },
+
+  SeekerPowerOracle: {
+    oracleAccount: '0x448c8e9e1816300Dd052e77D2A44c990A2807D15',
   },
 };
 
-export {
-  GenesisParameters,
-  GanacheTestnetParameters,
-  PorciniDevParameters,
-  PorciniTestingParameters,
-};
+export { GenesisParameters, GanacheTestnetParameters, PorciniDevParameters };
 
 export type { ContractParameters };

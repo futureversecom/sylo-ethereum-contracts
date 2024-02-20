@@ -15,6 +15,7 @@ export const DeployedContractNames = {
   rewardsManager: 'RewardsManager',
   directory: 'Directory',
   syloTicketing: 'SyloTicketing',
+  seekerPowerOracle: 'SeekerPowerOracle',
 };
 
 export const ContractNames = {
@@ -48,6 +49,7 @@ export type ContractAddresses = {
   directory: string;
   syloTicketing: string;
   seekers: string;
+  seekerPowerOracle: string;
   futurepassRegistrar: string;
 };
 
@@ -105,6 +107,11 @@ export function connectContracts(
     provider,
   );
 
+  const seekerPowerOracle = factories.SeekerPowerOracle__factory.connect(
+    contracts.seekerPowerOracle,
+    provider,
+  );
+
   const futurepassRegistrar =
     factories.TestFuturepassRegistrar__factory.connect(
       contracts.futurepassRegistrar,
@@ -122,6 +129,7 @@ export function connectContracts(
     directory,
     syloTicketing,
     seekers,
+    seekerPowerOracle,
     futurepassRegistrar,
   };
 }

@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
-import { Registries, TestSeekers } from '../typechain-types';
+import { Registries, SeekerPowerOracle, TestSeekers } from '../typechain-types';
 import { assert, expect } from 'chai';
 import utils from './utils';
 import { randomBytes } from 'crypto';
@@ -11,6 +11,7 @@ describe('Registries', () => {
 
   let registries: Registries;
   let seekers: TestSeekers;
+  let seekerPowerOracle: SeekerPowerOracle;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -27,6 +28,7 @@ describe('Registries', () => {
     });
     registries = contracts.registries;
     seekers = contracts.seekers;
+    seekerPowerOracle = contracts.seekerPowerOracle;
   });
 
   it('registries cannot initialize twice', async () => {
@@ -47,8 +49,8 @@ describe('Registries', () => {
     );
 
     await expect(
-      registries.initialize(await seekers.getAddress(), 10001),
-    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
+      registries.initialize(await seekers.getAddress(), 100001),
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed100000');
   });
 
   it('can allow owner to set default payout percentage', async () => {
@@ -181,8 +183,8 @@ describe('Registries', () => {
 
   it('requires default payout percentage to not exceed 100%', async () => {
     await expect(
-      registries.setDefaultPayoutPercentage(10001),
-    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed10000');
+      registries.setDefaultPayoutPercentage(100001),
+    ).to.be.revertedWithCustomError(registries, 'PercentageCannotExceed100000');
   });
 
   it('can set seeker account with valid proof', async () => {
@@ -192,6 +194,7 @@ describe('Registries', () => {
     await utils.setSeekerRegistry(
       registries,
       seekers,
+      seekerPowerOracle,
       accounts[0],
       accounts[1],
       1,
@@ -295,6 +298,7 @@ describe('Registries', () => {
     await utils.setSeekerRegistry(
       registries,
       seekers,
+      seekerPowerOracle,
       accounts[0],
       accounts[1],
       1,
@@ -311,6 +315,7 @@ describe('Registries', () => {
     await utils.setSeekerRegistry(
       registries,
       seekers,
+      seekerPowerOracle,
       accounts[0],
       accounts[1],
       1,
@@ -342,6 +347,7 @@ describe('Registries', () => {
     await utils.setSeekerRegistry(
       registries,
       seekers,
+      seekerPowerOracle,
       accountOne,
       seekerAccount,
       tokenID,
@@ -350,6 +356,7 @@ describe('Registries', () => {
     await utils.setSeekerRegistry(
       registries,
       seekers,
+      seekerPowerOracle,
       accountTwo,
       seekerAccount,
       tokenID,

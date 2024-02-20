@@ -1,10 +1,11 @@
 import { ethers } from 'hardhat';
-import { Signer } from 'ethers';
+import { MaxUint256, Signer } from 'ethers';
 import {
   Directory,
   EpochsManager,
   Registries,
   RewardsManager,
+  SeekerPowerOracle,
   StakingManager,
   SyloToken,
   TestSeekers,
@@ -17,6 +18,8 @@ import crypto from 'crypto';
 
 type Results = { [key: string]: number };
 
+const MAX_SYLO_STAKE = ethers.parseEther('10000000000');
+
 describe('Staking', () => {
   let accounts: Signer[];
   let owner: string;
@@ -28,8 +31,11 @@ describe('Staking', () => {
   let stakingManager: StakingManager;
   let registries: Registries;
   let seekers: TestSeekers;
+  let seekerPowerOracle: SeekerPowerOracle;
 
   const epochId = 1;
+
+  const defaultSeekerId = 1;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -48,8 +54,15 @@ describe('Staking', () => {
     stakingManager = contracts.stakingManager;
     registries = contracts.registries;
     seekers = contracts.seekers;
+    seekerPowerOracle = contracts.seekerPowerOracle;
 
     await token.approve(await stakingManager.getAddress(), 100000);
+
+    // set the seeker power to max for all tests by default
+    await seekerPowerOracle.registerSeekerPowerRestricted(
+      defaultSeekerId,
+      MaxUint256,
+    );
   });
 
   it('staking manager cannot be intialized twice', async () => {
@@ -59,6 +72,8 @@ describe('Staking', () => {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        0,
         0,
       ),
     ).to.be.revertedWith('Initializable: contract is already initialized');
@@ -74,6 +89,8 @@ describe('Staking', () => {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        0,
         0,
       ),
     ).to.be.revertedWithCustomError(stakingManager, 'TokenCannotBeZeroAddress');
@@ -82,8 +99,10 @@ describe('Staking', () => {
       stakingManager.initialize(
         await token.getAddress(),
         await epochsManager.getAddress(), // correct contract is rewards manager
+        await seekerPowerOracle.getAddress(),
         ethers.ZeroAddress,
         ethers.ZeroAddress,
+        0,
         0,
       ),
     )
@@ -98,6 +117,8 @@ describe('Staking', () => {
         await token.getAddress(),
         await rewardsManager.getAddress(),
         await epochsManager.getAddress(),
+        await seekerPowerOracle.getAddress(),
+        0,
         0,
         0,
       ),
@@ -495,14 +516,14 @@ describe('Staking', () => {
   it('should not allow directory to be joined with no stake', async () => {
     await directory.addManager(owner);
     await expect(
-      directory.joinNextDirectory(owner),
+      directory.joinNextDirectory(owner, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'NoStakeToJoinEpoch');
   });
 
   it('cannot join directory with invalid arguments', async () => {
     await directory.addManager(owner);
     await expect(
-      directory.joinNextDirectory(ethers.ZeroAddress),
+      directory.joinNextDirectory(ethers.ZeroAddress, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'StakeeCannotBeZeroAddress');
   });
 
@@ -513,7 +534,7 @@ describe('Staking', () => {
     await directory.addManager(owner);
 
     await expect(
-      directory.joinNextDirectory(owner),
+      directory.joinNextDirectory(owner, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'NoStakeToJoinEpoch');
   });
 
@@ -539,7 +560,7 @@ describe('Staking', () => {
     await stakingManager.unlockStake(80, owner);
 
     await directory.addManager(owner);
-    await directory.joinNextDirectory(owner);
+    await directory.joinNextDirectory(owner, defaultSeekerId);
 
     // the node now only owns 10% of the stake, which 50% of the
     // minimum stake proportion
@@ -566,7 +587,7 @@ describe('Staking', () => {
     await directory.addManager(owner);
 
     await expect(
-      directory.joinNextDirectory(owner),
+      directory.joinNextDirectory(owner, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'NoJoiningStakeToJoinEpoch');
   });
 
@@ -655,10 +676,10 @@ describe('Staking', () => {
   it('should not be able to join the next epoch more than once', async () => {
     await stakingManager.addStake(1, owner);
     await directory.addManager(owner);
-    await directory.joinNextDirectory(owner);
+    await directory.joinNextDirectory(owner, defaultSeekerId);
 
     await expect(
-      directory.joinNextDirectory(owner),
+      directory.joinNextDirectory(owner, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'StakeeAlreadyJoinedEpoch');
   });
 
@@ -887,7 +908,7 @@ describe('Staking', () => {
 
   it('can not call functions that onlyManager constraint', async () => {
     await expect(
-      directory.joinNextDirectory(owner),
+      directory.joinNextDirectory(owner, defaultSeekerId),
     ).to.be.revertedWithCustomError(directory, 'OnlyManagers');
   });
 
@@ -994,6 +1015,168 @@ describe('Staking', () => {
     );
   });
 
+  it('can validate contract interface', async () => {
+    const TestSyloUtils = await ethers.getContractFactory('TestSyloUtils');
+    const testSyloUtils = await TestSyloUtils.deploy();
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        '',
+        await rewardsManager.getAddress(),
+        '0x3db12b5a',
+      ),
+    ).to.be.revertedWithCustomError(testSyloUtils, 'ContractNameCannotBeEmpty');
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        'RewardsManager',
+        ethers.ZeroAddress,
+        '0x3db12b5a',
+      ),
+    ).to.be.revertedWithCustomError(
+      testSyloUtils,
+      'TargetContractCannotBeZeroAddress',
+    );
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        'RewardsManager',
+        await rewardsManager.getAddress(),
+        '0x00000000',
+      ),
+    ).to.be.revertedWithCustomError(
+      testSyloUtils,
+      'InterfaceIdCannotBeZeroBytes',
+    );
+
+    await expect(
+      testSyloUtils.validateContractInterface(
+        'RewardsManager',
+        await rewardsManager.getAddress(),
+        '0x11111111',
+      ),
+    ).to.be.revertedWithCustomError(testSyloUtils, 'TargetNotSupportInterface');
+  });
+
+  it('reverts if seeker power has not been registered', async () => {
+    await expect(
+      stakingManager.calculateCapacityFromSeekerPower(111),
+    ).to.revertedWithCustomError(stakingManager, 'SeekerPowerNotRegistered');
+  });
+
+  it('correctly calculates seeker staking capacity from power', async () => {
+    // default multiplier is 1M
+    const seekerPowers = [
+      { seekerId: 10, power: 100, expectedSyloCapacity: 100000000 },
+      { seekerId: 11, power: 222, expectedSyloCapacity: 222000000 },
+      { seekerId: 12, power: 432, expectedSyloCapacity: 432000000 },
+      { seekerId: 13, power: 3, expectedSyloCapacity: 3000000 },
+      { seekerId: 14, power: 4, expectedSyloCapacity: 4000000 },
+      { seekerId: 15, power: 8, expectedSyloCapacity: 8000000 },
+    ];
+
+    for (const sp of seekerPowers) {
+      await seekerPowerOracle.registerSeekerPowerRestricted(
+        sp.seekerId,
+        sp.power,
+      );
+
+      const capacity = await stakingManager.calculateCapacityFromSeekerPower(
+        sp.seekerId,
+      );
+
+      const expectedSylo = ethers.parseEther(
+        sp.expectedSyloCapacity.toString(),
+      );
+
+      expect(capacity).to.equal(expectedSylo);
+    }
+  });
+
+  it('returns maximum SYLO amount if seeker power is very large', async () => {
+    // 1 more than the maximum sylo
+    await seekerPowerOracle.registerSeekerPowerRestricted(
+      111,
+      MAX_SYLO_STAKE + 1n,
+    );
+
+    const capacityOne = await stakingManager.calculateCapacityFromSeekerPower(
+      111,
+    );
+
+    expect(capacityOne).to.equal(MAX_SYLO_STAKE);
+
+    // seeker_power * multiplier > maximum_sylo
+    await seekerPowerOracle.registerSeekerPowerRestricted(
+      222,
+      MAX_SYLO_STAKE / 2n,
+    );
+
+    const capacityTwo = await stakingManager.calculateCapacityFromSeekerPower(
+      222,
+    );
+
+    expect(capacityTwo).to.equal(MAX_SYLO_STAKE);
+  });
+
+  it('reverts when joining directory without seeker power registered', async () => {
+    await stakingManager.addStake(100, owner);
+
+    await directory.addManager(owner);
+    await expect(
+      directory.joinNextDirectory(owner, 111), // unregistered seeker
+    ).to.be.revertedWithCustomError(stakingManager, 'SeekerPowerNotRegistered');
+  });
+
+  it('joins directory with stake where maximum is dependent on seeker power', async () => {
+    const stakeToAdd = ethers.parseEther('10000000');
+
+    await token.approve(stakingManager.getAddress(), stakeToAdd);
+    await stakingManager.addStake(stakeToAdd, owner);
+
+    // the added stake is 10,000,000 SYLO, but the seeker power capacity
+    // is 4,000,000
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 4);
+
+    await directory.addManager(owner);
+    await directory.joinNextDirectory(owner, 111);
+
+    const joinedStake = await directory.getTotalStakeForStakee(1, owner);
+
+    expect(joinedStake).to.equal(ethers.parseEther('4000000'));
+  });
+
+  it('joins directory with stake where maximum neither exceeds seeker power capacity or proportion capacity', async () => {
+    const stakeToAdd = ethers.parseEther('100000');
+
+    await token.approve(stakingManager.getAddress(), stakeToAdd);
+    await stakingManager.addStake(stakeToAdd, owner);
+
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 4);
+
+    // delegated stake added causes the minimum proportion to be exceeded
+    const delegatedStakeToAdd = ethers.parseEther('1000000');
+
+    await token.transfer(accounts[2], delegatedStakeToAdd);
+    await token
+      .connect(accounts[2])
+      .approve(stakingManager.getAddress(), delegatedStakeToAdd);
+    await stakingManager
+      .connect(accounts[2])
+      .addStake(delegatedStakeToAdd, owner);
+
+    await directory.addManager(owner);
+    await directory.joinNextDirectory(owner, 111);
+
+    const joinedStake = await directory.getTotalStakeForStakee(1, owner);
+
+    // The seeker staking capacity is 1M, and the proportion capacity is 500k.
+    // In this case the total stake exceeds both, and the joined stake should be
+    // the lesser of the two capacities.
+
+    expect(joinedStake).to.equal(ethers.parseEther('500000'));
+  });
+
   async function setSeekeRegistry(
     account: Signer,
     seekerAccount: Signer,
@@ -1002,6 +1185,7 @@ describe('Staking', () => {
     await utils.setSeekerRegistry(
       registries,
       seekers,
+      seekerPowerOracle,
       account,
       seekerAccount,
       tokenId,
@@ -1022,6 +1206,7 @@ describe('Staking', () => {
       .addStake(amount, await account.getAddress());
     await setSeekeRegistry(account, accounts[9], seekerId);
     await epochsManager.connect(account).joinNextEpoch();
+    await seekerPowerOracle.registerSeekerPowerRestricted(seekerId, MaxUint256);
   }
 
   async function testScanResults(iterations: number, expectedResults: Results) {
@@ -1098,47 +1283,4 @@ describe('Staking', () => {
 
     return points;
   }
-
-  it('can validate contract interface', async () => {
-    const TestSyloUtils = await ethers.getContractFactory('TestSyloUtils');
-    const testSyloUtils = await TestSyloUtils.deploy();
-
-    await expect(
-      testSyloUtils.validateContractInterface(
-        '',
-        await rewardsManager.getAddress(),
-        '0x3db12b5a',
-      ),
-    ).to.be.revertedWithCustomError(testSyloUtils, 'ContractNameCannotBeEmpty');
-
-    await expect(
-      testSyloUtils.validateContractInterface(
-        'RewardsManager',
-        ethers.ZeroAddress,
-        '0x3db12b5a',
-      ),
-    ).to.be.revertedWithCustomError(
-      testSyloUtils,
-      'TargetContractCannotBeZeroAddress',
-    );
-
-    await expect(
-      testSyloUtils.validateContractInterface(
-        'RewardsManager',
-        await rewardsManager.getAddress(),
-        '0x00000000',
-      ),
-    ).to.be.revertedWithCustomError(
-      testSyloUtils,
-      'InterfaceIdCannotBeZeroBytes',
-    );
-
-    await expect(
-      testSyloUtils.validateContractInterface(
-        'RewardsManager',
-        await rewardsManager.getAddress(),
-        '0x11111111',
-      ),
-    ).to.be.revertedWithCustomError(testSyloUtils, 'TargetNotSupportInterface');
-  });
 });

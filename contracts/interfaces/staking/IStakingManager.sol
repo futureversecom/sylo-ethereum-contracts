@@ -39,7 +39,7 @@ interface IStakingManager {
 
     function setUnlockDuration(uint256 _unlockDuration) external;
 
-    function setMinimumStakeProportion(uint16 _minimumStakeProportion) external;
+    function setMinimumStakeProportion(uint32 _minimumStakeProportion) external;
 
     function addStake(uint256 amount, address stakee) external;
 
@@ -48,6 +48,8 @@ interface IStakingManager {
     function withdrawStake(address stakee) external;
 
     function cancelUnlocking(uint256 amount, address stakee) external;
+
+    function calculateCapacityFromSeekerPower(uint256 seekerId) external view returns (uint256);
 
     function calculateMaxAdditionalDelegatedStake(address stakee) external view returns (uint256);
 

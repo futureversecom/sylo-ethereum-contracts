@@ -51,13 +51,13 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
      * that will be allocated to the Node's stakers. This is global, and is
      * currently set for all Nodes.
      */
-    uint16 public defaultPayoutPercentage;
+    uint32 public defaultPayoutPercentage;
 
-    event DefaultPayoutPercentageUpdated(uint16 defaultPayoutPercentage);
+    event DefaultPayoutPercentageUpdated(uint32 defaultPayoutPercentage);
 
     error NonceCannotBeReused();
     error EndMustBeGreaterThanStart();
-    error PercentageCannotExceed10000();
+    error PercentageCannotExceed100000();
     error PublicEndpointCannotBeEmpty();
     error SeekerAccountMustOwnSeekerId();
     error SeekerAccountMustBeMsgSender();
@@ -68,13 +68,13 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
 
     function initialize(
         IERC721 rootSeekers,
-        uint16 _defaultPayoutPercentage
+        uint32 _defaultPayoutPercentage
     ) external initializer {
         if (address(rootSeekers) == address(0)) {
             revert RootSeekersCannotBeZeroAddress();
         }
-        if (_defaultPayoutPercentage > 10000) {
-            revert PercentageCannotExceed10000();
+        if (_defaultPayoutPercentage > 100000) {
+            revert PercentageCannotExceed100000();
         }
 
         Ownable2StepUpgradeable.__Ownable2Step_init();
@@ -95,11 +95,11 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
      * @notice Set the global default payout percentage value. Only callable
      * by the owner.
      * @param _defaultPayoutPercentage The payout percentage as a value where the
-     * denominator is 10000.
+     * denominator is 100000.
      */
-    function setDefaultPayoutPercentage(uint16 _defaultPayoutPercentage) external onlyOwner {
-        if (_defaultPayoutPercentage > 10000) {
-            revert PercentageCannotExceed10000();
+    function setDefaultPayoutPercentage(uint32 _defaultPayoutPercentage) external onlyOwner {
+        if (_defaultPayoutPercentage > 100000) {
+            revert PercentageCannotExceed100000();
         }
 
         defaultPayoutPercentage = _defaultPayoutPercentage;
