@@ -95,7 +95,7 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, IERC
      * @notice Set the global default payout percentage value. Only callable
      * by the owner.
      * @param _defaultPayoutPercentage The payout percentage as a value where the
-     * denominator is 10000.
+     * denominator is 100000.
      */
     function setDefaultPayoutPercentage(uint32 _defaultPayoutPercentage) external onlyOwner {
         if (_defaultPayoutPercentage > 100000) {
