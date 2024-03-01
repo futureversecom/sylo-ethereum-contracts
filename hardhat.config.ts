@@ -38,7 +38,9 @@ const config: HardhatUserConfig = {
     },
     'trn-mainnet': {
       url: 'https://root.rootnet.live',
-      accounts: [process.env.MAINNET_DEPLOYER ?? ''],
+      accounts: [
+        process.env.MAINNET_DEPLOYER ?? Buffer.alloc(32).toString('hex'),
+      ],
     },
     'porcini-dev': {
       url: 'https://porcini.rootnet.app',
