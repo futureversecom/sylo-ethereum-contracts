@@ -1119,6 +1119,27 @@ describe('Staking', () => {
     expect(capacityTwo).to.equal(MAX_SYLO_STAKE);
   });
 
+  it.only('can set seeker power multiplier', async () => {
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 1);
+
+    const originalCapacity =
+      await stakingManager.calculateCapacityFromSeekerPower(111);
+
+    expect(originalCapacity).to.equal(ethers.parseEther('1000000'));
+
+    await expect(
+      stakingManager.setSeekerPowerMultiplier(ethers.parseEther('500000')),
+    )
+      .to.emit(stakingManager, 'SeekerPowerMultiplierUpdated')
+      .withArgs(ethers.parseEther('500000'));
+
+    const newCapacity = await stakingManager.calculateCapacityFromSeekerPower(
+      111,
+    );
+
+    expect(newCapacity).to.equal(ethers.parseEther('500000'));
+  });
+
   it('reverts when joining directory without seeker power registered', async () => {
     await stakingManager.addStake(100, owner);
 

@@ -68,6 +68,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
 
     event UnlockDurationUpdated(uint256 unlockDuration);
     event MinimumStakeProportionUpdated(uint256 minimumStakeProportion);
+    event SeekerPowerMultiplierUpdated(uint256 seekerPowerMultipler);
 
     error NoStakeToUnlock();
     error StakeNotYetUnlocked();
@@ -147,6 +148,11 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
 
         unlockDuration = _unlockDuration;
         emit UnlockDurationUpdated(_unlockDuration);
+    }
+
+    function setSeekerPowerMultiplier(uint256 _seekerPowerMultiplier) external onlyOwner {
+        seekerPowerMultiplier = _seekerPowerMultiplier;
+        emit SeekerPowerMultiplierUpdated(seekerPowerMultiplier);
     }
 
     /**
