@@ -63,7 +63,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const startDate: Date = config.EpochsManager.initialEpoch;
     const currentTime = Date.now();
     const msUntilStart = startDate.getTime() - currentTime;
-    const blocksUntilStart = msUntilStart / 4000;
+    const blocksUntilStart = Math.floor(msUntilStart / 4000);
     const currentBlock = await deployer.provider.getBlock('latest');
     if (currentBlock == null) {
       throw new Error('could not determine current block');

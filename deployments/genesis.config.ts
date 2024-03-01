@@ -51,7 +51,7 @@ const TRNMainnetParameters: ContractParameters = {
   FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
   EpochsManager: {
-    initialEpoch: new Date(2024, 3, 11, 11), // March 11th 11am
+    initialEpoch: new Date('2024-03-10T22:00:00.000Z'), // March 11th 11am NZST
     epochDuration: 151200, // 1 Week
   },
 
