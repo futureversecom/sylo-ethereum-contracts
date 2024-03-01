@@ -36,6 +36,10 @@ const config: HardhatUserConfig = {
       url: 'http://0.0.0.0:8545',
       accounts: 'remote',
     },
+    'trn-mainnet': {
+      url: 'https://root.rootnet.live',
+      accounts: [process.env.MAINNET_DEPLOYER ?? ''],
+    },
     'porcini-dev': {
       url: 'https://porcini.rootnet.app',
       accounts: {
