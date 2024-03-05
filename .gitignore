@@ -117,3 +117,6 @@ gasReport.txt
 typechain-types/
 cache/
 artifacts/
+
+.DS_Store
+.vscode

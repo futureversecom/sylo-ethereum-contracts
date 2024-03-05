@@ -1,5 +1,5 @@
 import * as hre from 'hardhat';
-import { BigNumberish } from 'ethers';
+import { BigNumberish, parseEther } from 'ethers';
 
 type ContractParameters = {
   // Address of the existing Sylo Token
@@ -12,7 +12,7 @@ type ContractParameters = {
   FuturepassRegistrar: string;
 
   EpochsManager: {
-    initialEpoch: BigNumberish;
+    initialEpoch: number | Date;
     epochDuration: BigNumberish;
   };
 
@@ -43,52 +43,42 @@ type ContractParameters = {
   };
 };
 
-const GenesisParameters: ContractParameters = {
-  SyloToken:
-    hre.network.name === 'mainnet'
-      ? '0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4'
-      : hre.network.name === 'rata'
-      ? '0xcCCCcCcC00004274000000000000000000000000'
-      : hre.network.name === 'nikau'
-      ? '0xcccCccCC000042B4000000000000000000000000'
-      : '',
+const TRNMainnetParameters: ContractParameters = {
+  SyloToken: '0xcCcCCCCc00000864000000000000000000000000',
 
-  Seekers:
-    hre.network.name === 'nikau'
-      ? '0xC65fDC6c38D0a1d3524aE54ba205BDE197AbddbA'
-      : '',
+  Seekers: '0xAAaaAAAA00008464000000000000000000000000',
 
-  FuturepassRegistrar: '',
+  FuturepassRegistrar: '0x000000000000000000000000000000000000FFFF',
 
   EpochsManager: {
-    initialEpoch: 0,
-    epochDuration: 80000,
+    initialEpoch: new Date('2024-03-10T22:00:00.000Z'), // March 11th 11am NZST
+    epochDuration: 151200, // 1 Week
   },
 
   Registries: {
-    defaultPayoutPercentage: 50000,
+    defaultPayoutPercentage: 100000, // All rewards go to stakers
   },
 
   TicketingParameters: {
-    faceValue: 100000,
-    baseLiveWinProb: (2n ** 128n - 1n) / 1000n,
-    expiredWinProb: (2n ** 128n - 1n) / 1000n,
-    ticketDuration: 80000,
+    faceValue: parseEther('25000'),
+    baseLiveWinProb: (2n ** 128n - 1n) / 10n,
+    expiredWinProb: 2n ** 128n - 1n,
+    ticketDuration: 151200, // 1 Week
     decayRate: 80000,
   },
 
   Ticketing: {
-    unlockDuration: 80000,
+    unlockDuration: 151200,
   },
 
   StakingManager: {
-    unlockDuration: 8000,
-    minimumStakeProportion: 20000,
-    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
+    unlockDuration: 151200,
+    minimumStakeProportion: 1,
+    seekerPowerMultiplier: hre.ethers.parseEther('100000000'),
   },
 
   SeekerPowerOracle: {
-    oracleAccount: '',
+    oracleAccount: '0xf2eBb0bD5084DEF261e78D0d95a4CbeC3844922c', // deployer
   },
 };
 
@@ -123,7 +113,7 @@ const GanacheTestnetParameters: ContractParameters = {
   StakingManager: {
     unlockDuration: 30, // 30 * 4 = 120 seconds = 2 minutes
     minimumStakeProportion: 20000,
-    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
+    seekerPowerMultiplier: parseEther('1000000'),
   },
 
   SeekerPowerOracle: {
@@ -170,6 +160,6 @@ const PorciniDevParameters: ContractParameters = {
   },
 };
 
-export { GenesisParameters, GanacheTestnetParameters, PorciniDevParameters };
+export { TRNMainnetParameters, GanacheTestnetParameters, PorciniDevParameters };
 
 export type { ContractParameters };

@@ -55,6 +55,23 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       )
     ).address;
   }
+
+  let epochStartBlock = 0;
+  if (typeof config.EpochsManager.initialEpoch === 'number') {
+    epochStartBlock = config.EpochsManager.initialEpoch;
+  } else {
+    const startDate: Date = config.EpochsManager.initialEpoch;
+    const currentTime = Date.now();
+    const msUntilStart = startDate.getTime() - currentTime;
+    const blocksUntilStart = Math.floor(msUntilStart / 4000);
+    const currentBlock = await deployer.provider.getBlock('latest');
+    if (currentBlock == null) {
+      throw new Error('could not determine current block');
+    }
+
+    epochStartBlock = currentBlock.number + blocksUntilStart;
+  }
+
   for (const name of Object.values(DeployedContractNames)) {
     contracts[name] = await deployContract(
       name,
@@ -91,7 +108,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         contracts[ContractNames.directory].address,
         contracts[ContractNames.registries].address,
         contracts[ContractNames.ticketingParameters].address,
-        config.EpochsManager.initialEpoch,
+        epochStartBlock,
         config.EpochsManager.epochDuration,
       ],
     },
@@ -175,12 +192,14 @@ export default func;
 
 function getConfig(networkName: string): configs.ContractParameters {
   switch (networkName) {
+    case 'trn-mainnet':
+      return configs.TRNMainnetParameters;
     case 'porcini-dev':
       return configs.PorciniDevParameters;
     case 'locahost':
       return configs.GanacheTestnetParameters;
     default:
-      return configs.GenesisParameters;
+      throw new Error('unknown network: ' + networkName);
   }
 }
 

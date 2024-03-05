@@ -1119,6 +1119,31 @@ describe('Staking', () => {
     expect(capacityTwo).to.equal(MAX_SYLO_STAKE);
   });
 
+  it('can set seeker power multiplier', async () => {
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 1);
+
+    const originalCapacity =
+      await stakingManager.calculateCapacityFromSeekerPower(111);
+
+    expect(originalCapacity).to.equal(ethers.parseEther('1000000'));
+
+    await expect(
+      stakingManager.setSeekerPowerMultiplier(ethers.parseEther('500000')),
+    )
+      .to.emit(stakingManager, 'SeekerPowerMultiplierUpdated')
+      .withArgs(ethers.parseEther('500000'));
+
+    const newCapacity = await stakingManager.calculateCapacityFromSeekerPower(
+      111,
+    );
+
+    expect(newCapacity).to.equal(ethers.parseEther('500000'));
+
+    await expect(
+      stakingManager.connect(accounts[1]).setSeekerPowerMultiplier(1),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
   it('reverts when joining directory without seeker power registered', async () => {
     await stakingManager.addStake(100, owner);
 
@@ -1152,7 +1177,7 @@ describe('Staking', () => {
     await token.approve(stakingManager.getAddress(), stakeToAdd);
     await stakingManager.addStake(stakeToAdd, owner);
 
-    await seekerPowerOracle.registerSeekerPowerRestricted(111, 4);
+    await seekerPowerOracle.registerSeekerPowerRestricted(111, 1);
 
     // delegated stake added causes the minimum proportion to be exceeded
     const delegatedStakeToAdd = ethers.parseEther('1000000');
