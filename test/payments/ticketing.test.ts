@@ -2724,92 +2724,7 @@ describe('Ticketing', () => {
     compareExpectedBalance(postBalance, initialBalance + toSOLOs(20000));
   });
 
-  it('can claim staking rewards if node already joined next epoch', async () => {
-    await setSeekerRegistry(
-      seekers,
-      registries,
-      seekerPowerOracle,
-      accounts[0],
-      accounts[1],
-      1,
-    );
-
-    const { proportions } = await addStakes(token, stakingManager, owner, [
-      { account: accounts[0], stake: 1000 },
-      // have accounts 1, 2 and 3 as delegated stakers
-      { account: accounts[1], stake: 250 },
-      { account: accounts[2], stake: 400 },
-      { account: accounts[3], stake: 350 },
-    ]);
-
-    const alice = Wallet.createRandom();
-    const bob = Wallet.createRandom();
-    await syloTicketing.depositEscrow(toSOLOs(50000), alice.address);
-    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
-
-    for (let j = 0; j < 2; j++) {
-      await epochsManager.joinNextEpoch();
-      await epochsManager.initializeEpoch();
-
-      for (let i = 0; i < 10; i++) {
-        const { ticket, redeemerRand, senderSig, receiverSig } =
-          await createWinningTicket(
-            syloTicketing,
-            epochsManager,
-            alice,
-            bob,
-            owner,
-          );
-
-        await syloTicketing.redeem(
-          ticket,
-          redeemerRand,
-          senderSig,
-          receiverSig,
-        );
-      }
-    }
-
-    // 10 tickets redeemed per epoch
-    const totalWinnings = 5000;
-
-    // have the node join the next epoch and test stakers are able
-    // to claim for the first epoch
-    await epochsManager.joinNextEpoch();
-    await testClaims(token, rewardsManager, owner, [
-      {
-        account: accounts[1],
-        claim: proportions[1] * totalWinnings,
-      },
-      {
-        account: accounts[2],
-        claim: proportions[2] * totalWinnings,
-      },
-      {
-        account: accounts[3],
-        claim: proportions[3] * totalWinnings,
-      },
-    ]);
-
-    // confirm the second epoch can be claimed for
-    await epochsManager.initializeEpoch();
-    await testClaims(token, rewardsManager, owner, [
-      {
-        account: accounts[1],
-        claim: proportions[1] * totalWinnings,
-      },
-      {
-        account: accounts[2],
-        claim: proportions[2] * totalWinnings,
-      },
-      {
-        account: accounts[3],
-        claim: proportions[3] * totalWinnings,
-      },
-    ]);
-  });
-
-  it('can claim staking rewards if node already joined next epoch but skipped the current epoch', async () => {
+  it('can claim staking rewards if node skipped the current epoch', async () => {
     await setSeekerRegistry(
       seekers,
       registries,
@@ -2861,6 +2776,8 @@ describe('Ticketing', () => {
     // initialize the next epoch but have the node skip the next one
     await epochsManager.initializeEpoch();
     await epochsManager.joinNextEpoch();
+
+    await epochsManager.initializeEpoch();
 
     // confirm all epochs can be claimed for
     await testClaims(token, rewardsManager, owner, [
@@ -3065,6 +2982,55 @@ describe('Ticketing', () => {
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
     ).to.be.revertedWithCustomError(rewardsManager, 'InvalidFixedPointResult');
+  });
+
+  it('reverts when staker changes stake or claims reward when node has joined next epoch', async () => {
+    await stakingManager.addStake(50, owner);
+
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+
+    await expect(
+      stakingManager.addStake(50, owner),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'NextRewardPoolAlreadyActive',
+    );
+
+    await expect(
+      stakingManager.unlockStake(50, owner),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'NextRewardPoolAlreadyActive',
+    );
+
+    await expect(
+      rewardsManager.claimStakingRewards(owner),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'NextRewardPoolAlreadyActive',
+    );
+
+    await epochsManager.initializeEpoch();
+
+    await stakingManager.unlockStake(5, owner);
+
+    await epochsManager.joinNextEpoch();
+
+    await expect(
+      stakingManager.cancelUnlocking(5, owner),
+    ).to.be.revertedWithCustomError(
+      rewardsManager,
+      'NextRewardPoolAlreadyActive',
+    );
   });
 
   it('simulates scenario between sender, node, and oracle', async () => {

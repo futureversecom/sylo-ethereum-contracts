@@ -27,9 +27,12 @@ describe('Simulations', () => {
   it.only('simulates 10 nodes and 25 stakers over several epochs', async () => {
     const contracts = await utils.initializeContracts(owner, token);
 
+    const nodeCount = 10;
+    const stakerCount = 25;
+
     // create 10 nodes accounts
     const nodes = await Promise.all(
-      Array(10)
+      Array(nodeCount)
         .fill(0)
         .map(_ => {
           return createSigner(contracts);
@@ -40,12 +43,16 @@ describe('Simulations', () => {
 
     // create 25 staker accounts
     const stakers = await Promise.all(
-      Array(25)
+      Array(stakerCount)
         .fill(0)
         .map((_, i) => {
           return createSigner(contracts, (i % 5) + 1);
         }),
     );
+
+    // this staker will stake at the start but only perform a claim at the
+    // end
+    const inactiveStaker = stakers[0];
 
     console.log('created stakers');
 
@@ -69,7 +76,11 @@ describe('Simulations', () => {
 
     console.log('setup nodes');
 
-    const stakeEntries: { [staker: string]: { [stakee: string]: number } } = {};
+    const stakeEntries: {
+      [staker: string]: {
+        [stakee: string]: { lastClaim: number; stake: number };
+      };
+    } = {};
 
     // have each staker randomly stake to 5 nodes
     await Promise.all(
@@ -78,7 +89,7 @@ describe('Simulations', () => {
 
         for (let i = 0; i < 5; i++) {
           // select random node
-          const node = nodes[randomInt(9)];
+          const node = nodes[randomInt(nodeCount)];
 
           // stake between 1 and 1000000
           const stakeAmount = randomInt(1000000) + 1;
@@ -87,7 +98,10 @@ describe('Simulations', () => {
             .connect(staker.signer)
             .addStake(ethers.parseEther(stakeAmount.toString()), node.address);
 
-          stakeEntries[staker.address][node.address] = stakeAmount;
+          stakeEntries[staker.address][node.address] = {
+            stake: stakeAmount,
+            lastClaim: 1,
+          };
         }
       }),
     );
@@ -118,22 +132,27 @@ describe('Simulations', () => {
     }
     await contracts.epochsManager.initializeEpoch();
 
-    // run the simulation for 50 epochs
-    for (let i = 1; i < 50; i++) {
+    // run the simulation for 25 epochs
+    for (let i = 1; i < 25; i++) {
       console.log(`running epoch ${i}...`);
 
-      await Promise.all(
-        stakers.map(async staker => {
-          await runRandomStakerAction(contracts, staker, stakeEntries);
-        }),
-      );
+      // we simulate a staker performing multiple stake or reward related
+      // actions during an epoch
+      for (let j = 0; j < 3; j++) {
+        await Promise.all(
+          stakers.map(async staker => {
+            if (staker.address === inactiveStaker.address) {
+              return;
+            }
+
+            await runRandomStakerAction(contracts, i, staker, stakeEntries);
+          }),
+        );
+      }
 
       // bootstrap the nodes
-      for (let j = 0; j < 10; j++) {
-        // scan a node
-        const scannedNode = await contracts.directory.scan(
-          randomInt(1000000000),
-        );
+      for (let j = 0; j < nodeCount; j++) {
+        const node = nodes[j];
 
         const { ticket, redeemerRand, senderSig, receiverSig } =
           await createWinningTicket(
@@ -141,32 +160,23 @@ describe('Simulations', () => {
             contracts.epochsManager,
             bootstrapper.signer,
             bootstrapper.signer,
-            scannedNode,
+            node.address,
           );
 
-        for (const node of nodes) {
-          if (node.address == scannedNode) {
-            await contracts.syloTicketing
-              .connect(node.signer)
-              .redeem(ticket, redeemerRand, senderSig, receiverSig);
-            break;
-          }
-        }
+        await contracts.syloTicketing
+          .connect(node.signer)
+          .redeem(ticket, redeemerRand, senderSig, receiverSig);
       }
 
+      // have nodes join epochs
       for (const node of nodes) {
         await contracts.epochsManager.connect(node.signer).joinNextEpoch();
       }
-      await contracts.epochsManager.initializeEpoch();
 
-      await Promise.all(
-        stakers.map(async staker => {
-          await runRandomStakerAction(contracts, staker, stakeEntries);
-        }),
-      );
+      await contracts.epochsManager.initializeEpoch();
     }
 
-    console.log('claim final rewards');
+    console.log('claiming final rewards');
 
     for (const staker of stakers) {
       console.log('performing claims for: ', staker.address);
@@ -219,14 +229,19 @@ describe('Simulations', () => {
   };
 
   // for each of a node's stakers, run an action that will
-  // affect their stake or claim amount
+  // affect their stake
   const runRandomStakerAction = async (
     contracts: SyloContracts,
+    currentEpoch: number,
     staker: { address: string; signer: Signer },
-    stakeEntries: { [staker: string]: { [stakee: string]: number } },
+    stakeEntries: {
+      [staker: string]: {
+        [stakee: string]: { lastClaim: number; stake: number };
+      };
+    },
   ) => {
     for (const node of Object.keys(stakeEntries[staker.address])) {
-      const randAction = randomInt(3);
+      const randAction = randomInt(4);
 
       switch (randAction) {
         case 0: // add stake
@@ -236,19 +251,21 @@ describe('Simulations', () => {
             .connect(staker.signer)
             .addStake(ethers.parseEther(stakeAmount.toString()), node);
 
-          stakeEntries[staker.address][node] += stakeAmount;
+          stakeEntries[staker.address][node].stake += stakeAmount;
 
           break;
-        case 1: // unlock state
-          const currentStake = stakeEntries[staker.address][node];
+        case 1: // unlock stake
+          const currentStake = stakeEntries[staker.address][node].stake;
           if (currentStake > 0) {
-            const unlockAmount = randomInt(currentStake) + 1;
+            const unlockAmount = randomInt(currentStake / 2) + 1;
 
-            await contracts.stakingManager
-              .connect(staker.signer)
-              .unlockStake(ethers.parseEther(unlockAmount.toString()), node);
+            if (unlockAmount > 0) {
+              await contracts.stakingManager
+                .connect(staker.signer)
+                .unlockStake(ethers.parseEther(unlockAmount.toString()), node);
 
-            stakeEntries[staker.address][node] -= unlockAmount;
+              stakeEntries[staker.address][node].stake -= unlockAmount;
+            }
           }
 
           break;
@@ -266,20 +283,17 @@ describe('Simulations', () => {
 
             const stakeAmount = parseInt(ethers.formatEther(unlocking.amount));
 
-            stakeEntries[staker.address][node] += stakeAmount;
+            stakeEntries[staker.address][node].stake += stakeAmount;
           }
 
           break;
         case 3: // claim
-          console.log('claim');
-          const claim = await contracts.rewardsManager.calculateStakerClaim(
-            node,
-            staker.address,
-          );
-          if (claim > 0n) {
+          if (stakeEntries[staker.address][node].lastClaim < currentEpoch) {
             await contracts.rewardsManager
               .connect(staker.signer)
               .claimStakingRewards(node);
+
+            stakeEntries[staker.address][node].lastClaim = currentEpoch;
           }
 
           break;

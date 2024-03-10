@@ -107,6 +107,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     error StakerCannotBeZeroAddress();
     error StakerKeyCannotBeZeroBytes();
     error InvalidFixedPointResult();
+    error NextRewardPoolAlreadyActive();
 
     function initialize(
         IERC20 token,
@@ -541,6 +542,11 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
             revert StakeeCannotBeZeroAddress();
         }
 
+        uint256 currentEpoch = _epochsManager.currentIteration();
+        if (getRewardPool(currentEpoch + 1, stakee).totalActiveStake > 0) {
+            revert NextRewardPoolAlreadyActive();
+        }
+
         bytes32 stakerKey = getStakerKey(stakee, msg.sender);
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, msg.sender);
 
@@ -565,6 +571,11 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
      * needs to be updated whenever stake changes.
      */
     function updatePendingRewards(address stakee, address staker) external onlyManager {
+        uint256 currentEpoch = _epochsManager.currentIteration();
+        if (getRewardPool(currentEpoch + 1, stakee).totalActiveStake > 0) {
+            revert NextRewardPoolAlreadyActive();
+        }
+
         bytes32 stakerKey = getStakerKey(stakee, staker);
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, staker);
 
@@ -577,16 +588,14 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
 
     function updateLastClaim(address stakee, address staker) internal {
         bytes32 stakerKey = getStakerKey(stakee, staker);
-        LastClaim memory lastClaim = lastClaims[stakerKey];
+        LastClaim storage lastClaim = lastClaims[stakerKey];
 
-        uint256 currentEpochId = _epochsManager.currentIteration();
-        uint256 claimAt = currentEpochId;
+        uint256 claimAt = _epochsManager.currentIteration();
 
-        // The next reward pool has already been initialized, so this last
-        // claim applies for the next epoch.
-        if (getRewardPool(currentEpochId + 1, stakee).totalActiveStake > 0) {
-            claimAt = currentEpochId + 1;
-        }
+        IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
+            stakee,
+            staker
+        );
 
         // If we have already updated the last claim for this epoch, then
         // we skip updating it again.
@@ -594,15 +603,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
             return;
         }
 
-
-        IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
-            stakee,
-            staker
-        );
-
-        lastClaims[stakerKey] = LastClaim(
-            claimAt,
-            stakeEntry.amount
-        );
+        lastClaim.claimedAt = claimAt;
+        lastClaim.stake = stakeEntry.amount;
     }
 }
