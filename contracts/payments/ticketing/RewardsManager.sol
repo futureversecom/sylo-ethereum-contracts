@@ -176,7 +176,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     function getRewardPool(
         uint256 epochId,
         address stakee
-    ) external view returns (RewardPool memory) {
+    ) public view returns (RewardPool memory) {
         return rewardPools[getRewardPoolKey(epochId, stakee)];
     }
 
@@ -576,12 +576,32 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     }
 
     function updateLastClaim(address stakee, address staker) internal {
+        bytes32 stakerKey = getStakerKey(stakee, staker);
+        LastClaim memory lastClaim = lastClaims[stakerKey];
+
+        uint256 currentEpochId = _epochsManager.currentIteration();
+        uint256 claimAt = currentEpochId;
+
+        // The next reward pool has already been initialized, so this last
+        // claim applies for the next epoch.
+        if (getRewardPool(currentEpochId + 1, stakee).totalActiveStake > 0) {
+            claimAt = currentEpochId + 1;
+        }
+
+        // If we have already updated the last claim for this epoch, then
+        // we skip updating it again.
+        if (lastClaim.claimedAt == claimAt) {
+            return;
+        }
+
+
         IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
             stakee,
             staker
         );
-        lastClaims[getStakerKey(stakee, staker)] = LastClaim(
-            _epochsManager.currentIteration(),
+
+        lastClaims[stakerKey] = LastClaim(
+            claimAt,
             stakeEntry.amount
         );
     }
