@@ -17,6 +17,8 @@ import "../../interfaces/epochs/IEpochsManager.sol";
 import "../../interfaces/staking/IStakingManager.sol";
 import "../../interfaces/payments/ticketing/IRewardsManager.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @notice Handles epoch based reward pools that are incremented from redeeming tickets.
  * Nodes use this contract to set up their reward pool for the next epoch,
@@ -176,7 +178,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     function getRewardPool(
         uint256 epochId,
         address stakee
-    ) external view returns (RewardPool memory) {
+    ) public view returns (RewardPool memory) {
         return rewardPools[getRewardPoolKey(epochId, stakee)];
     }
 
@@ -355,6 +357,29 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
         totalEpochStakingRewards[epochId] = totalEpochStakingRewards[epochId] + stakersReward;
     }
 
+    function getInitialActiveRewardPool(bytes32 stakerKey, address stakee) public view returns (RewardPool memory) {
+        uint256 claim = calculateInitialClaim(stakerKey, stakee);
+
+        // find the first reward pool where their stake was active and had
+        // generated rewards
+        uint256 activeAt;
+        RewardPool memory initialActivePool;
+
+        uint256 currentEpochId = _epochsManager.currentIteration();
+
+        for (uint256 i = lastClaims[stakerKey].claimedAt + 1; i < currentEpochId; ++i) {
+            initialActivePool = rewardPools[getRewardPoolKey(i, stakee)];
+            // check if node initialized a reward pool for this epoch and
+            // gained rewards
+            if (initialActivePool.initializedAt > 0 && initialActivePool.stakersRewardTotal > 0) {
+                activeAt = i;
+                break;
+            }
+        }
+
+        return initialActivePool;
+    }
+
     /**
      * @dev This function utilizes the cumulative reward factors, and the staker's
      * value in stake to calculate the staker's share of the pending reward.
@@ -363,7 +388,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
         bytes32 stakerKey,
         address stakee,
         address staker
-    ) internal view returns (uint256) {
+    ) public view returns (uint256) {
         uint256 claim = calculateInitialClaim(stakerKey, stakee);
 
         // find the first reward pool where their stake was active and had
@@ -421,7 +446,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     function calculateInitialClaim(
         bytes32 stakerKey,
         address stakee
-    ) internal view returns (uint256) {
+    ) public view returns (uint256) {
         LastClaim memory lastClaim = lastClaims[stakerKey];
 
         // if we have already made a claim up to the previous epoch, then
@@ -453,7 +478,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     function getFinalCumulativeRewardFactor(
         address stakee,
         uint256 currentEpochId
-    ) internal view returns (int128) {
+    ) public view returns (int128) {
         int128 finalCumulativeRewardFactor;
 
         // Get the cumulative reward factor for the Node
@@ -566,6 +591,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
      */
     function updatePendingRewards(address stakee, address staker) external onlyManager {
         bytes32 stakerKey = getStakerKey(stakee, staker);
+
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, staker);
 
         pendingRewards[stakee] = pendingRewards[stakee] - pendingReward;
@@ -576,12 +602,32 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     }
 
     function updateLastClaim(address stakee, address staker) internal {
+        bytes32 stakerKey = getStakerKey(stakee, staker);
+        LastClaim memory lastClaim = lastClaims[stakerKey];
+
+        uint256 currentEpochId = _epochsManager.currentIteration();
+        uint256 claimAt = currentEpochId;
+
+        // The next reward pool has already been initialized, so this last
+        // claim applies for the next epoch.
+        if (getRewardPool(currentEpochId + 1, stakee).totalActiveStake > 0) {
+            claimAt = currentEpochId + 1;
+        }
+
+        // If we have already updated the last claim for this epoch, then
+        // we skip updating it again.
+        if (lastClaim.claimedAt == claimAt) {
+            return;
+        }
+
+
         IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
             stakee,
             staker
         );
-        lastClaims[getStakerKey(stakee, staker)] = LastClaim(
-            _epochsManager.currentIteration(),
+
+        lastClaims[stakerKey] = LastClaim(
+            claimAt,
             stakeEntry.amount
         );
     }

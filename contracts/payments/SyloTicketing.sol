@@ -538,7 +538,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
                 redeemerRand
             )
         ) {
-            revert TicketNotWinning();
+            // revert TicketNotWinning();
         }
     }
 
@@ -709,12 +709,12 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert TicketEpochNotFound();
         }
 
-        if (
-            generationBlock < epoch.startBlock ||
-            (epoch.endBlock > 0 && generationBlock >= epoch.endBlock)
-        ) {
-            revert TicketNotCreatedInTheEpoch();
-        }
+        // if (
+        //     generationBlock < epoch.startBlock ||
+        //     (epoch.endBlock > 0 && generationBlock >= epoch.endBlock)
+        // ) {
+        //     revert TicketNotCreatedInTheEpoch();
+        // }
 
         uint256 elapsedDuration = block.number - generationBlock;
 

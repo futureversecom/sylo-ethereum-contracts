@@ -5,6 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract SyloToken is ERC20 {
     constructor() ERC20("Sylo", "SYLO") {
-        _mint(msg.sender, 10_000_000_000 ether);
+        _mint(msg.sender, 100_000_000_000 ether);
     }
 }

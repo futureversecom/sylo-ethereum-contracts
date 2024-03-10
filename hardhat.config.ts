@@ -31,6 +31,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       gas: 100000000,
       blockGasLimit: 2000000000000, // Add this to allow multiple transactions in one block when testing
+      // mining: { interval: 4 },
     },
     localhost: {
       url: 'http://0.0.0.0:8545',
