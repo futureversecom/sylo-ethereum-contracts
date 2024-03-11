@@ -9,6 +9,7 @@ import {
 } from '../typechain-types';
 import { randomBytes } from 'crypto';
 import { SyloContracts } from '../common/contracts';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
 
 type Options = {
   faceValue?: BigNumberish;
@@ -186,11 +187,72 @@ const initializeContracts = async function (
   };
 };
 
+const onlyDeployContracts = async function (
+  syloToken: SyloToken,
+): Promise<SyloContracts> {
+  const SeekersFactory = await ethers.getContractFactory('TestSeekers');
+  const seekers = await SeekersFactory.deploy();
+
+  const FuturepassRegistrarFactory = await ethers.getContractFactory(
+    'TestFuturepassRegistrar',
+  );
+  const futurepassRegistrar = await FuturepassRegistrarFactory.deploy();
+
+  const RegistriesFactory = await ethers.getContractFactory('Registries');
+  const registries = await RegistriesFactory.deploy();
+
+  const TicketingParametersFactory = await ethers.getContractFactory(
+    'TicketingParameters',
+  );
+  const ticketingParameters = await TicketingParametersFactory.deploy();
+
+  const EpochsManagerFactory = await ethers.getContractFactory('EpochsManager');
+  const epochsManager = await EpochsManagerFactory.deploy();
+
+  const StakingManagerFactory = await ethers.getContractFactory(
+    'StakingManager',
+  );
+  const stakingManager = await StakingManagerFactory.deploy();
+
+  const RewardsManagerFactory = await ethers.getContractFactory(
+    'RewardsManager',
+  );
+  const rewardsManager = await RewardsManagerFactory.deploy();
+
+  const DirectoryFactory = await ethers.getContractFactory('Directory');
+  const directory = await DirectoryFactory.deploy();
+
+  const AuthorizedAccountFactory = await ethers.getContractFactory(
+    'AuthorizedAccounts',
+  );
+  const authorizedAccounts = await AuthorizedAccountFactory.deploy();
+
+  const SeekerPowerOracleFactory = await ethers.getContractFactory(
+    'SeekerPowerOracle',
+  );
+  const seekerPowerOracle = await SeekerPowerOracleFactory.deploy();
+
+  const TicketingFactory = await ethers.getContractFactory('SyloTicketing');
+  const syloTicketing = await TicketingFactory.deploy();
+
+  return {
+    syloToken,
+    authorizedAccounts,
+    registries,
+    ticketingParameters,
+    epochsManager,
+    stakingManager,
+    rewardsManager,
+    directory,
+    syloTicketing,
+    seekers,
+    seekerPowerOracle,
+    futurepassRegistrar,
+  };
+};
+
 const advanceBlock = async function (i: number): Promise<void> {
-  i = i || 1;
-  for (let j = 0; j < i; j++) {
-    await ethers.provider.send('evm_mine', []);
-  }
+  await mine(i);
 };
 
 async function setSeekerRegistry(
@@ -237,4 +299,5 @@ export default {
   initializeContracts,
   advanceBlock,
   setSeekerRegistry,
+  onlyDeployContracts,
 };

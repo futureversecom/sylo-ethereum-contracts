@@ -107,6 +107,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     error StakerCannotBeZeroAddress();
     error StakerKeyCannotBeZeroBytes();
     error InvalidFixedPointResult();
+    error NextRewardPoolAlreadyActive();
 
     function initialize(
         IERC20 token,
@@ -176,7 +177,7 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     function getRewardPool(
         uint256 epochId,
         address stakee
-    ) external view returns (RewardPool memory) {
+    ) public view returns (RewardPool memory) {
         return rewardPools[getRewardPoolKey(epochId, stakee)];
     }
 
@@ -541,6 +542,11 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
             revert StakeeCannotBeZeroAddress();
         }
 
+        uint256 currentEpoch = _epochsManager.currentIteration();
+        if (getRewardPool(currentEpoch + 1, stakee).totalActiveStake > 0) {
+            revert NextRewardPoolAlreadyActive();
+        }
+
         bytes32 stakerKey = getStakerKey(stakee, msg.sender);
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, msg.sender);
 
@@ -565,6 +571,11 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
      * needs to be updated whenever stake changes.
      */
     function updatePendingRewards(address stakee, address staker) external onlyManager {
+        uint256 currentEpoch = _epochsManager.currentIteration();
+        if (getRewardPool(currentEpoch + 1, stakee).totalActiveStake > 0) {
+            revert NextRewardPoolAlreadyActive();
+        }
+
         bytes32 stakerKey = getStakerKey(stakee, staker);
         uint256 pendingReward = calculatePendingClaim(stakerKey, stakee, staker);
 
@@ -576,13 +587,23 @@ contract RewardsManager is IRewardsManager, Initializable, Manageable, ERC165 {
     }
 
     function updateLastClaim(address stakee, address staker) internal {
+        bytes32 stakerKey = getStakerKey(stakee, staker);
+        LastClaim storage lastClaim = lastClaims[stakerKey];
+
+        uint256 claimAt = _epochsManager.currentIteration();
+
         IStakingManager.StakeEntry memory stakeEntry = _stakingManager.getStakeEntry(
             stakee,
             staker
         );
-        lastClaims[getStakerKey(stakee, staker)] = LastClaim(
-            _epochsManager.currentIteration(),
-            stakeEntry.amount
-        );
+
+        // If we have already updated the last claim for this epoch, then
+        // we skip updating it again.
+        if (lastClaim.claimedAt == claimAt) {
+            return;
+        }
+
+        lastClaim.claimedAt = claimAt;
+        lastClaim.stake = stakeEntry.amount;
     }
 }

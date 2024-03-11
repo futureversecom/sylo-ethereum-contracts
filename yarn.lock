@@ -705,6 +705,13 @@
     debug "^4.1.1"
     lodash.isequal "^4.5.0"
 
+"@nomicfoundation/hardhat-network-helpers@^1.0.10":
+  version "1.0.10"
+  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-network-helpers/-/hardhat-network-helpers-1.0.10.tgz#c61042ceb104fdd6c10017859fdef6529c1d6585"
+  integrity sha512-R35/BMBlx7tWN5V6d/8/19QCwEmIdbnA4ZrsuXgvs8i2qFx5i7h6mH5pBS4Pwi4WigLH+upl6faYusrNPuzMrQ==
+  dependencies:
+    ethereumjs-util "^7.1.4"
+
 "@nomicfoundation/hardhat-verify@^1.0.3":
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-verify/-/hardhat-verify-1.0.3.tgz#573b326fe0f58dcdc527e8c11bd5a6336eb52bc4"
@@ -3353,7 +3360,7 @@ ethereumjs-util@^6.0.0, ethereumjs-util@^6.2.1:
     ethjs-util "0.1.6"
     rlp "^2.2.3"
 
-ethereumjs-util@^7.1.0, ethereumjs-util@^7.1.1, ethereumjs-util@^7.1.2, ethereumjs-util@^7.1.5:
+ethereumjs-util@^7.1.0, ethereumjs-util@^7.1.1, ethereumjs-util@^7.1.2, ethereumjs-util@^7.1.4, ethereumjs-util@^7.1.5:
   version "7.1.5"
   resolved "https://registry.yarnpkg.com/ethereumjs-util/-/ethereumjs-util-7.1.5.tgz#9ecf04861e4fbbeed7465ece5f23317ad1129181"
   integrity sha512-SDl5kKrQAudFBUe5OJM9Ac6WmMyYmXX/6sTmLZ3ffG2eY6ZIGBes3pEDxNN6V72WyOw4CPD5RomKdsa8DAAwLg==
