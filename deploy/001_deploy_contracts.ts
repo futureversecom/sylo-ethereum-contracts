@@ -190,6 +190,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
 export default func;
 
+func.tags = ['001'];
+
 function getConfig(networkName: string): configs.ContractParameters {
   switch (networkName) {
     case 'trn-mainnet':

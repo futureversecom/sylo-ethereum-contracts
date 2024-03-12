@@ -134,7 +134,7 @@ const PorciniDevParameters: ContractParameters = {
   },
 
   Registries: {
-    defaultPayoutPercentage: 50000,
+    defaultPayoutPercentage: 100000,
   },
 
   TicketingParameters: {
@@ -151,8 +151,8 @@ const PorciniDevParameters: ContractParameters = {
 
   StakingManager: {
     unlockDuration: 10,
-    minimumStakeProportion: 20000,
-    seekerPowerMultiplier: hre.ethers.parseEther('1000000'),
+    minimumStakeProportion: 1,
+    seekerPowerMultiplier: hre.ethers.parseEther('4000000'),
   },
 
   SeekerPowerOracle: {
