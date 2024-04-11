@@ -16,6 +16,7 @@ const syloContracts = [
   'SyloToken',
   'TicketingParameters',
   'AuthorizedAccounts',
+  'SeekerPowerOracle',
 ];
 
 type ABI = {
