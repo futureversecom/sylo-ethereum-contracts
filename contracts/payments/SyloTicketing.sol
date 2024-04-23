@@ -415,7 +415,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     }
 
     function _redeem(EpochsManager.Epoch memory epoch, Ticket calldata ticket) internal {
-        uint256 rewardAmount = rewardRedeemer(epoch, ticket.sender, ticket.redeemer);
+        uint256 rewardAmount = rewardRedeemer(epoch.faceValue, ticket.sender, ticket.redeemer);
 
         emit Redemption(
             ticket.epochId,
@@ -432,7 +432,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         MultiReceiverTicket calldata ticket,
         address receiver
     ) internal {
-        uint256 rewardAmount = rewardRedeemer(epoch, ticket.sender, ticket.redeemer);
+        uint256 rewardAmount = rewardRedeemer(epoch.multiReceiverFaceValue, ticket.sender, ticket.redeemer);
 
         emit MultiReceiverRedemption(
             ticket.epochId,
@@ -445,7 +445,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     }
 
     function rewardRedeemer(
-        EpochsManager.Epoch memory epoch,
+        uint256 faceValue,
         User calldata sender,
         address redeemer
     ) internal returns (uint256) {
@@ -453,7 +453,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
 
         uint256 amount;
 
-        if (epoch.faceValue > deposit.escrow) {
+        if (faceValue > deposit.escrow) {
             amount = deposit.escrow;
             incrementRewardPool(redeemer, deposit, amount);
             SafeERC20.safeTransfer(
@@ -465,7 +465,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             delete deposit.penalty;
             emit SenderPenaltyBurnt(sender.main);
         } else {
-            amount = epoch.faceValue;
+            amount = faceValue;
             incrementRewardPool(redeemer, deposit, amount);
         }
 

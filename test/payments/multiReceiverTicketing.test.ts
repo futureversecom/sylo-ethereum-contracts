@@ -62,6 +62,9 @@ describe('MultiReceiverTicketing', () => {
     seekerPowerOracle = contracts.seekerPowerOracle;
     futurepassRegistrar = contracts.futurepassRegistrar;
 
+    const currentFaceValue = await ticketingParameters.faceValue();
+    await ticketingParameters.setMultiReceiverFaceValue(currentFaceValue);
+
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
     await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
   });
