@@ -54,11 +54,15 @@ contract TicketingParameters is
      */
     uint32 public decayRate;
 
+    /** @notice The value of a winning multi-receiver ticket in SOLO. */
+    uint256 public multiReceiverFaceValue;
+
     event FaceValueUpdated(uint256 faceValue);
     event BaseLiveWinProbUpdated(uint128 baseLiveWinprob);
     event ExpiredWinProbUpdated(uint128 expiredWinProb);
     event TicketDurationUpdated(uint256 ticketDuration);
     event DecayRateUpdated(uint32 decayRate);
+    event MultiReceiverFaceValueUpdated(uint256 faceValue);
 
     error FaceValueCannotBeZero();
     error TicketDurationCannotBeZero();
@@ -162,12 +166,22 @@ contract TicketingParameters is
      * @return expiredWinProb The expired win probability of a ticket.
      * @return ticketDuration The duration of a ticket in number of blocks.
      * @return decayRate The decay rate of a ticket.
+     * @return multiReceiverFaceValue The face value of a multi-receiver ticket in SOLO.
      */
     function getTicketingParameters()
         external
         view
-        returns (uint256, uint128, uint128, uint256, uint32)
+        returns (uint256, uint128, uint128, uint256, uint32, uint256)
     {
-        return (faceValue, baseLiveWinProb, expiredWinProb, ticketDuration, decayRate);
+        return (faceValue, baseLiveWinProb, expiredWinProb, ticketDuration, decayRate, multiReceiverFaceValue);
+    }
+
+    function setMultiReceiverFaceValue(uint256 _multiReceiverFaceValue) external onlyOwner {
+        if (_multiReceiverFaceValue == 0) {
+            revert FaceValueCannotBeZero();
+        }
+
+        multiReceiverFaceValue = _multiReceiverFaceValue;
+        emit MultiReceiverFaceValueUpdated(multiReceiverFaceValue);
     }
 }

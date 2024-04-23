@@ -22,6 +22,7 @@ interface IEpochsManager {
         uint128 baseLiveWinProb;
         uint128 expiredWinProb;
         uint256 ticketDuration;
+        uint256 multiReceiverFaceValue;
     }
 
     function initializeEpoch() external returns (uint256);

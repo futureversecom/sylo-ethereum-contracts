@@ -142,7 +142,8 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
             uint128 baseLiveWinProb,
             uint128 expiredWinProb,
             uint256 ticketDuration,
-            uint32 decayRate
+            uint32 decayRate,
+            uint256 multiReceiverFaceValue
         ) = _ticketingParameters.getTicketingParameters();
 
         uint256 nextEpochId = getNextEpochId();
@@ -156,7 +157,8 @@ contract EpochsManager is IEpochsManager, Initializable, Ownable2StepUpgradeable
             faceValue,
             baseLiveWinProb,
             expiredWinProb,
-            ticketDuration
+            ticketDuration,
+            multiReceiverFaceValue
         );
 
         current.endBlock = block.number;
