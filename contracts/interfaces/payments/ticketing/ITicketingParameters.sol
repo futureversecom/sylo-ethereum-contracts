@@ -12,8 +12,10 @@ interface ITicketingParameters {
 
     function setTicketDuration(uint256 _ticketDuration) external;
 
+    function setMultiReceiverFaceValue(uint256 _multiReceiverFaceValue) external;
+
     function getTicketingParameters()
         external
         view
-        returns (uint256, uint128, uint128, uint256, uint32);
+        returns (uint256, uint128, uint128, uint256, uint32, uint256);
 }

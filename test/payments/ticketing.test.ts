@@ -256,6 +256,10 @@ describe('Ticketing', () => {
       .to.emit(ticketingParameters, 'TicketDurationUpdated')
       .withArgs(2222);
 
+    await expect(ticketingParameters.setMultiReceiverFaceValue(888))
+      .to.emit(ticketingParameters, 'MultiReceiverFaceValueUpdated')
+      .withArgs(888);
+
     await expect(syloTicketing.setUnlockDuration(3333))
       .to.emit(syloTicketing, 'UnlockDurationUpdated')
       .withArgs(3333);
@@ -265,6 +269,14 @@ describe('Ticketing', () => {
       currentfaceValue,
       777n,
       'Expected face value to be correctly set',
+    );
+
+    const multiReceiverFaceValue =
+      await ticketingParameters.multiReceiverFaceValue();
+    assert.equal(
+      multiReceiverFaceValue,
+      888n,
+      'Expected multi-receiver face value to be correctly set',
     );
 
     const baseLiveWinProb = await ticketingParameters.baseLiveWinProb();
