@@ -54,7 +54,10 @@ contract TicketingParameters is
      */
     uint32 public decayRate;
 
-    /** @notice The value of a winning multi-receiver ticket in SOLO. */
+    /** @notice The value of a winning multi-receiver ticket in SOLO.
+     * This value was added from an upgrade, so is not present int the initialize
+     * method.
+     */
     uint256 public multiReceiverFaceValue;
 
     event FaceValueUpdated(uint256 faceValue);
@@ -62,7 +65,7 @@ contract TicketingParameters is
     event ExpiredWinProbUpdated(uint128 expiredWinProb);
     event TicketDurationUpdated(uint256 ticketDuration);
     event DecayRateUpdated(uint32 decayRate);
-    event MultiReceiverFaceValueUpdated(uint256 faceValue);
+    event MultiReceiverFaceValueUpdated(uint256 multiReceiverFaceValue);
 
     error FaceValueCannotBeZero();
     error TicketDurationCannotBeZero();
