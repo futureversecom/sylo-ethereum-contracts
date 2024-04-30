@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "../IAuthorizedAccounts.sol";
+
 interface ISyloTicketing {
     struct Deposit {
         uint256 escrow; // Balance of users escrow
@@ -11,6 +13,19 @@ interface ISyloTicketing {
     struct User {
         address main; // Main address of the ticket sender or receiver
         address delegated; // Delegated address used to sign and redeem tickets
+    }
+
+    enum SignatureType {
+        Main,
+        Authorized,
+        AttachedAuthorized
+    }
+
+    struct UserSignature {
+        SignatureType sigType;
+        bytes signature;
+        // This field will only be present if the sig type is `AttachedAuthorized`
+        IAuthorizedAccounts.AttachedAuthorizedAccount attachedAccount;
     }
 
     struct Ticket {
@@ -50,11 +65,26 @@ interface ISyloTicketing {
         bytes calldata receiverSig
     ) external;
 
+    function redeemV2(
+        Ticket calldata ticket,
+        uint256 redeemerRand,
+        UserSignature calldata senderSig,
+        UserSignature calldata receiverSig
+    ) external;
+
     function redeemMultiReceiver(
         MultiReceiverTicket calldata ticket,
         uint256 redeemerRand,
         User calldata receiver,
         bytes calldata senderSig,
         bytes calldata receiverSig
+    ) external;
+
+    function redeemMultiReceiverV2(
+        MultiReceiverTicket calldata ticket,
+        uint256 redeemerRand,
+        User calldata receiver,
+        UserSignature calldata senderSig,
+        UserSignature calldata receiverSig
     ) external;
 }
