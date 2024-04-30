@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./interfaces/IAuthorizedAccounts.sol";
 
@@ -40,6 +42,8 @@ contract AuthorizedAccounts is
     error AtBlockNumberCannotBeZero();
     error AccountAlreadyAuthorized();
     error AccountDoesNotExist();
+    error AttachedAuthorizedAccountExpired();
+    error AttachedAuthorizedAccountInvalidProof();
 
     function initialize() external initializer {
         Ownable2StepUpgradeable.__Ownable2Step_init();
@@ -301,5 +305,67 @@ contract AuthorizedAccounts is
         Permission[] memory permissions = new Permission[](1);
         permissions[0] = Permission.PersonalSign;
         return permissions;
+    }
+
+    /**
+     * @notice Creates a proof for an authorized account. The prefix, suffix,
+     * and infix strings allow applications to create more human-readable
+     * messages for personal_sign requests.
+     * @param account The authorized account
+     * @param prefix String that is prefixed before the account address in the
+     * signing message
+     * @param suffix String that is placed after the expiry value in the signing
+     * message
+     * @param infixOne String that is placed between the address and expiry in
+     * the signing message
+     */
+    function createAttachedAuthorizedAccountProofMessage(
+        address account,
+        uint256 expiry,
+        string calldata prefix,
+        string calldata suffix,
+        string calldata infixOne
+    ) external pure returns (bytes memory) {
+        return _createAttachedAuthorizedAccountProofMessage(
+            account, expiry, prefix, suffix, infixOne
+        );
+    }
+
+    function _createAttachedAuthorizedAccountProofMessage(
+        address account,
+        uint256 expiry,
+        string calldata prefix,
+        string calldata suffix,
+        string calldata infixOne
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            prefix,
+            Strings.toHexString(uint256(uint160(account)), 20),
+            infixOne,
+            Strings.toString((expiry)),
+            suffix
+        );
+    }
+
+    function validateAttachedAuthorizedAccount(
+        address main,
+        AttachedAuthorizedAccount calldata account
+    ) external view {
+        if (block.timestamp > account.expiry) {
+            revert AttachedAuthorizedAccountExpired();
+        }
+
+        bytes memory proofMessage = _createAttachedAuthorizedAccountProofMessage(
+            account.account,
+            account.expiry,
+            account.prefix,
+            account.suffix,
+            account.infixOne
+        );
+        bytes32 ethProof = ECDSA.toEthSignedMessageHash(proofMessage);
+
+        if (ECDSA.recover(ethProof, account.proof) != main) {
+            revert AttachedAuthorizedAccountInvalidProof();
+        }
     }
 }
