@@ -25,7 +25,7 @@ interface ISyloTicketing {
         SignatureType sigType;
         bytes signature;
         // This field will only be present if the sig type is `AttachedAuthorized`
-        IAuthorizedAccounts.AttachedAuthorizedAccount attachedAccount;
+        IAuthorizedAccounts.AttachedAuthorizedAccount attachedAuthorizedAccount;
     }
 
     struct Ticket {

@@ -27,8 +27,11 @@ import {
   setSeekerRegistry,
   createWinningTicket,
   createCommit,
+  createEmptyAttachedAuthorizedAccount,
+  createAttachedAuthorizedAccount,
 } from './utils';
 import utils from '../utils';
+import { SignatureType } from '../../common/enum';
 
 describe('Ticketing', () => {
   let accounts: Signer[];
@@ -1190,6 +1193,137 @@ describe('Ticketing', () => {
       1000,
       50,
       500,
+    );
+  });
+
+  it.only('can redeem ticket using receiver attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.parseEther('2000.0'),
+    });
+
+    const attachedAuthorizedAccount = await createAttachedAuthorizedAccount(
+      bob,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        undefined,
+        undefined,
+        delegatedWallet,
+      );
+
+    await syloTicketing.redeemV2(
+      ticket,
+      redeemerRand,
+      {
+        sigType: SignatureType.Main,
+        signature: senderSig,
+        attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+      },
+      {
+        sigType: SignatureType.AttachedAuthorized,
+        signature: receiverSig,
+        attachedAuthorizedAccount,
+      },
+    );
+
+    await checkAfterRedeem(
+      syloTicketing,
+      rewardsManager,
+      owner,
+      alice,
+      1000,
+      50,
+      500,
+    );
+  });
+
+  it.only('cannot redeem ticket when using sender attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.parseEther('2000.0'),
+    });
+
+    const attachedAuthorizedAccount = await createAttachedAuthorizedAccount(
+      alice,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        undefined,
+        delegatedWallet,
+        undefined,
+      );
+
+    await expect(
+      syloTicketing.redeemV2(
+        ticket,
+        redeemerRand,
+        {
+          sigType: SignatureType.AttachedAuthorized,
+          signature: senderSig,
+          attachedAuthorizedAccount,
+        },
+        {
+          sigType: SignatureType.Main,
+          signature: receiverSig,
+          attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'SenderCannotUseAttachedAuthorizedAccount',
     );
   });
 
@@ -2959,7 +3093,7 @@ describe('Ticketing', () => {
     assert.equal(p, 0n, 'Expected probability to be 0');
   });
 
-  it('reverts when reward pool stake is signficanlty less than reward', async () => {
+  it('reverts when reward pool stake is significantly less than reward', async () => {
     // The node's stake is 2**63-1 times smaller than what the
     // reward will be.
     await ticketingParameters.setFaceValue(ethers.parseEther('10000'));

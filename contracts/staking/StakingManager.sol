@@ -357,7 +357,9 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
      * based on the minimum stake proportion constant.
      * @param stakee The address of the staked Node.
      */
-    function calculateCapacityFromMinStakingProportion(address stakee) public view returns (uint256) {
+    function calculateCapacityFromMinStakingProportion(
+        address stakee
+    ) public view returns (uint256) {
         if (stakee == address(0)) {
             revert StakeeCannotBeZeroAddress();
         }
@@ -365,8 +367,7 @@ contract StakingManager is IStakingManager, Initializable, Ownable2StepUpgradeab
         Stake storage stake = stakes[stakee];
 
         uint256 currentlyOwnedStake = stake.stakeEntries[stakee].amount;
-        return (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) /
-            minimumStakeProportion;
+        return (currentlyOwnedStake * SyloUtils.PERCENTAGE_DENOMINATOR) / minimumStakeProportion;
     }
 
     /**

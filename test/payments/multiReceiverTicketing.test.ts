@@ -2,6 +2,7 @@ import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
 import { HDNodeWallet, Signer, Wallet } from 'ethers';
 import {
+  AuthorizedAccounts,
   EpochsManager,
   Registries,
   RewardsManager,
@@ -17,8 +18,11 @@ import {
   toSOLOs,
   setSeekerRegistry,
   createWinningMultiReceiverTicket,
+  createAttachedAuthorizedAccount,
+  createEmptyAttachedAuthorizedAccount,
 } from './utils';
 import utils from '../utils';
+import { SignatureType } from '../../common/enum';
 
 describe('MultiReceiverTicketing', () => {
   let accounts: Signer[];
@@ -37,6 +41,7 @@ describe('MultiReceiverTicketing', () => {
   let seekers: TestSeekers;
   let seekerPowerOracle: SeekerPowerOracle;
   let futurepassRegistrar: TestFuturepassRegistrar;
+  let authorizedAccounts: AuthorizedAccounts;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -61,6 +66,7 @@ describe('MultiReceiverTicketing', () => {
     seekers = contracts.seekers;
     seekerPowerOracle = contracts.seekerPowerOracle;
     futurepassRegistrar = contracts.futurepassRegistrar;
+    authorizedAccounts = contracts.authorizedAccounts;
 
     const currentFaceValue = await ticketingParameters.faceValue();
     await ticketingParameters.setMultiReceiverFaceValue(currentFaceValue);
@@ -514,6 +520,123 @@ describe('MultiReceiverTicketing', () => {
         receiverSig,
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'TicketAlreadyRedeemed');
+  });
+
+  it.only('can redeem for receiver using attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const [bob] = await createFuturepassReceivers(1);
+    const delegatedWallet = Wallet.createRandom();
+
+    const attachedAuthorizedAccount = await createAttachedAuthorizedAccount(
+      bob,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, redeemerRand, senderSig, ticketHash } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        owner,
+      );
+
+    const receiverSig = await delegatedWallet.signMessage(
+      ethers.getBytes(ticketHash),
+    );
+
+    await syloTicketing.redeemMultiReceiverV2(
+      ticket,
+      redeemerRand,
+      { main: bob.address, delegated: delegatedWallet.address },
+      {
+        sigType: SignatureType.Main,
+        signature: senderSig,
+        attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+      },
+      {
+        sigType: SignatureType.AttachedAuthorized,
+        signature: receiverSig,
+        attachedAuthorizedAccount,
+      },
+    );
+  });
+
+  it.only('cannot redeem ticket when using sender attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const [bob] = await createFuturepassReceivers(1);
+    const delegatedWallet = Wallet.createRandom();
+
+    const attachedAuthorizedAccount = await createAttachedAuthorizedAccount(
+      alice,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, redeemerRand, senderSig, ticketHash } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        owner,
+      );
+
+    const receiverSig = await delegatedWallet.signMessage(
+      ethers.getBytes(ticketHash),
+    );
+
+    await expect(
+      syloTicketing.redeemMultiReceiverV2(
+        ticket,
+        redeemerRand,
+        { main: bob.address, delegated: delegatedWallet.address },
+        {
+          sigType: SignatureType.AttachedAuthorized,
+          signature: senderSig,
+          attachedAuthorizedAccount,
+        },
+        {
+          sigType: SignatureType.Main,
+          signature: receiverSig,
+          attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'SenderCannotUseAttachedAuthorizedAccount',
+    );
   });
 
   async function createFuturepassReceivers(n: number): Promise<HDNodeWallet[]> {

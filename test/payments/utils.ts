@@ -10,6 +10,7 @@ import {
   SyloToken,
   TestSeekers,
   SeekerPowerOracle,
+  IAuthorizedAccounts,
 } from '../../typechain-types';
 import * as contractTypes from '../../typechain-types';
 import web3 from 'web3';
@@ -281,4 +282,51 @@ export function createCommit(
       ),
     ],
   );
+}
+
+export async function createAttachedAuthorizedAccount(
+  main: HDNodeWallet,
+  delegatedWallet: HDNodeWallet,
+  authorizedAccounts: contractTypes.AuthorizedAccounts,
+): Promise<IAuthorizedAccounts.AttachedAuthorizedAccountStruct> {
+  const block = await ethers.provider.getBlock('latest');
+
+  const expiry = (block?.timestamp ?? 0) + 10000000;
+
+  const prefix = 'prefix';
+  const suffix = 'suffix';
+  const infixOne = 'infix';
+
+  const proofMessage =
+    await authorizedAccounts.createAttachedAuthorizedAccountProofMessage(
+      delegatedWallet.address,
+      expiry,
+      prefix,
+      suffix,
+      infixOne,
+    );
+
+  const proof = await main.signMessage(
+    Buffer.from(proofMessage.slice(2), 'hex'),
+  );
+
+  return {
+    account: delegatedWallet.address,
+    expiry,
+    proof,
+    prefix,
+    suffix,
+    infixOne,
+  };
+}
+
+export function createEmptyAttachedAuthorizedAccount(): IAuthorizedAccounts.AttachedAuthorizedAccountStruct {
+  return {
+    account: ethers.ZeroAddress,
+    expiry: 0,
+    proof: new Uint8Array(),
+    prefix: '',
+    suffix: '',
+    infixOne: '',
+  };
 }

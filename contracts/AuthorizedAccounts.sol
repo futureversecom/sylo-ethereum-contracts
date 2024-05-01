@@ -326,9 +326,14 @@ contract AuthorizedAccounts is
         string calldata suffix,
         string calldata infixOne
     ) external pure returns (bytes memory) {
-        return _createAttachedAuthorizedAccountProofMessage(
-            account, expiry, prefix, suffix, infixOne
-        );
+        return
+            _createAttachedAuthorizedAccountProofMessage(
+                account,
+                expiry,
+                prefix,
+                suffix,
+                infixOne
+            );
     }
 
     function _createAttachedAuthorizedAccountProofMessage(
@@ -338,13 +343,14 @@ contract AuthorizedAccounts is
         string calldata suffix,
         string calldata infixOne
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            prefix,
-            Strings.toHexString(uint256(uint160(account)), 20),
-            infixOne,
-            Strings.toString((expiry)),
-            suffix
-        );
+        return
+            abi.encodePacked(
+                prefix,
+                Strings.toHexString(uint256(uint160(account)), 20),
+                infixOne,
+                Strings.toString((expiry)),
+                suffix
+            );
     }
 
     function validateAttachedAuthorizedAccount(

@@ -99,7 +99,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     error InvalidSenderSigningPermission();
     error InvalidReceiverSigningPermission();
     error SenderCannotUseAttachedAuthorizedAccount();
-    error InvalidAttachedAuthorizedAccount();
 
     error TicketNotWinning();
     error MissingFuturepassAccount(address receiver);
@@ -354,7 +353,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (ticket.receiver.delegated != address(0)) {
             receiverSigType = SignatureType.Authorized;
         } else {
-            receiverSigType= SignatureType.Main;
+            receiverSigType = SignatureType.Main;
         }
 
         UserSignature memory senderSig;
@@ -460,7 +459,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (receiver.delegated != address(0)) {
             receiverSigType = SignatureType.Authorized;
         } else {
-            receiverSigType= SignatureType.Main;
+            receiverSigType = SignatureType.Main;
         }
 
         UserSignature memory senderSig;
@@ -558,7 +557,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         MultiReceiverTicket calldata ticket,
         address receiver
     ) internal {
-        uint256 rewardAmount = rewardRedeemer(epoch.multiReceiverFaceValue, ticket.sender, ticket.redeemer);
+        uint256 rewardAmount = rewardRedeemer(
+            epoch.multiReceiverFaceValue,
+            ticket.sender,
+            ticket.redeemer
+        );
 
         emit MultiReceiverRedemption(
             ticket.epochId,
@@ -641,10 +644,16 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (senderSig.sigType == SignatureType.Authorized && !hasSigningPermission(ticket.sender, ticket.generationBlock)) {
+        if (
+            senderSig.sigType == SignatureType.Authorized &&
+            !hasSigningPermission(ticket.sender, ticket.generationBlock)
+        ) {
             revert InvalidSenderSigningPermission();
         }
-        if (receiverSig.sigType == SignatureType.Authorized && !hasSigningPermission(ticket.receiver, ticket.generationBlock)) {
+        if (
+            receiverSig.sigType == SignatureType.Authorized &&
+            !hasSigningPermission(ticket.receiver, ticket.generationBlock)
+        ) {
             revert InvalidReceiverSigningPermission();
         }
 
@@ -655,7 +664,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (receiverSig.sigType == SignatureType.AttachedAuthorized) {
             _authorizedAccounts.validateAttachedAuthorizedAccount(
                 ticket.receiver.main,
-                receiverSig.attachedAccount
+                receiverSig.attachedAuthorizedAccount
             );
         }
 
@@ -736,10 +745,16 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (senderSig.sigType == SignatureType.Authorized && !hasSigningPermission(ticket.sender, ticket.generationBlock)) {
+        if (
+            senderSig.sigType == SignatureType.Authorized &&
+            !hasSigningPermission(ticket.sender, ticket.generationBlock)
+        ) {
             revert InvalidSenderSigningPermission();
         }
-        if (receiverSig.sigType == SignatureType.Authorized && !hasSigningPermission(receiver, ticket.generationBlock)) {
+        if (
+            receiverSig.sigType == SignatureType.Authorized &&
+            !hasSigningPermission(receiver, ticket.generationBlock)
+        ) {
             revert InvalidReceiverSigningPermission();
         }
 
@@ -750,7 +765,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (receiverSig.sigType == SignatureType.AttachedAuthorized) {
             _authorizedAccounts.validateAttachedAuthorizedAccount(
                 receiver.main,
-                receiverSig.attachedAccount
+                receiverSig.attachedAuthorizedAccount
             );
         }
 
