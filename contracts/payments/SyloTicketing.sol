@@ -403,7 +403,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         uint256 redeemerRand,
         UserSignature memory senderSig,
         UserSignature memory receiverSig
-    ) internal returns (EpochsManager.Epoch memory, bytes32) {
+    ) internal view returns (EpochsManager.Epoch memory, bytes32) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
@@ -516,7 +516,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         User calldata receiver,
         UserSignature memory senderSig,
         UserSignature memory receiverSig
-    ) internal returns (EpochsManager.Epoch memory, bytes32) {
+    ) internal view returns (EpochsManager.Epoch memory, bytes32) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
@@ -530,8 +530,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             receiverSig
         );
 
-        usedTickets[ticketReceiverHash] = true;
-
         uint256 directoryStake = _directory.getTotalStakeForStakee(
             ticket.epochId,
             ticket.redeemer
@@ -539,8 +537,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (directoryStake == 0) {
             revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
         }
-
-        _redeemMultiReceiver(epoch, ticket, receiver.main);
 
         return (epoch, ticketReceiverHash);
     }
@@ -801,10 +797,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         User memory user,
         uint256 generationBlock
     ) internal view returns (bool) {
-        if (user.delegated == address(0)) {
-            return true;
-        }
-
         IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.PersonalSign;
         return
             _authorizedAccounts.validatePermission(

@@ -338,6 +338,10 @@ describe('Ticketing', () => {
     ).to.be.revertedWith('Ownable: caller is not the owner');
 
     await expect(
+      ticketingParameters.connect(notOwner).setMultiReceiverFaceValue(888),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
       syloTicketing.connect(notOwner).setUnlockDuration(3333),
     ).to.be.revertedWith('Ownable: caller is not the owner');
   });

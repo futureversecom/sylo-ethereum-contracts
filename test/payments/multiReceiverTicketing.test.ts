@@ -68,8 +68,7 @@ describe('MultiReceiverTicketing', () => {
     futurepassRegistrar = contracts.futurepassRegistrar;
     authorizedAccounts = contracts.authorizedAccounts;
 
-    const currentFaceValue = await ticketingParameters.faceValue();
-    await ticketingParameters.setMultiReceiverFaceValue(currentFaceValue);
+    await ticketingParameters.setMultiReceiverFaceValue(faceValue);
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
     await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
@@ -117,7 +116,7 @@ describe('MultiReceiverTicketing', () => {
     assert.equal(
       deposit.escrow,
       toSOLOs(1000),
-      'Expected ticket payout to be substracted from escrow',
+      'Expected ticket payout to be subtracted from escrow',
     );
 
     const pendingReward = await rewardsManager.getPendingRewards(owner);
@@ -522,7 +521,7 @@ describe('MultiReceiverTicketing', () => {
     ).to.be.revertedWithCustomError(syloTicketing, 'TicketAlreadyRedeemed');
   });
 
-  it.only('can redeem for receiver using attached authorized account', async () => {
+  it('can redeem for receiver using attached authorized account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(
       seekers,
@@ -578,7 +577,7 @@ describe('MultiReceiverTicketing', () => {
     );
   });
 
-  it.only('cannot redeem ticket when using sender attached authorized account', async () => {
+  it('cannot redeem ticket when using sender attached authorized account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(
       seekers,
