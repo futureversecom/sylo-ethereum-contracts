@@ -1196,7 +1196,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it.only('can redeem ticket using receiver attached authorized account', async () => {
+  it('can redeem ticket using receiver attached authorized account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(
       seekers,
@@ -1264,7 +1264,7 @@ describe('Ticketing', () => {
     );
   });
 
-  it.only('cannot redeem ticket when using sender attached authorized account', async () => {
+  it('cannot redeem ticket when using sender attached authorized account', async () => {
     await stakingManager.addStake(toSOLOs(1), owner);
     await setSeekerRegistry(
       seekers,

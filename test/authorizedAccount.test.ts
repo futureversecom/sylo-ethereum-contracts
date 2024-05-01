@@ -816,7 +816,7 @@ describe('Authorized Accounts', () => {
     assert.equal(validate, true);
   });
 
-  it.only('can create proof and validate attached authorized account', async () => {
+  it('can create proof and validate attached authorized account', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
@@ -853,7 +853,7 @@ describe('Authorized Accounts', () => {
     );
   });
 
-  it.only('reverts with error if account is expired', async () => {
+  it('reverts with error if account is expired', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
@@ -896,7 +896,7 @@ describe('Authorized Accounts', () => {
     );
   });
 
-  it.only('reverts with error is authorized account is not signed by main account', async () => {
+  it('reverts with error is authorized account is not signed by main account', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
@@ -938,7 +938,7 @@ describe('Authorized Accounts', () => {
     );
   });
 
-  it.only('reverts with error is message strings are not correct', async () => {
+  it('reverts with error is message strings are not correct', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
