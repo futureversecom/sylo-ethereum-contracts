@@ -96,8 +96,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     error PenaltyAmountCannotBeZero();
     error UnlockDurationCannotBeZero();
     error AccountCannotBeZeroAddress();
-    error InvalidSenderSigningPermission();
-    error InvalidReceiverSigningPermission();
+    error InvalidSigningPermission();
     error SenderCannotUseAttachedAuthorizedAccount();
 
     error TicketNotWinning();
@@ -106,8 +105,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     error TicketEpochNotFound();
     error TicketAlreadyRedeemed();
     error RedeemerCommitMismatch();
-    error InvalidSenderSignature();
-    error InvalidReceiverSignature();
+    error InvalidSignature();
     error TokenCannotBeZeroAddress();
     error TicketNotCreatedInTheEpoch();
     error TicketCannotBeFromFutureBlock();
@@ -323,51 +321,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     }
 
     /**
-     * DEPRECATED in favour of `redeemV2`.
-     */
-    function redeem(
-        Ticket calldata ticket,
-        uint256 redeemerRand,
-        bytes calldata _senderSig,
-        bytes calldata _receiverSig
-    ) external {
-        SignatureType senderSigType;
-        SignatureType receiverSigType;
-
-        if (ticket.sender.delegated != address(0)) {
-            senderSigType = SignatureType.Authorized;
-        } else {
-            senderSigType = SignatureType.Main;
-        }
-
-        if (ticket.receiver.delegated != address(0)) {
-            receiverSigType = SignatureType.Authorized;
-        } else {
-            receiverSigType = SignatureType.Main;
-        }
-
-        UserSignature memory senderSig;
-        UserSignature memory receiverSig;
-
-        senderSig.sigType = senderSigType;
-        senderSig.signature = _senderSig;
-
-        receiverSig.sigType = receiverSigType;
-        receiverSig.signature = _receiverSig;
-
-        (EpochsManager.Epoch memory epoch, bytes32 ticketHash) = validateRedeem(
-            ticket,
-            redeemerRand,
-            senderSig,
-            receiverSig
-        );
-
-        usedTickets[ticketHash] = true;
-
-        _redeem(epoch, ticket);
-    }
-
-    /**
      * @notice Nodes should call this function on completing an event
      * delivery. This function will fail if the ticket is invalid or if the
      * ticket is not a winner. Clients should calculate if the ticket is a
@@ -380,30 +333,12 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
      * @param senderSig The signature of the sender of the ticket.
      * @param receiverSig The signature of the redeemer of the ticket.
      */
-    function redeemV2(
+    function redeem(
         Ticket calldata ticket,
         uint256 redeemerRand,
         UserSignature calldata senderSig,
         UserSignature calldata receiverSig
     ) external {
-        (EpochsManager.Epoch memory epoch, bytes32 ticketHash) = validateRedeem(
-            ticket,
-            redeemerRand,
-            senderSig,
-            receiverSig
-        );
-
-        usedTickets[ticketHash] = true;
-
-        _redeem(epoch, ticket);
-    }
-
-    function validateRedeem(
-        Ticket calldata ticket,
-        uint256 redeemerRand,
-        UserSignature memory senderSig,
-        UserSignature memory receiverSig
-    ) internal view returns (EpochsManager.Epoch memory, bytes32) {
         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
@@ -424,55 +359,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
         }
 
-        return (epoch, ticketHash);
-    }
-
-    /**
-     * @notice DEPRECATED in favour of `redeemMultiReceiverV2`.
-     */
-    function redeemMultiReceiver(
-        MultiReceiverTicket calldata ticket,
-        uint256 redeemerRand,
-        User calldata receiver,
-        bytes calldata _senderSig,
-        bytes calldata _receiverSig
-    ) external {
-        SignatureType senderSigType;
-        SignatureType receiverSigType;
-
-        if (ticket.sender.delegated != address(0)) {
-            senderSigType = SignatureType.Authorized;
-        } else {
-            senderSigType = SignatureType.Main;
-        }
-
-        if (receiver.delegated != address(0)) {
-            receiverSigType = SignatureType.Authorized;
-        } else {
-            receiverSigType = SignatureType.Main;
-        }
-
-        UserSignature memory senderSig;
-        UserSignature memory receiverSig;
-
-        senderSig.sigType = senderSigType;
-        senderSig.signature = _senderSig;
-
-        receiverSig.sigType = receiverSigType;
-        receiverSig.signature = _receiverSig;
-
-        (EpochsManager.Epoch memory epoch, bytes32 ticketHash) = validateMultiReceiverRedeem(
-            ticket,
-            redeemerRand,
-            receiver,
-            senderSig,
-            receiverSig
-        );
-
         usedTickets[ticketHash] = true;
 
-        _redeemMultiReceiver(epoch, ticket, receiver.main);
+        _redeem(epoch, ticket);
     }
+
 
     /**
      * @notice Nodes should call this function on completing a one-to-many event
@@ -490,34 +381,14 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
      * @param senderSig The signature of the sender of the ticket.
      * @param receiverSig The signature of the redeemer of the ticket.
      */
-    function redeemMultiReceiverV2(
+    function redeemMultiReceiver(
         MultiReceiverTicket calldata ticket,
         uint256 redeemerRand,
-        User calldata receiver,
+        address receiver,
         UserSignature calldata senderSig,
         UserSignature calldata receiverSig
     ) external {
-        (EpochsManager.Epoch memory epoch, bytes32 ticketHash) = validateMultiReceiverRedeem(
-            ticket,
-            redeemerRand,
-            receiver,
-            senderSig,
-            receiverSig
-        );
-
-        usedTickets[ticketHash] = true;
-
-        _redeemMultiReceiver(epoch, ticket, receiver.main);
-    }
-
-    function validateMultiReceiverRedeem(
-        MultiReceiverTicket calldata ticket,
-        uint256 redeemerRand,
-        User calldata receiver,
-        UserSignature memory senderSig,
-        UserSignature memory receiverSig
-    ) internal view returns (EpochsManager.Epoch memory, bytes32) {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
+         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
         }
@@ -538,7 +409,9 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
         }
 
-        return (epoch, ticketReceiverHash);
+        usedTickets[ticketReceiverHash] = true;
+
+        _redeemMultiReceiver(epoch, ticket, receiver);
     }
 
     function _redeem(EpochsManager.Epoch memory epoch, Ticket calldata ticket) internal {
@@ -547,8 +420,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         emit Redemption(
             ticket.epochId,
             ticket.redeemer,
-            ticket.sender.main,
-            ticket.receiver.main,
+            ticket.sender,
+            ticket.receiver,
             ticket.generationBlock,
             rewardAmount
         );
@@ -568,7 +441,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         emit MultiReceiverRedemption(
             ticket.epochId,
             ticket.redeemer,
-            ticket.sender.main,
+            ticket.sender,
             receiver,
             ticket.generationBlock,
             rewardAmount
@@ -577,10 +450,10 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
 
     function rewardRedeemer(
         uint256 faceValue,
-        User calldata sender,
+        address sender,
         address redeemer
     ) internal returns (uint256) {
-        Deposit storage deposit = getDeposit(sender.main);
+        Deposit storage deposit = getDeposit(sender);
 
         uint256 amount;
 
@@ -594,7 +467,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             );
 
             delete deposit.penalty;
-            emit SenderPenaltyBurnt(sender.main);
+            emit SenderPenaltyBurnt(sender);
         } else {
             amount = faceValue;
             incrementRewardPool(redeemer, deposit, amount);
@@ -625,11 +498,11 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         uint256 redeemerRand,
         UserSignature memory senderSig,
         UserSignature memory receiverSig
-    ) public view returns (bytes32 ticketHash) {
-        if (ticket.sender.main == address(0)) {
+    ) public returns (bytes32 ticketHash) {
+        if (ticket.sender == address(0)) {
             revert TicketSenderCannotBeZeroAddress();
         }
-        if (ticket.receiver.main == address(0)) {
+        if (ticket.receiver == address(0)) {
             revert TicketReceiverCannotBeZeroAddress();
         }
         if (ticket.redeemer == address(0)) {
@@ -646,36 +519,12 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (
-            senderSig.sigType == SignatureType.Authorized &&
-            !hasSigningPermission(ticket.sender, ticket.generationBlock)
-        ) {
-            revert InvalidSenderSigningPermission();
-        }
-        if (
-            receiverSig.sigType == SignatureType.Authorized &&
-            !hasSigningPermission(ticket.receiver, ticket.generationBlock)
-        ) {
-            revert InvalidReceiverSigningPermission();
-        }
-
         if (senderSig.sigType == SignatureType.AttachedAuthorized) {
             revert SenderCannotUseAttachedAuthorizedAccount();
         }
 
-        if (receiverSig.sigType == SignatureType.AttachedAuthorized) {
-            _authorizedAccounts.validateAttachedAuthorizedAccount(
-                ticket.receiver.main,
-                receiverSig.attachedAuthorizedAccount
-            );
-        }
-
-        if (!isValidTicketSig(ticket.sender, senderSig.signature, ticketHash)) {
-            revert InvalidSenderSignature();
-        }
-        if (!isValidTicketSig(ticket.receiver, receiverSig.signature, ticketHash)) {
-            revert InvalidReceiverSignature();
-        }
+        validateTicketSig(ticket.sender, senderSig, ticket.generationBlock, ticketHash);
+        validateTicketSig(ticket.receiver, receiverSig, ticket.generationBlock, ticketHash);
 
         if (
             !isWinningTicket(
@@ -709,24 +558,24 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
      */
     function requireValidWinningMultiReceiverTicket(
         MultiReceiverTicket memory ticket,
-        User calldata receiver,
+        address receiver,
         uint256 redeemerRand,
         UserSignature memory senderSig,
         UserSignature memory receiverSig
-    ) public view returns (bytes32 ticketHash, bytes32 ticketReceiverHash) {
-        if (ticket.sender.main == address(0)) {
+    ) public returns (bytes32 ticketHash, bytes32 ticketReceiverHash) {
+        if (ticket.sender == address(0)) {
             revert TicketSenderCannotBeZeroAddress();
         }
-        if (receiver.main == address(0)) {
+        if (receiver == address(0)) {
             revert TicketReceiverCannotBeZeroAddress();
         }
         if (ticket.redeemer == address(0)) {
             revert TicketRedeemerCannotBeZeroAddress();
         }
 
-        address futurepassAccount = _futurepassRegistrar.futurepassOf(receiver.main);
+        address futurepassAccount = _futurepassRegistrar.futurepassOf(receiver);
         if (futurepassAccount == address(0)) {
-            revert MissingFuturepassAccount(receiver.main);
+            revert MissingFuturepassAccount(receiver);
         }
 
         // There are two hashes create. The first hash is signed by the
@@ -747,36 +596,12 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             revert RedeemerCommitMismatch();
         }
 
-        if (
-            senderSig.sigType == SignatureType.Authorized &&
-            !hasSigningPermission(ticket.sender, ticket.generationBlock)
-        ) {
-            revert InvalidSenderSigningPermission();
-        }
-        if (
-            receiverSig.sigType == SignatureType.Authorized &&
-            !hasSigningPermission(receiver, ticket.generationBlock)
-        ) {
-            revert InvalidReceiverSigningPermission();
-        }
-
         if (senderSig.sigType == SignatureType.AttachedAuthorized) {
             revert SenderCannotUseAttachedAuthorizedAccount();
         }
 
-        if (receiverSig.sigType == SignatureType.AttachedAuthorized) {
-            _authorizedAccounts.validateAttachedAuthorizedAccount(
-                receiver.main,
-                receiverSig.attachedAuthorizedAccount
-            );
-        }
-
-        if (!isValidTicketSig(ticket.sender, senderSig.signature, ticketHash)) {
-            revert InvalidSenderSignature();
-        }
-        if (!isValidTicketSig(receiver, receiverSig.signature, ticketHash)) {
-            revert InvalidReceiverSignature();
-        }
+        validateTicketSig(ticket.sender, senderSig, ticket.generationBlock, ticketHash);
+        validateTicketSig(receiver, receiverSig, ticket.generationBlock, ticketHash);
 
         if (
             !isWinningTicket(
@@ -794,14 +619,15 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     }
 
     function hasSigningPermission(
-        User memory user,
+        address main,
+        address delegated,
         uint256 generationBlock
     ) internal view returns (bool) {
         IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.PersonalSign;
         return
             _authorizedAccounts.validatePermission(
-                user.main,
-                user.delegated,
+                main,
+                delegated,
                 permission,
                 generationBlock
             );
@@ -815,17 +641,41 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         return deposits[account];
     }
 
+    function validateTicketSig(
+        address main,
+        UserSignature memory sig,
+        uint256 generationBlock,
+        bytes32 ticketHash
+    ) internal {
+        if (sig.sigType == SignatureType.Main) {
+            if (!isValidTicketSig(main, sig.signature, ticketHash)) {
+                revert InvalidSignature();
+            }
+        } else if (sig.sigType == SignatureType.Authorized) {
+            if (!hasSigningPermission(main, sig.authorizedAccount, generationBlock)) {
+                revert InvalidSigningPermission();
+            }
+
+            if (!isValidTicketSig(sig.authorizedAccount, sig.signature, ticketHash)) {
+                revert InvalidSignature();
+            }
+        } else if (sig.sigType == SignatureType.AttachedAuthorized) {
+             _authorizedAccounts.validateAttachedAuthorizedAccount(
+                main,
+                sig.attachedAuthorizedAccount
+            );
+
+            if (!isValidTicketSig(sig.attachedAuthorizedAccount.account, sig.signature, ticketHash)) {
+                revert InvalidSignature();
+            }
+        }
+    }
+
     function isValidTicketSig(
-        User memory user,
+        address signer,
         bytes memory sig,
         bytes32 ticketHash
     ) internal pure returns (bool) {
-        address signer = address(0);
-        if (user.delegated != address(0)) {
-            signer = user.delegated;
-        } else {
-            signer = user.main;
-        }
         bytes32 ethHash = ECDSA.toEthSignedMessageHash(ticketHash);
         return ECDSA.recover(ethHash, sig) == signer;
     }
@@ -907,8 +757,8 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             keccak256(
                 abi.encodePacked(
                     ticket.epochId,
-                    ticket.sender.main,
-                    ticket.receiver.main,
+                    ticket.sender,
+                    ticket.receiver,
                     ticket.redeemer,
                     ticket.generationBlock,
                     ticket.redeemerCommit
@@ -928,7 +778,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
             keccak256(
                 abi.encodePacked(
                     ticket.epochId,
-                    ticket.sender.main,
+                    ticket.sender,
                     ticket.redeemer,
                     ticket.generationBlock,
                     ticket.redeemerCommit
