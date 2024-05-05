@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
-import { BigNumberish, HDNodeWallet, Signer } from 'ethers';
+import { BigNumberish, BytesLike, HDNodeWallet, Signer } from 'ethers';
 import {
   EpochsManager,
   Registries,
@@ -15,6 +15,7 @@ import {
 import * as contractTypes from '../../typechain-types';
 import web3 from 'web3';
 import utils from '../utils';
+import { SignatureType } from '../../common/enum';
 
 // This test suite relies on confirming that updated stakes and rewards are correctly
 // calculated after incrementing the reward pool. However due to minor precision loss, the
@@ -146,11 +147,11 @@ export async function createWinningTicket(
   senderDelegatedWallet?: HDNodeWallet,
   receiverDelegatedWallet?: HDNodeWallet,
 ): Promise<{
-  ticket: contractTypes.contracts.interfaces.payments.ISyloTicketing.TicketStruct;
+  ticket: contractTypes.ISyloTicketing.TicketStruct;
   receiver: Signer;
   redeemerRand: number;
-  senderSig: Uint8Array;
-  receiverSig: Uint8Array;
+  senderSig: contractTypes.ISyloTicketing.UserSignatureStruct;
+  receiverSig: contractTypes.ISyloTicketing.UserSignatureStruct;
   ticketHash: string;
 }> {
   const generationBlock = BigInt(
@@ -160,58 +161,33 @@ export async function createWinningTicket(
   const redeemerRand = 1;
   const redeemerCommit = createCommit(generationBlock, redeemerRand);
 
-  let senderDelegatedAccount = ethers.ZeroAddress;
-  if (senderDelegatedWallet) {
-    senderDelegatedAccount = senderDelegatedWallet.address;
-  }
-
-  let receiverDelegatedAccount = ethers.ZeroAddress;
-  if (receiverDelegatedWallet) {
-    receiverDelegatedAccount = receiverDelegatedWallet.address;
-  }
-
   const ticket = {
     epochId: epochId ?? (await epochsManager.currentIteration()),
-    sender: {
-      main: await sender.getAddress(),
-      delegated: senderDelegatedAccount,
-    },
-    receiver: {
-      main: await receiver.getAddress(),
-      delegated: receiverDelegatedAccount,
-    },
+    sender: await sender.getAddress(),
+    receiver: await receiver.getAddress(),
     redeemer,
     generationBlock,
     redeemerCommit: ethers.hexlify(redeemerCommit),
   };
 
   const ticketHash = await syloTicketing.getTicketHash(ticket);
-  let senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
-  if (senderDelegatedWallet) {
-    senderSig = await senderDelegatedWallet.signMessage(
-      ethers.getBytes(ticketHash),
-    );
-  }
-  if (!senderSig) {
-    throw new Error('failed to derive sender signature for ticket');
-  }
-
-  let receiverSig = await receiver.signMessage(ethers.getBytes(ticketHash));
-  if (receiverDelegatedWallet) {
-    receiverSig = await receiverDelegatedWallet.signMessage(
-      ethers.getBytes(ticketHash),
-    );
-  }
-  if (!receiverSig) {
-    throw new Error('failed to derive receiver signature for ticket');
-  }
 
   return {
     ticket,
     receiver,
     redeemerRand,
-    senderSig: ethers.getBytes(senderSig),
-    receiverSig: ethers.getBytes(receiverSig),
+    senderSig: await createUserSignature(
+      ethers.getBytes(ethers.getBytes(ticketHash)),
+      senderDelegatedWallet ? SignatureType.Authorized : SignatureType.Main,
+      sender,
+      senderDelegatedWallet,
+    ),
+    receiverSig: await createUserSignature(
+      ethers.getBytes(ethers.getBytes(ticketHash)),
+      receiverDelegatedWallet ? SignatureType.Authorized : SignatureType.Main,
+      receiver,
+      receiverDelegatedWallet,
+    ),
     ticketHash,
   };
 }
@@ -224,9 +200,9 @@ export async function createWinningMultiReceiverTicket(
   epochId?: number,
   senderDelegatedWallet?: HDNodeWallet,
 ): Promise<{
-  ticket: contractTypes.contracts.interfaces.payments.ISyloTicketing.MultiReceiverTicketStruct;
+  ticket: contractTypes.ISyloTicketing.MultiReceiverTicketStruct;
   redeemerRand: number;
-  senderSig: Uint8Array;
+  senderSig: contractTypes.ISyloTicketing.UserSignatureStruct;
   ticketHash: string;
 }> {
   const generationBlock = BigInt((await ethers.provider.getBlockNumber()) + 1);
@@ -234,38 +210,65 @@ export async function createWinningMultiReceiverTicket(
   const redeemerRand = 1;
   const redeemerCommit = createCommit(generationBlock, redeemerRand);
 
-  let senderDelegatedAccount = ethers.ZeroAddress;
-  if (senderDelegatedWallet) {
-    senderDelegatedAccount = senderDelegatedWallet.address;
-  }
-
   const ticket = {
     epochId: epochId ?? (await epochsManager.currentIteration()),
-    sender: {
-      main: sender.address,
-      delegated: senderDelegatedAccount,
-    },
+    sender: sender.address,
     redeemer,
     generationBlock,
     redeemerCommit: ethers.hexlify(redeemerCommit),
   };
 
   const ticketHash = await syloTicketing.getMultiReceiverTicketHash(ticket);
-  let senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
-  if (senderDelegatedWallet) {
-    senderSig = await senderDelegatedWallet.signMessage(
-      ethers.getBytes(ticketHash),
-    );
-  }
-  if (!senderSig) {
-    throw new Error('failed to derive sender signature for ticket');
-  }
 
   return {
     ticket,
     redeemerRand,
-    senderSig: ethers.getBytes(senderSig),
+    senderSig: await createUserSignature(
+      ethers.getBytes(ethers.getBytes(ticketHash)),
+      senderDelegatedWallet ? SignatureType.Authorized : SignatureType.Main,
+      sender,
+      senderDelegatedWallet,
+    ),
     ticketHash,
+  };
+}
+
+export async function createUserSignature(
+  message: BytesLike,
+  signatureType: SignatureType,
+  account: Signer,
+  delegated?: HDNodeWallet,
+  authorizedAccounts?: contractTypes.AuthorizedAccounts,
+): Promise<contractTypes.ISyloTicketing.UserSignatureStruct> {
+  let signature: string;
+  if (signatureType != SignatureType.Main) {
+    if (!delegated) {
+      throw new Error(
+        'Must supply delegated account for authorized signatures',
+      );
+    }
+    signature = await delegated.signMessage(message);
+  } else {
+    signature = await account.signMessage(message);
+  }
+
+  return {
+    sigType: signatureType,
+    signature,
+    authorizedAccount:
+      signatureType === SignatureType.Authorized && delegated
+        ? delegated
+        : ethers.ZeroAddress,
+    attachedAuthorizedAccount:
+      signatureType === SignatureType.AttachedAuthorized &&
+      delegated &&
+      authorizedAccounts
+        ? await createAttachedAuthorizedAccount(
+            account,
+            delegated,
+            authorizedAccounts,
+          )
+        : createEmptyAttachedAuthorizedAccount(),
   };
 }
 
@@ -285,7 +288,7 @@ export function createCommit(
 }
 
 export async function createAttachedAuthorizedAccount(
-  main: HDNodeWallet,
+  main: Signer,
   delegatedWallet: HDNodeWallet,
   authorizedAccounts: contractTypes.AuthorizedAccounts,
 ): Promise<IAuthorizedAccounts.AttachedAuthorizedAccountStruct> {
