@@ -19,8 +19,6 @@ import "../AuthorizedAccounts.sol";
 import "../interfaces/payments/ISyloTicketing.sol";
 import "../interfaces/IFuturePassRegistrar.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice The SyloTicketing contract manages the Probabilistic
  * Micro-Payment Ticketing system that pays Nodes for providing the
@@ -500,7 +498,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         uint256 redeemerRand,
         UserSignature memory senderSig,
         UserSignature memory receiverSig
-    ) public returns (bytes32 ticketHash) {
+    ) public view returns (bytes32 ticketHash) {
         if (ticket.sender == address(0)) {
             revert TicketSenderCannotBeZeroAddress();
         }
@@ -601,8 +599,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         if (senderSig.sigType == SignatureType.AttachedAuthorized) {
             revert SenderCannotUseAttachedAuthorizedAccount();
         }
-
-        console.log("validating sender sig");
 
         validateTicketSig(ticket.sender, senderSig, ticket.generationBlock, ticketHash);
         validateTicketSig(receiver, receiverSig, ticket.generationBlock, ticketHash);
