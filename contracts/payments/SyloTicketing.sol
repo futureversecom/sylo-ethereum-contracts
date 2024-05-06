@@ -364,7 +364,6 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         _redeem(epoch, ticket);
     }
 
-
     /**
      * @notice Nodes should call this function on completing a one-to-many event
      * delivery. This function will fail if the ticket is invalid or if the
@@ -388,7 +387,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
         UserSignature calldata senderSig,
         UserSignature calldata receiverSig
     ) external {
-         EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
+        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
         }
@@ -625,12 +624,7 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
     ) internal view returns (bool) {
         IAuthorizedAccounts.Permission permission = IAuthorizedAccounts.Permission.PersonalSign;
         return
-            _authorizedAccounts.validatePermission(
-                main,
-                delegated,
-                permission,
-                generationBlock
-            );
+            _authorizedAccounts.validatePermission(main, delegated, permission, generationBlock);
     }
 
     function createCommit(uint256 generationBlock, uint256 rand) public pure returns (bytes32) {
@@ -660,12 +654,14 @@ contract SyloTicketing is ISyloTicketing, Initializable, Ownable2StepUpgradeable
                 revert InvalidSignature();
             }
         } else if (sig.sigType == SignatureType.AttachedAuthorized) {
-             _authorizedAccounts.validateAttachedAuthorizedAccount(
+            _authorizedAccounts.validateAttachedAuthorizedAccount(
                 main,
                 sig.attachedAuthorizedAccount
             );
 
-            if (!isValidTicketSig(sig.attachedAuthorizedAccount.account, sig.signature, ticketHash)) {
+            if (
+                !isValidTicketSig(sig.attachedAuthorizedAccount.account, sig.signature, ticketHash)
+            ) {
                 revert InvalidSignature();
             }
         }
