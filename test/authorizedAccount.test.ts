@@ -896,7 +896,7 @@ describe('Authorized Accounts', () => {
     );
   });
 
-  it('reverts with error is authorized account is not signed by main account', async () => {
+  it('reverts with error if authorized account is not signed by main account', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
@@ -923,6 +923,48 @@ describe('Authorized Accounts', () => {
     await expect(
       authAccountsConnectMain.validateAttachedAuthorizedAccount(
         delegatedAccount2, // use any address that isn't the main address
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix,
+          suffix,
+          infixOne,
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountInvalidProof',
+    );
+  });
+
+  it('reverts with error if delegated account in proof does not match', async () => {
+    const attachedAccount = delegatedAccount1;
+
+    const block = await ethers.provider.getBlock('latest');
+
+    const expiry = (block?.timestamp ?? 0) + 10000000;
+
+    const prefix = 'prefix';
+    const suffix = 'suffix';
+    const infixOne = 'infix';
+
+    const invalidProofMessage =
+      await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
+        delegatedAccount2, // use any address that isn't the delegated address
+        expiry,
+        prefix,
+        suffix,
+        infixOne,
+      );
+
+    const proof = await mainAccount.signMessage(
+      Buffer.from(invalidProofMessage.slice(2), 'hex'),
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        mainAccountAddress,
         {
           account: attachedAccount,
           expiry,
