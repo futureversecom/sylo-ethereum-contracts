@@ -1,0 +1,40 @@
+name: Push Docker image
+on:
+  push:
+    tags:
+      - v*.*.**
+
+jobs:
+  build-and-push-seeker-image:
+    name: Build Docker image for local ganache network
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Docker login
+        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PAT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        run: yarn docker-ganache
+
+      - name: Push docker image
+        id: image_build
+        run: |
+          docker push dn3010/sylo-ethereum-testnet:ganache
+
+      - name: Build Tag and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          file: Dockerfile
+          tags: ${{ env.NODE_TAG }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            GIT_COMMIT=${{ steps.git_head.outputs.commit_sha }}
+            GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
