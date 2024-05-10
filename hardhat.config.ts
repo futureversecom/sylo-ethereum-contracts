@@ -32,7 +32,7 @@ const config: HardhatUserConfig = {
       gas: 100000000,
       blockGasLimit: 2000000000000, // Add this to allow multiple transactions in one block when testing
     },
-    localhost: {
+    ganache: {
       url: 'http://0.0.0.0:8545',
       accounts: 'remote',
     },

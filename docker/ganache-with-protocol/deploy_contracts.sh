@@ -15,12 +15,14 @@ ganache_pid=`echo $!`
 echo "waiting for ganache to start up"
 sleep 15
 
+cat hardhat.config.ts
+
 echo "deploying contracts to local node"
-npx hardhat --network localhost deploy
+npx hardhat --network ganache deploy
 mv ./deployments/localhost_deployment_phase_two.json deployment/addresses.json
 
 echo "initialzing network"
-npx hardhat --network localhost run scripts/init_local_network.ts
+npx hardhat --network ganache run scripts/init_local_network.ts
 
 echo "shutting down ganache"
 kill $ganache_pid
