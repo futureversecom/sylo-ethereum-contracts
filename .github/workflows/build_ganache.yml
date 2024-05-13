@@ -19,14 +19,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image
-        run: yarn docker-ganache
-
-      - name: Push docker image
-        id: image_build
-        run: |
-          docker push dn3010/sylo-ethereum-testnet:ganache
-
       - name: Build Tag and Push Docker image
         uses: docker/build-push-action@v5
         with:
