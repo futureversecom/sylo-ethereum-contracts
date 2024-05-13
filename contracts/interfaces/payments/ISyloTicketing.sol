@@ -37,7 +37,7 @@ interface ISyloTicketing {
     // A type of ticket that does not explicit state the receiver address.
     struct MultiReceiverTicket {
         uint256 epochId; // The epoch this ticket is associated with
-        address sender; // Ticket sender's main
+        address sender; // Ticket sender's address
         address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer

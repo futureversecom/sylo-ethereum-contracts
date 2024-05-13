@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
-import { BytesLike, HDNodeWallet, Signer, Wallet } from 'ethers';
+import { HDNodeWallet, Signer, Wallet } from 'ethers';
 import {
   AuthorizedAccounts,
   EpochsManager,

@@ -980,7 +980,7 @@ describe('Authorized Accounts', () => {
     );
   });
 
-  it.only('reverts with error is message strings are not correct', async () => {
+  it('reverts with error is message strings are not correct', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
@@ -1024,7 +1024,7 @@ describe('Authorized Accounts', () => {
 
     await expect(
       authAccountsConnectMain.validateAttachedAuthorizedAccount(
-        delegatedAccount2, // use any address that isn't the main address
+        mainAccountAddress, // use any address that isn't the main address
         {
           account: attachedAccount,
           expiry,
@@ -1041,7 +1041,7 @@ describe('Authorized Accounts', () => {
 
     await expect(
       authAccountsConnectMain.validateAttachedAuthorizedAccount(
-        delegatedAccount2, // use any address that isn't the main address
+        mainAccountAddress, // use any address that isn't the main address
         {
           account: attachedAccount,
           expiry,
