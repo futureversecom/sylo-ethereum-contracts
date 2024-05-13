@@ -23,7 +23,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           file: docker/ganache-with-protocol/Dockerfile
-          tags: dn3010/sylo-ethereum-testnet:ganache
+          tags: dn3010/sylo-ethereum-testnet:$GITHUB_REF_NAME
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
