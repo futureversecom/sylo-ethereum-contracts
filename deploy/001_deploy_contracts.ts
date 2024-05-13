@@ -198,7 +198,7 @@ function getConfig(networkName: string): configs.ContractParameters {
       return configs.TRNMainnetParameters;
     case 'porcini-dev':
       return configs.PorciniDevParameters;
-    case 'locahost':
+    case 'localhost':
       return configs.GanacheTestnetParameters;
     default:
       throw new Error('unknown network: ' + networkName);

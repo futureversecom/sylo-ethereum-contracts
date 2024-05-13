@@ -980,16 +980,16 @@ describe('Authorized Accounts', () => {
     );
   });
 
-  it('reverts with error is message strings are not correct', async () => {
+  it.only('reverts with error is message strings are not correct', async () => {
     const attachedAccount = delegatedAccount1;
 
     const block = await ethers.provider.getBlock('latest');
 
     const expiry = (block?.timestamp ?? 0) + 10000000;
 
-    const prefix = 'prefix';
-    const suffix = 'suffix';
-    const infixOne = 'infix';
+    const prefix = '   PREFIX   ';
+    const suffix = '   suffix   ';
+    const infixOne = '  infix   ';
 
     const proofMessage =
       await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
@@ -999,6 +999,24 @@ describe('Authorized Accounts', () => {
         suffix,
         infixOne,
       );
+
+    console.log(
+      proofMessage,
+      Buffer.from(proofMessage.slice(2), 'hex').toString('utf8'),
+    );
+
+    const p = ethers.solidityPacked(
+      ['string', 'string', 'string', 'string', 'string'],
+      [
+        prefix,
+        ethers.hexlify(attachedAccount),
+        infixOne,
+        expiry.toString(),
+        suffix,
+      ],
+    );
+
+    console.log(p, Buffer.from(p.slice(2), 'hex').toString('utf8'));
 
     const proof = await mainAccount.signMessage(
       Buffer.from(proofMessage.slice(2), 'hex'),
