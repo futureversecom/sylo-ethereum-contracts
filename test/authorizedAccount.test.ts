@@ -1041,7 +1041,7 @@ describe('Authorized Accounts', () => {
 
     await expect(
       authAccountsConnectMain.validateAttachedAuthorizedAccount(
-        mainAccountAddress, // use any address that isn't the main address
+        mainAccountAddress,
         {
           account: attachedAccount,
           expiry,
@@ -1058,7 +1058,7 @@ describe('Authorized Accounts', () => {
 
     await expect(
       authAccountsConnectMain.validateAttachedAuthorizedAccount(
-        delegatedAccount2, // use any address that isn't the main address
+        mainAccountAddress, // use any address that isn't the main address
         {
           account: attachedAccount,
           expiry,

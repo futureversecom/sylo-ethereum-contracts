@@ -576,7 +576,7 @@ describe('MultiReceiverTicketing', () => {
 
     const receiverSig = await createUserSignature(
       ethers.getBytes(ticketHash),
-      SignatureType.Main,
+      SignatureType.AttachedAuthorized,
       bob,
       delegatedWallet,
       authorizedAccounts,

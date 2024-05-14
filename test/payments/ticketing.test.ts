@@ -1279,12 +1279,6 @@ describe('Ticketing', () => {
       value: ethers.parseEther('2000.0'),
     });
 
-    const attachedAuthorizedAccount = await createAttachedAuthorizedAccount(
-      alice,
-      delegatedWallet,
-      authorizedAccounts,
-    );
-
     const { ticket, redeemerRand, senderSig, receiverSig } =
       await createWinningTicket(
         syloTicketing,
