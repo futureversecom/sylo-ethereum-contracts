@@ -816,6 +816,264 @@ describe('Authorized Accounts', () => {
     assert.equal(validate, true);
   });
 
+  it('can create proof and validate attached authorized account', async () => {
+    const attachedAccount = delegatedAccount1;
+
+    const block = await ethers.provider.getBlock('latest');
+
+    const expiry = (block?.timestamp ?? 0) + 10000000;
+
+    const prefix = 'prefix';
+    const suffix = 'suffix';
+    const infixOne = 'infix';
+
+    const proofMessage =
+      await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
+        attachedAccount,
+        expiry,
+        prefix,
+        suffix,
+        infixOne,
+      );
+
+    const proof = await mainAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await authAccountsConnectMain.validateAttachedAuthorizedAccount(
+      mainAccountAddress,
+      {
+        account: attachedAccount,
+        expiry,
+        proof,
+        prefix,
+        suffix,
+        infixOne,
+      },
+    );
+  });
+
+  it('reverts with error if account is expired', async () => {
+    const attachedAccount = delegatedAccount1;
+
+    const block = await ethers.provider.getBlock('latest');
+
+    // set expiry to any value in the past
+    const expiry = (block?.timestamp ?? 0) - 1;
+
+    const prefix = 'prefix';
+    const suffix = 'suffix';
+    const infixOne = 'infix';
+
+    const proofMessage =
+      await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
+        attachedAccount,
+        expiry,
+        prefix,
+        suffix,
+        infixOne,
+      );
+
+    const proof = await mainAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        mainAccountAddress,
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix,
+          suffix,
+          infixOne,
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountExpired',
+    );
+  });
+
+  it('reverts with error if authorized account is not signed by main account', async () => {
+    const attachedAccount = delegatedAccount1;
+
+    const block = await ethers.provider.getBlock('latest');
+
+    const expiry = (block?.timestamp ?? 0) + 10000000;
+
+    const prefix = 'prefix';
+    const suffix = 'suffix';
+    const infixOne = 'infix';
+
+    const proofMessage =
+      await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
+        attachedAccount,
+        expiry,
+        prefix,
+        suffix,
+        infixOne,
+      );
+
+    const proof = await mainAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        delegatedAccount2, // use any address that isn't the main address
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix,
+          suffix,
+          infixOne,
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountInvalidProof',
+    );
+  });
+
+  it('reverts with error if delegated account in proof does not match', async () => {
+    const attachedAccount = delegatedAccount1;
+
+    const block = await ethers.provider.getBlock('latest');
+
+    const expiry = (block?.timestamp ?? 0) + 10000000;
+
+    const prefix = 'prefix';
+    const suffix = 'suffix';
+    const infixOne = 'infix';
+
+    const invalidProofMessage =
+      await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
+        delegatedAccount2, // use any address that isn't the delegated address
+        expiry,
+        prefix,
+        suffix,
+        infixOne,
+      );
+
+    const proof = await mainAccount.signMessage(
+      Buffer.from(invalidProofMessage.slice(2), 'hex'),
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        mainAccountAddress,
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix,
+          suffix,
+          infixOne,
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountInvalidProof',
+    );
+  });
+
+  it('reverts with error is message strings are not correct', async () => {
+    const attachedAccount = delegatedAccount1;
+
+    const block = await ethers.provider.getBlock('latest');
+
+    const expiry = (block?.timestamp ?? 0) + 10000000;
+
+    const prefix = '   PREFIX   ';
+    const suffix = '   suffix   ';
+    const infixOne = '  infix   ';
+
+    const proofMessage =
+      await authAccountsConnectMain.createAttachedAuthorizedAccountProofMessage(
+        attachedAccount,
+        expiry,
+        prefix,
+        suffix,
+        infixOne,
+      );
+
+    console.log(
+      proofMessage,
+      Buffer.from(proofMessage.slice(2), 'hex').toString('utf8'),
+    );
+
+    const p = ethers.solidityPacked(
+      ['string', 'string', 'string', 'string', 'string'],
+      [
+        prefix,
+        ethers.hexlify(attachedAccount),
+        infixOne,
+        expiry.toString(),
+        suffix,
+      ],
+    );
+
+    console.log(p, Buffer.from(p.slice(2), 'hex').toString('utf8'));
+
+    const proof = await mainAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        mainAccountAddress, // use any address that isn't the main address
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix: 'invalid prefix',
+          suffix,
+          infixOne,
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountInvalidProof',
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        mainAccountAddress,
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix,
+          suffix: 'invalid suffix',
+          infixOne,
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountInvalidProof',
+    );
+
+    await expect(
+      authAccountsConnectMain.validateAttachedAuthorizedAccount(
+        mainAccountAddress, // use any address that isn't the main address
+        {
+          account: attachedAccount,
+          expiry,
+          proof,
+          prefix,
+          suffix,
+          infixOne: 'invalid infix',
+        },
+      ),
+    ).to.be.revertedWithCustomError(
+      authAccountsConnectMain,
+      'AttachedAuthorizedAccountInvalidProof',
+    );
+  });
+
   async function currentBlock(): Promise<bigint> {
     return BigInt(await ethers.provider.getBlockNumber());
   }

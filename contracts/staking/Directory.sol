@@ -130,7 +130,8 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
         uint256 seekerStakingCapacity = _stakingManager.calculateCapacityFromSeekerPower(seekerId);
 
         // staking capacity based on the min staking proportion constant
-        uint256 minProportionStakingCapacity = _stakingManager.calculateCapacityFromMinStakingProportion(stakee);
+        uint256 minProportionStakingCapacity = _stakingManager
+            .calculateCapacityFromMinStakingProportion(stakee);
 
         uint256 joiningStake;
         if (totalStake > seekerStakingCapacity && totalStake > minProportionStakingCapacity) {
@@ -139,7 +140,8 @@ contract Directory is IDirectory, Initializable, Manageable, IERC165 {
             joiningStake = seekerStakingCapacity;
         } else if (totalStake > minProportionStakingCapacity) {
             joiningStake = minProportionStakingCapacity;
-        } else { // uncapped
+        } else {
+            // uncapped
             joiningStake = totalStake;
         }
 

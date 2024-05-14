@@ -2,6 +2,7 @@ import { ethers } from 'hardhat';
 import { assert, expect } from 'chai';
 import { HDNodeWallet, Signer, Wallet } from 'ethers';
 import {
+  AuthorizedAccounts,
   EpochsManager,
   Registries,
   RewardsManager,
@@ -17,8 +18,10 @@ import {
   toSOLOs,
   setSeekerRegistry,
   createWinningMultiReceiverTicket,
+  createUserSignature,
 } from './utils';
 import utils from '../utils';
+import { SignatureType } from '../../common/enum';
 
 describe('MultiReceiverTicketing', () => {
   let accounts: Signer[];
@@ -37,6 +40,7 @@ describe('MultiReceiverTicketing', () => {
   let seekers: TestSeekers;
   let seekerPowerOracle: SeekerPowerOracle;
   let futurepassRegistrar: TestFuturepassRegistrar;
+  let authorizedAccounts: AuthorizedAccounts;
 
   before(async () => {
     accounts = await ethers.getSigners();
@@ -61,9 +65,9 @@ describe('MultiReceiverTicketing', () => {
     seekers = contracts.seekers;
     seekerPowerOracle = contracts.seekerPowerOracle;
     futurepassRegistrar = contracts.futurepassRegistrar;
+    authorizedAccounts = contracts.authorizedAccounts;
 
-    const currentFaceValue = await ticketingParameters.faceValue();
-    await ticketingParameters.setMultiReceiverFaceValue(currentFaceValue);
+    await ticketingParameters.setMultiReceiverFaceValue(faceValue);
 
     await token.approve(await stakingManager.getAddress(), toSOLOs(10000000));
     await token.approve(await syloTicketing.getAddress(), toSOLOs(10000000));
@@ -97,12 +101,16 @@ describe('MultiReceiverTicketing', () => {
         owner,
       );
 
-    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      bobs[0],
+    );
 
     await syloTicketing.redeemMultiReceiver(
       ticket,
       redeemerRand,
-      { main: bobs[0].address, delegated: ethers.ZeroAddress },
+      bobs[0].address,
       senderSig,
       receiverSig,
     );
@@ -111,7 +119,7 @@ describe('MultiReceiverTicketing', () => {
     assert.equal(
       deposit.escrow,
       toSOLOs(1000),
-      'Expected ticket payout to be substracted from escrow',
+      'Expected ticket payout to be subtracted from escrow',
     );
 
     const pendingReward = await rewardsManager.getPendingRewards(owner);
@@ -158,12 +166,16 @@ describe('MultiReceiverTicketing', () => {
     let previousReward = await rewardsManager.getPendingRewards(owner);
 
     for (const bob of bobs) {
-      const receiverSig = await bob.signMessage(ethers.getBytes(ticketHash));
+      const receiverSig = await createUserSignature(
+        ethers.getBytes(ticketHash),
+        SignatureType.Main,
+        bob,
+      );
 
       await syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bob.address, delegated: ethers.ZeroAddress },
+        bob.address,
         senderSig,
         receiverSig,
       );
@@ -201,13 +213,17 @@ describe('MultiReceiverTicketing', () => {
         owner,
       );
 
-    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      bobs[0],
+    );
 
     await expect(
       syloTicketing.redeemMultiReceiver(
-        { ...ticket, sender: { ...ticket.sender, main: ethers.ZeroAddress } },
+        { ...ticket, sender: ethers.ZeroAddress },
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         receiverSig,
       ),
@@ -220,7 +236,7 @@ describe('MultiReceiverTicketing', () => {
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: ethers.ZeroAddress, delegated: ethers.ZeroAddress },
+        ethers.ZeroAddress,
         senderSig,
         receiverSig,
       ),
@@ -233,7 +249,7 @@ describe('MultiReceiverTicketing', () => {
       syloTicketing.redeemMultiReceiver(
         { ...ticket, redeemer: ethers.ZeroAddress },
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         receiverSig,
       ),
@@ -250,7 +266,7 @@ describe('MultiReceiverTicketing', () => {
             '0x0000000000000000000000000000000000000000000000000000000000000000',
         },
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         receiverSig,
       ),
@@ -258,57 +274,56 @@ describe('MultiReceiverTicketing', () => {
 
     await expect(
       syloTicketing.redeemMultiReceiver(
+        ticket,
+        redeemerRand,
+        bobs[0].address,
         {
-          ...ticket,
-          sender: {
-            ...ticket.sender,
-            delegated: Wallet.createRandom().address,
-          },
+          ...senderSig,
+          authorizedAccount: bobs[0].address,
+          sigType: SignatureType.Authorized,
         },
-        redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
-        senderSig,
         receiverSig,
       ),
-    ).to.be.revertedWithCustomError(
-      syloTicketing,
-      'InvalidSenderSigningPermission',
-    );
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSigningPermission');
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bobs[0].address, delegated: Wallet.createRandom().address },
+        bobs[0].address,
         senderSig,
-        receiverSig,
+        {
+          ...receiverSig,
+          authorizedAccount: alice.address,
+          sigType: SignatureType.Authorized,
+        },
       ),
-    ).to.be.revertedWithCustomError(
-      syloTicketing,
-      'InvalidReceiverSigningPermission',
-    );
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSigningPermission');
 
-    const malformedSig =
-      '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
+    const malformedSig = {
+      ...senderSig,
+      signature:
+        '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b',
+    };
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         malformedSig,
         receiverSig,
       ),
-    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSenderSignature');
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSignature');
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         malformedSig,
       ),
-    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidReceiverSignature');
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSignature');
   });
 
   it('can not redeem non winning ticket', async () => {
@@ -338,13 +353,17 @@ describe('MultiReceiverTicketing', () => {
         owner,
       );
 
-    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      bobs[0],
+    );
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         receiverSig,
       ),
@@ -370,9 +389,9 @@ describe('MultiReceiverTicketing', () => {
           generationBlock: BigInt(ticket.generationBlock) + 10n,
         },
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
-        new Uint8Array(0),
+        senderSig,
       ),
     ).to.be.revertedWithCustomError(
       syloTicketing,
@@ -407,13 +426,17 @@ describe('MultiReceiverTicketing', () => {
         owner,
       );
 
-    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      bobs[0],
+    );
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         receiverSig,
       ),
@@ -452,15 +475,17 @@ describe('MultiReceiverTicketing', () => {
 
     const invalidReceiver = Wallet.createRandom();
     // we use a proof from a valid receiver but supply an invalid receiver
-    const receiverSig = await invalidReceiver.signMessage(
+    const receiverSig = await createUserSignature(
       ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      invalidReceiver,
     );
 
     await expect(
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: invalidReceiver.address, delegated: ethers.ZeroAddress },
+        invalidReceiver.address,
         senderSig,
         receiverSig,
       ),
@@ -495,12 +520,16 @@ describe('MultiReceiverTicketing', () => {
         owner,
       );
 
-    const receiverSig = await bobs[0].signMessage(ethers.getBytes(ticketHash));
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      bobs[0],
+    );
 
     await syloTicketing.redeemMultiReceiver(
       ticket,
       redeemerRand,
-      { main: bobs[0].address, delegated: ethers.ZeroAddress },
+      bobs[0].address,
       senderSig,
       receiverSig,
     );
@@ -509,16 +538,113 @@ describe('MultiReceiverTicketing', () => {
       syloTicketing.redeemMultiReceiver(
         ticket,
         redeemerRand,
-        { main: bobs[0].address, delegated: ethers.ZeroAddress },
+        bobs[0].address,
         senderSig,
         receiverSig,
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'TicketAlreadyRedeemed');
   });
 
+  it('can redeem for receiver using attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const [bob] = await createFuturepassReceivers(1);
+    const delegatedWallet = Wallet.createRandom();
+
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, redeemerRand, senderSig, ticketHash } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        owner,
+      );
+
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.AttachedAuthorized,
+      bob,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    await syloTicketing.redeemMultiReceiver(
+      ticket,
+      redeemerRand,
+      bob.address,
+      senderSig,
+      receiverSig,
+    );
+  });
+
+  it('cannot redeem ticket when using sender attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const [bob] = await createFuturepassReceivers(1);
+    const delegatedWallet = Wallet.createRandom();
+
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+
+    const { ticket, redeemerRand, senderSig, ticketHash } =
+      await createWinningMultiReceiverTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        owner,
+      );
+
+    const receiverSig = await createUserSignature(
+      ethers.getBytes(ticketHash),
+      SignatureType.Main,
+      bob,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    await expect(
+      syloTicketing.redeemMultiReceiver(
+        ticket,
+        redeemerRand,
+        bob.address,
+        { ...senderSig, sigType: SignatureType.AttachedAuthorized },
+        receiverSig,
+      ),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'SenderCannotUseAttachedAuthorizedAccount',
+    );
+  });
+
   async function createFuturepassReceivers(n: number): Promise<HDNodeWallet[]> {
     return Promise.all(
-      Array(5)
+      Array(n)
         .fill(0)
         .map(async _ => {
           const w = Wallet.createRandom();

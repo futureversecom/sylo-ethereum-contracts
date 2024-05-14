@@ -27,8 +27,11 @@ import {
   setSeekerRegistry,
   createWinningTicket,
   createCommit,
+  createEmptyAttachedAuthorizedAccount,
+  createAttachedAuthorizedAccount,
 } from './utils';
 import utils from '../utils';
+import { SignatureType } from '../../common/enum';
 
 describe('Ticketing', () => {
   let accounts: Signer[];
@@ -332,6 +335,10 @@ describe('Ticketing', () => {
 
     await expect(
       ticketingParameters.connect(notOwner).setTicketDuration(2222),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(
+      ticketingParameters.connect(notOwner).setMultiReceiverFaceValue(888),
     ).to.be.revertedWith('Ownable: caller is not the owner');
 
     await expect(
@@ -673,8 +680,18 @@ describe('Ticketing', () => {
       owner,
     );
 
-    const senderSig = '0x00';
-    const receiverSig = '0x00';
+    const senderSig = {
+      sigType: SignatureType.Main,
+      signature: '0x00',
+      authorizedAccount: ethers.ZeroAddress,
+      attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+    };
+    const receiverSig = {
+      sigType: SignatureType.Main,
+      signature: '0x00',
+      authorizedAccount: ethers.ZeroAddress,
+      attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+    };
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
@@ -799,10 +816,7 @@ describe('Ticketing', () => {
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(
-      syloTicketing,
-      'InvalidSenderSigningPermission',
-    );
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSigningPermission');
   });
 
   it('cannot redeem ticket using receiver delegated account to sign without permission', async () => {
@@ -859,10 +873,7 @@ describe('Ticketing', () => {
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(
-      syloTicketing,
-      'InvalidReceiverSigningPermission',
-    );
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSigningPermission');
   });
 
   it('cannot redeem ticket using sender delegated account to sign after unauthorizing account', async () => {
@@ -921,10 +932,7 @@ describe('Ticketing', () => {
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(
-      syloTicketing,
-      'InvalidSenderSigningPermission',
-    );
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSigningPermission');
 
     await authorizedAccounts
       .connect(aliceConnected)
@@ -935,10 +943,7 @@ describe('Ticketing', () => {
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
-    ).to.be.revertedWithCustomError(
-      syloTicketing,
-      'InvalidSenderSigningPermission',
-    );
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSigningPermission');
   });
 
   it('can redeem ticket using sender delegated account if removing permission is called after creating ticket', async () => {
@@ -1193,6 +1198,109 @@ describe('Ticketing', () => {
     );
   });
 
+  it('can redeem ticket using receiver attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.parseEther('2000.0'),
+    });
+
+    const attachedAuthorizedAccount = await createAttachedAuthorizedAccount(
+      bob,
+      delegatedWallet,
+      authorizedAccounts,
+    );
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        undefined,
+        undefined,
+        delegatedWallet,
+      );
+    receiverSig.sigType = SignatureType.AttachedAuthorized;
+    receiverSig.attachedAuthorizedAccount = attachedAuthorizedAccount;
+
+    await syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig);
+
+    await checkAfterRedeem(
+      syloTicketing,
+      rewardsManager,
+      owner,
+      alice,
+      1000,
+      50,
+      500,
+    );
+  });
+
+  it('cannot redeem ticket when using sender attached authorized account', async () => {
+    await stakingManager.addStake(toSOLOs(1), owner);
+    await setSeekerRegistry(
+      seekers,
+      registries,
+      seekerPowerOracle,
+      accounts[0],
+      accounts[1],
+      1,
+    );
+
+    await epochsManager.joinNextEpoch();
+    await epochsManager.initializeEpoch();
+
+    const alice = Wallet.createRandom();
+    const bob = Wallet.createRandom();
+    const delegatedWallet = Wallet.createRandom();
+    await syloTicketing.depositEscrow(toSOLOs(2000), alice.address);
+    await syloTicketing.depositPenalty(toSOLOs(50), alice.address);
+    await accounts[0].sendTransaction({
+      to: alice.address,
+      value: ethers.parseEther('2000.0'),
+    });
+
+    const { ticket, redeemerRand, senderSig, receiverSig } =
+      await createWinningTicket(
+        syloTicketing,
+        epochsManager,
+        alice,
+        bob,
+        owner,
+        undefined,
+        delegatedWallet,
+        undefined,
+      );
+
+    senderSig.sigType = SignatureType.AttachedAuthorized;
+
+    await expect(
+      syloTicketing.redeem(ticket, redeemerRand, senderSig, receiverSig),
+    ).to.be.revertedWithCustomError(
+      syloTicketing,
+      'SenderCannotUseAttachedAuthorizedAccount',
+    );
+  });
+
   it('can not calculate winning probablility if not generated during associated epoch', async () => {
     await epochsManager.initializeEpoch();
 
@@ -1376,7 +1484,7 @@ describe('Ticketing', () => {
       syloTicketing.redeem(
         {
           ...ticket,
-          sender: { ...ticket.sender, main: ethers.ZeroAddress },
+          sender: ethers.ZeroAddress,
         },
 
         redeemerRand,
@@ -1392,7 +1500,7 @@ describe('Ticketing', () => {
       syloTicketing.redeem(
         {
           ...ticket,
-          receiver: { ...ticket.receiver, main: ethers.ZeroAddress },
+          receiver: ethers.ZeroAddress,
         },
 
         redeemerRand,
@@ -1434,15 +1542,20 @@ describe('Ticketing', () => {
       ),
     ).to.be.revertedWithCustomError(syloTicketing, 'RedeemerCommitMismatch');
 
-    const malformedSig =
-      '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b';
+    const malformedSig = {
+      sigType: SignatureType.Main,
+      signature:
+        '0xdebcaaaa727df04bdc990083d88ed7c8e6e9897ff18b7d968867a8bc024cbdbe10ca52eebd67a14b7b493f5c00ed9dab7b96ef62916f25afc631d336f7b2ae1e1b',
+      authorizedAccount: ethers.ZeroAddress,
+      attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+    };
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, malformedSig, receiverSig),
-    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSenderSignature');
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSignature');
 
     await expect(
       syloTicketing.redeem(ticket, redeemerRand, senderSig, malformedSig),
-    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidReceiverSignature');
+    ).to.be.revertedWithCustomError(syloTicketing, 'InvalidSignature');
   });
 
   it('rejects non winning ticket', async () => {
@@ -2959,7 +3072,7 @@ describe('Ticketing', () => {
     assert.equal(p, 0n, 'Expected probability to be 0');
   });
 
-  it('reverts when reward pool stake is signficanlty less than reward', async () => {
+  it('reverts when reward pool stake is significantly less than reward', async () => {
     // The node's stake is 2**63-1 times smaller than what the
     // reward will be.
     await ticketingParameters.setFaceValue(ethers.parseEther('10000'));
@@ -3082,14 +3195,8 @@ describe('Ticketing', () => {
     // create the ticket to be given to the node
     const ticket = {
       epochId,
-      sender: {
-        main: sender.address,
-        delegated: ethers.ZeroAddress,
-      },
-      receiver: {
-        main: receiver.address,
-        delegated: ethers.ZeroAddress,
-      },
+      sender: sender.address,
+      receiver: receiver.address,
       redeemer: node,
       generationBlock,
       redeemerCommit: nodeCommit,
@@ -3097,8 +3204,19 @@ describe('Ticketing', () => {
 
     // have sender sign the hash of the ticket
     const ticketHash = await syloTicketing.getTicketHash(ticket);
-    const senderSig = await sender.signMessage(ethers.getBytes(ticketHash));
-    const receiverSig = await receiver.signMessage(ethers.getBytes(ticketHash));
+
+    const senderSig = {
+      sigType: SignatureType.Main,
+      signature: await sender.signMessage(ethers.getBytes(ticketHash)),
+      authorizedAccount: ethers.ZeroAddress,
+      attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+    };
+    const receiverSig = {
+      sigType: SignatureType.Main,
+      signature: await receiver.signMessage(ethers.getBytes(ticketHash)),
+      authorizedAccount: ethers.ZeroAddress,
+      attachedAuthorizedAccount: createEmptyAttachedAuthorizedAccount(),
+    };
 
     // once secret has been revealed, the node can now redeem the ticket
     await syloTicketing.redeem(ticket, nodeRand, senderSig, receiverSig, {

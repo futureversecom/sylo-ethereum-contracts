@@ -50,6 +50,27 @@ interface IAuthorizedAccounts {
         AuthorizedPermission[] permissions;
     }
 
+    /**
+     * @dev AttachedAuthorizedAccount represents a type of authorized account
+     * that is intended to be supplied alongside each signature, as opposed
+     * to the account being stored onchain.
+     * This form of authorized account is only supported for receivers, so
+     * a permission set field is not present. The struct includes a expiry,
+     * and will no longer be valid when the current timestamp exceeds the expiry.
+     */
+    struct AttachedAuthorizedAccount {
+        // The authorized account
+        address account;
+        // Unix timestamp when this authorized account is no longer valid.
+        uint256 expiry;
+        // Used to prove the authorization of this account.
+        bytes proof;
+        // The following strings are used when constructing the proof message.
+        string prefix;
+        string suffix;
+        string infixOne;
+    }
+
     function authorizeAccount(address authorized, Permission[] calldata permissions) external;
 
     function unauthorizeAccount(address authorized) external;
@@ -71,4 +92,17 @@ interface IAuthorizedAccounts {
     function getAuthorizedAccounts(
         address main
     ) external view returns (AuthorizedAccount[] memory);
+
+    function createAttachedAuthorizedAccountProofMessage(
+        address account,
+        uint256 expiry,
+        string calldata prefix,
+        string calldata suffix,
+        string calldata infixOne
+    ) external pure returns (bytes memory);
+
+    function validateAttachedAuthorizedAccount(
+        address main,
+        AttachedAuthorizedAccount calldata account
+    ) external view;
 }

@@ -176,7 +176,14 @@ contract TicketingParameters is
         view
         returns (uint256, uint128, uint128, uint256, uint32, uint256)
     {
-        return (faceValue, baseLiveWinProb, expiredWinProb, ticketDuration, decayRate, multiReceiverFaceValue);
+        return (
+            faceValue,
+            baseLiveWinProb,
+            expiredWinProb,
+            ticketDuration,
+            decayRate,
+            multiReceiverFaceValue
+        );
     }
 
     function setMultiReceiverFaceValue(uint256 _multiReceiverFaceValue) external onlyOwner {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
+import "../IAuthorizedAccounts.sol";
+
 interface ISyloTicketing {
     struct Deposit {
         uint256 escrow; // Balance of users escrow
@@ -8,15 +10,25 @@ interface ISyloTicketing {
         uint256 unlockAt; // Block number a user can withdraw their balances
     }
 
-    struct User {
-        address main; // Main address of the ticket sender or receiver
-        address delegated; // Delegated address used to sign and redeem tickets
+    enum SignatureType {
+        Main,
+        Authorized,
+        AttachedAuthorized
+    }
+
+    struct UserSignature {
+        SignatureType sigType;
+        bytes signature;
+        // This field will only be non-zero if the sig type is `AuthorizedAccount`
+        address authorizedAccount;
+        // This field will only be present if the sig type is `AttachedAuthorized`
+        IAuthorizedAccounts.AttachedAuthorizedAccount attachedAuthorizedAccount;
     }
 
     struct Ticket {
         uint256 epochId; // The epoch this ticket is associated with
-        User sender; // Ticket sender's main and delegated addresses
-        User receiver; // Ticket receiver's main and delegated addresses
+        address sender; // Ticket sender's address
+        address receiver; // Ticket receiver's address
         address redeemer; // Address of the intended recipient
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
@@ -25,8 +37,8 @@ interface ISyloTicketing {
     // A type of ticket that does not explicit state the receiver address.
     struct MultiReceiverTicket {
         uint256 epochId; // The epoch this ticket is associated with
-        User sender; // Ticket sender's main and delegated addresses
-        address redeemer; // Address of the intended recipient
+        address sender; // Ticket sender's address
+        address redeemer; // Ticket redeemer's address
         uint256 generationBlock; // Block number the ticket was generated
         bytes32 redeemerCommit; // Hash of the secret random number of the redeemer
     }
@@ -46,15 +58,15 @@ interface ISyloTicketing {
     function redeem(
         Ticket calldata ticket,
         uint256 redeemerRand,
-        bytes calldata senderSig,
-        bytes calldata receiverSig
+        UserSignature calldata senderSig,
+        UserSignature calldata receiverSig
     ) external;
 
     function redeemMultiReceiver(
         MultiReceiverTicket calldata ticket,
         uint256 redeemerRand,
-        User calldata receiver,
-        bytes calldata senderSig,
-        bytes calldata receiverSig
+        address receiver,
+        UserSignature calldata senderSig,
+        UserSignature calldata receiverSig
     ) external;
 }
