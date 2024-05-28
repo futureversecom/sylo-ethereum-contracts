@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.18;
 
 interface ISyloStakingManager {
     /**
@@ -20,7 +20,7 @@ interface ISyloStakingManager {
      */
     struct Stake {
         // Track each stake entry associated to a node
-        mapping(address => StakeEntry) stakeEntries;
+        mapping(address => StakeEntry) entries;
         // The total stake held by this contract for a node,
         // which will be the sum of all addStake and unlockStake calls
         uint256 totalManagedStake;
@@ -36,13 +36,13 @@ interface ISyloStakingManager {
 
     function setUnlockDuration(uint256 _unlockDuration) external;
 
-    function addStake(uint256 amount, address node) external;
+    function addStake(address node, uint256 amount) external;
 
-    function unlockStake(uint256 amount, address node) external returns (uint256);
+    function unlockStake(address node, uint256 amount) external returns (uint256);
 
     function withdrawStake(address node) external;
 
-    function cancelUnlocking(uint256 amount, address node) external;
+    function cancelUnlocking(address node, uint256 amount) external;
 
     function getTotalManagedStake() external view returns (uint256);
 
