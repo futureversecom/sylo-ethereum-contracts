@@ -31,6 +31,13 @@ const config: HardhatUserConfig = {
     hardhat: {
       gas: 100000000,
       blockGasLimit: 2000000000000, // Add this to allow multiple transactions in one block when testing
+      accounts: {
+        mnemonic:
+          'enroll regret dial tray life phrase saddle term friend figure meat add puppy explain soup',
+      },
+      mining: {
+        interval: 1000,
+      },
     },
     localhost: {
       url: 'http://0.0.0.0:8545',

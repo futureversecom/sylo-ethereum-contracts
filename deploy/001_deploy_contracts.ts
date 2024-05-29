@@ -200,6 +200,8 @@ function getConfig(networkName: string): configs.ContractParameters {
       return configs.PorciniDevParameters;
     case 'localhost':
       return configs.GanacheTestnetParameters;
+    case 'hardhat':
+      return configs.GanacheTestnetParameters;
     default:
       throw new Error('unknown network: ' + networkName);
   }

@@ -54,7 +54,7 @@ deployed to that network can be built with:
 
 `npm run docker-ganache`
 
-See the [docker readme](docker/ganache-with-protocol/README.md) for more
+See the [docker readme](docker/README.md) for more
 details.
 
 ### 🌥️ Deployment

@@ -32,7 +32,7 @@ jobs:
       - name: Build Tag and Push Docker image
         uses: docker/build-push-action@v5
         with:
-          file: docker/ganache-with-protocol/Dockerfile
+          file: docker/Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           push: true
           cache-from: type=gha
