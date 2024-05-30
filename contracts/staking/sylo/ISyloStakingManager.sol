@@ -46,10 +46,7 @@ interface ISyloStakingManager {
 
     function getTotalManagedStake() external view returns (uint256);
 
-    function getManagedStake(
-        address node,
-        address user
-    ) external view returns (StakeEntry memory);
+    function getManagedStake(address node, address user) external view returns (StakeEntry memory);
 
     function getTotalManagedStakeByNode(address node) external view returns (uint256);
 }
