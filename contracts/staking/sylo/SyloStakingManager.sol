@@ -3,8 +3,7 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-
-import "../../libraries/SyloUtils.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "../../SyloToken.sol";
 import "./ISyloStakingManager.sol";
@@ -57,10 +56,15 @@ contract SyloStakingManager is ISyloStakingManager, Initializable, Ownable2StepU
     Ownable2StepUpgradeable.__Ownable2Step_init();
 
     _sylo = sylo;
-    _unlockDuration = unlockDuration;
+
+    _setUnlockDuration(_unlockDuration);
   }
 
   function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
+    _setUnlockDuration(_unlockDuration);
+  }
+
+  function _setUnlockDuration(uint256 _unlockDuration) internal {
     if (_unlockDuration == 0) {
         revert UnlockDurationCannotBeZero();
     }
@@ -174,15 +178,22 @@ contract SyloStakingManager is ISyloStakingManager, Initializable, Ownable2StepU
     _addStake(node, amount);
   }
 
-  function getTotalManagedStake() external view returns (uint256) {
-    return totalManagedStake;
-  }
-
   function getManagedStake(
       address node,
       address user
   ) external view returns (StakeEntry memory) {
     return stakes[node].entries[user];
+  }
+
+  function getUnlocking(
+    address node,
+    address user
+  ) external view returns (Unlocking memory) {
+    return unlockings[node][user];
+  }
+
+  function getTotalManagedStake() external view returns (uint256) {
+    return totalManagedStake;
   }
 
   function getTotalManagedStakeByNode(address node) external view returns (uint256) {
