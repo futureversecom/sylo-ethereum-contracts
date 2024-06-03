@@ -61,6 +61,14 @@ contract SyloStakingManager is
         _setUnlockDuration(_unlockDuration);
     }
 
+    /**
+     * @notice Returns true if the contract implements the interface defined by
+     * `interfaceId` from ERC165.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(ISyloStakingManager).interfaceId;
+    }
+
     function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
         _setUnlockDuration(_unlockDuration);
     }
