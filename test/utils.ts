@@ -32,3 +32,23 @@ export async function deployContracts(
     syloStakingManager,
   };
 }
+
+export function getInterfaceId(abi: string[]): string {
+  const iface = new ethers.Interface(abi);
+
+  const selectors: string[] = [];
+
+  iface.forEachFunction(f => {
+    selectors.push(f.selector);
+  });
+
+  const interfaceId = selectors.reduce((id, selector) => {
+    const selectorBytes = ethers.getBytes(selector);
+    const idBytes = ethers.getBytes(id);
+    return ethers.hexlify(
+      selectorBytes.map((byte, index) => byte ^ idBytes[index]),
+    );
+  }, '0x00000000');
+
+  return interfaceId;
+}

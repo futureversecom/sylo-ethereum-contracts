@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { SyloContracts } from '../../common/contracts';
-import { deployContracts } from '../utils';
+import { deployContracts, getInterfaceId } from '../utils';
 import { ContractTransactionResponse, Signer } from 'ethers';
 import { assert, expect } from 'chai';
 import { SyloStakingManager } from '../../typechain-types';
@@ -444,6 +444,100 @@ describe('Sylo Staking', () => {
     ).to.be.revertedWithCustomError(syloStakingManager, 'StakeNotYetUnlocked');
   });
 
+  it('can transfer stake to another node', async () => {
+    const { node, user } = await setupInitialStake(1000n);
+
+    const node2 = accounts[3];
+
+    await testStakingAction(
+      await node2.getAddress(),
+      await user.getAddress(),
+      () => syloStakingManager.connect(user).transferStake(node, node2, 666n),
+      666n,
+      0n,
+    );
+
+    const nodeStake = await syloStakingManager.getManagedStake(
+      node,
+      user.getAddress(),
+    );
+
+    assert.equal(nodeStake.amount, 334n, "Expected node's stake to decrease");
+  });
+
+  it('can reverts when transferring stake to nil address', async () => {
+    const { node, user } = await setupInitialStake(1000n);
+
+    await expect(
+      syloStakingManager
+        .connect(user)
+        .transferStake(ethers.ZeroAddress, node, 1n),
+    ).to.be.revertedWithCustomError(
+      syloStakingManager,
+      'NodeAddressCannotBeNil',
+    );
+
+    await expect(
+      syloStakingManager
+        .connect(user)
+        .transferStake(node, ethers.ZeroAddress, 1n),
+    ).to.be.revertedWithCustomError(
+      syloStakingManager,
+      'NodeAddressCannotBeNil',
+    );
+  });
+
+  it('reverts when transferring more stake than exists', async () => {
+    const { node, user } = await setupInitialStake(1000n);
+
+    const node2 = accounts[3];
+
+    await expect(
+      syloStakingManager.connect(user).transferStake(node, node2, 1001n),
+    ).to.be.revertedWithCustomError(
+      syloStakingManager,
+      'CannotTransferMoreThanStaked',
+    );
+  });
+
+  it('supports only sylo staking manager interface', async () => {
+    const abi = [
+      'function setUnlockDuration(uint256 _unlockDuration) external',
+      'function addStake(address node, uint256 amount) external',
+      'function unlockStake(address node, uint256 amount) external returns (uint256)',
+      'function withdrawStake(address node) external',
+      'function cancelUnlocking(address node, uint256 amount) external',
+      'function transferStake(address from, address to, uint256 amount) external',
+      'function getTotalManagedStake() external view returns (uint256)',
+      'function getManagedStake(address node, address user) external view returns ((uint256,uint256))',
+      'function getTotalManagedStakeByNode(address node) external view returns (uint256)',
+    ];
+
+    const interfaceId = getInterfaceId(abi);
+
+    const supports = await syloStakingManager.supportsInterface(interfaceId);
+
+    assert.equal(
+      supports,
+      true,
+      'Expected sylo staking manager to support correct interface',
+    );
+
+    const invalidAbi = ['function foo(uint256 duration) external'];
+
+    const invalidAbiInterfaceId = getInterfaceId(invalidAbi);
+
+    const invalid = await syloStakingManager.supportsInterface(
+      invalidAbiInterfaceId,
+    );
+
+    assert.equal(
+      invalid,
+      false,
+      'Expected sylo staking manager to not support incorrect interface',
+    );
+  });
+
   const setupStaker = async (staker: Signer) => {
     await contracts.syloToken
       .connect(staker)
@@ -521,7 +615,7 @@ describe('Sylo Staking', () => {
   /**
    * testStakingAction is a utility function that asserts a user and node's
    * stake entry is correctly updated after performing a staking related
-   * transaction. The user's balance is also validate that it has been updated
+   * transaction. The user's balance is also validated that it has been updated
    * correctly as well.
    * @param node
    * @param staker

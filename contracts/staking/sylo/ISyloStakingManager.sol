@@ -44,6 +44,8 @@ interface ISyloStakingManager {
 
     function cancelUnlocking(address node, uint256 amount) external;
 
+    function transferStake(address from, address to, uint256 amount) external;
+
     function getTotalManagedStake() external view returns (uint256);
 
     function getManagedStake(address node, address user) external view returns (StakeEntry memory);

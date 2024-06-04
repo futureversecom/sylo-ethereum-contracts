@@ -47,6 +47,7 @@ contract SyloStakingManager is
     error CannotUnlockZeroAmount();
     error CannotCancelUnlockingZeroAmount();
     error CannotUnlockMoreThanStaked(uint256 stakeAmount, uint256 unlockAmount);
+    error CannotTransferMoreThanStaked(uint256 stakeAmount, uint256 transferAmount);
     error StakeNotYetUnlocked();
 
     function initialize(IERC20 sylo, uint256 _unlockDuration) external initializer {
@@ -101,6 +102,9 @@ contract SyloStakingManager is
 
         _addStake(node, amount);
 
+        // update total stake managed by this contract
+        totalManagedStake += amount;
+
         SafeERC20.safeTransferFrom(_sylo, msg.sender, address(this), amount);
     }
 
@@ -113,8 +117,7 @@ contract SyloStakingManager is
         // update total managed stake for this node
         stakes[node].totalManagedStake += amount;
 
-        // update total stake managed by this contract
-        totalManagedStake += amount;
+
     }
 
     /**
@@ -220,6 +223,40 @@ contract SyloStakingManager is
         }
 
         _addStake(node, amount);
+
+        // update total stake managed by this contract
+        totalManagedStake += amount;
+    }
+
+    /**
+     * @notice Call this function to transfer existing stake from one node
+     * to another, bypassing the usual unlocking requirement.
+     * This function will fail under the following conditions:
+     *   - If the from or to Node addresses are invalid
+     *   - If the transfer amount is greater than the existing stake
+     * @param from The address of the node to transfer stake from.
+     * @param from The address of the node to transfer stake to.
+     * @param amount The amount of stake to transfer in SOLO.
+     */
+    function transferStake(address from, address to, uint256 amount) external {
+      if (from == address(0)) {
+          revert NodeAddressCannotBeNil();
+      }
+
+      if (to == address(0)) {
+          revert NodeAddressCannotBeNil();
+      }
+
+      StakeEntry storage stakeEntry = stakes[from].entries[msg.sender];
+
+      if (amount > stakeEntry.amount) {
+        revert CannotTransferMoreThanStaked(stakeEntry.amount, amount);
+      }
+
+      stakeEntry.amount -= amount;
+      stakeEntry.updatedAt = block.timestamp;
+
+      _addStake(to, amount);
     }
 
     function getManagedStake(
