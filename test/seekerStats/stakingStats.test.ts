@@ -18,7 +18,7 @@ class Seeker {
   ) {}
 }
 
-describe.only('Seeker Stats', () => {
+describe('Seeker Stats', () => {
   let accounts: Signer[];
   let contracts: SyloContracts;
   let seekerStatsOracle: SeekerStatsOracle;
@@ -80,7 +80,7 @@ describe.only('Seeker Stats', () => {
   it('can register seeker', async () => {
     const seeker = new Seeker(10, 2, 10, 20, 30, 40, 50, 60);
 
-    const proofMessage = await seekerStatsOracle.createStatsMessage(seeker);
+    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
     const signature = await accounts[19].signMessage(
       Buffer.from(proofMessage.slice(2), 'hex'),
     );
@@ -114,7 +114,7 @@ describe.only('Seeker Stats', () => {
   it('cannot register seeker from non-oracle account', async () => {
     const seeker = new Seeker(20, 2, 10, 20, 30, 40, 50, 60);
 
-    const proofMessage = await seekerStatsOracle.createStatsMessage(seeker);
+    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
     const signature = await accounts[18].signMessage(
       Buffer.from(proofMessage.slice(2), 'hex'),
     );
@@ -130,8 +130,8 @@ describe.only('Seeker Stats', () => {
     const seeker = new Seeker(10, 2, 1, 1, 1, 1, 1, 1);
     const seekerTwo = new Seeker(10, 2, 10, 10, 10, 10, 10, 10);
 
-    const proofMessage = await seekerStatsOracle.createStatsMessage(seeker);
-    const proofMessageTwo = await seekerStatsOracle.createStatsMessage(
+    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
+    const proofMessageTwo = await seekerStatsOracle.createProofMessage(
       seekerTwo,
     );
 
@@ -229,7 +229,7 @@ describe.only('Seeker Stats', () => {
   it('supports only seeker stats oracle interface', async () => {
     const abi = [
       'function setOracle(address _seekerStatsOracleAccount) external',
-      'function createStatsMessage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external pure returns (bytes memory)',
+      'function createProofMessage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external pure returns (bytes memory)',
       'function registerSeekerRestricted((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external',
       'function registerSeeker((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker, bytes calldata signature) external',
       'function calculateAttributeCoverage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)[] calldata seekersList) external view returns (int256)',
@@ -299,7 +299,7 @@ describe.only('Seeker Stats', () => {
         i + 50,
         i + 60,
       );
-      const proofMessage = await seekerStatsOracle.createStatsMessage(
+      const proofMessage = await seekerStatsOracle.createProofMessage(
         newSeeker,
       );
       const signature = await accounts[19].signMessage(

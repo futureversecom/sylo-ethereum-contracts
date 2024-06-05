@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "solidity-trigonometry/src/Trigonometry.sol";
-import "hardhat/console.sol";
 
 import "./ISeekerStatsOracle.sol";
 
@@ -25,7 +24,8 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     /**
      * @notice Holds the angle used for coverage calculation in radians
      */
-    int256 private angle = Trigonometry.sin(((Trigonometry.TWO_PI / 6) + Trigonometry.TWO_PI));
+    int256 private coverageAngle =
+        Trigonometry.sin(((Trigonometry.TWO_PI / 6) + Trigonometry.TWO_PI));
 
     event SeekerStatsUpdated(
         uint256 indexed seekerId,
@@ -87,7 +87,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
             revert OracleCannotBeZeroAddress();
         }
 
-        bytes memory proof = _createStatsMessage(seeker);
+        bytes memory proof = _createProofMessage(seeker);
         bytes32 ecdsaHash = ECDSA.toEthSignedMessageHash(proof);
         address signerAddress = ECDSA.recover(ecdsaHash, signature);
         if (signerAddress == SeekerStatsOracleAccount) {
@@ -101,7 +101,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * @notice Creates a proofing message unique to the provided seeker.
      * @param seeker The object containing the seekers statistics.
      */
-    function _createStatsMessage(Seeker calldata seeker) internal pure returns (bytes memory) {
+    function _createProofMessage(Seeker calldata seeker) internal pure returns (bytes memory) {
         return
             abi.encodePacked(
                 seeker.seekerId,
@@ -119,8 +119,8 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * @notice Creates a proofing message unique to the provided seeker.
      * @param seeker The object containing the seekers statistics.
      */
-    function createStatsMessage(Seeker calldata seeker) external pure returns (bytes memory) {
-        return _createStatsMessage(seeker);
+    function createProofMessage(Seeker calldata seeker) external pure returns (bytes memory) {
+        return _createProofMessage(seeker);
     }
 
     function registerSeekerRestricted(Seeker calldata seeker) external {
@@ -180,16 +180,24 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
                 revert SeekerNotRegistered(seeker.seekerId);
             }
 
-            sumCoverage += (int256(seeker.attr_reactor) * angle * int256(seeker.attr_cores)) / 2;
             sumCoverage +=
-                (int256(seeker.attr_cores) * angle * int256(seeker.attr_durability)) /
+                (int256(seeker.attr_reactor) * coverageAngle * int256(seeker.attr_cores)) /
                 2;
             sumCoverage +=
-                (int256(seeker.attr_durability) * angle * int256(seeker.attr_sensors)) /
+                (int256(seeker.attr_cores) * coverageAngle * int256(seeker.attr_durability)) /
                 2;
-            sumCoverage += (int256(seeker.attr_sensors) * angle * int256(seeker.attr_storage)) / 2;
-            sumCoverage += (int256(seeker.attr_storage) * angle * int256(seeker.attr_chip)) / 2;
-            sumCoverage += (int256(seeker.attr_chip) * angle * int256(seeker.attr_reactor)) / 2;
+            sumCoverage +=
+                (int256(seeker.attr_durability) * coverageAngle * int256(seeker.attr_sensors)) /
+                2;
+            sumCoverage +=
+                (int256(seeker.attr_sensors) * coverageAngle * int256(seeker.attr_storage)) /
+                2;
+            sumCoverage +=
+                (int256(seeker.attr_storage) * coverageAngle * int256(seeker.attr_chip)) /
+                2;
+            sumCoverage +=
+                (int256(seeker.attr_chip) * coverageAngle * int256(seeker.attr_reactor)) /
+                2;
         }
 
         return sumCoverage;

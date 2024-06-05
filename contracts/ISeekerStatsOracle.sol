@@ -15,7 +15,7 @@ interface ISeekerStatsOracle {
 
     function setOracle(address _seekerStatsOracleAccount) external;
 
-    function createStatsMessage(Seeker calldata seeker) external pure returns (bytes memory);
+    function createProofMessage(Seeker calldata seeker) external pure returns (bytes memory);
 
     function registerSeekerRestricted(Seeker calldata seeker) external;
 
