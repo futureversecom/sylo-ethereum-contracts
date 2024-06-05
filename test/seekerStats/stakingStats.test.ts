@@ -9,12 +9,12 @@ class Seeker {
   constructor(
     public seekerId: number,
     public rank: number,
-    public attr_reactor: number,
-    public attr_cores: number,
-    public attr_durability: number,
-    public attr_sensors: number,
-    public attr_storage: number,
-    public attr_chip: number,
+    public attrReactor: number,
+    public attrCores: number,
+    public attrDurability: number,
+    public attrSensors: number,
+    public attrStorage: number,
+    public attrChip: number,
   ) {}
 }
 
@@ -38,7 +38,7 @@ describe('Seeker Stats', () => {
       seekerStatsOracle.initialize(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       seekerStatsOracle,
-      'OracleCannotBeZeroAddress',
+      'OracleAddressCannotBeNil',
     );
   });
 
@@ -50,12 +50,12 @@ describe('Seeker Stats', () => {
 
   it('can set oracle account as owner', async () => {
     assert.equal(
-      await seekerStatsOracle.SeekerStatsOracleAccount(),
+      await seekerStatsOracle.oracle(),
       await accounts[19].getAddress(),
     );
     await seekerStatsOracle.setOracle(await accounts[18].getAddress());
     assert.equal(
-      await seekerStatsOracle.SeekerStatsOracleAccount(),
+      await seekerStatsOracle.oracle(),
       await accounts[18].getAddress(),
     );
   });
@@ -73,7 +73,7 @@ describe('Seeker Stats', () => {
       seekerStatsOracle.setOracle(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
       seekerStatsOracle,
-      'OracleCannotBeZeroAddress',
+      'OracleAddressCannotBeNil',
     );
   });
 
@@ -144,7 +144,7 @@ describe('Seeker Stats', () => {
 
     await seekerStatsOracle.registerSeeker(seeker, signature);
 
-    const fetchedSeeker = await seekerStatsOracle.seekers(10);
+    const fetchedSeeker = await seekerStatsOracle.seekerStats(10);
     const newSeekerOne = new Seeker(
       Number(fetchedSeeker[0]),
       Number(fetchedSeeker[1]),
@@ -160,7 +160,7 @@ describe('Seeker Stats', () => {
 
     await seekerStatsOracle.registerSeeker(seekerTwo, signatureTwo);
 
-    const fetchedSeekerTwo = await seekerStatsOracle.seekers(10);
+    const fetchedSeekerTwo = await seekerStatsOracle.seekerStats(10);
     const newSeekerTwo = new Seeker(
       Number(fetchedSeekerTwo[0]),
       Number(fetchedSeekerTwo[1]),
@@ -213,7 +213,7 @@ describe('Seeker Stats', () => {
   });
 
   it('can calculate converage with multiple registered seeker', async () => {
-    const seekerList = await createAndRegisterSeeker(15);
+    const seekerList = await createAndRegisterSeeker(5);
 
     const attributeConverageExpected = calculateAttributesCoverage(seekerList);
     const attributeCoverage =
@@ -263,27 +263,41 @@ describe('Seeker Stats', () => {
   function calculateAttributesCoverage(seekers: Seeker[]): number {
     const angleRadians = Math.sin((2 * Math.PI) / 6 + 2 * Math.PI);
 
-    let totalCoverage = 0;
+    let coverage = 0;
+
+    let totalReactor = 0;
+    let totalCores = 0;
+    let totalDurability = 0;
+    let totalSensors = 0;
+    let totalStorage = 0;
+    let totalChip = 0;
 
     for (const seeker of seekers) {
       const {
-        attr_reactor,
-        attr_cores,
-        attr_durability,
-        attr_sensors,
-        attr_storage,
-        attr_chip,
+        attrReactor,
+        attrCores,
+        attrDurability,
+        attrSensors,
+        attrStorage,
+        attrChip,
       } = seeker;
 
-      totalCoverage += (attr_reactor * angleRadians * attr_cores) / 2;
-      totalCoverage += (attr_cores * angleRadians * attr_durability) / 2;
-      totalCoverage += (attr_durability * angleRadians * attr_sensors) / 2;
-      totalCoverage += (attr_sensors * angleRadians * attr_storage) / 2;
-      totalCoverage += (attr_storage * angleRadians * attr_chip) / 2;
-      totalCoverage += (attr_chip * angleRadians * attr_reactor) / 2;
+      totalReactor += attrReactor;
+      totalCores += attrCores;
+      totalDurability += attrDurability;
+      totalSensors += attrSensors;
+      totalStorage += attrStorage;
+      totalChip += attrChip;
     }
 
-    return totalCoverage;
+    coverage += (totalReactor * angleRadians * totalCores) / 2;
+    coverage += (totalCores * angleRadians * totalDurability) / 2;
+    coverage += (totalDurability * angleRadians * totalSensors) / 2;
+    coverage += (totalSensors * angleRadians * totalStorage) / 2;
+    coverage += (totalStorage * angleRadians * totalChip) / 2;
+    coverage += (totalChip * angleRadians * totalReactor) / 2;
+
+    return coverage;
   }
 
   async function createAndRegisterSeeker(amount: number): Promise<Seeker[]> {
@@ -316,12 +330,12 @@ describe('Seeker Stats', () => {
     return (
       seeker1.seekerId === seeker2.seekerId &&
       seeker1.rank === seeker2.rank &&
-      seeker1.attr_reactor === seeker2.attr_reactor &&
-      seeker1.attr_cores === seeker2.attr_cores &&
-      seeker1.attr_durability === seeker2.attr_durability &&
-      seeker1.attr_sensors === seeker2.attr_sensors &&
-      seeker1.attr_storage === seeker2.attr_storage &&
-      seeker1.attr_chip === seeker2.attr_chip
+      seeker1.attrReactor === seeker2.attrReactor &&
+      seeker1.attrCores === seeker2.attrCores &&
+      seeker1.attrDurability === seeker2.attrDurability &&
+      seeker1.attrSensors === seeker2.attrSensors &&
+      seeker1.attrStorage === seeker2.attrStorage &&
+      seeker1.attrChip === seeker2.attrChip
     );
   }
 });

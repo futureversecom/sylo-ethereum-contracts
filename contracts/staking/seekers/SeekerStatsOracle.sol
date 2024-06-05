@@ -14,12 +14,12 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * @notice The oracle account. This contract accepts any attestations of
      * Seeker power that have been signed by this account.
      */
-    address public SeekerStatsOracleAccount;
+    address public oracle;
 
     /**
      * @notice Tracks the set of Seeker Stats and Rank with Seeker ID
      */
-    mapping(uint256 => Seeker) public seekers;
+    mapping(uint256 => Seeker) public seekerStats;
 
     /**
      * @notice Holds the angle used for coverage calculation in radians
@@ -29,28 +29,28 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     event SeekerStatsUpdated(
         uint256 indexed seekerId,
-        uint256 attr_reactor,
-        uint256 attr_cores,
-        uint256 attr_durability,
-        uint256 attr_sensors,
-        uint256 attr_storage,
-        uint256 attr_chip
+        uint256 attrReactor,
+        uint256 attrCores,
+        uint256 attrDurability,
+        uint256 attrSensors,
+        uint256 attrStorage,
+        uint256 attrChip
     );
 
-    error OracleCannotBeZeroAddress();
+    error OracleAddressCannotBeNil();
     error SeekerProofIsEmpty();
     error UnauthorizedRegisterSeekerStatsCall();
     error InvalidSignatureForSeekerProof();
     error SeekerNotRegistered(uint256 seekerId);
 
-    function initialize(address _seekerStatsOracleAccount) external initializer {
-        if (_seekerStatsOracleAccount == address(0)) {
-            revert OracleCannotBeZeroAddress();
+    function initialize(address _oracle) external initializer {
+        if (_oracle == address(0)) {
+            revert OracleAddressCannotBeNil();
         }
 
         Ownable2StepUpgradeable.__Ownable2Step_init();
 
-        SeekerStatsOracleAccount = _seekerStatsOracleAccount;
+        oracle = _oracle;
     }
 
     /**
@@ -65,13 +65,13 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     /**
      * @notice Sets the oracle account.
-     * @param _seekerStatsOracleAccount The oracle account.
+     * @param _oracle The oracle account.
      */
-    function setOracle(address _seekerStatsOracleAccount) external onlyOwner {
-        if (_seekerStatsOracleAccount == address(0)) {
-            revert OracleCannotBeZeroAddress();
+    function setOracle(address _oracle) external onlyOwner {
+        if (_oracle == address(0)) {
+            revert OracleAddressCannotBeNil();
         }
-        SeekerStatsOracleAccount = _seekerStatsOracleAccount;
+        oracle = _oracle;
     }
 
     /**
@@ -83,14 +83,10 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         Seeker calldata seeker,
         bytes calldata signature
     ) internal view returns (bool) {
-        if (SeekerStatsOracleAccount == address(0)) {
-            revert OracleCannotBeZeroAddress();
-        }
-
         bytes memory proof = _createProofMessage(seeker);
         bytes32 ecdsaHash = ECDSA.toEthSignedMessageHash(proof);
         address signerAddress = ECDSA.recover(ecdsaHash, signature);
-        if (signerAddress == SeekerStatsOracleAccount) {
+        if (signerAddress == oracle) {
             return true;
         } else {
             return false;
@@ -106,12 +102,12 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
             abi.encodePacked(
                 seeker.seekerId,
                 seeker.rank,
-                seeker.attr_chip,
-                seeker.attr_durability,
-                seeker.attr_sensors,
-                seeker.attr_cores,
-                seeker.attr_storage,
-                seeker.attr_reactor
+                seeker.attrChip,
+                seeker.attrDurability,
+                seeker.attrSensors,
+                seeker.attrCores,
+                seeker.attrStorage,
+                seeker.attrReactor
             );
     }
 
@@ -124,82 +120,83 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     function registerSeekerRestricted(Seeker calldata seeker) external {
-        if (msg.sender != SeekerStatsOracleAccount) {
+        if (msg.sender != oracle) {
             revert UnauthorizedRegisterSeekerStatsCall();
         }
 
-        seekers[seeker.seekerId] = seeker;
+        seekerStats[seeker.seekerId] = seeker;
         emit SeekerStatsUpdated(
             seeker.seekerId,
-            seeker.attr_reactor,
-            seeker.attr_cores,
-            seeker.attr_durability,
-            seeker.attr_sensors,
-            seeker.attr_storage,
-            seeker.attr_chip
+            seeker.attrReactor,
+            seeker.attrCores,
+            seeker.attrDurability,
+            seeker.attrSensors,
+            seeker.attrStorage,
+            seeker.attrChip
         );
     }
 
     /**
      * @notice Registers a seeker
      * @param seeker The object containing the seekers statistics.
-     * @param signature The signature of the seekers proof message, signed by the oracle account.
+     * @param proof The signature of the seekers proof message, signed by the oracle account.
      */
-    function registerSeeker(Seeker calldata seeker, bytes calldata signature) external {
-        bool valid = validateSeekerStatsProof(seeker, signature);
+    function registerSeeker(Seeker calldata seeker, bytes calldata proof) external {
+        bool valid = validateSeekerStatsProof(seeker, proof);
         if (!valid) {
             revert InvalidSignatureForSeekerProof();
         }
 
-        seekers[seeker.seekerId] = seeker;
+        seekerStats[seeker.seekerId] = seeker;
         emit SeekerStatsUpdated(
             seeker.seekerId,
-            seeker.attr_reactor,
-            seeker.attr_cores,
-            seeker.attr_durability,
-            seeker.attr_sensors,
-            seeker.attr_storage,
-            seeker.attr_chip
+            seeker.attrReactor,
+            seeker.attrCores,
+            seeker.attrDurability,
+            seeker.attrSensors,
+            seeker.attrStorage,
+            seeker.attrChip
         );
     }
 
     /**
      * @notice Calculates the coverage score for the given seekers
-     * @param seekersList A list containing seekers, will revert if any seeker is not registered.
+     * @param seekers A list containing seekers, will revert if any seeker is not registered.
      */
-    function calculateAttributeCoverage(
-        Seeker[] calldata seekersList
-    ) external view returns (int256) {
-        int256 sumCoverage = 0;
+    function calculateAttributeCoverage(Seeker[] calldata seekers) external view returns (int256) {
+        int256 coverage = 0;
+
+        int256 totalReactor = 0;
+        int256 totalCores = 0;
+        int256 totalDurability = 0;
+        int256 totalSensors = 0;
+        int256 totalStorage = 0;
+        int256 totalChip = 0;
+
         Seeker memory defaultSeeker;
 
-        for (uint256 i = 0; i < seekersList.length; i++) {
-            Seeker memory seeker = seekersList[i];
-            Seeker memory registeredSeeker = seekers[seeker.seekerId];
+        for (uint256 i = 0; i < seekers.length; i++) {
+            Seeker memory seeker = seekers[i];
+            Seeker memory registeredSeeker = seekerStats[seeker.seekerId];
             if (keccak256(abi.encode(registeredSeeker)) == keccak256(abi.encode(defaultSeeker))) {
                 revert SeekerNotRegistered(seeker.seekerId);
             }
 
-            sumCoverage +=
-                (int256(seeker.attr_reactor) * coverageAngle * int256(seeker.attr_cores)) /
-                2;
-            sumCoverage +=
-                (int256(seeker.attr_cores) * coverageAngle * int256(seeker.attr_durability)) /
-                2;
-            sumCoverage +=
-                (int256(seeker.attr_durability) * coverageAngle * int256(seeker.attr_sensors)) /
-                2;
-            sumCoverage +=
-                (int256(seeker.attr_sensors) * coverageAngle * int256(seeker.attr_storage)) /
-                2;
-            sumCoverage +=
-                (int256(seeker.attr_storage) * coverageAngle * int256(seeker.attr_chip)) /
-                2;
-            sumCoverage +=
-                (int256(seeker.attr_chip) * coverageAngle * int256(seeker.attr_reactor)) /
-                2;
+            totalReactor += int256(registeredSeeker.attrReactor);
+            totalCores += int256(registeredSeeker.attrCores);
+            totalDurability += int256(registeredSeeker.attrDurability);
+            totalSensors += int256(registeredSeeker.attrSensors);
+            totalStorage += int256(registeredSeeker.attrStorage);
+            totalChip += int256(registeredSeeker.attrChip);
         }
 
-        return sumCoverage;
+        coverage += (int256(totalReactor) * coverageAngle * int256(totalCores)) / 2;
+        coverage += (int256(totalCores) * coverageAngle * int256(totalDurability)) / 2;
+        coverage += (int256(totalDurability) * coverageAngle * int256(totalSensors)) / 2;
+        coverage += (int256(totalSensors) * coverageAngle * int256(totalStorage)) / 2;
+        coverage += (int256(totalStorage) * coverageAngle * int256(totalChip)) / 2;
+        coverage += (int256(totalChip) * coverageAngle * int256(totalReactor)) / 2;
+
+        return coverage;
     }
 }

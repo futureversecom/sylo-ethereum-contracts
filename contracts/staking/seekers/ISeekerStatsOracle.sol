@@ -5,12 +5,12 @@ interface ISeekerStatsOracle {
     struct Seeker {
         uint256 seekerId;
         uint256 rank;
-        uint256 attr_chip;
-        uint256 attr_durability;
-        uint256 attr_sensors;
-        uint256 attr_cores;
-        uint256 attr_storage;
-        uint256 attr_reactor;
+        uint256 attrReactor;
+        uint256 attrCores;
+        uint256 attrDurability;
+        uint256 attrSensors;
+        uint256 attrStorage;
+        uint256 attrChip;
     }
 
     function setOracle(address _seekerStatsOracleAccount) external;
@@ -19,9 +19,7 @@ interface ISeekerStatsOracle {
 
     function registerSeekerRestricted(Seeker calldata seeker) external;
 
-    function registerSeeker(Seeker calldata seeker, bytes calldata signature) external;
+    function registerSeeker(Seeker calldata seeker, bytes calldata proof) external;
 
-    function calculateAttributeCoverage(
-        Seeker[] calldata seekersList
-    ) external view returns (int256);
+    function calculateAttributeCoverage(Seeker[] calldata seekers) external view returns (int256);
 }

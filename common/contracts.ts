@@ -18,7 +18,7 @@ export const ContractNames = {
 export type SyloContracts = {
   syloToken: factories.contracts.SyloToken;
   syloStakingManager: factories.contracts.staking.sylo.SyloStakingManager;
-  seekerStatsOracle: factories.contracts.SeekerStatsOracle;
+  seekerStatsOracle: factories.contracts.staking.seekers.SeekerStatsOracle;
 };
 
 export type ContractAddresses = {
