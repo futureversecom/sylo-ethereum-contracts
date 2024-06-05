@@ -29,12 +29,12 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     event SeekerStatsUpdated(
         uint256 indexed seekerId,
-        uint256 attr_chip,
+        uint256 attr_reactor,
+        uint256 attr_cores,
         uint256 attr_durability,
         uint256 attr_sensors,
-        uint256 attr_cores,
         uint256 attr_storage,
-        uint256 attr_reactor
+        uint256 attr_chip
     );
 
     error OracleCannotBeZeroAddress();
@@ -87,7 +87,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
             revert OracleCannotBeZeroAddress();
         }
 
-        bytes memory proof = createStatsMessage(seeker);
+        bytes memory proof = _createStatsMessage(seeker);
         bytes32 ecdsaHash = ECDSA.toEthSignedMessageHash(proof);
         address signerAddress = ECDSA.recover(ecdsaHash, signature);
         if (signerAddress == SeekerStatsOracleAccount) {
@@ -101,7 +101,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * @notice Creates a proofing message unique to the provided seeker.
      * @param seeker The object containing the seekers statistics.
      */
-    function createStatsMessage(Seeker calldata seeker) public pure returns (bytes memory) {
+    function _createStatsMessage(Seeker calldata seeker) internal pure returns (bytes memory) {
         return
             abi.encodePacked(
                 seeker.seekerId,
@@ -115,6 +115,14 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
             );
     }
 
+    /**
+     * @notice Creates a proofing message unique to the provided seeker.
+     * @param seeker The object containing the seekers statistics.
+     */
+    function createStatsMessage(Seeker calldata seeker) external pure returns (bytes memory) {
+        return _createStatsMessage(seeker);
+    }
+
     function registerSeekerRestricted(Seeker calldata seeker) external {
         if (msg.sender != SeekerStatsOracleAccount) {
             revert UnauthorizedRegisterSeekerStatsCall();
@@ -123,12 +131,12 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         seekers[seeker.seekerId] = seeker;
         emit SeekerStatsUpdated(
             seeker.seekerId,
-            seeker.attr_chip,
+            seeker.attr_reactor,
+            seeker.attr_cores,
             seeker.attr_durability,
             seeker.attr_sensors,
-            seeker.attr_cores,
             seeker.attr_storage,
-            seeker.attr_reactor
+            seeker.attr_chip
         );
     }
 
@@ -146,12 +154,12 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         seekers[seeker.seekerId] = seeker;
         emit SeekerStatsUpdated(
             seeker.seekerId,
-            seeker.attr_chip,
+            seeker.attr_reactor,
+            seeker.attr_cores,
             seeker.attr_durability,
             seeker.attr_sensors,
-            seeker.attr_cores,
             seeker.attr_storage,
-            seeker.attr_reactor
+            seeker.attr_chip
         );
     }
 

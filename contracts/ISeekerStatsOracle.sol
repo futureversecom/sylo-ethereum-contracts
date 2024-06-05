@@ -13,11 +13,15 @@ interface ISeekerStatsOracle {
         uint256 attr_reactor;
     }
 
+    function setOracle(address _seekerStatsOracleAccount) external;
+
     function createStatsMessage(Seeker calldata seeker) external pure returns (bytes memory);
 
     function registerSeekerRestricted(Seeker calldata seeker) external;
 
     function registerSeeker(Seeker calldata seeker, bytes calldata signature) external;
 
-    function calculateAttributeCoverage(Seeker[] calldata seekers) external view returns (int256);
+    function calculateAttributeCoverage(
+        Seeker[] calldata seekersList
+    ) external view returns (int256);
 }

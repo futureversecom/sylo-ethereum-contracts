@@ -3,7 +3,7 @@ import { SeekerStatsOracle } from '../../typechain-types';
 import { SyloContracts } from '../../common/contracts';
 import { Signer } from 'ethers';
 import { expect, assert } from 'chai';
-import { deployContracts } from '../utils';
+import { deployContracts, getInterfaceId } from '../utils';
 
 class Seeker {
   constructor(
@@ -84,15 +84,20 @@ describe.only('Seeker Stats', () => {
     const signature = await accounts[19].signMessage(
       Buffer.from(proofMessage.slice(2), 'hex'),
     );
-    await seekerStatsOracle.registerSeeker(seeker, signature);
+
+    await expect(seekerStatsOracle.registerSeeker(seeker, signature))
+      .to.emit(seekerStatsOracle, 'SeekerStatsUpdated')
+      .withArgs(10n, 10n, 20n, 30n, 40n, 50n, 60n);
   });
 
   it('can register seeker restricted', async () => {
     const seeker = new Seeker(10, 2, 10, 20, 30, 40, 50, 60);
 
-    await seekerStatsOracle
-      .connect(accounts[19])
-      .registerSeekerRestricted(seeker);
+    await expect(
+      seekerStatsOracle.connect(accounts[19]).registerSeekerRestricted(seeker),
+    )
+      .to.emit(seekerStatsOracle, 'SeekerStatsUpdated')
+      .withArgs(10n, 10n, 20n, 30n, 40n, 50n, 60n);
   });
 
   it('cannot register seeker restricted from non-oracle account', async () => {
@@ -218,6 +223,40 @@ describe.only('Seeker Stats', () => {
     assert.equal(
       Number(formatedCoverage).toFixed(0),
       attributeConverageExpected.toFixed(0),
+    );
+  });
+
+  it('supports only seeker stats oracle interface', async () => {
+    const abi = [
+      'function setOracle(address _seekerStatsOracleAccount) external',
+      'function createStatsMessage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external pure returns (bytes memory)',
+      'function registerSeekerRestricted((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external',
+      'function registerSeeker((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker, bytes calldata signature) external',
+      'function calculateAttributeCoverage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)[] calldata seekersList) external view returns (int256)',
+    ];
+
+    const interfaceId = getInterfaceId(abi);
+
+    const supports = await seekerStatsOracle.supportsInterface(interfaceId);
+
+    assert.equal(
+      supports,
+      true,
+      'Expected seeker stats oracle to support correct interface',
+    );
+
+    const invalidAbi = ['function foo(uint256 duration) external'];
+
+    const invalidAbiInterfaceId = getInterfaceId(invalidAbi);
+
+    const invalid = await seekerStatsOracle.supportsInterface(
+      invalidAbiInterfaceId,
+    );
+
+    assert.equal(
+      invalid,
+      false,
+      'Expected seeker stats oracle to not support incorrect interface',
     );
   });
 
