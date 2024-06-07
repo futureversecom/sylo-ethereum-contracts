@@ -21,6 +21,8 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      */
     mapping(uint256 => Seeker) public seekerStats;
 
+    Seeker public defaultSeeker;
+
     /**
      * @notice Holds the angle used for coverage calculation in radians
      */
@@ -75,8 +77,8 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Returns true if the oracle account signed the proof message for the given seeker.
-     * @param seeker The object containing the seekers statistics.
+     *
+     * @param seeker The object containing the seekers statistics
      * @param signature The signature of the seekers proof message, signed by the oracle account.
      */
     function validateSeekerStatsProof(
@@ -91,6 +93,14 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         } else {
             return false;
         }
+    }
+
+    /**
+     * @notice Creates a proofing message unique to the provided seeker.
+     * @param seeker The object containing the seekers statistics.
+     */
+    function createProofMessage(Seeker calldata seeker) external pure returns (bytes memory) {
+        return _createProofMessage(seeker);
     }
 
     /**
@@ -112,13 +122,9 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Creates a proofing message unique to the provided seeker.
+     * @notice Registers a seeker only callable from oracle
      * @param seeker The object containing the seekers statistics.
      */
-    function createProofMessage(Seeker calldata seeker) external pure returns (bytes memory) {
-        return _createProofMessage(seeker);
-    }
-
     function registerSeekerRestricted(Seeker calldata seeker) external {
         if (msg.sender != oracle) {
             revert UnauthorizedRegisterSeekerStatsCall();
@@ -160,6 +166,26 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
+     * @notice Checks if a seeker is registered
+     * @param seeker The object containing the seeker statistics
+     */
+    function isSeekerRegistered(Seeker calldata seeker) external view returns (bool) {
+        return _isSeekerRegistered(seeker);
+    }
+
+    /**
+     * @notice Checks if a seeker is registered
+     * @param seeker The object containing the seeker statistics
+     */
+    function _isSeekerRegistered(Seeker memory seeker) internal view returns (bool) {
+        Seeker memory registeredSeeker = seekerStats[seeker.seekerId];
+        if (keccak256(abi.encode(registeredSeeker)) == keccak256(abi.encode(defaultSeeker))) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * @notice Calculates the coverage score for the given seekers
      * @param seekers A list containing seekers, will revert if any seeker is not registered.
      */
@@ -173,12 +199,10 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         int256 totalStorage = 0;
         int256 totalChip = 0;
 
-        Seeker memory defaultSeeker;
-
         for (uint256 i = 0; i < seekers.length; i++) {
             Seeker memory seeker = seekers[i];
             Seeker memory registeredSeeker = seekerStats[seeker.seekerId];
-            if (keccak256(abi.encode(registeredSeeker)) == keccak256(abi.encode(defaultSeeker))) {
+            if (!_isSeekerRegistered(registeredSeeker)) {
                 revert SeekerNotRegistered(seeker.seekerId);
             }
 
@@ -198,5 +222,13 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         coverage += (int256(totalChip) * coverageAngle * int256(totalReactor)) / 2;
 
         return coverage;
+    }
+
+    /**
+     * @notice Get registered seeker statistics for given seeker ID
+     * @param seekerId Id of the seekers statistics to retrieve
+     */
+    function getSeekerStats(uint256 seekerId) external view returns (Seeker memory) {
+        return seekerStats[seekerId];
     }
 }

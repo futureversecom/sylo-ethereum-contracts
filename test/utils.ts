@@ -14,41 +14,57 @@ export type DeploymentOptions = {
 export async function deployContracts(
   opts: DeploymentOptions = {},
 ): Promise<SyloContracts> {
+  // Sylo Token
   const SyloTokenFactory = await ethers.getContractFactory('SyloToken');
   const syloToken = await SyloTokenFactory.deploy();
 
+  // Sylo Staking Manager
   const syloStakingManagerOpts = {
     unlockDuration: opts.syloStakingManager?.unlockDuration ?? 10,
   };
-
   const SyloStakingManagerFactory = await ethers.getContractFactory(
     'SyloStakingManager',
   );
   const syloStakingManager = await SyloStakingManagerFactory.deploy();
 
-  await syloStakingManager.initialize(
-    await syloToken.getAddress(),
-    syloStakingManagerOpts.unlockDuration,
-  );
-
+  // Seeker Stats Oracle
   const seekerStatsOracleOpts = {
     oracleAccount:
       opts.seekerStatsOralce?.oracleAccount ??
       '0xd9D6945dfe8c1C7aFaFcDF8bf1D1c5beDfeccABF',
   };
-
   const seekerStatsOracleFactory = await ethers.getContractFactory(
     'SeekerStatsOracle',
   );
-
   const seekerStatsOracle = await seekerStatsOracleFactory.deploy();
 
+  // Seekers
+  const SeekersFactory = await ethers.getContractFactory('TestSeekers');
+  const seekers = await SeekersFactory.deploy();
+
+  // Seeker Staking Manager
+  const seekerStakingManagerFactor = await ethers.getContractFactory(
+    'SeekerStakingManager',
+  );
+  const seekerStakingManager = await seekerStakingManagerFactor.deploy();
+
+  // Initliaze
+  await syloStakingManager.initialize(
+    await syloToken.getAddress(),
+    syloStakingManagerOpts.unlockDuration,
+  );
   await seekerStatsOracle.initialize(seekerStatsOracleOpts.oracleAccount);
+  await seekerStakingManager.initialize(
+    await seekers.getAddress(),
+    await seekerStatsOracle.getAddress(),
+  );
 
   return {
     syloToken,
     syloStakingManager,
     seekerStatsOracle,
+    seekerStakingManager,
+    seekers,
   };
 }
 

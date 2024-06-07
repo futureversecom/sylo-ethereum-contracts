@@ -19,12 +19,16 @@ export type SyloContracts = {
   syloToken: factories.contracts.SyloToken;
   syloStakingManager: factories.contracts.staking.sylo.SyloStakingManager;
   seekerStatsOracle: factories.contracts.staking.seekers.SeekerStatsOracle;
+  seekerStakingManager: factories.contracts.staking.seekers.SeekerStakingManager;
+  seekers: factories.contracts.mocks.TestSeekers;
 };
 
 export type ContractAddresses = {
   syloToken: string;
   syloStakingManager: string;
   seekerStatsOracle: string;
+  seekerStakingManager: string;
+  seekers: string;
 };
 
 export function connectContracts(
@@ -46,9 +50,21 @@ export function connectContracts(
     provider,
   );
 
+  const seekerStakingManager = factories.SeekerStakingManager__factory.connect(
+    contracts.seekerStakingManager,
+    provider,
+  );
+
+  const seekers = factories.TestSeekers__factory.connect(
+    contracts.seekers,
+    provider,
+  );
+
   return {
     syloToken,
     syloStakingManager,
     seekerStatsOracle,
+    seekerStakingManager,
+    seekers,
   };
 }
