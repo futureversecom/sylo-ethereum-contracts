@@ -8,6 +8,8 @@ export const FixedContractNames = {
 export const DeployedContractNames = {
   syloStakingManager: 'SyloStakingManager',
   seekerStatsOracle: 'SeekerStatsOracle',
+  seekerStakingManager: 'SeekerStakingManager',
+  protocolTimeManager: 'ProtocolTimeManager',
 };
 
 export const ContractNames = {
@@ -21,6 +23,7 @@ export type SyloContracts = {
   seekerStatsOracle: factories.contracts.staking.seekers.SeekerStatsOracle;
   seekerStakingManager: factories.contracts.staking.seekers.SeekerStakingManager;
   seekers: factories.contracts.mocks.TestSeekers;
+  protocolTimeManager: factories.contracts.ProtocolTimeManager;
 };
 
 export type ContractAddresses = {
@@ -29,6 +32,7 @@ export type ContractAddresses = {
   seekerStatsOracle: string;
   seekerStakingManager: string;
   seekers: string;
+  protocolTimeManager: string;
 };
 
 export function connectContracts(
@@ -60,11 +64,17 @@ export function connectContracts(
     provider,
   );
 
+  const protocolTimeManager = factories.ProtocolTimeManager__factory.connect(
+    contracts.protocolTimeManager,
+    provider,
+  );
+
   return {
     syloToken,
     syloStakingManager,
     seekerStatsOracle,
     seekerStakingManager,
     seekers,
+    protocolTimeManager,
   };
 }
