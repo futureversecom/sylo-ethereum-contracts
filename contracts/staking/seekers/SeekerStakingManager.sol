@@ -50,7 +50,6 @@ contract SeekerStakingManager is
     error FromNodeAddressCannotBeNil();
     error ToNodeAddressCannotBeNil();
     error SeekerProofIsEmpty();
-    error InvalidSignatureForSeekerProof();
     error RootSeekersCannotBeZeroAddress();
     error SeekerStatsOracleCannotBeZeroAddress();
     error SenderAccountMustOwnSeekerId();
