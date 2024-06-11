@@ -58,6 +58,13 @@ contract SeekerStakingManager is
     error SeekerNotStakedBySender();
     error CannotTransferSeekerToSameNode();
 
+    enum StakedErrors {
+        SEEKER_NOT_YET_STAKED,
+        SEEKER_NOT_STAKED_TO_NODE,
+        SEEKER_NOT_STAKED_BY_SENDER,
+        NIL
+    }
+
     function initialize(IERC721 _rootSeekers, SeekerStatsOracle _oracle) external initializer {
         if (address(_rootSeekers) == address(0)) {
             revert RootSeekersCannotBeZeroAddress();
@@ -89,6 +96,30 @@ contract SeekerStakingManager is
         SeekerStatsOracle.Seeker calldata seeker,
         bytes calldata seekerStatsProof
     ) external {
+        _stakeSeeker(node, seeker, seekerStatsProof);
+    }
+
+    function stakeSeekers(
+        address node,
+        SeekerStatsOracle.Seeker[] calldata seekers,
+        bytes[] calldata seekerStatsProofs
+    ) external {
+        for (uint256 i = 0; i < seekers.length; ++i) {
+            _stakeSeeker(node, seekers[i], seekerStatsProofs[i]);
+        }
+    }
+
+    /**
+     * @notice Stakes a seeker
+     * @param node Address of node to stake seeker against
+     * @param seeker The object containing the seekers statistics
+     * @param seekerStatsProof The signature of the seekers proof message, signed by the oracle account.
+     */
+    function _stakeSeeker(
+        address node,
+        SeekerStatsOracle.Seeker calldata seeker,
+        bytes calldata seekerStatsProof
+    ) internal {
         if (node == address(0)) {
             revert NodeAddressCannotBeNil();
         }
@@ -102,6 +133,11 @@ contract SeekerStakingManager is
             oracle.registerSeeker(seeker, seekerStatsProof);
         }
 
+        StakedErrors err = _isSeekerStakedError(node, seeker.seekerId);
+        if (err == StakedErrors.NIL) {
+            _unstakeSeeker(node, seeker.seekerId);
+        }
+
         stakedSeekersById[seeker.seekerId] = StakedSeeker({
             seekerId: seeker.seekerId,
             node: node,
@@ -109,53 +145,6 @@ contract SeekerStakingManager is
         });
         stakedSeekersByNode[node].push(seeker.seekerId);
         stakedSeekersByUser[msg.sender].push(seeker.seekerId);
-    }
-
-    /**
-     * @notice Transfers a staked seeker between nodes
-     * @param fromNode Address of node to transfer the staked seeker from
-     * @param toNode Address of node to transfer the staked seeker to
-     * @param seekerId Seeker ID of the staked seeker to transfer
-     */
-    function transferStakedSeeker(address fromNode, address toNode, uint256 seekerId) external {
-        if (fromNode == address(0)) {
-            revert FromNodeAddressCannotBeNil();
-        }
-        if (toNode == address(0)) {
-            revert ToNodeAddressCannotBeNil();
-        }
-        if (fromNode == toNode) {
-            revert CannotTransferSeekerToSameNode();
-        }
-        if (rootSeekers.ownerOf(seekerId) != msg.sender) {
-            revert SenderAccountMustOwnSeekerId();
-        }
-        if (
-            keccak256(abi.encode(stakedSeekersById[seekerId])) ==
-            keccak256(abi.encode(defaultStakedSeeker))
-        ) {
-            revert SeekerNotYetStaked();
-        }
-        if (stakedSeekersById[seekerId].user != msg.sender) {
-            revert SeekerNotStakedBySender();
-        }
-        if (stakedSeekersById[seekerId].node != fromNode) {
-            revert SeekerNotStakedToNode();
-        }
-
-        for (uint256 i = 0; i < stakedSeekersByNode[fromNode].length; i++) {
-            if (stakedSeekersByNode[fromNode][i] == seekerId) {
-                stakedSeekersByNode[fromNode][i] = stakedSeekersByNode[fromNode][
-                    stakedSeekersByNode[fromNode].length - 1
-                ];
-
-                stakedSeekersByNode[fromNode].pop();
-
-                stakedSeekersByNode[toNode].push(seekerId);
-            }
-        }
-
-        stakedSeekersById[seekerId].node = toNode;
     }
 
     /**
@@ -170,20 +159,28 @@ contract SeekerStakingManager is
         if (rootSeekers.ownerOf(seekerId) != msg.sender) {
             revert SenderAccountMustOwnSeekerId();
         }
-        if (
-            keccak256(abi.encode(stakedSeekersById[seekerId])) ==
-            keccak256(abi.encode(defaultStakedSeeker))
-        ) {
+
+        StakedErrors err = _isSeekerStakedError(node, seekerId);
+        if (err == StakedErrors.SEEKER_NOT_YET_STAKED) {
             revert SeekerNotYetStaked();
         }
-        if (stakedSeekersById[seekerId].user != msg.sender) {
+        if (err == StakedErrors.SEEKER_NOT_STAKED_BY_SENDER) {
             revert SeekerNotStakedBySender();
         }
-        if (stakedSeekersById[seekerId].node != node) {
+        if (err == StakedErrors.SEEKER_NOT_STAKED_TO_NODE) {
             revert SeekerNotStakedToNode();
         }
 
-        for (uint256 i = 0; i < stakedSeekersByNode[node].length; i++) {
+        _unstakeSeeker(node, seekerId);
+    }
+
+    /**
+     * @notice Unstake a seeker
+     * @param node Address of node to unstake seeker from
+     * @param seekerId Seeker ID of staked seeker
+     */
+    function _unstakeSeeker(address node, uint256 seekerId) internal {
+        for (uint256 i = 0; i < stakedSeekersByNode[node].length; ++i) {
             if (stakedSeekersByNode[node][i] == seekerId) {
                 stakedSeekersByNode[node][i] = stakedSeekersByNode[node][
                     stakedSeekersByNode[node].length - 1
@@ -194,7 +191,7 @@ contract SeekerStakingManager is
             }
         }
 
-        for (uint256 i = 0; i < stakedSeekersByUser[msg.sender].length; i++) {
+        for (uint256 i = 0; i < stakedSeekersByUser[msg.sender].length; ++i) {
             if (stakedSeekersByUser[msg.sender][i] == seekerId) {
                 stakedSeekersByUser[msg.sender][i] = stakedSeekersByUser[msg.sender][
                     stakedSeekersByUser[msg.sender].length - 1
@@ -206,6 +203,25 @@ contract SeekerStakingManager is
         }
 
         delete stakedSeekersById[seekerId];
+    }
+
+    function _isSeekerStakedError(
+        address node,
+        uint256 seekerId
+    ) internal view returns (StakedErrors) {
+        if (
+            keccak256(abi.encode(stakedSeekersById[seekerId])) ==
+            keccak256(abi.encode(defaultStakedSeeker))
+        ) {
+            return StakedErrors.SEEKER_NOT_YET_STAKED;
+        }
+        if (stakedSeekersById[seekerId].user != msg.sender) {
+            return StakedErrors.SEEKER_NOT_STAKED_BY_SENDER;
+        }
+        if (stakedSeekersById[seekerId].node != node) {
+            return StakedErrors.SEEKER_NOT_STAKED_TO_NODE;
+        }
+        return StakedErrors.NIL;
     }
 
     /**

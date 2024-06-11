@@ -16,7 +16,11 @@ interface ISeekerStakingManager {
         bytes calldata seekerStatsProof
     ) external;
 
-    function transferStakedSeeker(address fromNode, address toNode, uint256 seekerId) external;
+    function stakeSeekers(
+        address node,
+        SeekerStatsOracle.Seeker[] calldata seekers,
+        bytes[] calldata seekerStatsProofs
+    ) external;
 
     function unstakeSeeker(address node, uint256 seekerId) external;
 

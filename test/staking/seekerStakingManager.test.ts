@@ -259,6 +259,87 @@ describe('Seeker Staking Manager', () => {
     assert.equal(Number(stakedSeekerByUserAfter[0]), seeker.seekerId);
   });
 
+  it('multiple calls to stakeSeeker does not duplicate seeker stake', async () => {
+    const seeker = createRandomSeeker();
+
+    await testSeekers.mint(seekerOwner, seeker.seekerId);
+
+    const expectedStakedSeeker = new StakedSeeker(
+      seeker.seekerId,
+      await nodeOne.getAddress(),
+      await seekerOwner.getAddress(),
+    );
+
+    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
+    const signature = await oracleAccount.signMessage(
+      Buffer.from(proofMessage.slice(2), 'hex'),
+    );
+
+    const stakedSeekerByIdBefore = await seekerStakingManager.stakedSeekersById(
+      seeker.seekerId,
+    );
+    const stakedSeekerByNodeBefore =
+      await seekerStakingManager.getStakedSeekersByNode(nodeOne);
+    const stakedSeekerByUserBefore =
+      await seekerStakingManager.getStakedSeekersByUser(seekerOwner);
+
+    compareStakedSeekers(
+      new StakedSeeker(0, ethers.ZeroAddress, ethers.ZeroAddress),
+      new StakedSeeker(
+        Number(stakedSeekerByIdBefore[0]),
+        stakedSeekerByIdBefore[1],
+        stakedSeekerByIdBefore[2],
+      ),
+    );
+    assert.equal(stakedSeekerByNodeBefore.length, 0);
+    assert.equal(stakedSeekerByUserBefore.length, 0);
+
+    await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
+
+    const stakedSeekerByIdAfter = await seekerStakingManager.stakedSeekersById(
+      seeker.seekerId,
+    );
+    const stakedSeekerByNodeAfter =
+      await seekerStakingManager.getStakedSeekersByNode(nodeOne);
+    const stakedSeekerByUserAfter =
+      await seekerStakingManager.getStakedSeekersByUser(seekerOwner);
+
+    compareStakedSeekers(
+      expectedStakedSeeker,
+      new StakedSeeker(
+        Number(stakedSeekerByIdAfter[0]),
+        stakedSeekerByIdAfter[1],
+        stakedSeekerByIdAfter[2],
+      ),
+    );
+    assert.equal(stakedSeekerByNodeAfter.length, 1);
+    assert.equal(Number(stakedSeekerByNodeAfter[0]), seeker.seekerId);
+    assert.equal(stakedSeekerByUserAfter.length, 1);
+    assert.equal(Number(stakedSeekerByUserAfter[0]), seeker.seekerId);
+
+    await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
+
+    const stakedSeekerByIdAfterTwo =
+      await seekerStakingManager.stakedSeekersById(seeker.seekerId);
+    const stakedSeekerByNodeAfterTwo =
+      await seekerStakingManager.getStakedSeekersByNode(nodeOne);
+    const stakedSeekerByUserAfterTwo =
+      await seekerStakingManager.getStakedSeekersByUser(seekerOwner);
+
+    compareStakedSeekers(
+      expectedStakedSeeker,
+      new StakedSeeker(
+        Number(stakedSeekerByIdAfterTwo[0]),
+        stakedSeekerByIdAfterTwo[1],
+        stakedSeekerByIdAfterTwo[2],
+      ),
+    );
+    assert.equal(stakedSeekerByNodeAfterTwo.length, 1);
+    assert.equal(Number(stakedSeekerByNodeAfterTwo[0]), seeker.seekerId);
+    assert.equal(stakedSeekerByUserAfterTwo.length, 1);
+    assert.equal(Number(stakedSeekerByUserAfterTwo[0]), seeker.seekerId);
+  });
+
   it('can stake multiple registered seeker', async () => {
     const seeker = createRandomSeeker();
     const seekerTwo = createRandomSeeker();
@@ -345,13 +426,13 @@ describe('Seeker Staking Manager', () => {
     assert.equal(stakedSeekerByNodeTwoBefore.length, 0);
     assert.equal(stakedSeekerByUserBefore.length, 0);
 
-    await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
-    await seekerStakingManager.stakeSeeker(nodeTwo, seekerTwo, signatureTwo);
-    await seekerStakingManager.stakeSeeker(
+    await seekerStakingManager.stakeSeekers(
       nodeOne,
-      seekerThree,
-      signatureThree,
+      [seeker, seekerThree],
+      [signature, signatureThree],
     );
+
+    await seekerStakingManager.stakeSeeker(nodeTwo, seekerTwo, signatureTwo);
 
     const stakedSeekerByIdAfter = await seekerStakingManager.stakedSeekersById(
       seeker.seekerId,
@@ -401,182 +482,182 @@ describe('Seeker Staking Manager', () => {
 
     assert.equal(stakedSeekerByUserAfter.length, 3);
     assert.equal(Number(stakedSeekerByUserAfter[0]), seeker.seekerId);
-    assert.equal(Number(stakedSeekerByUserAfter[1]), seekerTwo.seekerId);
-    assert.equal(Number(stakedSeekerByUserAfter[2]), seekerThree.seekerId);
+    assert.equal(Number(stakedSeekerByUserAfter[2]), seekerTwo.seekerId);
+    assert.equal(Number(stakedSeekerByUserAfter[1]), seekerThree.seekerId);
   });
 
-  it('cannot transfer staked seeker from zero node address', async () => {
-    await expect(
-      seekerStakingManager.transferStakedSeeker(
-        ethers.ZeroAddress,
-        ethers.ZeroAddress,
-        0,
-      ),
-    ).to.be.revertedWithCustomError(
-      seekerStakingManager,
-      'FromNodeAddressCannotBeNil',
-    );
-  });
+  // it('cannot transfer staked seeker from zero node address', async () => {
+  //   await expect(
+  //     seekerStakingManager.transferStakedSeeker(
+  //       ethers.ZeroAddress,
+  //       ethers.ZeroAddress,
+  //       0,
+  //     ),
+  //   ).to.be.revertedWithCustomError(
+  //     seekerStakingManager,
+  //     'FromNodeAddressCannotBeNil',
+  //   );
+  // });
 
-  it('cannot transfer staked seeker to zero node address', async () => {
-    await expect(
-      seekerStakingManager.transferStakedSeeker(nodeOne, ethers.ZeroAddress, 0),
-    ).to.be.revertedWithCustomError(
-      seekerStakingManager,
-      'ToNodeAddressCannotBeNil',
-    );
-  });
+  // it('cannot transfer staked seeker to zero node address', async () => {
+  //   await expect(
+  //     seekerStakingManager.transferStakedSeeker(nodeOne, ethers.ZeroAddress, 0),
+  //   ).to.be.revertedWithCustomError(
+  //     seekerStakingManager,
+  //     'ToNodeAddressCannotBeNil',
+  //   );
+  // });
 
-  it('cannot transfer staked seeker to same node address', async () => {
-    await expect(
-      seekerStakingManager.transferStakedSeeker(nodeOne, nodeOne, 0),
-    ).to.be.revertedWithCustomError(
-      seekerStakingManager,
-      'CannotTransferSeekerToSameNode',
-    );
-  });
+  // it('cannot transfer staked seeker to same node address', async () => {
+  //   await expect(
+  //     seekerStakingManager.transferStakedSeeker(nodeOne, nodeOne, 0),
+  //   ).to.be.revertedWithCustomError(
+  //     seekerStakingManager,
+  //     'CannotTransferSeekerToSameNode',
+  //   );
+  // });
 
-  it('tx sender must own seeker to transfer', async () => {
-    await testSeekers.mint(seekerOwner, 10);
-    await expect(
-      seekerStakingManager
-        .connect(nonSeekerOwner)
-        .transferStakedSeeker(nodeOne, nodeTwo, 10),
-    ).to.be.revertedWithCustomError(
-      seekerStakingManager,
-      'SenderAccountMustOwnSeekerId',
-    );
-  });
+  // it('tx sender must own seeker to transfer', async () => {
+  //   await testSeekers.mint(seekerOwner, 10);
+  //   await expect(
+  //     seekerStakingManager
+  //       .connect(nonSeekerOwner)
+  //       .transferStakedSeeker(nodeOne, nodeTwo, 10),
+  //   ).to.be.revertedWithCustomError(
+  //     seekerStakingManager,
+  //     'SenderAccountMustOwnSeekerId',
+  //   );
+  // });
 
-  it('seeker must be staked to transfer', async () => {
-    await testSeekers.mint(seekerOwner, 10);
-    await expect(
-      seekerStakingManager.transferStakedSeeker(nodeOne, nodeTwo, 10),
-    ).to.be.revertedWithCustomError(seekerStakingManager, 'SeekerNotYetStaked');
-  });
+  // it('seeker must be staked to transfer', async () => {
+  //   await testSeekers.mint(seekerOwner, 10);
+  //   await expect(
+  //     seekerStakingManager.transferStakedSeeker(nodeOne, nodeTwo, 10),
+  //   ).to.be.revertedWithCustomError(seekerStakingManager, 'SeekerNotYetStaked');
+  // });
 
-  it('transfer tx sender must be seeker staker', async () => {
-    const seeker = createRandomSeeker();
+  // it('transfer tx sender must be seeker staker', async () => {
+  //   const seeker = createRandomSeeker();
 
-    await testSeekers.mint(seekerOwner, seeker.seekerId);
+  //   await testSeekers.mint(seekerOwner, seeker.seekerId);
 
-    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
-    const signature = await oracleAccount.signMessage(
-      Buffer.from(proofMessage.slice(2), 'hex'),
-    );
+  //   const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
+  //   const signature = await oracleAccount.signMessage(
+  //     Buffer.from(proofMessage.slice(2), 'hex'),
+  //   );
 
-    await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
+  //   await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
 
-    await testSeekers.transferFrom(
-      seekerOwner,
-      nonSeekerOwner,
-      seeker.seekerId,
-    );
+  //   await testSeekers.transferFrom(
+  //     seekerOwner,
+  //     nonSeekerOwner,
+  //     seeker.seekerId,
+  //   );
 
-    await expect(
-      seekerStakingManager
-        .connect(nonSeekerOwner)
-        .transferStakedSeeker(nodeOne, nodeTwo, seeker.seekerId),
-    ).to.be.revertedWithCustomError(
-      seekerStakingManager,
-      'SeekerNotStakedBySender',
-    );
-  });
+  //   await expect(
+  //     seekerStakingManager
+  //       .connect(nonSeekerOwner)
+  //       .transferStakedSeeker(nodeOne, nodeTwo, seeker.seekerId),
+  //   ).to.be.revertedWithCustomError(
+  //     seekerStakingManager,
+  //     'SeekerNotStakedBySender',
+  //   );
+  // });
 
-  it('seeker must be transfered from staked node', async () => {
-    const seeker = createRandomSeeker();
+  // it('seeker must be transfered from staked node', async () => {
+  //   const seeker = createRandomSeeker();
 
-    await testSeekers.mint(seekerOwner, seeker.seekerId);
+  //   await testSeekers.mint(seekerOwner, seeker.seekerId);
 
-    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
-    const signature = await oracleAccount.signMessage(
-      Buffer.from(proofMessage.slice(2), 'hex'),
-    );
+  //   const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
+  //   const signature = await oracleAccount.signMessage(
+  //     Buffer.from(proofMessage.slice(2), 'hex'),
+  //   );
 
-    await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
+  //   await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
 
-    await expect(
-      seekerStakingManager.transferStakedSeeker(
-        nodeTwo,
-        nodeOne,
-        seeker.seekerId,
-      ),
-    ).to.be.revertedWithCustomError(
-      seekerStakingManager,
-      'SeekerNotStakedToNode',
-    );
-  });
+  //   await expect(
+  //     seekerStakingManager.transferStakedSeeker(
+  //       nodeTwo,
+  //       nodeOne,
+  //       seeker.seekerId,
+  //     ),
+  //   ).to.be.revertedWithCustomError(
+  //     seekerStakingManager,
+  //     'SeekerNotStakedToNode',
+  //   );
+  // });
 
-  it('can transfer staked seeker', async () => {
-    const seeker = createRandomSeeker();
+  // it('can transfer staked seeker', async () => {
+  //   const seeker = createRandomSeeker();
 
-    await testSeekers.mint(seekerOwner, seeker.seekerId);
+  //   await testSeekers.mint(seekerOwner, seeker.seekerId);
 
-    const stakedSeekerBefore = new StakedSeeker(
-      seeker.seekerId,
-      await nodeOne.getAddress(),
-      await seekerOwner.getAddress(),
-    );
-    const stakedSeekerAfter = new StakedSeeker(
-      seeker.seekerId,
-      await nodeTwo.getAddress(),
-      await seekerOwner.getAddress(),
-    );
+  //   const stakedSeekerBefore = new StakedSeeker(
+  //     seeker.seekerId,
+  //     await nodeOne.getAddress(),
+  //     await seekerOwner.getAddress(),
+  //   );
+  //   const stakedSeekerAfter = new StakedSeeker(
+  //     seeker.seekerId,
+  //     await nodeTwo.getAddress(),
+  //     await seekerOwner.getAddress(),
+  //   );
 
-    const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
-    const signature = await oracleAccount.signMessage(
-      Buffer.from(proofMessage.slice(2), 'hex'),
-    );
-    await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
+  //   const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
+  //   const signature = await oracleAccount.signMessage(
+  //     Buffer.from(proofMessage.slice(2), 'hex'),
+  //   );
+  //   await seekerStakingManager.stakeSeeker(nodeOne, seeker, signature);
 
-    const stakedSeekerByNodeBefore =
-      await seekerStakingManager.getStakedSeekersByNode(nodeOne);
-    const stakedSeekerByNodeTwoBefore =
-      await seekerStakingManager.getStakedSeekersByNode(nodeTwo);
-    const stakedSeekerByIdBefore = await seekerStakingManager.stakedSeekersById(
-      seeker.seekerId,
-    );
+  //   const stakedSeekerByNodeBefore =
+  //     await seekerStakingManager.getStakedSeekersByNode(nodeOne);
+  //   const stakedSeekerByNodeTwoBefore =
+  //     await seekerStakingManager.getStakedSeekersByNode(nodeTwo);
+  //   const stakedSeekerByIdBefore = await seekerStakingManager.stakedSeekersById(
+  //     seeker.seekerId,
+  //   );
 
-    assert.equal(stakedSeekerByNodeBefore.length, 1);
-    assert.equal(Number(stakedSeekerByNodeBefore[0]), seeker.seekerId);
-    assert.equal(stakedSeekerByNodeTwoBefore.length, 0);
+  //   assert.equal(stakedSeekerByNodeBefore.length, 1);
+  //   assert.equal(Number(stakedSeekerByNodeBefore[0]), seeker.seekerId);
+  //   assert.equal(stakedSeekerByNodeTwoBefore.length, 0);
 
-    compareStakedSeekers(
-      stakedSeekerBefore,
-      new StakedSeeker(
-        Number(stakedSeekerByIdBefore[0]),
-        stakedSeekerByIdBefore[1],
-        stakedSeekerByIdBefore[2],
-      ),
-    );
+  //   compareStakedSeekers(
+  //     stakedSeekerBefore,
+  //     new StakedSeeker(
+  //       Number(stakedSeekerByIdBefore[0]),
+  //       stakedSeekerByIdBefore[1],
+  //       stakedSeekerByIdBefore[2],
+  //     ),
+  //   );
 
-    await seekerStakingManager.transferStakedSeeker(
-      nodeOne,
-      nodeTwo,
-      seeker.seekerId,
-    );
+  //   await seekerStakingManager.transferStakedSeeker(
+  //     nodeOne,
+  //     nodeTwo,
+  //     seeker.seekerId,
+  //   );
 
-    const stakedSeekerByNodeAfter =
-      await seekerStakingManager.getStakedSeekersByNode(nodeOne);
-    const stakedSeekerByNodeTwoAfter =
-      await seekerStakingManager.getStakedSeekersByNode(nodeTwo);
-    const stakedSeekerByIdAfter = await seekerStakingManager.stakedSeekersById(
-      seeker.seekerId,
-    );
+  //   const stakedSeekerByNodeAfter =
+  //     await seekerStakingManager.getStakedSeekersByNode(nodeOne);
+  //   const stakedSeekerByNodeTwoAfter =
+  //     await seekerStakingManager.getStakedSeekersByNode(nodeTwo);
+  //   const stakedSeekerByIdAfter = await seekerStakingManager.stakedSeekersById(
+  //     seeker.seekerId,
+  //   );
 
-    assert.equal(stakedSeekerByNodeAfter.length, 0);
-    assert.equal(stakedSeekerByNodeTwoAfter.length, 1);
-    assert.equal(Number(stakedSeekerByNodeTwoAfter[0]), seeker.seekerId);
+  //   assert.equal(stakedSeekerByNodeAfter.length, 0);
+  //   assert.equal(stakedSeekerByNodeTwoAfter.length, 1);
+  //   assert.equal(Number(stakedSeekerByNodeTwoAfter[0]), seeker.seekerId);
 
-    compareStakedSeekers(
-      stakedSeekerAfter,
-      new StakedSeeker(
-        Number(stakedSeekerByIdAfter[0]),
-        stakedSeekerByIdAfter[1],
-        stakedSeekerByIdAfter[2],
-      ),
-    );
-  });
+  //   compareStakedSeekers(
+  //     stakedSeekerAfter,
+  //     new StakedSeeker(
+  //       Number(stakedSeekerByIdAfter[0]),
+  //       stakedSeekerByIdAfter[1],
+  //       stakedSeekerByIdAfter[2],
+  //     ),
+  //   );
+  // });
 
   it('cannot unstake seeker from zero node address', async () => {
     await expect(
@@ -715,7 +796,7 @@ describe('Seeker Staking Manager', () => {
   it('supports only seeker staking manager interface', async () => {
     const abi = [
       'function stakeSeeker(address node, (uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker, bytes calldata seekerStatsProof) external',
-      'function transferStakedSeeker(address fromNode, address toNode, uint256 seekerId) external',
+      'function stakeSeekers(address node, (uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)[] calldata seekers, bytes[] calldata seekerStatsProofs) external',
       'function unstakeSeeker(address node, uint256 seekerId) external',
       'function getStakedSeekersByNode(address node) external view returns (uint256[] memory)',
       'function getStakedSeekersByUser(address node) external view returns (uint256[] memory)',
