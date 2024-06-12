@@ -170,11 +170,7 @@ contract ProtocolTimeManager is
     function _getCurrentCycle() internal view returns (uint256) {
         uint256 totalTimeElapsed = block.timestamp - start;
         uint256 processedCycleIntervals = 0;
-        uint256 cycles = 0;
-
-        if (cycleDurationUpdates.length() == 1) {
-            return totalTimeElapsed / cycleDuration;
-        }
+        uint256 cycles = 1;
 
         for (uint256 i = 0; (i + 1) < cycleDurationUpdates.length(); ++i) {
             (uint256 timestamp, uint256 intervalDuration) = cycleDurationUpdates.at(i);
@@ -205,11 +201,7 @@ contract ProtocolTimeManager is
     function _getCurrentPeriod() internal view returns (uint256) {
         uint256 totalTimeElapsed = block.timestamp - start;
         uint256 processedPeriodIntervals = 0;
-        uint256 cycles = 0;
-
-        if (periodDurationUpdates.length() == 1) {
-            return totalTimeElapsed / periodDuration;
-        }
+        uint256 cycles = 1;
 
         for (uint256 i = 0; (i + 1) < periodDurationUpdates.length(); ++i) {
             (uint256 timestamp, uint256 intervalDuration) = periodDurationUpdates.at(i);

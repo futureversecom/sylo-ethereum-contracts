@@ -128,8 +128,8 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const times = await protocolTimeManager.timeNow();
-    assert.equal(Number(times[0]), 3);
-    assert.equal(Number(times[1]), 3);
+    assert.equal(Number(times[0]), 4);
+    assert.equal(Number(times[1]), 4);
 
     await protocolTimeManager.setCycleDuration(3000);
     await protocolTimeManager.setPeriodDuration(2000);
@@ -138,16 +138,23 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const timesTwo = await protocolTimeManager.timeNow();
-    assert.equal(Number(timesTwo[0]), 5);
-    assert.equal(Number(timesTwo[1]), 6);
+    assert.equal(Number(timesTwo[0]), 6);
+    assert.equal(Number(timesTwo[1]), 7);
+  });
+
+  it('returns one for first cycle', async () => {
+    await network.provider.send('evm_increaseTime', [500]);
+    await network.provider.send('evm_mine');
+    const currentCycle = await protocolTimeManager.getCurrentCycle();
+    assert.equal(Number(currentCycle), 1);
   });
 
   it('can get current cycle without updated duration', async () => {
-    await network.provider.send('evm_increaseTime', [3000]);
+    await network.provider.send('evm_increaseTime', [3500]);
     await network.provider.send('evm_mine');
 
     const currentCycle = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycle), 3);
+    assert.equal(Number(currentCycle), 4);
   });
 
   it('can get current cycle with one updated duration', async () => {
@@ -155,7 +162,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentCycle = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycle), 3);
+    assert.equal(Number(currentCycle), 4);
 
     await protocolTimeManager.setCycleDuration(200);
 
@@ -163,7 +170,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentCycleTwo = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycleTwo), 38);
+    assert.equal(Number(currentCycleTwo), 39);
   });
 
   it('can get current cycle with multiple updated durations', async () => {
@@ -171,7 +178,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentCycle = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycle), 3);
+    assert.equal(Number(currentCycle), 4);
 
     await protocolTimeManager.setCycleDuration(200);
 
@@ -179,7 +186,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentCycleTwo = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycleTwo), 38);
+    assert.equal(Number(currentCycleTwo), 39);
 
     await protocolTimeManager.setCycleDuration(125);
 
@@ -187,7 +194,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentCycleThree = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycleThree), 84);
+    assert.equal(Number(currentCycleThree), 85);
 
     await protocolTimeManager.setCycleDuration(2);
 
@@ -195,7 +202,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentCycleFour = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycleFour), 184);
+    assert.equal(Number(currentCycleFour), 185);
   });
 
   it('can get current period without updated duration', async () => {
@@ -203,7 +210,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriod = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriod), 3);
+    assert.equal(Number(currentPeriod), 4);
   });
 
   it('can get current period with one updated duration', async () => {
@@ -211,7 +218,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriod = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriod), 3);
+    assert.equal(Number(currentPeriod), 4);
 
     await protocolTimeManager.setPeriodDuration(200);
 
@@ -219,7 +226,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriodTwo = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriodTwo), 38);
+    assert.equal(Number(currentPeriodTwo), 39);
   });
 
   it('can get current period with multiple updated durations', async () => {
@@ -227,7 +234,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriod = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriod), 3);
+    assert.equal(Number(currentPeriod), 4);
 
     await protocolTimeManager.setPeriodDuration(200);
 
@@ -235,7 +242,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriodTwo = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriodTwo), 38);
+    assert.equal(Number(currentPeriodTwo), 39);
 
     await protocolTimeManager.setPeriodDuration(125);
 
@@ -243,7 +250,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriodThree = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriodThree), 84);
+    assert.equal(Number(currentPeriodThree), 85);
 
     await protocolTimeManager.setPeriodDuration(2);
 
@@ -251,7 +258,7 @@ describe('Protocol time manager', () => {
     await network.provider.send('evm_mine');
 
     const currentPeriodFour = await protocolTimeManager.getCurrentPeriod();
-    assert.equal(Number(currentPeriodFour), 184);
+    assert.equal(Number(currentPeriodFour), 185);
   });
 
   it('supports only protocol time manager interface', async () => {
@@ -292,37 +299,3 @@ describe('Protocol time manager', () => {
     );
   });
 });
-
-// await network.provider.send('evm_increaseTime', [3000]);
-// await network.provider.send('evm_mine');
-// const x = await protocolTimeManager.getCurrentCycle();
-// console.log('x ', x);
-// await protocolTimeManager.setCycleDuration(1500);
-// await network.provider.send('evm_increaseTime', [4000]);
-// await network.provider.send('evm_mine');
-// const y = await protocolTimeManager.getCurrentCycle();
-// console.log('y ', y);
-
-// await protocolTimeManager.setCycleDuration(500);
-// await network.provider.send('evm_increaseTime', [5000]);
-// await network.provider.send('evm_mine');
-// const z = await protocolTimeManager.getCurrentCycle();
-// console.log('z ', z);
-
-// await protocolTimeManager.setCycleDuration(700);
-// await network.provider.send('evm_increaseTime', [11000]);
-// await network.provider.send('evm_mine');
-// const w = await protocolTimeManager.getCurrentCycle();
-// console.log('w ', w);
-
-// await protocolTimeManager.setCycleDuration(673);
-// await network.provider.send('evm_increaseTime', [6543]);
-// await network.provider.send('evm_mine');
-// const q = await protocolTimeManager.getCurrentCycle();
-// console.log('y ', q);
-
-// // await protocolTimeManager.setCycleDuration(1000);
-// // await network.provider.send('evm_increaseTime', [3000]);
-// // await network.provider.send('evm_mine');
-// // const w = await protocolTimeManager.getCurrentCycle();
-// // console.log('w ', w);
