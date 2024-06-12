@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
-import "hardhat/console.sol";
 
 import "./IProtocolTimeManager.sol";
 
@@ -147,12 +146,26 @@ contract ProtocolTimeManager is
     }
 
     /**
-     * @notice Get the current cycle
+     * @notice  Calculates the current cycle number based on the elapsed time
+     * since the contract's start, taking into account any updates to the cycle duration.
      * This function works by iterating over the cycle durations tracked by the
      * cycleDurationUpdates map and calculating the interval to which this duration
      * applies. By finding the interval to which the duration applies the amount
      * of cycles for that interval can be calculated by dividing the interval time
      * by the duration of the cycles.
+     *
+     * for exmaple
+     * [<------------ 200 ---------->] where each '|' represents a duration update
+     * [------|----------|--------|--] and each number a cycle/period interval (excluding 200)
+     * [<-60->|<-40->|<--80-->|<-20->]
+     * 0      60    100      180     -
+     *
+     * Duration (0 -> 60):    20    cycles = (60 - 0)    / 20 = 3
+     * Duration (60 -> 100):  10    cycles = (100 - 60)  / 10 = 4
+     * Duration (100 -> 180): 40    cycles = (180 - 100) / 40 = 2
+     *
+     * Duration (180 -> -):    5    totalCycles += (200 - 180) / 5  = 13 (where 5 is the current cycle durartion)
+     *                                                                   (where 200 is the totalTimeElapsed since start)
      */
     function _getCurrentCycle() internal view returns (uint256) {
         uint256 totalTimeElapsed = block.timestamp - start;
@@ -180,7 +193,14 @@ contract ProtocolTimeManager is
     }
 
     /**
-     * @notice Get the current period
+     * @notice Calculates the current period number based on the elapsed time
+     * since the contract's start, taking into account any updates to the period duration.
+     * This function works by iterating over the period durations tracked by the
+     * periodDurationUpdates map and calculating the interval to which this duration
+     * applies. By finding the interval to which the duration applies the amount
+     * of periods for that interval can be calculated by dividing the interval time
+     * by the duration of the periods.
+     * refer to explaination above for funtionality
      */
     function _getCurrentPeriod() internal view returns (uint256) {
         uint256 totalTimeElapsed = block.timestamp - start;
