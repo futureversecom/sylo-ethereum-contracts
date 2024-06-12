@@ -205,6 +205,11 @@ contract SeekerStakingManager is
         delete stakedSeekersById[seekerId];
     }
 
+    /**
+     * @notice Checks for seeker staking error
+     * @param node Adress of node seeker is staked against
+     * @param seekerId Seeker ID of staked seeker
+     */
     function _isSeekerStakedError(
         address node,
         uint256 seekerId
