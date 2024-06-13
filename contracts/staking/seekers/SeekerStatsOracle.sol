@@ -39,7 +39,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     error OracleAddressCannotBeNil();
     error SeekerProofIsEmpty();
-    error UnauthorizedRegisterSeekerStatsCall();
+    error UnauthorizedRegisterSeekerStats();
     error InvalidSignatureForSeekerProof();
     error SeekerNotRegistered(uint256 seekerId);
 
@@ -79,7 +79,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * @param seeker The object containing the seekers statistics.
      * @param signature The signature of the seekers proof message, signed by the oracle account.
      */
-    function validateSeekerStatsProof(
+    function isSeekerStatsProofValid(
         Seeker calldata seeker,
         bytes calldata signature
     ) internal view returns (bool) {
@@ -94,7 +94,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Creates a proofing message unique to the provided seeker.
+     * @notice Creates a unique proofing message for the provided seeker.
      * @param seeker The object containing the seekers statistics.
      */
     function _createProofMessage(Seeker calldata seeker) internal pure returns (bytes memory) {
@@ -121,7 +121,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     function registerSeekerRestricted(Seeker calldata seeker) external {
         if (msg.sender != oracle) {
-            revert UnauthorizedRegisterSeekerStatsCall();
+            revert UnauthorizedRegisterSeekerStats();
         }
 
         seekerStats[seeker.seekerId] = seeker;
@@ -142,8 +142,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * @param proof The signature of the seekers proof message, signed by the oracle account.
      */
     function registerSeeker(Seeker calldata seeker, bytes calldata proof) external {
-        bool valid = validateSeekerStatsProof(seeker, proof);
-        if (!valid) {
+        if (!isSeekerStatsProofValid(seeker, proof)) {
             revert InvalidSignatureForSeekerProof();
         }
 
@@ -160,7 +159,9 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Calculates the coverage score for the given seekers
+     * @notice Calculates the coverage score for the given seekers. This score is used by
+     *  nodes to determine the staking capacity and is a reflection of the diversity
+     *  in attributes of the seekers staked against the node.
      * @param seekers A list containing seekers, will revert if any seeker is not registered.
      */
     function calculateAttributeCoverage(Seeker[] calldata seekers) external view returns (int256) {
@@ -178,6 +179,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         for (uint256 i = 0; i < seekers.length; i++) {
             Seeker memory seeker = seekers[i];
             Seeker memory registeredSeeker = seekerStats[seeker.seekerId];
+
             if (keccak256(abi.encode(registeredSeeker)) == keccak256(abi.encode(defaultSeeker))) {
                 revert SeekerNotRegistered(seeker.seekerId);
             }
