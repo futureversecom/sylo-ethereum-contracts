@@ -63,6 +63,7 @@
     "@openzeppelin/contracts": "^4.9.2",
     "@openzeppelin/contracts-upgradeable": "^4.8.1",
     "@openzeppelin/merkle-tree": "^1.0.5",
-    "abdk-libraries-solidity": "^3.1.0"
+    "abdk-libraries-solidity": "^3.1.0",
+    "solidity-trigonometry": "https://github.com/futureversecom/solidity-trigonometry.git"
   }
 }
