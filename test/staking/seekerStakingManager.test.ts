@@ -48,22 +48,25 @@ describe('Seeker Staking Manager', () => {
 
   it('cannot initialize seeker staking manager with invalid arguemnts', async () => {
     const factory = await ethers.getContractFactory('SeekerStakingManager');
-    const seekerStakingManager = await factory.deploy();
+    const seekerStakingManagerTemp = await factory.deploy();
 
     await expect(
-      seekerStakingManager.initialize(ethers.ZeroAddress, ethers.ZeroAddress),
+      seekerStakingManagerTemp.initialize(
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+      ),
     ).to.be.revertedWithCustomError(
-      seekerStakingManager,
+      seekerStakingManagerTemp,
       'RootSeekersCannotBeZeroAddress',
     );
 
     await expect(
-      seekerStakingManager.initialize(
+      seekerStakingManagerTemp.initialize(
         await testSeekers.getAddress(),
         ethers.ZeroAddress,
       ),
     ).to.be.revertedWithCustomError(
-      seekerStakingManager,
+      seekerStakingManagerTemp,
       'SeekerStatsOracleCannotBeZeroAddress',
     );
   });
