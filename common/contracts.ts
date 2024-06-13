@@ -35,7 +35,6 @@ export type ContractAddresses = {
   seekerStakingManager: string;
   seekers: string;
   protocolTimeManager: string;
-  seekerPowerOracle: string;
   registries: string;
 };
 

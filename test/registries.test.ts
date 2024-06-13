@@ -20,7 +20,7 @@ describe('Registries', () => {
   });
 
   beforeEach(async () => {
-    const contracts = await deployContracts();
+    contracts = await deployContracts();
     registries = contracts.registries;
   });
 
