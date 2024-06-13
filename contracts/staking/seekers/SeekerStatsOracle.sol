@@ -37,6 +37,10 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
         uint256 attrChip
     );
 
+    /** events **/
+    event OracleUpdated(address oracle);
+
+    /** errors **/
     error OracleAddressCannotBeNil();
     error SeekerProofIsEmpty();
     error UnauthorizedRegisterSeekerStats();
@@ -58,9 +62,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      * `interfaceId` from ERC165.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return
-            interfaceId == type(ISeekerStatsOracle).interfaceId ||
-            super.supportsInterface(interfaceId);
+        return interfaceId == type(ISeekerStatsOracle).interfaceId;
     }
 
     /**
@@ -72,6 +74,8 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
             revert OracleAddressCannotBeNil();
         }
         oracle = _oracle;
+
+        emit OracleUpdated(_oracle);
     }
 
     /**
@@ -180,6 +184,8 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
             Seeker memory seeker = seekers[i];
             Seeker memory registeredSeeker = seekerStats[seeker.seekerId];
 
+            // We validate the seeker has been registered by checking if it is
+            // not equal to the default, empty-value Seeker.
             if (keccak256(abi.encode(registeredSeeker)) == keccak256(abi.encode(defaultSeeker))) {
                 revert SeekerNotRegistered(seeker.seekerId);
             }

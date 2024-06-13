@@ -53,7 +53,11 @@ describe('Seeker Stats', () => {
       await seekerStatsOracle.oracle(),
       await accounts[19].getAddress(),
     );
-    await seekerStatsOracle.setOracle(await accounts[18].getAddress());
+
+    const oracle = await accounts[18].getAddress();
+    await expect(seekerStatsOracle.setOracle(oracle))
+      .to.emit(seekerStatsOracle, 'OracleUpdated')
+      .withArgs(oracle);
     assert.equal(
       await seekerStatsOracle.oracle(),
       await accounts[18].getAddress(),
