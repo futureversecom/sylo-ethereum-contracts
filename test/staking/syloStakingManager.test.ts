@@ -19,12 +19,12 @@ describe('Sylo Staking', () => {
 
   it('cannot initialize sylo staking manager with invalid arguemnts', async () => {
     const factory = await ethers.getContractFactory('SyloStakingManager');
-    const syloStakingManager = await factory.deploy();
+    const syloStakingManagerTemp = await factory.deploy();
 
     await expect(
-      syloStakingManager.initialize(ethers.ZeroAddress, 100n),
+      syloStakingManagerTemp.initialize(ethers.ZeroAddress, 100n),
     ).to.be.revertedWithCustomError(
-      syloStakingManager,
+      syloStakingManagerTemp,
       'SyloAddressCannotBeNil',
     );
   });
