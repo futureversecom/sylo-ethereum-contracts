@@ -67,7 +67,9 @@ contract SyloStakingManager is
      * `interfaceId` from ERC165.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(ISyloStakingManager).interfaceId;
+        return
+            interfaceId == type(ISyloStakingManager).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     function setUnlockDuration(uint256 _unlockDuration) external onlyOwner {
@@ -116,8 +118,6 @@ contract SyloStakingManager is
 
         // update total managed stake for this node
         stakes[node].totalManagedStake += amount;
-
-
     }
 
     /**
@@ -239,24 +239,24 @@ contract SyloStakingManager is
      * @param amount The amount of stake to transfer in SOLO.
      */
     function transferStake(address from, address to, uint256 amount) external {
-      if (from == address(0)) {
-          revert NodeAddressCannotBeNil();
-      }
+        if (from == address(0)) {
+            revert NodeAddressCannotBeNil();
+        }
 
-      if (to == address(0)) {
-          revert NodeAddressCannotBeNil();
-      }
+        if (to == address(0)) {
+            revert NodeAddressCannotBeNil();
+        }
 
-      StakeEntry storage stakeEntry = stakes[from].entries[msg.sender];
+        StakeEntry storage stakeEntry = stakes[from].entries[msg.sender];
 
-      if (amount > stakeEntry.amount) {
-        revert CannotTransferMoreThanStaked(stakeEntry.amount, amount);
-      }
+        if (amount > stakeEntry.amount) {
+            revert CannotTransferMoreThanStaked(stakeEntry.amount, amount);
+        }
 
-      stakeEntry.amount -= amount;
-      stakeEntry.updatedAt = block.timestamp;
+        stakeEntry.amount -= amount;
+        stakeEntry.updatedAt = block.timestamp;
 
-      _addStake(to, amount);
+        _addStake(to, amount);
     }
 
     function getManagedStake(

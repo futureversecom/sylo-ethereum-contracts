@@ -248,7 +248,7 @@ describe('Seeker Stats', () => {
     );
   });
 
-  it('supports only seeker stats oracle interface', async () => {
+  it('seeker stats oracle supports correct interfaces', async () => {
     const abi = [
       'function setOracle(address _seekerStatsOracleAccount) external',
       'function createProofMessage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external pure returns (bytes memory)',
@@ -267,6 +267,22 @@ describe('Seeker Stats', () => {
       supports,
       true,
       'Expected seeker stats oracle to support correct interface',
+    );
+
+    const abiERC165 = [
+      'function supportsInterface(bytes4 interfaceId) external view returns (bool)',
+    ];
+
+    const interfaceIdERC165 = getInterfaceId(abiERC165);
+
+    const supportsERC165 = await seekerStatsOracle.supportsInterface(
+      interfaceIdERC165,
+    );
+
+    assert.equal(
+      supportsERC165,
+      true,
+      'Expected seeker stats oracle to support ERC165',
     );
 
     const invalidAbi = ['function foo(uint256 duration) external'];
