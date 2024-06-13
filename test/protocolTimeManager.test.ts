@@ -16,24 +16,24 @@ describe('Protocol time manager', () => {
 
   it('cannot initialize protocol time manager with empty cycle duration', async () => {
     const factory = await ethers.getContractFactory('ProtocolTimeManager');
-    const protocolTimeManager = await factory.deploy();
+    const protocolTimeManagerTemp = await factory.deploy();
 
     await expect(
-      protocolTimeManager.initialize(0, 0),
+      protocolTimeManagerTemp.initialize(0, 0),
     ).to.be.revertedWithCustomError(
-      protocolTimeManager,
+      protocolTimeManagerTemp,
       'CannotInitializeWithZeroCycleDuration',
     );
   });
 
   it('cannot initialize protocol time manager with empty period duration', async () => {
     const factory = await ethers.getContractFactory('ProtocolTimeManager');
-    const protocolTimeManager = await factory.deploy();
+    const protocolTimeManagerTemp = await factory.deploy();
 
     await expect(
-      protocolTimeManager.initialize(1000, 0),
+      protocolTimeManagerTemp.initialize(1000, 0),
     ).to.be.revertedWithCustomError(
-      protocolTimeManager,
+      protocolTimeManagerTemp,
       'CannotInitializeWithZeroPeriodDuration',
     );
   });
