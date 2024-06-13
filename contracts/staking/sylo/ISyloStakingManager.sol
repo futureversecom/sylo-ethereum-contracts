@@ -9,7 +9,7 @@ interface ISyloStakingManager {
      */
     struct StakeEntry {
         uint256 amount;
-        // Timestamp this entry was updated at
+        // Timestamp this entry was updated at (from block timestamp)
         uint256 updatedAt;
     }
 
@@ -19,7 +19,7 @@ interface ISyloStakingManager {
      * the network.
      */
     struct Stake {
-        // Track each stake entry associated to a node
+        // Tracks each stake entry associated to a node
         mapping(address => StakeEntry) entries;
         // The total stake held by this contract for a node,
         // which will be the sum of all addStake and unlockStake calls

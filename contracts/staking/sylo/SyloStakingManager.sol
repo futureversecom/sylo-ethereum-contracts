@@ -15,14 +15,16 @@ contract SyloStakingManager is
     ERC165
 {
     /** IERC20 Sylo Token address */
-    IERC20 public _sylo;
+    IERC20 public _syloToken;
 
     /**
      * @notice Tracks the managed stake for every Node.
      */
     mapping(address => Stake) public stakes;
 
-    /** @notice Tracks overall total stake held by this contract */
+    /**
+     * @notice Tracks overall total stake held by this contract
+     */
     uint256 public totalManagedStake;
 
     /**
@@ -50,14 +52,14 @@ contract SyloStakingManager is
     error CannotTransferMoreThanStaked(uint256 stakeAmount, uint256 transferAmount);
     error StakeNotYetUnlocked();
 
-    function initialize(IERC20 sylo, uint256 _unlockDuration) external initializer {
-        if (address(sylo) == address(0)) {
+    function initialize(IERC20 syloToken, uint256 _unlockDuration) external initializer {
+        if (address(syloToken) == address(0)) {
             revert SyloAddressCannotBeNil();
         }
 
         Ownable2StepUpgradeable.__Ownable2Step_init();
 
-        _sylo = sylo;
+        _syloToken = syloToken;
 
         _setUnlockDuration(_unlockDuration);
     }
@@ -87,7 +89,7 @@ contract SyloStakingManager is
      * @notice Called by stakers to add stake to a given node.
      * This function will fail under the following conditions:
      *   - If the Node address is invalid
-     *   - If the specified stake value is zero
+     *   - If the stake amount is zero
      * @param node The address of the node.
      * @param amount The amount of stake to add in SOLO.
      */
@@ -105,7 +107,7 @@ contract SyloStakingManager is
         // update total stake managed by this contract
         totalManagedStake += amount;
 
-        SafeERC20.safeTransferFrom(_sylo, msg.sender, address(this), amount);
+        SafeERC20.safeTransferFrom(_syloToken, msg.sender, address(this), amount);
     }
 
     function _addStake(address node, uint256 amount) internal {
@@ -116,8 +118,6 @@ contract SyloStakingManager is
 
         // update total managed stake for this node
         stakes[node].totalManagedStake += amount;
-
-
     }
 
     /**
@@ -161,6 +161,9 @@ contract SyloStakingManager is
         Unlocking storage unlocking = unlockings[node][msg.sender];
 
         uint256 unlockAt = block.timestamp + unlockDuration;
+
+        // refresh the unlocking timestamp, but only in the case where
+        // the unlock duration has not been reduced
         if (unlocking.unlockAt < unlockAt) {
             unlocking.unlockAt = unlockAt;
         }
@@ -182,7 +185,7 @@ contract SyloStakingManager is
 
         Unlocking storage unlocking = unlockings[node][msg.sender];
 
-        if (unlocking.unlockAt >= block.timestamp) {
+        if (unlocking.unlockAt > block.timestamp) {
             revert StakeNotYetUnlocked();
         }
 
@@ -190,7 +193,7 @@ contract SyloStakingManager is
 
         delete unlockings[node][msg.sender];
 
-        SafeERC20.safeTransfer(_sylo, msg.sender, amount);
+        SafeERC20.safeTransfer(_syloToken, msg.sender, amount);
     }
 
     /**
@@ -239,24 +242,24 @@ contract SyloStakingManager is
      * @param amount The amount of stake to transfer in SOLO.
      */
     function transferStake(address from, address to, uint256 amount) external {
-      if (from == address(0)) {
-          revert NodeAddressCannotBeNil();
-      }
+        if (from == address(0)) {
+            revert NodeAddressCannotBeNil();
+        }
 
-      if (to == address(0)) {
-          revert NodeAddressCannotBeNil();
-      }
+        if (to == address(0)) {
+            revert NodeAddressCannotBeNil();
+        }
 
-      StakeEntry storage stakeEntry = stakes[from].entries[msg.sender];
+        StakeEntry storage stakeEntry = stakes[from].entries[msg.sender];
 
-      if (amount > stakeEntry.amount) {
-        revert CannotTransferMoreThanStaked(stakeEntry.amount, amount);
-      }
+        if (amount > stakeEntry.amount) {
+            revert CannotTransferMoreThanStaked(stakeEntry.amount, amount);
+        }
 
-      stakeEntry.amount -= amount;
-      stakeEntry.updatedAt = block.timestamp;
+        stakeEntry.amount -= amount;
+        stakeEntry.updatedAt = block.timestamp;
 
-      _addStake(to, amount);
+        _addStake(to, amount);
     }
 
     function getManagedStake(
