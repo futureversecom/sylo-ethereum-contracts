@@ -32,12 +32,12 @@ describe('Seeker Stats', () => {
 
   it('cannot initialize seeker stats oracle with invalid arguemnts', async () => {
     const factory = await ethers.getContractFactory('SeekerStatsOracle');
-    const seekerStatsOracle = await factory.deploy();
+    const seekerStatsOracleTemp = await factory.deploy();
 
     await expect(
-      seekerStatsOracle.initialize(ethers.ZeroAddress),
+      seekerStatsOracleTemp.initialize(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(
-      seekerStatsOracle,
+      seekerStatsOracleTemp,
       'OracleAddressCannotBeNil',
     );
   });
