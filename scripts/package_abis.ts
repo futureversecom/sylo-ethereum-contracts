@@ -7,16 +7,10 @@ const PKG_DIR =
 const ABI_DIR = path.resolve(__dirname, '../abi');
 
 const syloContracts = [
-  'Directory',
-  'EpochsManager',
-  'Registries',
-  'RewardsManager',
-  'StakingManager',
-  'SyloTicketing',
+  'SeekerStatsOracle',
+  'SeekerStakingManager',
+  'SyloStakingManager',
   'SyloToken',
-  'TicketingParameters',
-  'AuthorizedAccounts',
-  'SeekerPowerOracle',
 ];
 
 type ABI = {
