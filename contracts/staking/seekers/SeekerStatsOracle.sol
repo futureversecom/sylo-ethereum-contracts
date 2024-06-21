@@ -21,6 +21,11 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
      */
     mapping(uint256 => Seeker) public seekerStats;
 
+    /**
+     * @notice variable used for comparision with the mapping
+     * "seekerStats", specificly whether the value for a given
+     * key has been defined.
+     */
     Seeker public defaultSeeker;
 
     /**
@@ -44,8 +49,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     /** errors **/
     error OracleAddressCannotBeNil();
-    error SeekerProofIsEmpty();
-    error UnauthorizedRegisterSeekerStats();
+    error SenderMustBeOracelAccount();
     error InvalidSignatureForSeekerProof();
     error SeekerNotRegistered(uint256 seekerId);
 
@@ -82,7 +86,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     /**
      * @notice Returns true if the oracle account signed the proof message for the given seeker.
-     * @param seeker The object containing the seekers statistics.
+     * @param seeker The object containing the seeker's statistics.
      * @param signature The signature of the seekers proof message, signed by the oracle account.
      */
     function isSeekerStatsProofValid(
@@ -101,7 +105,7 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
 
     /**
      * @notice Creates a unique proofing message for the provided seeker.
-     * @param seeker The object containing the seekers statistics.
+     * @param seeker The object containing the seeker's statistics.
      */
     function createProofMessage(Seeker calldata seeker) external pure returns (bytes memory) {
         return _createProofMessage(seeker);
@@ -126,12 +130,12 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Registers a seeker only callable from oracle
+     * @notice Registers a seeker - only callable from oracle
      * @param seeker The object containing the seekers statistics.
      */
     function registerSeekerRestricted(Seeker calldata seeker) external {
         if (msg.sender != oracle) {
-            revert UnauthorizedRegisterSeekerStats();
+            revert SenderMustBeOracelAccount();
         }
 
         seekerStats[seeker.seekerId] = seeker;
@@ -169,23 +173,17 @@ contract SeekerStatsOracle is ISeekerStatsOracle, Initializable, Ownable2StepUpg
     }
 
     /**
-     * @notice Checks if a seeker is registered
+     * @notice Validates that the contract has registered the given seeker
      * @param seeker The object containing the seeker statistics
      */
     function isSeekerRegistered(Seeker calldata seeker) external view returns (bool) {
         return _isSeekerRegistered(seeker);
     }
 
-    /**
-     * @notice Checks if a seeker is registered
-     * @param seeker The object containing the seeker statistics
-     */
     function _isSeekerRegistered(Seeker memory seeker) internal view returns (bool) {
-        Seeker memory registeredSeeker = seekerStats[seeker.seekerId];
-        if (keccak256(abi.encode(registeredSeeker)) == keccak256(abi.encode(defaultSeeker))) {
-            return false;
-        }
-        return true;
+        return
+            keccak256(abi.encode(seekerStats[seeker.seekerId])) !=
+            keccak256(abi.encode(defaultSeeker));
     }
 
     /**

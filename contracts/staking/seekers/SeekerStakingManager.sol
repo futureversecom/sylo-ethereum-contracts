@@ -16,13 +16,13 @@ contract SeekerStakingManager is
     ERC165
 {
     /**
-     * @notice ERC721 contract for bridged Seekers. Used for verifying ownership
+     * @notice ERC721 contract for bridged Seekers in TRN. Used for verifying ownership
      * of a seeker.
      */
     IERC721 public rootSeekers;
 
     /**
-     * @notice SeekerStatsOracle contract
+     * @notice Holds the Seekers metadata from Ethereum, set manually in TRN
      */
     SeekerStatsOracle public oracle;
 
@@ -42,27 +42,27 @@ contract SeekerStakingManager is
     mapping(address => uint256[]) public stakedSeekersByUser;
 
     /**
-     * @notice default staked seeker
+     * @notice variable used for comparision with the mapping
+     * "stakedSeekersById", specificly whether the value for a given
+     * key has been defined.
      */
-    StakedSeeker public defaultStakedSeeker;
+    StakedSeeker private defaultStakedSeeker;
 
     error NodeAddressCannotBeNil();
     error FromNodeAddressCannotBeNil();
-    error ToNodeAddressCannotBeNil();
-    error SeekerProofIsEmpty();
+    error SeekerProofCannotBeEmpty();
     error RootSeekersCannotBeZeroAddress();
-    error SeekerStatsOracleCannotBeZeroAddress();
-    error SenderAccountMustOwnSeekerId();
+    error SeekerStatsOracleCannotBeNil();
+    error SenderMustOwnSeekerId();
     error SeekerNotYetStaked();
     error SeekerNotStakedToNode();
     error SeekerNotStakedBySender();
-    error CannotTransferSeekerToSameNode();
 
     enum StakedErrors {
         SEEKER_NOT_YET_STAKED,
         SEEKER_NOT_STAKED_TO_NODE,
         SEEKER_NOT_STAKED_BY_SENDER,
-        NIL
+        NIL // No error
     }
 
     function initialize(IERC721 _rootSeekers, SeekerStatsOracle _oracle) external initializer {
@@ -70,7 +70,7 @@ contract SeekerStakingManager is
             revert RootSeekersCannotBeZeroAddress();
         }
         if (address(_oracle) == address(0)) {
-            revert SeekerStatsOracleCannotBeZeroAddress();
+            revert SeekerStatsOracleCannotBeNil();
         }
 
         Ownable2StepUpgradeable.__Ownable2Step_init();
@@ -80,16 +80,16 @@ contract SeekerStakingManager is
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return
-            interfaceId == type(ISeekerStakingManager).interfaceId ||
-            super.supportsInterface(interfaceId);
+        return interfaceId == type(ISeekerStakingManager).interfaceId;
     }
 
     /**
      * @notice Stakes a seeker
      * @param node Address of node to stake seeker against
      * @param seeker The object containing the seekers statistics
-     * @param seekerStatsProof The signature of the seekers proof message, signed by the oracle account.
+     * @param seekerStatsProof The signature of the seekers proof
+     * message, signed by the oracle account and only required if
+     * the seeker is not registered yet.
      */
     function stakeSeeker(
         address node,
@@ -99,6 +99,20 @@ contract SeekerStakingManager is
         _stakeSeeker(node, seeker, seekerStatsProof);
     }
 
+    /**
+     * @param seekerStatsProof The signature of the seekers proof
+     * message, signed by the oracle account and only required if
+     * the seeker is not registered yet.
+     */
+
+    /**
+     * @notice Stake a multiple seekers
+     * @param node Address of node to stake seeker against
+     * @param seekers A list of objects containing the seekers statistics
+     * @param seekerStatsProofs A list of seeker proof message
+     * signatures, signed by the oracle account and only required if
+     * the seeker is not registered yet.
+     */
     function stakeSeekers(
         address node,
         SeekerStatsOracle.Seeker[] calldata seekers,
@@ -109,12 +123,6 @@ contract SeekerStakingManager is
         }
     }
 
-    /**
-     * @notice Stakes a seeker
-     * @param node Address of node to stake seeker against
-     * @param seeker The object containing the seekers statistics
-     * @param seekerStatsProof The signature of the seekers proof message, signed by the oracle account.
-     */
     function _stakeSeeker(
         address node,
         SeekerStatsOracle.Seeker calldata seeker,
@@ -124,17 +132,17 @@ contract SeekerStakingManager is
             revert NodeAddressCannotBeNil();
         }
         if (rootSeekers.ownerOf(seeker.seekerId) != msg.sender) {
-            revert SenderAccountMustOwnSeekerId();
+            revert SenderMustOwnSeekerId();
         }
+        // Register a seeker if not registered yet
         if (!oracle.isSeekerRegistered(seeker)) {
             if (seekerStatsProof.length == 0) {
-                revert SeekerProofIsEmpty();
+                revert SeekerProofCannotBeEmpty();
             }
             oracle.registerSeeker(seeker, seekerStatsProof);
         }
 
-        StakedErrors err = _isSeekerStakedError(node, seeker.seekerId);
-        if (err == StakedErrors.NIL) {
+        if (_validateStakedSeeker(node, seeker.seekerId) == StakedErrors.NIL) {
             _unstakeSeeker(node, seeker.seekerId);
         }
 
@@ -148,7 +156,12 @@ contract SeekerStakingManager is
     }
 
     /**
-     * @notice Unstake a seeker
+     * @notice Unstakes a seeker, will revert with staked error with
+     * one of four cases.
+     * 1) Sender does not own seeker
+     * 2) Seeker is not yet staked
+     * 3) Seeker is not staked by the sender
+     * 4) Seeker is not staked to provided node address
      * @param node Address of node to unstake seeker from
      * @param seekerId Seeker ID of staked seeker
      */
@@ -157,10 +170,10 @@ contract SeekerStakingManager is
             revert FromNodeAddressCannotBeNil();
         }
         if (rootSeekers.ownerOf(seekerId) != msg.sender) {
-            revert SenderAccountMustOwnSeekerId();
+            revert SenderMustOwnSeekerId();
         }
 
-        StakedErrors err = _isSeekerStakedError(node, seekerId);
+        StakedErrors err = _validateStakedSeeker(node, seekerId);
         if (err == StakedErrors.SEEKER_NOT_YET_STAKED) {
             revert SeekerNotYetStaked();
         }
@@ -174,11 +187,6 @@ contract SeekerStakingManager is
         _unstakeSeeker(node, seekerId);
     }
 
-    /**
-     * @notice Unstake a seeker
-     * @param node Address of node to unstake seeker from
-     * @param seekerId Seeker ID of staked seeker
-     */
     function _unstakeSeeker(address node, uint256 seekerId) internal {
         for (uint256 i = 0; i < stakedSeekersByNode[node].length; ++i) {
             if (stakedSeekersByNode[node][i] == seekerId) {
@@ -205,7 +213,7 @@ contract SeekerStakingManager is
         delete stakedSeekersById[seekerId];
     }
 
-    function _isSeekerStakedError(
+    function _validateStakedSeeker(
         address node,
         uint256 seekerId
     ) internal view returns (StakedErrors) {
@@ -225,7 +233,7 @@ contract SeekerStakingManager is
     }
 
     /**
-     * @notice Get a staked seeker by node address
+     * @notice Get all seekers that were staked to a specific node address
      * @param node Address of node seeker is staked against
      */
     function getStakedSeekersByNode(address node) external view returns (uint256[] memory) {
@@ -233,7 +241,7 @@ contract SeekerStakingManager is
     }
 
     /**
-     * @notice Get a staked seeker by user address
+     * @notice Get all staked seekers owned by user address
      * @param user Address of user that staked seeker
      */
     function getStakedSeekersByUser(address user) external view returns (uint256[] memory) {

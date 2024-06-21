@@ -5,9 +5,9 @@ import "./SeekerStatsOracle.sol";
 
 interface ISeekerStakingManager {
     struct StakedSeeker {
-        uint256 seekerId;
-        address node;
-        address user;
+        uint256 seekerId; // bridged seeker id in TRN
+        address node; // sylo node futureverse address
+        address user; // msg.sender - the seeker owner, futureverse address in TRN
     }
 
     function stakeSeeker(

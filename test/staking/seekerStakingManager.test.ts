@@ -67,7 +67,7 @@ describe('Seeker Staking Manager', () => {
       ),
     ).to.be.revertedWithCustomError(
       seekerStakingManagerTemp,
-      'SeekerStatsOracleCannotBeZeroAddress',
+      'SeekerStatsOracleCannotBeNil',
     );
   });
 
@@ -106,7 +106,7 @@ describe('Seeker Staking Manager', () => {
         .stakeSeeker(nodeOne, seeker, Buffer.from('')),
     ).to.be.revertedWithCustomError(
       seekerStakingManager,
-      'SenderAccountMustOwnSeekerId',
+      'SenderMustOwnSeekerId',
     );
   });
 
@@ -117,7 +117,10 @@ describe('Seeker Staking Manager', () => {
 
     await expect(
       seekerStakingManager.stakeSeeker(nodeOne, seeker, Buffer.from('')),
-    ).to.be.revertedWithCustomError(seekerStakingManager, 'SeekerProofIsEmpty');
+    ).to.be.revertedWithCustomError(
+      seekerStakingManager,
+      'SeekerProofCannotBeEmpty',
+    );
   });
 
   it('stake seeker emits event', async () => {
@@ -504,7 +507,7 @@ describe('Seeker Staking Manager', () => {
       seekerStakingManager.connect(nonSeekerOwner).unstakeSeeker(nodeOne, 10),
     ).to.be.revertedWithCustomError(
       seekerStakingManager,
-      'SenderAccountMustOwnSeekerId',
+      'SenderMustOwnSeekerId',
     );
   });
 

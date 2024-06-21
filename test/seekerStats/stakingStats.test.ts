@@ -127,7 +127,7 @@ describe('Seeker Stats', () => {
       seekerStatsOracle.registerSeekerRestricted(seeker),
     ).to.be.revertedWithCustomError(
       seekerStatsOracle,
-      'UnauthorizedRegisterSeekerStats',
+      'SenderMustBeOracelAccount',
     );
   });
 
