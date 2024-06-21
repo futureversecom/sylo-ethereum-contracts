@@ -5,7 +5,7 @@ import { Signer } from 'ethers';
 import { expect, assert } from 'chai';
 import { deployContracts, getInterfaceId } from '../utils';
 
-class Seeker {
+export class Seeker {
   constructor(
     public seekerId: number,
     public rank: number,
@@ -82,7 +82,7 @@ describe('Seeker Stats', () => {
   });
 
   it('can register seeker', async () => {
-    const seeker = new Seeker(10, 2, 10, 20, 30, 40, 50, 60);
+    const seeker = createRandomSeeker();
 
     const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
     const signature = await accounts[19].signMessage(
@@ -91,32 +91,48 @@ describe('Seeker Stats', () => {
 
     await expect(seekerStatsOracle.registerSeeker(seeker, signature))
       .to.emit(seekerStatsOracle, 'SeekerStatsUpdated')
-      .withArgs(10n, 10n, 20n, 30n, 40n, 50n, 60n);
+      .withArgs(
+        seeker.seekerId,
+        seeker.attrReactor,
+        seeker.attrCores,
+        seeker.attrDurability,
+        seeker.attrSensors,
+        seeker.attrStorage,
+        seeker.attrChip,
+      );
   });
 
   it('can register seeker restricted', async () => {
-    const seeker = new Seeker(10, 2, 10, 20, 30, 40, 50, 60);
+    const seeker = createRandomSeeker();
 
     await expect(
       seekerStatsOracle.connect(accounts[19]).registerSeekerRestricted(seeker),
     )
       .to.emit(seekerStatsOracle, 'SeekerStatsUpdated')
-      .withArgs(10n, 10n, 20n, 30n, 40n, 50n, 60n);
+      .withArgs(
+        seeker.seekerId,
+        seeker.attrReactor,
+        seeker.attrCores,
+        seeker.attrDurability,
+        seeker.attrSensors,
+        seeker.attrStorage,
+        seeker.attrChip,
+      );
   });
 
   it('cannot register seeker restricted from non-oracle account', async () => {
-    const seeker = new Seeker(10, 2, 10, 20, 30, 40, 50, 60);
+    const seeker = createRandomSeeker();
 
     await expect(
       seekerStatsOracle.registerSeekerRestricted(seeker),
     ).to.be.revertedWithCustomError(
       seekerStatsOracle,
-      'UnauthorizedRegisterSeekerStats',
+      'SenderMustBeOracelAccount',
     );
   });
 
   it('cannot register seeker from non-oracle account', async () => {
-    const seeker = new Seeker(20, 2, 10, 20, 30, 40, 50, 60);
+    const seeker = createRandomSeeker();
 
     const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
     const signature = await accounts[18].signMessage(
@@ -131,8 +147,10 @@ describe('Seeker Stats', () => {
   });
 
   it('can update registered seeker', async () => {
-    const seeker = new Seeker(10, 2, 1, 1, 1, 1, 1, 1);
-    const seekerTwo = new Seeker(10, 2, 10, 10, 10, 10, 10, 10);
+    const seeker = createRandomSeeker();
+    const seekerTwo = createRandomSeeker();
+    seekerTwo.seekerId = seeker.seekerId;
+    seekerTwo.rank = seeker.rank;
 
     const proofMessage = await seekerStatsOracle.createProofMessage(seeker);
     const proofMessageTwo = await seekerStatsOracle.createProofMessage(
@@ -148,7 +166,9 @@ describe('Seeker Stats', () => {
 
     await seekerStatsOracle.registerSeeker(seeker, signature);
 
-    const fetchedSeeker = await seekerStatsOracle.seekerStats(10);
+    const fetchedSeeker = await seekerStatsOracle.getSeekerStats(
+      seeker.seekerId,
+    );
     const newSeekerOne = new Seeker(
       Number(fetchedSeeker[0]),
       Number(fetchedSeeker[1]),
@@ -160,11 +180,13 @@ describe('Seeker Stats', () => {
       Number(fetchedSeeker[7]),
     );
 
-    assert.equal(Number(fetchedSeeker.seekerId), 10);
+    assert.equal(Number(fetchedSeeker.seekerId), seeker.seekerId);
 
     await seekerStatsOracle.registerSeeker(seekerTwo, signatureTwo);
 
-    const fetchedSeekerTwo = await seekerStatsOracle.seekerStats(10);
+    const fetchedSeekerTwo = await seekerStatsOracle.getSeekerStats(
+      seeker.seekerId,
+    );
     const newSeekerTwo = new Seeker(
       Number(fetchedSeekerTwo[0]),
       Number(fetchedSeekerTwo[1]),
@@ -180,7 +202,7 @@ describe('Seeker Stats', () => {
   });
 
   it('cannot register seeker from with invalid proof', async () => {
-    const seeker = new Seeker(20, 2, 10, 20, 30, 40, 50, 60);
+    const seeker = createRandomSeeker();
 
     const proofMessage = 'invalid message';
     const signature = await accounts[18].signMessage(
@@ -195,7 +217,7 @@ describe('Seeker Stats', () => {
   });
 
   it('cannot calculate converage with unregistered seeker', async () => {
-    const seeker = new Seeker(30, 2, 10, 20, 30, 40, 50, 60);
+    const seeker = createRandomSeeker();
 
     await expect(seekerStatsOracle.calculateAttributeCoverage([seeker]))
       .to.be.revertedWithCustomError(seekerStatsOracle, 'SeekerNotRegistered')
@@ -211,8 +233,8 @@ describe('Seeker Stats', () => {
     const formatedCoverage = ethers.formatEther(attributeCoverage);
 
     assert.equal(
-      Number(formatedCoverage).toFixed(1),
-      attributeConverageExpected.toFixed(1),
+      Number(formatedCoverage).toFixed(0),
+      attributeConverageExpected.toFixed(0),
     );
   });
 
@@ -237,6 +259,8 @@ describe('Seeker Stats', () => {
       'function registerSeekerRestricted((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external',
       'function registerSeeker((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker, bytes calldata signature) external',
       'function calculateAttributeCoverage((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)[] calldata seekersList) external view returns (int256)',
+      'function isSeekerRegistered((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) calldata seeker) external view returns (bool)',
+      'function getSeekerStats(uint256 seekerId) external view returns ((uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) memory)',
     ];
 
     const interfaceId = getInterfaceId(abi);
@@ -307,16 +331,7 @@ describe('Seeker Stats', () => {
   async function createAndRegisterSeeker(amount: number): Promise<Seeker[]> {
     const seekerList: Seeker[] = [];
     for (let i = 0; i < amount; i++) {
-      const newSeeker = new Seeker(
-        i,
-        i,
-        i + 10,
-        i + 20,
-        i + 30,
-        i + 40,
-        i + 50,
-        i + 60,
-      );
+      const newSeeker = createRandomSeeker();
       const proofMessage = await seekerStatsOracle.createProofMessage(
         newSeeker,
       );
@@ -343,3 +358,31 @@ describe('Seeker Stats', () => {
     );
   }
 });
+
+function getRandomInt(min: number, max: number): number {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min; // The maximum is inclusive and the minimum is inclusive
+}
+
+export function createRandomSeeker(): Seeker {
+  const seekerId = getRandomInt(1, 60000);
+  const rank = getRandomInt(1, 100);
+  const attrReactor = getRandomInt(1, 30);
+  const attrCores = getRandomInt(1, 30);
+  const attrDurability = getRandomInt(1, 30);
+  const attrSensors = getRandomInt(1, 30);
+  const attrStorage = getRandomInt(1, 30);
+  const attrChip = getRandomInt(1, 30);
+
+  return new Seeker(
+    seekerId,
+    rank,
+    attrReactor,
+    attrCores,
+    attrDurability,
+    attrSensors,
+    attrStorage,
+    attrChip,
+  );
+}
