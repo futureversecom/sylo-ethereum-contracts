@@ -84,7 +84,8 @@ contract SeekerStakingManager is
     }
 
     /**
-     * @notice Stakes a seeker
+     * @notice Stakes a seeker, this will unstake a seeker if it is
+     * already staked.
      * @param node Address of node to stake seeker against
      * @param seeker The object containing the seekers statistics
      * @param seekerStatsProof The signature of the seekers proof
@@ -100,13 +101,7 @@ contract SeekerStakingManager is
     }
 
     /**
-     * @param seekerStatsProof The signature of the seekers proof
-     * message, signed by the oracle account and only required if
-     * the seeker is not registered yet.
-     */
-
-    /**
-     * @notice Stake a multiple seekers
+     * @notice Stake a multiple seekers, this will unstake a seeker if it is already staked.
      * @param node Address of node to stake seeker against
      * @param seekers A list of objects containing the seekers statistics
      * @param seekerStatsProofs A list of seeker proof message
