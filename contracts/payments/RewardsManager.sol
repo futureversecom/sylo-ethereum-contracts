@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "./IRewardsManager.sol";
-import "./Registries.sol";
+import "../Registries.sol";
 import "./Ticketing.sol";
 import "./ITicketing.sol";
 
