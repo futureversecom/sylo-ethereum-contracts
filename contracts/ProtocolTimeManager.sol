@@ -139,10 +139,9 @@ contract ProtocolTimeManager is
             return;
         }
 
-        (, uint256 currentCycleStart) = _getCurrentCycle();
-        uint256 currentDuration = _getCycleDuration();
+        Cycle memory cycle = _getCurrentCycle();
 
-        uint256 nextCycleStart = currentCycleStart + currentDuration;
+        uint256 nextCycleStart = cycle.start + cycle.duration;
 
         cycleDurationUpdates.push(CycleDurationUpdate(
             _cycleDuration,
@@ -177,8 +176,8 @@ contract ProtocolTimeManager is
             return;
         }
 
-        (uint256 currentCycle,) = _getCurrentCycle();
-        uint256 nextCycle = currentCycle + 1;
+        Cycle memory cycle = _getCurrentCycle();
+        uint256 nextCycle = cycle.iteration + 1;
 
         // Check if the next cycle's period duration has already been updated. In this
         // case we overwrite the existing update
@@ -196,9 +195,8 @@ contract ProtocolTimeManager is
     /**
      * @notice Get the current cycle
      */
-    function getCurrentCycle() external view returns (uint256) {
-        (uint256 currentCycle, ) = _getCurrentCycle();
-        return currentCycle;
+    function getCurrentCycle() external view returns (Cycle memory) {
+        return _getCurrentCycle();
     }
 
     /**
@@ -230,7 +228,7 @@ contract ProtocolTimeManager is
      * Duration (180 -> -):    5    totalCycles += (200 - 180) / 5  = 13 (where 5 is the current cycle durartion)
      *                                                                   (where 200 is the totalTimeElapsed since start)
      */
-    function _getCurrentCycle() internal view returns (uint256, uint256) {
+    function _getCurrentCycle() internal view returns (Cycle memory) {
         if (!hasProtocolStarted()) {
             revert ProtocolHasNotBegun();
         }
@@ -242,8 +240,6 @@ contract ProtocolTimeManager is
         uint256 currentDuration = cycleDurationUpdates[cursor].duration;
         uint256 currentDurationStart = cycleDurationUpdates[cursor].updatesAt;
         uint256 currentCycleStart = 0;
-
-        printCycleUpdates();
 
         uint256 lastUpdateToProcess = 0;
 
@@ -290,7 +286,7 @@ contract ProtocolTimeManager is
             }
         }
 
-        return (cycles, currentCycleStart);
+        return Cycle(cycles, currentCycleStart, currentDuration);
     }
 
     /**
@@ -308,8 +304,8 @@ contract ProtocolTimeManager is
             revert ProtocolHasNotBegun();
         }
 
-        (,uint256 currentCycleStart) = _getCurrentCycle();
-        uint256 totalTimeElapsedWithinPeriod = block.timestamp - currentCycleStart;
+        Cycle memory cycle = _getCurrentCycle();
+        uint256 totalTimeElapsedWithinPeriod = block.timestamp - cycle.start;
 
         uint256 periodDuration = _getPeriodDuration();
 
@@ -350,13 +346,6 @@ contract ProtocolTimeManager is
         return _getPeriodDuration();
     }
 
-    function printCycleUpdates() internal view {
-        console.log("cycle duration updates");
-        for (uint256 i = 0; i < cycleDurationUpdates.length; i++) {
-            console.log(cycleDurationUpdates[i].duration, cycleDurationUpdates[i].updatesAt - start);
-        }
-    }
-
     function _getPeriodDuration() internal view returns (uint256) {
         // if the protocol has not started, then the current duration is the
         // first update
@@ -364,14 +353,13 @@ contract ProtocolTimeManager is
             return periodDurationUpdates[0].duration;
         }
 
-        (uint256 currentCycle,) = _getCurrentCycle();
-
+        Cycle memory cycle = _getCurrentCycle();
 
         PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[periodDurationUpdates.length - 1];
 
         // if the last update occurred before the current cycle, then the
         // last update holds the current duration
-        if (lastUpdate.updatesAt <= currentCycle) {
+        if (lastUpdate.updatesAt <= cycle.iteration) {
             return lastUpdate.duration;
         // else the duration has been updated for the next cycle, so the current
         // period duration is defined in the previous update
@@ -390,9 +378,9 @@ contract ProtocolTimeManager is
     /**
      * @notice Get the cycle and period durations
      */
-    function getTime() external view returns (uint256, uint256) {
-        (uint256 cycle,) = _getCurrentCycle();
+    function getTime() external view returns (uint256, uint256, Cycle memory) {
+        Cycle memory cycle = _getCurrentCycle();
         uint256 period = _getCurrentPeriod();
-        return (cycle, period);
+        return (cycle.iteration, period, cycle);
     }
 }

@@ -431,22 +431,22 @@ describe.only('Protocol time manager', () => {
      * 0 - C1 : P0
      * 100 - C1 : P1
      * ...
-     * 600 - C1 : P7
+     * 600 - C1 : P6
      */
     await setTimeSinceStart(600);
-    await checkTime(1, 7);
+    await checkTime(1, 6);
 
     /**
      * 3000 - C4 : P0
      * 3100 - C4 : P1
      * ..
-     * 3400 - C4 : P5
+     * 3400 - C4 : P4
      */
     await setTimeSinceStart(3400);
-    await checkTime(4, 5);
+    await checkTime(4, 4);
   });
 
-  it.only('can get current time when durations have been updated', async () => {
+  it('can get current time when durations have been updated', async () => {
     const { setTimeSinceStart } = await startProtocol();
 
     /**
@@ -480,8 +480,8 @@ describe.only('Protocol time manager', () => {
       'function setPeriodDuration(uint256 duration) external',
       'function getCycleDuration() external returns (uint256)',
       'function getPeriodDuration() external returns (uint256)',
-      'function getTime() external returns (uint256, uint256)',
-      'function getCurrentCycle() external returns (uint256)',
+      'function getTime() external returns (uint256, uint256, (uint256,uint256,uint256))',
+      'function getCurrentCycle() external returns ((uint256,uint256,uint256))',
       'function getCurrentPeriod() external returns (uint256)',
       'function getStart() external view returns (uint256)',
     ];
@@ -533,7 +533,7 @@ describe.only('Protocol time manager', () => {
 
   async function checkCycle(cycle: number) {
     const currentCycle = await protocolTimeManager.getCurrentCycle();
-    assert.equal(Number(currentCycle), cycle);
+    assert.equal(Number(currentCycle.iteration), cycle);
   }
 
   async function checkPeriod(period: number) {
