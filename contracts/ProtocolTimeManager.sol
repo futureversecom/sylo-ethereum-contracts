@@ -89,7 +89,7 @@ contract ProtocolTimeManager is
             revert CannotSetStartInThePast();
         }
 
-        if (start >= block.timestamp) {
+        if (hasProtocolStarted()) {
             revert CannotSetStartAfterProtocolHasStarted();
         }
 
@@ -140,7 +140,7 @@ contract ProtocolTimeManager is
 
         // check if we are updating the duration again before the protocol has
         // started
-        if (start == 0 || start > block.timestamp) {
+        if (!hasProtocolStarted()) {
             lastUpdate.duration = _cycleDuration;
             return;
         }
@@ -180,7 +180,7 @@ contract ProtocolTimeManager is
 
         // check if we are updating the duration again before the protocol has
         // started
-        if (start == 0 || start > block.timestamp) {
+        if (!hasProtocolStarted()) {
             lastUpdate.duration = _periodDuration;
             return;
         }
@@ -268,10 +268,6 @@ contract ProtocolTimeManager is
         while (true) {
             // we have reached the end of the cycle updates
             if (cursor + 1 == lastUpdateToProcess) {
-                if (currentDurationStart > block.timestamp) {
-                    break;
-                }
-
                 // add the cycles that occurred with the current duration
                 uint256 cyclesAtCurrentDuration = totalTimeElapsed / currentDuration;
                 cycles += cyclesAtCurrentDuration;

@@ -9,11 +9,13 @@ import {
   increaseTo,
 } from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
 
-describe.only('Protocol time manager', () => {
+describe('Protocol time manager', () => {
+  let accounts: Signer[];
   let contracts: SyloContracts;
   let protocolTimeManager: ProtocolTimeManager;
 
   beforeEach(async () => {
+    accounts = await ethers.getSigners();
     contracts = await deployContracts();
     protocolTimeManager = contracts.protocolTimeManager;
   });
@@ -57,6 +59,44 @@ describe.only('Protocol time manager', () => {
     );
   });
 
+  it('reverts when setting protocol start as non-owner', async () => {
+    await expect(
+      protocolTimeManager.connect(accounts[1]).setProtocolStart(1),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('reverts when setting cycle duration as non-owner', async () => {
+    await expect(
+      protocolTimeManager.connect(accounts[1]).setCycleDuration(1),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('reverts when setting period duration as non-owner', async () => {
+    await expect(
+      protocolTimeManager.connect(accounts[1]).setPeriodDuration(1),
+    ).to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it('cannot set protocol start in the past', async () => {
+    await expect(
+      protocolTimeManager.setProtocolStart(1),
+    ).to.be.revertedWithCustomError(
+      protocolTimeManager,
+      'CannotSetStartInThePast',
+    );
+  });
+
+  it('cannot set protocol start once already started', async () => {
+    const { start } = await startProtocol();
+
+    await expect(
+      protocolTimeManager.setProtocolStart(start + 1000),
+    ).to.be.revertedWithCustomError(
+      protocolTimeManager,
+      'CannotSetStartAfterProtocolHasStarted',
+    );
+  });
+
   it('can set protocol start', async () => {
     const start = await protocolTimeManager.getStart();
     assert.equal(Number(start), 0);
@@ -91,6 +131,11 @@ describe.only('Protocol time manager', () => {
     await expect(cycleDuration).to.equal(2000n);
   });
 
+  it('can get cycle duration before protocol has started', async () => {
+    const cycleDuration = await protocolTimeManager.getCycleDuration();
+    await expect(cycleDuration).to.equal(1000n);
+  });
+
   it('cannot set zero period duration', async () => {
     await expect(
       protocolTimeManager.setPeriodDuration(0),
@@ -109,6 +154,11 @@ describe.only('Protocol time manager', () => {
     const cycleDuration = await protocolTimeManager.getPeriodDuration();
 
     await expect(cycleDuration).to.equal(500n);
+  });
+
+  it('can get period duration before protocol has started', async () => {
+    const periodDuration = await protocolTimeManager.getPeriodDuration();
+    await expect(periodDuration).to.equal(100n);
   });
 
   it('cannot get cycle without protocol start', async () => {
@@ -292,6 +342,16 @@ describe.only('Protocol time manager', () => {
     await checkCycle(4);
   });
 
+  it('cycle duration updates only take effect for the next cycle', async () => {
+    await startProtocol();
+
+    await protocolTimeManager.setCycleDuration(333);
+
+    const duration = await protocolTimeManager.getCycleDuration();
+
+    assert.equal(Number(duration), 1000);
+  });
+
   it('returns 0 for first period', async () => {
     await startProtocol();
 
@@ -410,6 +470,16 @@ describe.only('Protocol time manager', () => {
      */
     await setTimeSinceStart(1999);
     await checkPeriod(3);
+  });
+
+  it('period duration updates only take effect for the next cycle', async () => {
+    await startProtocol();
+
+    await protocolTimeManager.setPeriodDuration(333);
+
+    const duration = await protocolTimeManager.getPeriodDuration();
+
+    assert.equal(Number(duration), 100);
   });
 
   it('cannot get current time if protocol not started', async () => {
