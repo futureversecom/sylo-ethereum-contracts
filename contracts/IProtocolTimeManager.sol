@@ -12,7 +12,7 @@ interface IProtocolTimeManager {
 
     function getPeriodDuration() external returns (uint256);
 
-    function timeNow() external returns (uint256, uint256);
+    function getTime() external returns (uint256, uint256);
 
     function getCurrentCycle() external returns (uint256);
 

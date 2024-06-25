@@ -4,9 +4,10 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import "./IProtocolTimeManager.sol";
+
+import "hardhat/console.sol";
 
 contract ProtocolTimeManager is
     IProtocolTimeManager,
@@ -14,50 +15,34 @@ contract ProtocolTimeManager is
     Ownable2StepUpgradeable,
     ERC165
 {
-    using EnumerableMap for EnumerableMap.UintToUintMap;
+    struct CycleDurationUpdate {
+        uint256 duration;
+        // The unix timestamp this update becomes effective (takes effect at
+        // the start of the next cycle
+        uint256 updatesAt;
+    }
+
+    struct PeriodDurationUpdate {
+        uint256 duration;
+        // The cycle this duration becomes effective
+        uint256 updatesAt;
+    }
 
     /**
-     * @notice Holds the start time for the cycle/period intervals in unix
+     * @notice Holds the unix timestamp for when the protocol starts
      */
     uint256 start;
 
-    /**
-     * @notice Holds the start delay for the cycle/period intervals in unix
-     */
-    uint256 delay;
+    CycleDurationUpdate[] cycleDurationUpdates;
+    PeriodDurationUpdate[] periodDurationUpdates;
 
-    /**
-     * @notice Holds the cycle duration in unix
-     */
-    uint256 cycleDuration;
-
-    /**
-     * @notice Holds the period duration in unix
-     */
-    uint256 periodDuration;
-
-    /**
-     * @notice A iterable map used to track cycle duration updates.
-     * Indexed by the timestamp of the block that made the duration update
-     */
-    EnumerableMap.UintToUintMap cycleDurationUpdates;
-
-    /**
-     * @notice A iterable map used to track period duration updates.
-     * Indexed by the timestamp of the block that made the duration update
-     */
-    EnumerableMap.UintToUintMap periodDurationUpdates;
-
-    error CannotInitializeWithZeroStart();
     error CannotInitializeWithZeroCycleDuration();
     error CannotInitializeWithZeroPeriodDuration();
-    error CannotSetProtocolStartWithZeroStart();
-    error CannotSetCycleDurationWithZeroDuration();
-    error CannotSetStartInPast();
-    error CannotSetZeroPeriodDuration();
+    error CannotSetStartInThePast();
+    error CannotSetStartAfterProtocolHasStarted();
+    error CannotSetProtocolStartToZero();
     error CannotSetZeroCycleDuration();
-    error CannotSetDuplicateCycleDuration();
-    error CannotSetDuplicatePeriodDuration();
+    error CannotSetZeroPeriodDuration();
     error ProtocolHasNotBegun();
 
     function initialize(uint256 _cycleDuration, uint256 _periodDuration) external initializer {
@@ -70,8 +55,8 @@ contract ProtocolTimeManager is
 
         Ownable2StepUpgradeable.__Ownable2Step_init();
 
-        cycleDuration = _cycleDuration;
-        periodDuration = _periodDuration;
+        _setCycleDuration(_cycleDuration);
+        _setPeriodDuration(_periodDuration);
     }
 
     /**
@@ -83,19 +68,29 @@ contract ProtocolTimeManager is
     }
 
     /**
-     * @notice Sets the start time for the cycle/period intervals
-     * @param _delay The start time for the cycle/period intervals in unix
+     * @notice Sets the start time for the protocol
+     * @param _start A unix timestamp representing the start time
      */
-    function setProtocolStart(uint256 _delay) external onlyOwner {
-        if (_delay == 0) {
-            revert CannotSetProtocolStartWithZeroStart();
+    function setProtocolStart(uint256 _start) external onlyOwner {
+        if (_start == 0) {
+            revert CannotSetProtocolStartToZero();
         }
 
-        cycleDurationUpdates.set(_delay, cycleDuration);
-        periodDurationUpdates.set(_delay, periodDuration);
+        if (_start <= block.timestamp) {
+            revert CannotSetStartInThePast();
+        }
 
-        start = block.timestamp + _delay;
-        delay = _delay;
+        if (start >= block.timestamp) {
+            revert CannotSetStartAfterProtocolHasStarted();
+        }
+
+        start = _start;
+        // update when the next cycle starts
+        cycleDurationUpdates[0].updatesAt = _start;
+    }
+
+    function hasProtocolStarted() internal view returns (bool) {
+        return block.timestamp >= start && start != 0;
     }
 
     /**
@@ -118,40 +113,41 @@ contract ProtocolTimeManager is
         if (_cycleDuration == 0) {
             revert CannotSetZeroCycleDuration();
         }
-        if (_cycleDuration == cycleDuration) {
-            revert CannotSetDuplicateCycleDuration();
-        }
-        if (start == 0) {
-            revert ProtocolHasNotBegun();
-        }
-        if (start > block.timestamp) {
-            (uint256 firstKey, ) = cycleDurationUpdates.at(0);
-            cycleDurationUpdates.set(firstKey, _cycleDuration);
-            cycleDuration = _cycleDuration;
+
+        // check if this is the first instance we are setting the cycle's duration
+        if (cycleDurationUpdates.length == 0) {
+            cycleDurationUpdates.push(CycleDurationUpdate(
+                _cycleDuration,
+                0 // start value will be updated once `start()` is called
+            ));
             return;
         }
 
-        uint256 effectiveTime;
-        if (start > block.timestamp) {
-            effectiveTime = 0; // No cycles have started yet
-        } else {
-            uint256 timeSinceStart = block.timestamp - start;
+        CycleDurationUpdate storage lastUpdate = cycleDurationUpdates[cycleDurationUpdates.length - 1];
 
-            (uint256 previousTimestamp, uint256 currentCycleDuration) = cycleDurationUpdates.at(
-                cycleDurationUpdates.length() - 1
-            );
-
-            uint256 remaining = currentCycleDuration - (timeSinceStart % currentCycleDuration);
-
-            effectiveTime = timeSinceStart + remaining;
-
-            if ((effectiveTime + delay) < previousTimestamp) {
-                effectiveTime = (previousTimestamp - delay);
-            }
+        // check if we are updating the duration again before the protocol has
+        // started
+        if (start == 0 || start > block.timestamp) {
+            lastUpdate.duration = _cycleDuration;
+            return;
         }
 
-        cycleDurationUpdates.set(effectiveTime + delay, _cycleDuration);
-        cycleDuration = _cycleDuration;
+        // Check if the next cycle's duration has already been updated. In this
+        // case we overwrite the existing update
+        if (lastUpdate.updatesAt > block.timestamp) {
+            lastUpdate.duration = _cycleDuration;
+            return;
+        }
+
+        (, uint256 currentCycleStart) = _getCurrentCycle();
+        uint256 currentDuration = _getCycleDuration();
+
+        uint256 nextCycleStart = currentCycleStart + currentDuration;
+
+        cycleDurationUpdates.push(CycleDurationUpdate(
+            _cycleDuration,
+            nextCycleStart
+        ));
     }
 
     /**
@@ -162,47 +158,47 @@ contract ProtocolTimeManager is
         if (_periodDuration == 0) {
             revert CannotSetZeroPeriodDuration();
         }
-        if (_periodDuration == periodDuration) {
-            revert CannotSetDuplicatePeriodDuration();
-        }
-        if (start == 0) {
-            revert ProtocolHasNotBegun();
-        }
-        if (start > block.timestamp) {
-            (uint256 firstKey, ) = periodDurationUpdates.at(0);
-            periodDurationUpdates.set(firstKey, _periodDuration);
-            periodDuration = _periodDuration;
+
+        // check if this is the first instance of setting the period duration
+        if (periodDurationUpdates.length == 0) {
+            periodDurationUpdates.push(PeriodDurationUpdate(
+                _periodDuration,
+                1
+            ));
             return;
         }
 
-        uint256 effectiveTime;
-        if (start > block.timestamp) {
-            effectiveTime = 0; // No periods have started yet
-        } else {
-            uint256 timeSinceStart = block.timestamp - start;
+        PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[periodDurationUpdates.length - 1];
 
-            (uint256 previousTimestamp, uint256 currentPeriodDuration) = periodDurationUpdates.at(
-                periodDurationUpdates.length() - 1
-            );
-
-            uint256 remaining = currentPeriodDuration - (timeSinceStart % currentPeriodDuration);
-
-            effectiveTime = timeSinceStart + remaining;
-
-            if ((effectiveTime + delay) < previousTimestamp) {
-                effectiveTime = (previousTimestamp - delay);
-            }
+        // check if we are updating the duration again before the protocol has
+        // started
+        if (start == 0 || start > block.timestamp) {
+            lastUpdate.duration = _periodDuration;
+            return;
         }
 
-        periodDurationUpdates.set(effectiveTime + delay, _periodDuration);
-        periodDuration = _periodDuration;
+        (uint256 currentCycle,) = _getCurrentCycle();
+        uint256 nextCycle = currentCycle + 1;
+
+        // Check if the next cycle's period duration has already been updated. In this
+        // case we overwrite the existing update
+        if (lastUpdate.updatesAt == nextCycle) {
+            lastUpdate.duration = _periodDuration;
+            return;
+        }
+
+        periodDurationUpdates.push(PeriodDurationUpdate(
+            _periodDuration,
+            nextCycle
+        ));
     }
 
     /**
      * @notice Get the current cycle
      */
     function getCurrentCycle() external view returns (uint256) {
-        return _getCurrentCycle();
+        (uint256 currentCycle, ) = _getCurrentCycle();
+        return currentCycle;
     }
 
     /**
@@ -234,36 +230,67 @@ contract ProtocolTimeManager is
      * Duration (180 -> -):    5    totalCycles += (200 - 180) / 5  = 13 (where 5 is the current cycle durartion)
      *                                                                   (where 200 is the totalTimeElapsed since start)
      */
-    function _getCurrentCycle() internal view returns (uint256) {
-        if (block.timestamp < start || start == 0) {
+    function _getCurrentCycle() internal view returns (uint256, uint256) {
+        if (!hasProtocolStarted()) {
             revert ProtocolHasNotBegun();
         }
 
         uint256 totalTimeElapsed = block.timestamp - start;
-        uint256 processedCycleIntervals = 0;
         uint256 cycles = 1;
 
-        for (uint256 i = 0; (i + 1) < cycleDurationUpdates.length(); ++i) {
-            (uint256 timestamp, uint256 intervalDuration) = cycleDurationUpdates.at(i);
+        uint256 cursor = 0;
+        uint256 currentDuration = cycleDurationUpdates[cursor].duration;
+        uint256 currentDurationStart = cycleDurationUpdates[cursor].updatesAt;
+        uint256 currentCycleStart = 0;
 
-            (uint256 nextTimestamp, ) = cycleDurationUpdates.at(i + 1);
+        printCycleUpdates();
 
-            uint256 latestCycleInterval = nextTimestamp - timestamp;
+        uint256 lastUpdateToProcess = 0;
 
-            processedCycleIntervals += latestCycleInterval;
-
-            cycles += latestCycleInterval / intervalDuration;
+        // We need to process up to the most previous cycle duration update.
+        // However, if the next cycle's duration has been updated, then we
+        // should only process up to the second to last update.
+        if (cycleDurationUpdates[cycleDurationUpdates.length - 1].updatesAt > block.timestamp) {
+            lastUpdateToProcess = cycleDurationUpdates.length - 1;
+        } else {
+            lastUpdateToProcess = cycleDurationUpdates.length;
         }
 
-        if (totalTimeElapsed < processedCycleIntervals) {
-            return cycles;
+        while (true) {
+            // we have reached the end of the cycle updates
+            if (cursor + 1 == lastUpdateToProcess) {
+                if (currentDurationStart > block.timestamp) {
+                    break;
+                }
+
+                // add the cycles that occurred with the current duration
+                uint256 cyclesAtCurrentDuration = totalTimeElapsed / currentDuration;
+                cycles += cyclesAtCurrentDuration;
+
+                currentCycleStart = currentDurationStart + cyclesAtCurrentDuration * currentDuration;
+                break;
+            } else {
+                uint256 nextDurationUpdate = cycleDurationUpdates[cursor + 1].updatesAt;
+
+                uint256 timeElapsedAtCurrentDuration = nextDurationUpdate - currentDurationStart;
+
+                // add the cycles that occurred with the current duration
+                uint256 cyclesAtCurrentDuration = timeElapsedAtCurrentDuration / currentDuration;
+                cycles += cyclesAtCurrentDuration;
+
+                // as we iterate through the updates, we track how much
+                // of the total time remaining to account for before
+                // processing the next cycle duration update
+                totalTimeElapsed -= timeElapsedAtCurrentDuration;
+
+                // update cursors
+                cursor++;
+                currentDuration = cycleDurationUpdates[cursor].duration;
+                currentDurationStart = cycleDurationUpdates[cursor].updatesAt;
+            }
         }
 
-        uint256 remaingCycleInterval = (totalTimeElapsed - processedCycleIntervals) /
-            cycleDuration;
-
-        uint256 currentCycle = cycles + remaingCycleInterval;
-        return currentCycle;
+        return (cycles, currentCycleStart);
     }
 
     /**
@@ -277,49 +304,80 @@ contract ProtocolTimeManager is
      * refer to explaination above for funtionality
      */
     function _getCurrentPeriod() internal view returns (uint256) {
-        if (block.timestamp < start || start == 0) {
+        if (!hasProtocolStarted()) {
             revert ProtocolHasNotBegun();
         }
 
-        uint256 totalTimeElapsed = block.timestamp - start;
+        (,uint256 currentCycleStart) = _getCurrentCycle();
+        uint256 totalTimeElapsedWithinPeriod = block.timestamp - currentCycleStart;
 
-        uint256 processedPeriodIntervals = 0;
-        uint256 periods = 1;
+        uint256 periodDuration = _getPeriodDuration();
 
-        for (uint256 i = 0; (i + 1) < periodDurationUpdates.length(); ++i) {
-            (uint256 timestamp, uint256 intervalDuration) = periodDurationUpdates.at(i);
-
-            (uint256 nextTimestamp, ) = periodDurationUpdates.at(i + 1);
-
-            uint256 periodInterval = nextTimestamp - timestamp;
-
-            processedPeriodIntervals += periodInterval;
-
-            periods += periodInterval / intervalDuration;
-        }
-
-        if (totalTimeElapsed < processedPeriodIntervals) {
-            return periods;
-        }
-
-        uint256 remaingPeriodInterval = ((totalTimeElapsed - processedPeriodIntervals)) /
-            periodDuration;
-        uint256 currentPeriod = periods + (remaingPeriodInterval);
-        return currentPeriod;
+        return totalTimeElapsedWithinPeriod / periodDuration;
     }
 
     /**
      * @notice Get the cycle duration
      */
     function getCycleDuration() external view returns (uint256) {
-        return cycleDuration;
+        return _getCycleDuration();
+    }
+
+    function _getCycleDuration() internal view returns (uint256) {
+        // if the protocol has not started, then the current duration is the
+        // first update
+        if (!hasProtocolStarted()) {
+            return cycleDurationUpdates[0].duration;
+        }
+
+        CycleDurationUpdate storage lastUpdate = cycleDurationUpdates[cycleDurationUpdates.length - 1];
+
+        // if the last update occurred before the current timestamp, then the
+        // last update holds the current duration
+        if (lastUpdate.updatesAt <= block.timestamp) {
+            return lastUpdate.duration;
+        // else the duration has been updated for the next cycle, so the current
+        // cycle duration is defined in the previous update
+        } else {
+            return cycleDurationUpdates[cycleDurationUpdates.length - 2].duration;
+        }
     }
 
     /**
      * @notice Get the period duration
      */
     function getPeriodDuration() external view returns (uint256) {
-        return periodDuration;
+        return _getPeriodDuration();
+    }
+
+    function printCycleUpdates() internal view {
+        console.log("cycle duration updates");
+        for (uint256 i = 0; i < cycleDurationUpdates.length; i++) {
+            console.log(cycleDurationUpdates[i].duration, cycleDurationUpdates[i].updatesAt - start);
+        }
+    }
+
+    function _getPeriodDuration() internal view returns (uint256) {
+        // if the protocol has not started, then the current duration is the
+        // first update
+        if (!hasProtocolStarted()) {
+            return periodDurationUpdates[0].duration;
+        }
+
+        (uint256 currentCycle,) = _getCurrentCycle();
+
+
+        PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[periodDurationUpdates.length - 1];
+
+        // if the last update occurred before the current cycle, then the
+        // last update holds the current duration
+        if (lastUpdate.updatesAt <= currentCycle) {
+            return lastUpdate.duration;
+        // else the duration has been updated for the next cycle, so the current
+        // period duration is defined in the previous update
+        } else {
+            return periodDurationUpdates[periodDurationUpdates.length - 2].duration;
+        }
     }
 
     /**
@@ -332,8 +390,8 @@ contract ProtocolTimeManager is
     /**
      * @notice Get the cycle and period durations
      */
-    function timeNow() external view returns (uint256, uint256) {
-        uint256 cycle = _getCurrentCycle();
+    function getTime() external view returns (uint256, uint256) {
+        (uint256 cycle,) = _getCurrentCycle();
         uint256 period = _getCurrentPeriod();
         return (cycle, period);
     }
