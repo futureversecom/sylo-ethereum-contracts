@@ -33,7 +33,16 @@ contract ProtocolTimeManager is
      */
     uint256 start;
 
+    /**
+     * @notice Updates to the cycle duration are stored as an array. We
+     * fold over the array to determine the current cycle and duration.
+     */
     CycleDurationUpdate[] cycleDurationUpdates;
+
+    /**
+     * @notice Updates to the period duration are stored as an array. We
+     * fold over the array to determine the current period and duration.
+     */
     PeriodDurationUpdate[] periodDurationUpdates;
 
     error CannotInitializeWithZeroCycleDuration();
@@ -94,16 +103,16 @@ contract ProtocolTimeManager is
     }
 
     /**
-     * @notice Sets the cycle duration
-     * @param _cycleDuration The duration for which cycles should last in unix
+     * @notice Sets the cycle duration for the next cycles.
+     * @param _cycleDuration The duration in seconds for the cycles
      */
     function setCycleDuration(uint256 _cycleDuration) external onlyOwner {
         _setCycleDuration(_cycleDuration);
     }
 
     /**
-     * @notice Sets the period duration
-     * @param _periodDuration The duration for which periods should last in unix
+     * @notice Sets the period duration for the next cycles.
+     * @param _periodDuration The duration in seconds for the periods
      */
     function setPeriodDuration(uint256 _periodDuration) external onlyOwner {
         _setPeriodDuration(_periodDuration);
@@ -116,14 +125,18 @@ contract ProtocolTimeManager is
 
         // check if this is the first instance we are setting the cycle's duration
         if (cycleDurationUpdates.length == 0) {
-            cycleDurationUpdates.push(CycleDurationUpdate(
-                _cycleDuration,
-                0 // start value will be updated once `start()` is called
-            ));
+            cycleDurationUpdates.push(
+                CycleDurationUpdate(
+                    _cycleDuration,
+                    0 // start value will be updated once `start()` is called
+                )
+            );
             return;
         }
 
-        CycleDurationUpdate storage lastUpdate = cycleDurationUpdates[cycleDurationUpdates.length - 1];
+        CycleDurationUpdate storage lastUpdate = cycleDurationUpdates[
+            cycleDurationUpdates.length - 1
+        ];
 
         // check if we are updating the duration again before the protocol has
         // started
@@ -143,10 +156,7 @@ contract ProtocolTimeManager is
 
         uint256 nextCycleStart = cycle.start + cycle.duration;
 
-        cycleDurationUpdates.push(CycleDurationUpdate(
-            _cycleDuration,
-            nextCycleStart
-        ));
+        cycleDurationUpdates.push(CycleDurationUpdate(_cycleDuration, nextCycleStart));
     }
 
     /**
@@ -160,14 +170,13 @@ contract ProtocolTimeManager is
 
         // check if this is the first instance of setting the period duration
         if (periodDurationUpdates.length == 0) {
-            periodDurationUpdates.push(PeriodDurationUpdate(
-                _periodDuration,
-                1
-            ));
+            periodDurationUpdates.push(PeriodDurationUpdate(_periodDuration, 1));
             return;
         }
 
-        PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[periodDurationUpdates.length - 1];
+        PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[
+            periodDurationUpdates.length - 1
+        ];
 
         // check if we are updating the duration again before the protocol has
         // started
@@ -186,10 +195,7 @@ contract ProtocolTimeManager is
             return;
         }
 
-        periodDurationUpdates.push(PeriodDurationUpdate(
-            _periodDuration,
-            nextCycle
-        ));
+        periodDurationUpdates.push(PeriodDurationUpdate(_periodDuration, nextCycle));
     }
 
     /**
@@ -207,26 +213,33 @@ contract ProtocolTimeManager is
     }
 
     /**
-     * @notice  Calculates the current cycle number based on the elapsed time
-     * since the contract's start, taking into account any updates to the cycle duration.
-     * This function works by iterating over the cycle durations tracked by the
-     * cycleDurationUpdates map and calculating the interval to which this duration
-     * applies. By finding the interval to which the duration applies the amount
-     * of cycles for that interval can be calculated by dividing the interval time
-     * by the duration of the cycles.
+     * @notice  Calculates the current cycle by iterating through the cycle
+     * duration updates, which are stored as an array.
+     * Example:
+     *  updates -
+     *    [{ duration: 100, updatesAt: 1 },
+     *     { duration: 50, updatesAt: 5 },
+     *     { duration: 25, updatesAt: 9 }]
+     *  Based on these updates:
+     *   - Cycles 1 to 4 will have a duration of 100 seconds.
+     *   - Cycles 5 to 8 will have a duration of 50 seconds.
+     *   - Cycles 9 and onwards will have a duration of 25 seconds.
      *
-     * for exmaple
-     * [<------------ 200 ---------->] where each '|' represents a duration update
-     * [------|----------|--------|--] and each number a cycle/period interval (excluding 200)
-     * [<-60->|<-40->|<--80-->|<-20->]
-     * 0      60    100      180     -
+     * The function determines the current cycle and its duration by calculating
+     * the total time elapsed since the protocol started and iterating through
+     * the duration updates to find out how many cycles have occurred.
      *
-     * Duration (0 -> 60):    20    cycles = (60 - 0)    / 20 = 3
-     * Duration (60 -> 100):  10    cycles = (100 - 60)  / 10 = 4
-     * Duration (100 -> 180): 40    cycles = (180 - 100) / 40 = 2
+     * The process involves:
+     *  - Checking if the protocol has started.
+     *  - Calculating the total elapsed time since the protocol's start.
+     *  - Iterating through the cycle duration updates to count how many cycles
+     *    occurred with each duration.
+     *  - If the next update is scheduled for the future, processing only up to
+     *    the second to last update.
+     *  - Finally, computing the number of cycles at the current duration and
+     *    determining the start of the current cycle.
      *
-     * Duration (180 -> -):    5    totalCycles += (200 - 180) / 5  = 13 (where 5 is the current cycle durartion)
-     *                                                                   (where 200 is the totalTimeElapsed since start)
+     * @return Cycle The current cycle, its start time, and its duration.
      */
     function _getCurrentCycle() internal view returns (Cycle memory) {
         if (!hasProtocolStarted()) {
@@ -263,7 +276,10 @@ contract ProtocolTimeManager is
                 uint256 cyclesAtCurrentDuration = totalTimeElapsed / currentDuration;
                 cycles += cyclesAtCurrentDuration;
 
-                currentCycleStart = currentDurationStart + cyclesAtCurrentDuration * currentDuration;
+                currentCycleStart =
+                    currentDurationStart +
+                    cyclesAtCurrentDuration *
+                    currentDuration;
                 break;
             } else {
                 uint256 nextDurationUpdate = cycleDurationUpdates[cursor + 1].updatesAt;
@@ -290,14 +306,14 @@ contract ProtocolTimeManager is
     }
 
     /**
-     * @notice Calculates the current period number based on the elapsed time
-     * since the contract's start, taking into account any updates to the period duration.
-     * This function works by iterating over the period durations tracked by the
-     * periodDurationUpdates map and calculating the interval to which this duration
-     * applies. By finding the interval to which the duration applies the amount
-     * of periods for that interval can be calculated by dividing the interval time
-     * by the duration of the periods.
-     * refer to explaination above for funtionality
+     * @notice  Calculates the current period within the ongoing cycle. Periods are
+     * defined by a duration, and the function determines how many periods have
+     * elapsed within the current cycle.
+     *
+     * If the protocol has not started, the function reverts with an error. Otherwise,
+     * the current period is determined by dividing the total elapsed time within the
+     * ongoing cycle, by the current period duraiton.
+     * @return uint256 The current period within the ongoing cycle.
      */
     function _getCurrentPeriod() internal view returns (uint256) {
         if (!hasProtocolStarted()) {
@@ -326,26 +342,46 @@ contract ProtocolTimeManager is
             return cycleDurationUpdates[0].duration;
         }
 
-        CycleDurationUpdate storage lastUpdate = cycleDurationUpdates[cycleDurationUpdates.length - 1];
+        CycleDurationUpdate storage lastUpdate = cycleDurationUpdates[
+            cycleDurationUpdates.length - 1
+        ];
 
         // if the last update occurred before the current timestamp, then the
         // last update holds the current duration
         if (lastUpdate.updatesAt <= block.timestamp) {
             return lastUpdate.duration;
-        // else the duration has been updated for the next cycle, so the current
-        // cycle duration is defined in the previous update
+            // else the duration has been updated for the next cycle, so the current
+            // cycle duration is defined in the previous update
         } else {
             return cycleDurationUpdates[cycleDurationUpdates.length - 2].duration;
         }
     }
 
     /**
-     * @notice Get the period duration
+     * @notice Gets the current period duration
      */
     function getPeriodDuration() external view returns (uint256) {
         return _getPeriodDuration();
     }
 
+    /**
+     * @notice  Retrieves the current period duration. Period duration updates are stored as an array with each update specifying a
+     * new duration and the cycle at which the update takes effect.
+     *
+     * If the protocol has not started, the current duration is the duration of
+     * the first update.
+     *
+     * The function first checks if the protocol has started. If it has, it
+     * retrieves the current cycle using `_getCurrentCycle()`. It then determines
+     * the correct period duration based on the updates:
+     *
+     *  - If the last update occurred before or at the current cycle, the last
+     *    update holds the current duration.
+     *  - If the last update is scheduled for a future cycle, the current duration
+     *    is defined in the previous update.
+     *
+     * @return uint256 The current period duration.
+     */
     function _getPeriodDuration() internal view returns (uint256) {
         // if the protocol has not started, then the current duration is the
         // first update
@@ -355,14 +391,16 @@ contract ProtocolTimeManager is
 
         Cycle memory cycle = _getCurrentCycle();
 
-        PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[periodDurationUpdates.length - 1];
+        PeriodDurationUpdate storage lastUpdate = periodDurationUpdates[
+            periodDurationUpdates.length - 1
+        ];
 
         // if the last update occurred before the current cycle, then the
         // last update holds the current duration
         if (lastUpdate.updatesAt <= cycle.iteration) {
             return lastUpdate.duration;
-        // else the duration has been updated for the next cycle, so the current
-        // period duration is defined in the previous update
+            // else the duration has been updated for the next cycle, so the current
+            // period duration is defined in the previous update
         } else {
             return periodDurationUpdates[periodDurationUpdates.length - 2].duration;
         }
