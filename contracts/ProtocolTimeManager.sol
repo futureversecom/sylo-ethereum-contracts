@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "./IProtocolTimeManager.sol";
 
-import "hardhat/console.sol";
-
 contract ProtocolTimeManager is
     IProtocolTimeManager,
     Initializable,
