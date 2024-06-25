@@ -1,9 +1,13 @@
-import { ethers, network } from 'hardhat';
+import { ethers } from 'hardhat';
 import { SyloContracts } from '../common/contracts';
 import { expect, assert } from 'chai';
 import { deployContracts } from './utils';
 import { ProtocolTimeManager } from '../typechain-types';
 import { getInterfaceId } from './utils';
+import {
+  increase,
+  increaseTo,
+} from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
 
 describe.only('Protocol time manager', () => {
   let contracts: SyloContracts;
@@ -49,23 +53,22 @@ describe.only('Protocol time manager', () => {
       protocolTimeManager.setProtocolStart(0),
     ).to.be.revertedWithCustomError(
       protocolTimeManager,
-      'CannotSetProtocolStartWithZeroStart',
+      'CannotSetProtocolStartToZero',
     );
   });
 
   it('can set protocol start', async () => {
-    const latestBlock = await ethers.provider.getBlock('latest');
-    if (!latestBlock) {
-      expect.fail('timestamp undefeind');
-    }
-
     const start = await protocolTimeManager.getStart();
     assert.equal(Number(start), 0);
 
-    await protocolTimeManager.setProtocolStart(1000);
+    const block = await ethers.provider.getBlock('latest').then(b => {
+      if (!b) throw new Error('block undefined');
+      return b;
+    });
 
-    const newStart = await protocolTimeManager.getStart();
-    assert.equal(Number(newStart), latestBlock.timestamp + 1001);
+    const newStart = await setProtocolStartIn(100);
+
+    assert.equal(Number(newStart), block.timestamp + 100);
   });
 
   it('cannot set zero cycle duration', async () => {
@@ -77,23 +80,15 @@ describe.only('Protocol time manager', () => {
     );
   });
 
-  it('cannot set duplicate cycle duration', async () => {
-    await expect(
-      protocolTimeManager.setCycleDuration(1000),
-    ).to.be.revertedWithCustomError(
-      protocolTimeManager,
-      'CannotSetDuplicateCycleDuration',
-    );
-  });
-
-  it('can set cycle duration', async () => {
-    await protocolTimeManager.setProtocolStart(100);
-
-    await increaseTime(200);
-
+  it('can set cycle duration before protocol has started', async () => {
     await protocolTimeManager.setCycleDuration(2000);
 
-    await checkCycle(1);
+    await setProtocolStartIn(100);
+    await increase(101);
+
+    const cycleDuration = await protocolTimeManager.getCycleDuration();
+
+    await expect(cycleDuration).to.equal(2000n);
   });
 
   it('cannot set zero period duration', async () => {
@@ -105,371 +100,377 @@ describe.only('Protocol time manager', () => {
     );
   });
 
-  it('can set period duration', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+  it('can set period duration before protocol has started', async () => {
+    await protocolTimeManager.setPeriodDuration(500);
 
-    await increaseTime(200);
+    await setProtocolStartIn(100);
+    await increase(101);
 
-    await checkCycle(1);
+    const cycleDuration = await protocolTimeManager.getPeriodDuration();
 
-    await protocolTimeManager.setPeriodDuration(2000);
-
-    await increaseTime(1000);
-
-    await checkPeriod(2);
+    await expect(cycleDuration).to.equal(500n);
   });
 
-  it('Cannot get cycle without protocol start', async () => {
+  it('cannot get cycle without protocol start', async () => {
     await expect(protocolTimeManager.getCurrentCycle()).revertedWithCustomError(
       protocolTimeManager,
       'ProtocolHasNotBegun',
     );
   });
 
-  it('Cannot get period without protocol start', async () => {
+  it('cannot get period without protocol start', async () => {
     await expect(
       protocolTimeManager.getCurrentPeriod(),
     ).revertedWithCustomError(protocolTimeManager, 'ProtocolHasNotBegun');
   });
 
   it('returns one for first cycle', async () => {
-    await protocolTimeManager.setProtocolStart(100);
-
-    await increaseTime(500);
+    await startProtocol();
 
     await checkCycle(1);
   });
 
   it('can get current cycle without updated duration', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+    const { setTimeSinceStart } = await startProtocol();
 
-    await increaseTime(3500);
+    await setTimeSinceStart(3500);
 
     await checkCycle(4);
   });
 
   it('can get current cycle with one updated duration', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+    const { setTimeSinceStart } = await startProtocol();
 
-    // Timeline     -> 1000
-    // Timeline P   -> 900
-    // 100 (1) -> 1100
-    await increaseTime(1000);
+    /**
+     * 0 - C1
+     */
     await checkCycle(1);
 
-    // Timeline     -> 1500
-    // Timeline P   -> 1400
-    // 1100 (2) -> 2100
-    await increaseTime(500);
-    console.log('first check');
+    /**
+     * 0 - C1
+     * 1000 - C2
+     * 1000 - Current Timestamp
+     *
+     * Cycle 3 is expected to start at 2000.
+     */
+    await setTimeSinceStart(1000);
     await checkCycle(2);
 
+    /**
+     * 0 - C1
+     * 1000 - C2
+     * 1000 - Current Timestamp
+     * setCycleDuration(200)
+     *
+     * Cycle 3 is expected to start at 2000.
+     */
     await protocolTimeManager.setCycleDuration(200);
-
-    console.log('second check');
     await checkCycle(2);
 
-    // Timeline     -> 2500
-    // Timeline P   -> 2400
-    // 2100 (3) -> 2300
-    // 2300 (4) -> 2500
-    // 2500 (5) -> 2700
-    await increaseTime(1000);
-    await checkCycle(4);
+    /**
+     * 0 - C1
+     * 1000 - C2
+     * 1000 - Current Timestamp
+     * setCycleDuration(200)
+     * 2000 - C3
+     * 2200 - C4
+     * 2400 - C5
+     * 2600 - C6
+     * 2600 - Current Timestamp
+     */
+    await setTimeSinceStart(2600);
+    await checkCycle(6);
   });
 
   it('can get current cycle with multiple updated durations', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+    const { setTimeSinceStart } = await startProtocol();
 
-    await increaseTime(150);
-
+    /**
+     * 0 - C1
+     */
     await checkCycle(1);
 
-    await increaseTime(2850);
-
+    /**
+     * 0 - C1
+     * 1000 - C2
+     * 2000 - C3
+     *
+     * Cycle 4 is expected to start at 3000.
+     */
+    await setTimeSinceStart(2000);
     await checkCycle(3);
 
     await protocolTimeManager.setCycleDuration(200);
 
-    await increaseTime(1000);
-
-    await checkCycle(8);
+    /**
+     * 0 - C1
+     * 1000 - C2
+     * 2000 - C3
+     * setCycleDuration(200)
+     * 3000 - C4
+     * 3200 - C5
+     * 3400 - C6
+     * 3600 - C7
+     * 3800 - C8
+     * 4000 - C9
+     * 4200 - C10
+     * 4400 - C11
+     * 4600 - C12
+     * 4800 - C13
+     * 5000 - C14
+     * 5000 - Current Time
+     *
+     * Cycle 14 is expected to start at 5100.
+     */
+    await setTimeSinceStart(5000);
+    await checkCycle(14);
 
     await protocolTimeManager.setCycleDuration(125);
 
-    await increaseTime(2000);
-
-    await checkCycle(24);
+    /**
+     * 5000 - C14
+     * setCycleDuration(125)
+     * 5200 - C15
+     * 5325 - C16
+     * 5450 - C17
+     * 5575 - C18
+     * 5700 - C19
+     * 5825 - C20
+     * 5825 - Current Time
+     */
+    await setTimeSinceStart(5825);
+    await checkCycle(20);
 
     await protocolTimeManager.setCycleDuration(2);
 
-    await increaseTime(200);
-
-    await checkCycle(125);
+    /**
+     * 5825 - C20
+     * setCycleDuration(2)
+     * 5950 - C21
+     * 5952 - C22
+     * 5954 - C23
+     * 5956 - C24
+     * ...
+     * 6400 - C246
+     * 6400 - Current Time
+     */
+    await setTimeSinceStart(6400);
+    await checkCycle(246);
   });
 
-  it('cycle test one', async () => {
-    // Protocol start -> 800
-    // Timeline       -> 0
-    await protocolTimeManager.setProtocolStart(800);
+  it('can get current cycle with multiple duration updates within the same cycle', async () => {
+    const { setTimeSinceStart } = await startProtocol();
 
-    // Timeline       -> 500
-    // Timeline P     -> 0
-    await increaseTime(500);
+    // only the final duration update (777) should count
+    await protocolTimeManager.setCycleDuration(555);
+    await protocolTimeManager.setCycleDuration(666);
+    await protocolTimeManager.setCycleDuration(777);
 
-    await protocolTimeManager.setCycleDuration(150);
+    /**
+     * 0 - C1
+     * setCycleDuration(555);
+     * setCycleDuration(666);
+     * setCycleDuration(777);
+     * 1000 - C2
+     * 1777 - C3
+     * 1777 - Current Time
+     */
+    await setTimeSinceStart(1777);
+    await checkCycle(3);
 
-    // Timeline       -> 500
-    // Timeline P     -> 0
-
-    await expect(protocolTimeManager.getCurrentCycle()).revertedWithCustomError(
-      protocolTimeManager,
-      'ProtocolHasNotBegun',
-    );
-
-    // Timeline       -> 1000
-    // Timeline P     -> 200
-    // 800 (1) -> 950 (2) -> 1100
-    await increaseTime(500);
-    await checkCycle(2);
-    await checkCycle(2);
-
-    // Timeline       -> 1500
-    // Timeline P     -> 700
-    // 1100 (3) -> 1250 (4) -> 1400 (5) -> 1550
-    await increaseTime(500);
-    await checkCycle(5);
-
-    // CycleDuration  -> 50
-    // Timeline       -> 1500
-    // Timeline P     -> 700
-    await protocolTimeManager.setCycleDuration(50);
-
-    // Timeline       -> 1550
-    // Timeline P     -> 750
-    // 1550 (6) -> 1600
-    await increaseTime(50);
-    await checkCycle(6);
-
-    // Timeline       -> 1600
-    // Timeline P     -> 800
-    // 1600 (7) -> 1650
-    await increaseTime(50);
-    await checkCycle(7);
-
-    // Timeline       -> 1650
-    // Timeline P     -> 850
-    // 1650 (8) -> 1700
-    await increaseTime(50);
-    await checkCycle(8);
-
-    // Timeline       -> 1700
-    // Timeline P     -> 900
-    // 1700 (9) -> 1750
-    await increaseTime(50);
-    console.log('time since start ehrehrehe');
-    await checkCycle(9);
-
-    // CycleDuration  -> 850
-    // Timeline       -> 1700
-    // Timeline P     -> 900
-    await protocolTimeManager.setCycleDuration(850);
-
-    // Timeline       -> 1750
-    // Timeline P     -> 950
-    // 1750 (10) -> 2600)
-    await increaseTime(50);
-    console.log('time since start ehrehrehe two');
-    await checkCycle(10);
-
-    // Timeline       -> 4200
-    // Timeline P     -> 3400
-    // 2600 (11) -> 3450 (12) -> 4300
-    await increaseTime(2450);
-    await checkCycle(12);
-
-    await protocolTimeManager.setCycleDuration(75);
-
-    // Timeline       -> 4300
-    // Timeline P     -> 3500
-    // 4300 (13) -> 4375
-    await increaseTime(100);
-    console.log('chekcing 13z');
-    await checkCycle(13);
-
-    // Timeline       -> 5750
-    // Timeline P     -> 4950
-    // 4375 (14) -> 4450 (15) -> 4525 (16) -> 4600 (17)
-    // -> 4675 (18) -> 4750 (19) -> 4825 (20) -> 4900 (21)
-    // -> 4975 (22)
-    await increaseTime(1450);
-    await checkCycle(22);
+    /**
+     * 0 - C1
+     * setCycleDuration(555);
+     * setCycleDuration(666);
+     * setCycleDuration(777);
+     * 1000 - C2
+     * 1777 - C3
+     * 2564 - C4
+     * 2564 - Current Time
+     */
+    await setTimeSinceStart(2564);
+    await checkCycle(4);
   });
 
-  it('returns one for first period', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+  it('returns 0 for first period', async () => {
+    await startProtocol();
 
-    await increaseTime(500);
-
-    await checkPeriod(1);
+    await checkPeriod(0);
   });
 
   it('can get current period without updated duration', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+    const { setTimeSinceStart } = await startProtocol();
 
-    await increaseTime(3500);
-
-    await checkPeriod(4);
+    /**
+     * 0 - C1 : P0
+     * 100 - C1 : P1
+     * 200 - C1 : P2
+     * 300 - C1 : P3
+     * 400 - C1 : P4
+     * 500 - C1 : P5
+     */
+    await setTimeSinceStart(500);
+    await checkPeriod(5);
   });
 
   it('can get current period with one updated duration', async () => {
-    await protocolTimeManager.setProtocolStart(100);
+    const { setTimeSinceStart } = await startProtocol();
 
-    // Timeline     -> 1000
-    // Timeline P   -> 900
-    // 100 (1) -> 1100
-    await increaseTime(1000);
-    await checkPeriod(1);
+    /**
+     * 0 - C1 : P0
+     * ..
+     * 500 - C1 : P5
+     */
+    await setTimeSinceStart(500);
+    await checkPeriod(5);
 
-    // Timeline     -> 1500
-    // Timeline P   -> 1400
-    // 1100 (2) -> 2100
-    await increaseTime(500);
-    await checkPeriod(2);
-
+    // update to period duration will take effect next cycle
     await protocolTimeManager.setPeriodDuration(200);
 
-    // Timeline     -> 2600
-    // Timeline P   -> 2500
-    // 2100 (3) -> 2200
-    // 2200 (4) -> 2400
-    // 2400 (5) -> 2600
-    await increaseTime(1000);
-    await checkPeriod(5);
+    /**
+     * 1000 - C2 : P0
+     */
+    await setTimeSinceStart(1000);
+    await checkCycle(2);
+
+    /**
+     * 1000 - C2 : P0
+     * 1200 - C2 : P1
+     * 1400 - C2 : P2
+     * 1600 - C2 : P3
+     * 1800 - C2 : P4
+     * 1900 - Current Time
+     */
+    await setTimeSinceStart(1900);
+    await checkPeriod(4);
   });
 
   it('can get current period with multiple updated durations', async () => {
-    await protocolTimeManager.setProtocolStart(100);
-
-    await increaseTime(150);
-
-    await checkPeriod(1);
-
-    await increaseTime(2850);
-
-    await checkPeriod(3);
+    const { setTimeSinceStart } = await startProtocol();
 
     await protocolTimeManager.setPeriodDuration(200);
 
-    await increaseTime(1000);
+    await setTimeSinceStart(1000);
+    await checkPeriod(0);
 
-    await checkPeriod(8);
+    await setTimeSinceStart(1900);
+    await checkPeriod(4);
 
     await protocolTimeManager.setPeriodDuration(125);
 
-    await increaseTime(2000);
+    await setTimeSinceStart(2000);
+    // confirm we are back to the start of the next cycle
+    await checkPeriod(0);
 
-    await checkPeriod(24);
+    /**
+     * 2000 - C3 : P0
+     * 2125 - C3 : P1
+     * 2250 - C3 : P2
+     * 2375 - C3 : P3
+     * 2500 - C3 : P4
+     * 2625 - C3 : P5
+     * 2700 - Current Time
+     */
+    await setTimeSinceStart(2700);
+    await checkPeriod(5);
 
     await protocolTimeManager.setPeriodDuration(2);
 
-    await increaseTime(200);
+    await setTimeSinceStart(3000);
+    await checkPeriod(0);
 
-    await checkPeriod(125);
+    /**
+     * 3000 - C4 : P0
+     * 3002 - C4 : P1
+     * 3004 - C4 : P2
+     * ..
+     * 3600 - C4 : P300
+     */
+    await setTimeSinceStart(3600);
+    await checkPeriod(300);
   });
 
-  it('period test one', async () => {
-    // Protocol start -> 800
-    // Timeline       -> 0
-    await protocolTimeManager.setProtocolStart(800);
+  it('can get current period with multiple duration updates in the same cycle', async () => {
+    const { setTimeSinceStart } = await startProtocol();
 
-    // Timeline       -> 500
-    // Timeline P     -> 0
-    await increaseTime(500);
+    // only the last period duration update will take effect
+    await protocolTimeManager.setPeriodDuration(200);
+    await protocolTimeManager.setPeriodDuration(233);
+    await protocolTimeManager.setPeriodDuration(333);
 
-    await protocolTimeManager.setPeriodDuration(150);
+    await setTimeSinceStart(1000);
+    await checkCycle(2);
+    await checkPeriod(0);
 
-    // Timeline       -> 500
-    // Timeline P     -> 0
+    /**
+     * 1000 - C2 : P0
+     * 1333 - C2 : P1
+     * 1666 - C2 : P2
+     * 1999 - C2 : P3
+     */
+    await setTimeSinceStart(1999);
+    await checkPeriod(3);
+  });
 
-    await expect(
-      protocolTimeManager.getCurrentPeriod(),
-    ).revertedWithCustomError(protocolTimeManager, 'ProtocolHasNotBegun');
+  it('cannot get current time if protocol not started', async () => {
+    await expect(protocolTimeManager.getTime()).revertedWithCustomError(
+      protocolTimeManager,
+      'ProtocolHasNotBegun',
+    );
+  });
 
-    // Timeline       -> 1000
-    // Timeline P     -> 200
-    // 800 (1) -> 950 (2) -> 1100
-    await increaseTime(500);
-    await checkPeriod(2);
-    await checkPeriod(2);
+  it('can get current time', async () => {
+    const { setTimeSinceStart } = await startProtocol();
 
-    // Timeline       -> 1500
-    // Timeline P     -> 700
-    // 1100 (3) -> 1250 (4) -> 1400 (5) -> 1550
-    await increaseTime(500);
-    await checkPeriod(5);
+    /**
+     * 0 - C1 : P0
+     */
+    await checkTime(1, 0);
 
-    // CycleDuration  -> 50
-    // Timeline       -> 1500
-    // Timeline P     -> 700
-    await protocolTimeManager.setPeriodDuration(50);
+    /**
+     * 0 - C1 : P0
+     * 100 - C1 : P1
+     * ...
+     * 600 - C1 : P7
+     */
+    await setTimeSinceStart(600);
+    await checkTime(1, 7);
 
-    // Timeline       -> 1550
-    // Timeline P     -> 750
-    // 1550 (6) -> 1600
-    await increaseTime(50);
-    await checkPeriod(6);
+    /**
+     * 3000 - C4 : P0
+     * 3100 - C4 : P1
+     * ..
+     * 3400 - C4 : P5
+     */
+    await setTimeSinceStart(3400);
+    await checkTime(4, 5);
+  });
 
-    // Timeline       -> 1600
-    // Timeline P     -> 800
-    // 1600 (7) -> 1650
-    await increaseTime(50);
-    await checkPeriod(7);
+  it.only('can get current time when durations have been updated', async () => {
+    const { setTimeSinceStart } = await startProtocol();
 
-    // Timeline       -> 1650
-    // Timeline P     -> 850
-    // 1650 (8) -> 1700
-    await increaseTime(50);
-    await checkPeriod(8);
+    /**
+     * 0 - C1 : P0
+     */
+    await checkTime(1, 0);
 
-    // Timeline       -> 1700
-    // Timeline P     -> 900
-    // 1700 (9) -> 1750
-    await increaseTime(50);
-    await checkPeriod(9);
+    await protocolTimeManager.setCycleDuration(500);
+    await protocolTimeManager.setPeriodDuration(25);
 
-    // CycleDuration  -> 850
-    // Timeline       -> 1700
-    // Timeline P     -> 900
-    await protocolTimeManager.setPeriodDuration(850);
+    /**
+     * setCycleDuration(500)
+     * setPeriodDuration(25)
+     * 1000 - C2 : P0
+     * 1025 - C2 : P1
+     * 1050 - C2 : P2
+     * ...
+     * 1450 - C2 : P18
+     */
+    await setTimeSinceStart(1450);
+    await checkTime(2, 18);
 
-    // Timeline       -> 1750
-    // Timeline P     -> 950
-    // 1750 (10) -> 2600)
-    await increaseTime(50);
-    await checkPeriod(10);
-
-    // Timeline       -> 4200
-    // Timeline P     -> 3400
-    // 2600 (11) -> 3450 (12) -> 4300
-    await increaseTime(2450);
-    await checkPeriod(12);
-
-    await protocolTimeManager.setPeriodDuration(75);
-
-    // Timeline       -> 4300
-    // Timeline P     -> 3500
-    // 4300 (13) -> 4375
-    await increaseTime(100);
-    await checkPeriod(13);
-
-    // Timeline       -> 5750
-    // Timeline P     -> 4950
-    // 4375 (14) -> 4450 (15) -> 4525 (16) -> 4600 (17)
-    // -> 4675 (18) -> 4750 (19) -> 4825 (20) -> 4900 (21)
-    // -> 4975 (22)
-    await increaseTime(1450);
-    await checkPeriod(22);
+    await setTimeSinceStart(1500);
+    await checkTime(3, 0);
   });
 
   it('supports only protocol time manager interface', async () => {
@@ -479,7 +480,7 @@ describe.only('Protocol time manager', () => {
       'function setPeriodDuration(uint256 duration) external',
       'function getCycleDuration() external returns (uint256)',
       'function getPeriodDuration() external returns (uint256)',
-      'function timeNow() external returns (uint256, uint256)',
+      'function getTime() external returns (uint256, uint256)',
       'function getCurrentCycle() external returns (uint256)',
       'function getCurrentPeriod() external returns (uint256)',
       'function getStart() external view returns (uint256)',
@@ -510,9 +511,24 @@ describe.only('Protocol time manager', () => {
     );
   });
 
-  async function increaseTime(time: number) {
-    await network.provider.send('evm_increaseTime', [time]);
-    await network.provider.send('evm_mine');
+  async function setProtocolStartIn(time: number): Promise<number> {
+    const block = await ethers.provider.getBlock('latest').then(b => {
+      if (!b) throw new Error('block undefined');
+      return b;
+    });
+
+    await protocolTimeManager.setProtocolStart(block.timestamp + time);
+
+    return protocolTimeManager.getStart().then(Number);
+  }
+
+  async function startProtocol() {
+    const start = await setProtocolStartIn(100);
+    await increaseTo(start);
+    const setTimeSinceStart = async (time: number) => {
+      return increaseTo(start + time);
+    };
+    return { start, setTimeSinceStart };
   }
 
   async function checkCycle(cycle: number) {
@@ -522,6 +538,12 @@ describe.only('Protocol time manager', () => {
 
   async function checkPeriod(period: number) {
     const currentPeriod = await protocolTimeManager.getCurrentPeriod();
+    assert.equal(Number(currentPeriod), period);
+  }
+
+  async function checkTime(cycle: number, period: number) {
+    const [currentCycle, currentPeriod] = await protocolTimeManager.getTime();
+    assert.equal(Number(currentCycle), cycle);
     assert.equal(Number(currentPeriod), period);
   }
 });

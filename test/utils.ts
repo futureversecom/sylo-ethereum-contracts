@@ -53,7 +53,7 @@ export async function deployContracts(
   };
   const protocolTimeManagerOpts = {
     cycleDuration: opts.protocolTimeManager?.cycleDuration ?? 1000,
-    periodDuration: opts.protocolTimeManager?.periodDuration ?? 1000,
+    periodDuration: opts.protocolTimeManager?.periodDuration ?? 100,
   };
 
   // Initliaze
