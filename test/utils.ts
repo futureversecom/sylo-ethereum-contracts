@@ -9,44 +9,52 @@ export type DeploymentOptions = {
   seekerStatsOralce?: {
     oracleAccount?: Address;
   };
+  protocolTimeManager?: {
+    cycleDuration?: number;
+    periodDuration?: number;
+  };
 };
 
 export async function deployContracts(
   opts: DeploymentOptions = {},
 ): Promise<SyloContracts> {
-  // Sylo Token
-  const SyloTokenFactory = await ethers.getContractFactory('SyloToken');
-  const syloToken = await SyloTokenFactory.deploy();
+  // Factories
+  const syloTokenFactory = await ethers.getContractFactory('SyloToken');
+  const syloStakingManagerFactory = await ethers.getContractFactory(
+    'SyloStakingManager',
+  );
+  const seekerStatsOracleFactory = await ethers.getContractFactory(
+    'SeekerStatsOracle',
+  );
+  const seekerStakingManagerFactor = await ethers.getContractFactory(
+    'SeekerStakingManager',
+  );
+  const seekersFactory = await ethers.getContractFactory('TestSeekers');
+  const protocolTimeManagerFactory = await ethers.getContractFactory(
+    'ProtocolTimeManager',
+  );
 
-  // Sylo Staking Manager
+  // Deploy
+  const syloToken = await syloTokenFactory.deploy();
+  const syloStakingManager = await syloStakingManagerFactory.deploy();
+  const seekerStatsOracle = await seekerStatsOracleFactory.deploy();
+  const seekers = await seekersFactory.deploy();
+  const seekerStakingManager = await seekerStakingManagerFactor.deploy();
+  const protocolTimeManager = await protocolTimeManagerFactory.deploy();
+
+  // Options
   const syloStakingManagerOpts = {
     unlockDuration: opts.syloStakingManager?.unlockDuration ?? 10,
   };
-  const SyloStakingManagerFactory = await ethers.getContractFactory(
-    'SyloStakingManager',
-  );
-  const syloStakingManager = await SyloStakingManagerFactory.deploy();
-
-  // Seeker Stats Oracle
   const seekerStatsOracleOpts = {
     oracleAccount:
       opts.seekerStatsOralce?.oracleAccount ??
       '0xd9D6945dfe8c1C7aFaFcDF8bf1D1c5beDfeccABF',
   };
-  const seekerStatsOracleFactory = await ethers.getContractFactory(
-    'SeekerStatsOracle',
-  );
-  const seekerStatsOracle = await seekerStatsOracleFactory.deploy();
-
-  // Seekers
-  const SeekersFactory = await ethers.getContractFactory('TestSeekers');
-  const seekers = await SeekersFactory.deploy();
-
-  // Seeker Staking Manager
-  const seekerStakingManagerFactor = await ethers.getContractFactory(
-    'SeekerStakingManager',
-  );
-  const seekerStakingManager = await seekerStakingManagerFactor.deploy();
+  const protocolTimeManagerOpts = {
+    cycleDuration: opts.protocolTimeManager?.cycleDuration ?? 1000,
+    periodDuration: opts.protocolTimeManager?.periodDuration ?? 100,
+  };
 
   // Initliaze
   await syloStakingManager.initialize(
@@ -58,6 +66,10 @@ export async function deployContracts(
     await seekers.getAddress(),
     await seekerStatsOracle.getAddress(),
   );
+  await protocolTimeManager.initialize(
+    protocolTimeManagerOpts.cycleDuration,
+    protocolTimeManagerOpts.periodDuration,
+  );
 
   return {
     syloToken,
@@ -65,6 +77,7 @@ export async function deployContracts(
     seekerStatsOracle,
     seekerStakingManager,
     seekers,
+    protocolTimeManager,
   };
 }
 
