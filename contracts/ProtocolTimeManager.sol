@@ -254,9 +254,9 @@ contract ProtocolTimeManager is
 
         uint256 lastUpdateToProcess = 0;
 
-        // We need to process up to the most previous cycle duration update.
-        // However, if the next cycle's duration has been updated, then we
-        // should only process up to the second to last update.
+        // We need to process up to the most recent cycle duration update.
+        // However, if the cycle's duration for the proceeding cycle has been
+        // updated, then we should only process up to the second to last update.
         if (cycleDurationUpdates[cycleDurationUpdates.length - 1].updatesAt > block.timestamp) {
             lastUpdateToProcess = cycleDurationUpdates.length - 1;
         } else {

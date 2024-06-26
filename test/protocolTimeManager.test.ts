@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat';
+import { Signer } from 'ethers';
 import { SyloContracts } from '../common/contracts';
 import { expect, assert } from 'chai';
 import { deployContracts } from './utils';
@@ -128,12 +129,12 @@ describe('Protocol time manager', () => {
 
     const cycleDuration = await protocolTimeManager.getCycleDuration();
 
-    await expect(cycleDuration).to.equal(2000n);
+    expect(cycleDuration).to.equal(2000n);
   });
 
   it('can get cycle duration before protocol has started', async () => {
     const cycleDuration = await protocolTimeManager.getCycleDuration();
-    await expect(cycleDuration).to.equal(1000n);
+    expect(cycleDuration).to.equal(1000n);
   });
 
   it('cannot set zero period duration', async () => {
@@ -151,14 +152,14 @@ describe('Protocol time manager', () => {
     await setProtocolStartIn(100);
     await increase(101);
 
-    const cycleDuration = await protocolTimeManager.getPeriodDuration();
+    const periodDuration = await protocolTimeManager.getPeriodDuration();
 
-    await expect(cycleDuration).to.equal(500n);
+    expect(periodDuration).to.equal(500n);
   });
 
   it('can get period duration before protocol has started', async () => {
     const periodDuration = await protocolTimeManager.getPeriodDuration();
-    await expect(periodDuration).to.equal(100n);
+    expect(periodDuration).to.equal(100n);
   });
 
   it('cannot get cycle without protocol start', async () => {
@@ -343,13 +344,19 @@ describe('Protocol time manager', () => {
   });
 
   it('cycle duration updates only take effect for the next cycle', async () => {
-    await startProtocol();
+    const { setTimeSinceStart } = await startProtocol();
 
     await protocolTimeManager.setCycleDuration(333);
 
     const duration = await protocolTimeManager.getCycleDuration();
 
     assert.equal(Number(duration), 1000);
+
+    await setTimeSinceStart(1500);
+
+    const durationAfter = await protocolTimeManager.getCycleDuration();
+
+    assert.equal(Number(durationAfter), 333);
   });
 
   it('returns 0 for first period', async () => {
@@ -473,13 +480,19 @@ describe('Protocol time manager', () => {
   });
 
   it('period duration updates only take effect for the next cycle', async () => {
-    await startProtocol();
+    const { setTimeSinceStart } = await startProtocol();
 
     await protocolTimeManager.setPeriodDuration(333);
 
     const duration = await protocolTimeManager.getPeriodDuration();
 
     assert.equal(Number(duration), 100);
+
+    await setTimeSinceStart(1000);
+
+    const durationAfter = await protocolTimeManager.getPeriodDuration();
+
+    assert.equal(Number(durationAfter), 333);
   });
 
   it('cannot get current time if protocol not started', async () => {
