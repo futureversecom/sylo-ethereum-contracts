@@ -1,10 +1,9 @@
 import { ethers } from 'hardhat';
-import { SyloContracts } from '../common/contracts';
-import { deployContracts } from './utils';
+import { SyloContracts } from '../../common/contracts';
+import { deployContracts, getInterfaceId } from '../utils';
 import { Signer } from 'ethers';
 import { expect, assert } from 'chai';
-import { Registries, RewardsManager, Ticketing } from '../typechain-types';
-import { getInterfaceId } from './utils';
+import { Registries, RewardsManager, Ticketing } from '../../typechain-types';
 
 describe('Rewards Manager', () => {
   let accounts: Signer[];
@@ -113,23 +112,19 @@ describe('Rewards Manager', () => {
   });
 
   it('can increment reward pool with zero node commission', async () => {
-    const { newRewardsManager, newTicketing } = await initialiseContracts();
-    await checkInitialRewardPoolState(newRewardsManager);
+    await registries.setDefaultPayoutPercentage(0);
 
-    await newTicketing.testerIncrementRewardPool(
-      await node1.getAddress(),
-      0,
-      100,
-    );
+    await checkInitialRewardPoolState(rewardsManager);
 
-    const rewardPool = await newRewardsManager.getRewardPool(
+    await ticketing.testerIncrementRewardPool(await node1.getAddress(), 0, 100);
+
+    const rewardPool = await rewardsManager.getRewardPool(
       await node1.getAddress(),
       0,
     );
-    const unclaimedCommission =
-      await newRewardsManager.getUnclaimedNodeCommission(
-        await node1.getAddress(),
-      );
+    const unclaimedCommission = await rewardsManager.getUnclaimedNodeCommission(
+      await node1.getAddress(),
+    );
 
     assert.equal(Number(rewardPool), 0);
     assert.equal(Number(unclaimedCommission), 100);
@@ -201,52 +196,32 @@ describe('Rewards Manager', () => {
   });
 
   it('can increment reward pool with different node commissions', async () => {
-    const { newRewardsManager, newRegistries, newTicketing } =
-      await initialiseContracts();
-    await checkInitialRewardPoolState(newRewardsManager);
+    await registries.setDefaultPayoutPercentage(0);
 
-    await newTicketing.testerIncrementRewardPool(
-      await node1.getAddress(),
-      0,
-      100,
-    );
-    await newTicketing.testerIncrementRewardPool(
-      await node2.getAddress(),
-      0,
-      300,
-    );
+    await checkInitialRewardPoolState(rewardsManager);
 
-    await newRegistries.setDefaultPayoutPercentage(10000);
+    await ticketing.testerIncrementRewardPool(await node1.getAddress(), 0, 100);
+    await ticketing.testerIncrementRewardPool(await node2.getAddress(), 0, 300);
 
-    await newTicketing.testerIncrementRewardPool(
-      await node1.getAddress(),
-      1,
-      200,
-    );
-    await newTicketing.testerIncrementRewardPool(
-      await node2.getAddress(),
-      1,
-      500,
-    );
+    await registries.setDefaultPayoutPercentage(10000);
 
-    const rewardPoolNode1 = await newRewardsManager.getRewardPools(
+    await ticketing.testerIncrementRewardPool(await node1.getAddress(), 1, 200);
+    await ticketing.testerIncrementRewardPool(await node2.getAddress(), 1, 500);
+
+    const rewardPoolNode1 = await rewardsManager.getRewardPools(
       await node1.getAddress(),
       [0, 1],
     );
 
-    const rewardPoolNode2 = await newRewardsManager.getRewardPools(
+    const rewardPoolNode2 = await rewardsManager.getRewardPools(
       await node2.getAddress(),
       [0, 1],
     );
 
     const unclaimedNode1Commission =
-      await newRewardsManager.getUnclaimedNodeCommission(
-        await node1.getAddress(),
-      );
+      await rewardsManager.getUnclaimedNodeCommission(await node1.getAddress());
     const unclaimedNode2Commission =
-      await newRewardsManager.getUnclaimedNodeCommission(
-        await node2.getAddress(),
-      );
+      await rewardsManager.getUnclaimedNodeCommission(await node2.getAddress());
 
     assert.equal(Number(rewardPoolNode1[0]), 0);
     assert.equal(Number(rewardPoolNode1[1]), 20);
@@ -318,30 +293,5 @@ describe('Rewards Manager', () => {
       0,
       'expected initial reward pool amount to be zero',
     );
-  }
-
-  async function initialiseContracts(): Promise<{
-    newRewardsManager: RewardsManager;
-    newRegistries: Registries;
-    newTicketing: Ticketing;
-  }> {
-    const rewardsManagerFactory = await ethers.getContractFactory(
-      'RewardsManager',
-    );
-    const registriesFactory = await ethers.getContractFactory('Registries');
-    const ticketingFactory = await ethers.getContractFactory('Ticketing');
-
-    const newRewardsManager = await rewardsManagerFactory.deploy();
-    const newRegistries = await registriesFactory.deploy();
-    const newTicketing = await ticketingFactory.deploy();
-
-    await newRegistries.initialize(0);
-    await newTicketing.initialize(await newRewardsManager.getAddress());
-    await newRewardsManager.initialize(
-      newRegistries,
-      await newTicketing.getAddress(),
-    );
-
-    return { newRewardsManager, newRegistries, newTicketing };
   }
 });
