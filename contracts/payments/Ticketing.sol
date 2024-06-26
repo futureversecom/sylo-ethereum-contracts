@@ -16,13 +16,14 @@ import "./IRewardsManager.sol";
 import "../IRegistries.sol";
 import "../IAuthorizedAccounts.sol";
 import "../IFuturepassRegistrar.sol";
+import "../staking/sylo/ISyloStakingManager.sol";
 
 /**
  * @notice The SyloTicketing contract manages the Probabilistic
  * Micro-Payment Ticketing system that pays Nodes for providing the
  * Event Relay service.
  */
-contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 {
+contract Ticketing is ITicketing, Initializable, Ownable2StepUpgradeable, ERC165 {
     /** ERC20 Sylo token contract.*/
     IERC20 public _token;
 
@@ -30,7 +31,7 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
     IRegistries public _registries;
 
     /** Sylo Staking Manager contract */
-    IStakingManager public _stakingManager;
+    ISyloStakingManager public _stakingManager;
 
     /** Rewards Manager contract */
     IRewardsManager public _rewardsManager;
@@ -43,7 +44,7 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
     /**
      * @notice Futurepass Registrar Pre-compile.
      */
-    IFuturePassRegistrar public _futurepassRegistrar;
+    IFuturepassRegistrar public _futurepassRegistrar;
 
     /**
      * @notice The number of blocks a user must wait after calling "unlock"
@@ -104,13 +105,11 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
 
     function initialize(
         IERC20 token,
-        Registries registries,
-        StakingManager stakingManager,
-        Directory directory,
-        EpochsManager epochsManager,
-        RewardsManager rewardsManager,
-        AuthorizedAccounts authorizedAccounts,
-        IFuturePassRegistrar futurepassRegistrar,
+        IRegistries registries,
+        ISyloStakingManager stakingManager,
+        IRewardsManager rewardsManager,
+        IAuthorizedAccounts authorizedAccounts,
+        IFuturepassRegistrar futurepassRegistrar,
         uint256 _unlockDuration
     ) external initializer {
         if (address(token) == address(0)) {
@@ -124,21 +123,9 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
         );
 
         SyloUtils.validateContractInterface(
-            "StakingManager",
+            "SyloStakingManager",
             address(stakingManager),
-            type(IStakingManager).interfaceId
-        );
-
-        SyloUtils.validateContractInterface(
-            "Directory",
-            address(directory),
-            type(IDirectory).interfaceId
-        );
-
-        SyloUtils.validateContractInterface(
-            "EpochsManager",
-            address(epochsManager),
-            type(IEpochsManager).interfaceId
+            type(ISyloStakingManager).interfaceId
         );
 
         SyloUtils.validateContractInterface(
@@ -162,8 +149,6 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
         _token = token;
         _registries = registries;
         _stakingManager = stakingManager;
-        _directory = directory;
-        _epochsManager = epochsManager;
         _rewardsManager = rewardsManager;
         _authorizedAccounts = authorizedAccounts;
         _futurepassRegistrar = futurepassRegistrar;
@@ -176,7 +161,7 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
      * `interfaceId` from ERC165.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(ISyloTicketing).interfaceId;
+        return interfaceId == type(ITicketing).interfaceId;
     }
 
     /**
@@ -327,7 +312,6 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
         UserSignature calldata senderSig,
         UserSignature calldata receiverSig
     ) external {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
         }
@@ -339,17 +323,9 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
             receiverSig
         );
 
-        uint256 directoryStake = _directory.getTotalStakeForStakee(
-            ticket.epochId,
-            ticket.redeemer
-        );
-        if (directoryStake == 0) {
-            revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
-        }
-
         usedTickets[ticketHash] = true;
 
-        _redeem(epoch, ticket);
+        _redeem(1 /* TODO */, ticket);
     }
 
     /**
@@ -375,7 +351,6 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
         UserSignature calldata senderSig,
         UserSignature calldata receiverSig
     ) external {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(ticket.epochId);
         if (ticket.generationBlock > block.number) {
             revert TicketCannotBeFromFutureBlock();
         }
@@ -388,21 +363,13 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
             receiverSig
         );
 
-        uint256 directoryStake = _directory.getTotalStakeForStakee(
-            ticket.epochId,
-            ticket.redeemer
-        );
-        if (directoryStake == 0) {
-            revert RedeemerMustHaveJoinedEpoch(ticket.epochId);
-        }
-
         usedTickets[ticketReceiverHash] = true;
 
-        _redeemMultiReceiver(epoch, ticket, receiver);
+        _redeemMultiReceiver(1 /* TODO */, ticket, receiver);
     }
 
-    function _redeem(EpochsManager.Epoch memory epoch, Ticket calldata ticket) internal {
-        uint256 rewardAmount = rewardRedeemer(epoch.faceValue, ticket.sender, ticket.redeemer);
+    function _redeem(uint256 faceValue, Ticket calldata ticket) internal {
+        uint256 rewardAmount = rewardRedeemer(faceValue, ticket.sender, ticket.redeemer);
 
         emit Redemption(
             ticket.epochId,
@@ -415,12 +382,12 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
     }
 
     function _redeemMultiReceiver(
-        EpochsManager.Epoch memory epoch,
+        uint256 multiReceiverFaceValue,
         MultiReceiverTicket calldata ticket,
         address receiver
     ) internal {
         uint256 rewardAmount = rewardRedeemer(
-            epoch.multiReceiverFaceValue,
+            multiReceiverFaceValue,
             ticket.sender,
             ticket.redeemer
         );
@@ -699,36 +666,40 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
         uint256 epochId,
         uint256 generationBlock
     ) public view returns (uint128) {
-        EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
-        if (epoch.startBlock == 0) {
-            revert TicketEpochNotFound();
-        }
+        // EpochsManager.Epoch memory epoch = _epochsManager.getEpoch(epochId);
+        // if (epoch.startBlock == 0) {
+        //     revert TicketEpochNotFound();
+        // }
 
-        if (
-            generationBlock < epoch.startBlock ||
-            (epoch.endBlock > 0 && generationBlock >= epoch.endBlock)
-        ) {
-            revert TicketNotCreatedInTheEpoch();
-        }
+        // if (
+        //     generationBlock < epoch.startBlock ||
+        //     (epoch.endBlock > 0 && generationBlock >= epoch.endBlock)
+        // ) {
+        //     revert TicketNotCreatedInTheEpoch();
+        // }
 
         uint256 elapsedDuration = block.number - generationBlock;
 
+        uint128 baseLiveWinProb = 1;
+        uint256 ticketDuration = 1;
+        uint32 decayRate = 1;
+
         // Ticket has completely expired
-        if (elapsedDuration >= epoch.ticketDuration) {
+        if (elapsedDuration >= ticketDuration) {
             return 0;
         }
 
-        uint256 maxDecayValue = SyloUtils.percOf(epoch.baseLiveWinProb, epoch.decayRate);
+        uint256 maxDecayValue = SyloUtils.percOf(baseLiveWinProb, decayRate);
 
         // determine the amount of probability that has actually decayed
         // by multiplying the maximum decay value against ratio of the tickets elapsed duration
         // vs the actual ticket duration. The max decay value is calculated from a fraction of a
         // uint128 value so we cannot phantom overflow here
-        uint256 decayedProbability = (maxDecayValue * elapsedDuration) / epoch.ticketDuration;
+        uint256 decayedProbability = (maxDecayValue * elapsedDuration) / ticketDuration;
 
         // calculate the remaining probability by subtracting the decayed probability
         // from the base
-        return epoch.baseLiveWinProb - SafeCast.toUint128(decayedProbability);
+        return baseLiveWinProb - SafeCast.toUint128(decayedProbability);
     }
 
     /**
@@ -778,10 +749,10 @@ contract Ticketing is ITickting, Initializable, Ownable2StepUpgradeable, ERC165 
         deposit.escrow = deposit.escrow - amount;
 
         SafeERC20.safeTransfer(_token, address(_rewardsManager), amount);
-        _rewardsManager.incrementRewardPool(stakee, amount);
+        _rewardsManager.incrementRewardPool(stakee, 0 /* TODO */, amount);
     }
 
     function testerIncrementRewardPool(address node, uint256 cycle, uint256 amount) external {
-        rewardsManager.incrementRewardPool(node, cycle, amount);
+        _rewardsManager.incrementRewardPool(node, cycle, amount);
     }
 }
