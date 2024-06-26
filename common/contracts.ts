@@ -30,8 +30,9 @@ export type SyloContracts = {
   protocolTimeManager: factories.contracts.ProtocolTimeManager;
   registries: factories.contracts.Registries;
   authorizedAccounts: factories.contracts.AuthorizedAccounts;
-  rewardsManager: factories.contracts.RewardsManager;
-  ticketing: factories.contracts.Ticketing;
+  rewardsManager: factories.contracts.payments.RewardsManager;
+  deposits: factories.contracts.payments.Deposits;
+  ticketing: factories.contracts.payments.Ticketing;
 };
 
 export type ContractAddresses = {
@@ -43,8 +44,9 @@ export type ContractAddresses = {
   protocolTimeManager: string;
   registries: string;
   authorizedAccounts: string;
-  rewardsManager: string;
+  deposits: string;
   ticketing: string;
+  rewardsManager: string;
 };
 
 export function connectContracts(
@@ -91,13 +93,18 @@ export function connectContracts(
     provider,
   );
 
-  const rewardsManager = factories.RewardsManager__factory.connect(
-    contracts.rewardsManager,
+  const deposits = factories.Deposits__factory.connect(
+    contracts.ticketing,
     provider,
   );
 
   const ticketing = factories.Ticketing__factory.connect(
     contracts.ticketing,
+    provider,
+  );
+
+  const rewardsManager = factories.RewardsManager__factory.connect(
+    contracts.rewardsManager,
     provider,
   );
 
@@ -110,7 +117,8 @@ export function connectContracts(
     protocolTimeManager,
     registries,
     authorizedAccounts,
-    rewardsManager,
+    deposits,
     ticketing,
+    rewardsManager,
   };
 }
