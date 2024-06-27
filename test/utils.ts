@@ -2,6 +2,8 @@ import { ethers } from 'hardhat';
 import { SyloContracts } from '../common/contracts';
 import { Address } from 'hardhat-deploy/types';
 
+export const MAX_SYLO = 10_000_000_000n * 10n ** 18n;
+
 export type DeploymentOptions = {
   syloStakingManager?: {
     unlockDuration?: number;
@@ -160,6 +162,7 @@ export async function deployContracts(
     protocolTimeManager,
     registries,
     authorizedAccounts,
+    deposits,
     rewardsManager,
     ticketing,
   };
@@ -183,4 +186,14 @@ export function getInterfaceId(abi: string[]): string {
   }, '0x00000000');
 
   return interfaceId;
+}
+
+export async function getBlockNumber(): Promise<number> {
+  const block = await ethers.provider.getBlock('latest');
+
+  if (!block) {
+    throw new Error('failed to get latest block');
+  }
+
+  return block.number;
 }
