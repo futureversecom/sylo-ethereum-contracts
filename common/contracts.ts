@@ -10,6 +10,12 @@ export const DeployedContractNames = {
   seekerStatsOracle: 'SeekerStatsOracle',
   seekerStakingManager: 'SeekerStakingManager',
   protocolTimeManager: 'ProtocolTimeManager',
+  registries: 'Registries',
+  authorizedAccounts: 'AuthorizedAccounts',
+  rewardsManager: 'RewardsManager',
+  ticketing: 'Ticketing',
+  stakingOrchestrator: 'StakingOrchestrator',
+  direcrory: 'Directory',
 };
 
 export const ContractNames = {
@@ -24,6 +30,12 @@ export type SyloContracts = {
   seekerStakingManager: factories.contracts.staking.seekers.SeekerStakingManager;
   seekers: factories.contracts.mocks.TestSeekers;
   protocolTimeManager: factories.contracts.ProtocolTimeManager;
+  registries: factories.contracts.Registries;
+  authorizedAccounts: factories.contracts.AuthorizedAccounts;
+  rewardsManager: factories.contracts.RewardsManager;
+  ticketing: factories.contracts.Ticketing;
+  stakingOrchestrator: factories.contracts.staking.StakingOrchestrator;
+  directory: factories.contracts.Directory;
 };
 
 export type ContractAddresses = {
@@ -33,6 +45,12 @@ export type ContractAddresses = {
   seekerStakingManager: string;
   seekers: string;
   protocolTimeManager: string;
+  registries: string;
+  authorizedAccounts: string;
+  rewardsManager: string;
+  ticketing: string;
+  stakingOrchestator: string;
+  directory: string;
 };
 
 export function connectContracts(
@@ -69,6 +87,36 @@ export function connectContracts(
     provider,
   );
 
+  const registries = factories.Registries__factory.connect(
+    contracts.registries,
+    provider,
+  );
+
+  const authorizedAccounts = factories.AuthorizedAccounts__factory.connect(
+    contracts.authorizedAccounts,
+    provider,
+  );
+
+  const rewardsManager = factories.RewardsManager__factory.connect(
+    contracts.rewardsManager,
+    provider,
+  );
+
+  const ticketing = factories.Ticketing__factory.connect(
+    contracts.ticketing,
+    provider,
+  );
+
+  const stakingOrchestrator = factories.StakingOrchestrator__factory.connect(
+    contracts.stakingOrchestator,
+    provider,
+  );
+
+  const directory = factories.Directory__factory.connect(
+    contracts.directory,
+    provider,
+  );
+
   return {
     syloToken,
     syloStakingManager,
@@ -76,5 +124,11 @@ export function connectContracts(
     seekerStakingManager,
     seekers,
     protocolTimeManager,
+    registries,
+    authorizedAccounts,
+    rewardsManager,
+    ticketing,
+    stakingOrchestrator,
+    directory,
   };
 }

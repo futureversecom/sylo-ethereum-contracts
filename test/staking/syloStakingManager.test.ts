@@ -500,7 +500,7 @@ describe('Sylo Staking', () => {
     );
   });
 
-  it('supports only sylo staking manager interface', async () => {
+  it('sylo staking manager supports correct interfaces', async () => {
     const abi = [
       'function setUnlockDuration(uint256 _unlockDuration) external',
       'function addStake(address node, uint256 amount) external',

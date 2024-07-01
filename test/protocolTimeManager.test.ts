@@ -556,7 +556,7 @@ describe('Protocol time manager', () => {
     await checkTime(3, 0);
   });
 
-  it('supports only protocol time manager interface', async () => {
+  it('protocol time manager supports correct interfaces', async () => {
     const abi = [
       'function setProtocolStart(uint256 _start) external',
       'function setCycleDuration(uint256 duration) external',
@@ -567,6 +567,7 @@ describe('Protocol time manager', () => {
       'function getCurrentCycle() external returns ((uint256,uint256,uint256))',
       'function getCurrentPeriod() external returns (uint256)',
       'function getStart() external view returns (uint256)',
+      'function isFinalStakingPeriod() external view returns (bool)',
     ];
 
     const interfaceId = getInterfaceId(abi);
