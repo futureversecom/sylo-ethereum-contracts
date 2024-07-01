@@ -2,7 +2,6 @@ import { ethers } from 'hardhat';
 import { Signer } from 'ethers';
 import { Registries } from '../typechain-types';
 import { assert, expect } from 'chai';
-import { randomBytes } from 'crypto';
 import { deployContracts } from './utils';
 import { SyloContracts } from '../common/contracts';
 import { getInterfaceId } from './utils';
@@ -179,36 +178,6 @@ describe('Registries', () => {
       registries,
       'PublicEndpointCannotBeEmpty',
     );
-  });
-
-  it('has the correct prefix message', async () => {
-    const lineOne =
-      "🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ";
-    const lineTwo = '\n\n🆔 Your seeker id: ';
-    const lineThree =
-      '\n\n📦 A unique random value which secures this message: ';
-
-    const account = accounts[0];
-    const accountAddress = await account.getAddress();
-    const tokenId = 100;
-    const nonce = randomBytes(32);
-
-    const proofMessageHexString = await registries.getProofMessage(
-      tokenId,
-      await account.getAddress(),
-      nonce,
-    );
-
-    const proofMessage = `${lineOne}${accountAddress.toLowerCase()}${lineTwo}${tokenId}${lineThree}${
-      '0x' + nonce.toString('hex')
-    }`;
-
-    const proofMessageString = Buffer.from(
-      proofMessageHexString.slice(2),
-      'hex',
-    ).toString('utf8');
-
-    expect(proofMessageString).to.equal(proofMessage);
   });
 
   it('registries supports correct interfaces', async () => {

@@ -150,28 +150,4 @@ contract Registries is IRegistries, Initializable, Ownable2StepUpgradeable, ERC1
     function getTotalNodes() external view returns (uint256) {
         return nodes.length;
     }
-
-    /**
-     * @notice Helper function for deriving the proof message used to
-     * validate seeker ownership.
-     * @param seekerId The tokenId of the seeker used for operation.
-     * @param node The address of the node which that will be operated
-     * by the specified seeker.
-     * @param nonce The nonce used for this message.
-     */
-    function getProofMessage(
-        uint256 seekerId,
-        address node,
-        bytes32 nonce
-    ) public pure returns (bytes memory) {
-        return
-            abi.encodePacked(
-                unicode"🤖 Hi frend! 🤖\n\n📜 Signing this message proves that you're the owner of this Seeker NFT and allows your Seeker to be used to operate your Seeker's Node. It's a simple but important step to ensure smooth operation.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\n🔥 Your node's address: ",
-                Strings.toHexString(uint256(uint160(node)), 20),
-                unicode"\n\n🆔 Your seeker id: ",
-                Strings.toString(seekerId),
-                unicode"\n\n📦 A unique random value which secures this message: ",
-                Strings.toHexString(uint256(nonce), 32)
-            );
-    }
 }
