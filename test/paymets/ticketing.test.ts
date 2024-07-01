@@ -2,10 +2,10 @@ import { ethers } from 'hardhat';
 import { SyloContracts } from '../../common/contracts';
 import { deployContracts } from '../utils';
 import { ContractTransactionResponse, Signer } from 'ethers';
-import { expect, assert } from 'chai';
+import { expect } from 'chai';
 import { Deposits, Ticketing } from '../../typechain-types';
 
-describe.only('Ticketing', () => {
+describe('Ticketing', () => {
   let accounts: Signer[];
   let contracts: SyloContracts;
   let deposits: Deposits;
